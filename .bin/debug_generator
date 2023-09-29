@@ -1,0 +1,8 @@
+#!/bin/bash
+# Run generator image for debugging
+set -e
+cd "$(dirname "$(dirname "$0")")/generator/src"
+
+
+# Build and run temporary container
+sudo docker run --rm --interactive --tty --entrypoint sh $(sudo docker build -q .)

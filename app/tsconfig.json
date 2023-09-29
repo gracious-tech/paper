@@ -1,0 +1,34 @@
+{
+    "include": ["**/*.ts", "**/*.vue"],
+    "exclude": ["**/node_modules"],
+    "compilerOptions": {
+        "module": "ESNext",
+        "moduleResolution": "Node",
+        "target": "ESNext",
+        "lib": ["DOM", "DOM.Iterable", "ESNext"],  // Can polyfill if needed since an end-user app
+        "baseUrl": ".",
+        "paths": {"@/*": ["src/*"]},
+        "types": ["vite/client", "vite-svg-loader"],
+
+        // Config
+        "resolveJsonModule": true,  // Import JSON as objects
+        "jsx": "preserve",  // Volar needs for typechecking pug templates (for some reason)
+
+        // Strict checking
+        "strict": true,
+        "allowUnreachableCode": false,  // Must be a mistake
+        "allowUnusedLabels": false,  // Labels as in `continue *label*` for loops etc
+        "exactOptionalPropertyTypes": true,  // {a:undefined} !== {}
+        "noImplicitOverride": true,  // Must use `override` to make overriding parent class clear
+        "noImplicitReturns": true,  // Must return a value unless void
+        "noPropertyAccessFromIndexSignature": true,  // Must use `['a']` not `.a` if props unknown
+        "noUncheckedIndexedAccess": true,  // If {[k:any]:type} consider `.k` = type|undefined
+        "noUnusedLocals": true,  // Can't define variable and not use it
+        "noUnusedParameters": false,  // It's ok to specify listener(event) and not use event
+    },
+    "vueCompilerOptions": {
+        "plugins": [
+            "@volar/vue-language-plugin-pug"
+        ]
+    }
+}

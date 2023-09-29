@@ -1,0 +1,8 @@
+
+node_modules/
+
+/app/.env.development.local
+
+/generator/.venv/
+/generator/.aws-sam/
+/generator/config.yaml

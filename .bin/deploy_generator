@@ -1,0 +1,17 @@
+#!/bin/bash
+# Deploy AWS generator services
+set -e
+cd "$(dirname "$(dirname "$0")")/generator"
+
+
+# Note deploy env
+env=${1:-dev}
+echo "Deploying to $env environment (dev|prod)"
+
+
+# Grant permission to everyone for files copied to image, or lambda won't be able to execute
+chmod -R a+rwx src
+
+
+sudo .venv/bin/sam build
+sudo --preserve-env .venv/bin/sam deploy --no-fail-on-empty-changeset --config-file config.yaml --config-env ${env}

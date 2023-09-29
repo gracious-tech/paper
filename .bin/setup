@@ -1,0 +1,16 @@
+#!/bin/bash
+# Setup dev env
+set -e
+cd "$(dirname "$(dirname "$0")")"
+
+
+# Setup venv for generator
+cd generator
+python3 -m venv .venv
+.venv/bin/pip install aws-sam-cli
+cd ..
+
+
+# Install modules for app
+cd app
+npm install

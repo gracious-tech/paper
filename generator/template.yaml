@@ -1,0 +1,89 @@
+
+AWSTemplateFormatVersion: '2010-09-09'
+Transform: AWS::Serverless-2016-10-31
+
+
+Parameters:
+    AllowedOrigin:
+        Type: String
+    Expiration:
+        Type: Number
+        Default: 365
+
+
+Resources:
+
+    Function:
+        Type: AWS::Serverless::Function
+        Metadata:
+            Dockerfile: ./Dockerfile
+            DockerContext: src/
+        Properties:
+            PackageType: Image
+            MemorySize: 2048
+            Timeout: 600  # WARN Keep in sync with timeout in app (services/create.ts)
+            Environment:
+                Variables:
+                    REGION: !Ref AWS::Region
+                    BUCKET_NAME: !Ref AWS::StackName
+            Events:
+                # WARN Be very careful to not notify for anything but REQUEST CREATION
+                #      Or lambda could trigger itself in infinite EXPENSIVE loop
+                RequestCreated:
+                    Type: S3
+                    Properties:
+                        Bucket: !Ref CreationsBucket
+                        Events: s3:ObjectCreated:*
+                        Filter:
+                            S3Key:
+                                Rules: [{Name: prefix, Value: requests/}]
+            Policies:
+                -   Version: '2012-10-17'
+                    Statement:
+                        -   Effect: Allow
+                            Action: ['s3:GetObject', 's3:DeleteObject']
+                            Resource: !Sub 'arn:aws:s3:::${AWS::StackName}/requests/*'
+                        -   Effect: Allow
+                            Action: ['s3:PutObject']
+                            Resource: !Sub 'arn:aws:s3:::${AWS::StackName}/creations/*'
+
+    CreationsBucket:
+        Type: AWS::S3::Bucket
+        Properties:
+            BucketName: !Ref AWS::StackName
+            PublicAccessBlockConfiguration:
+                BlockPublicPolicy: false
+                RestrictPublicBuckets: false
+            BucketEncryption:
+                ServerSideEncryptionConfiguration:
+                    -   ServerSideEncryptionByDefault:
+                            SSEAlgorithm: AES256
+            CorsConfiguration:
+                CorsRules:
+                    -   AllowedOrigins: [!Ref AllowedOrigin]
+                        AllowedMethods: [HEAD, GET, PUT, POST, DELETE]
+                        AllowedHeaders: ['*']
+                        ExposedHeaders: [ETag]
+            LifecycleConfiguration:
+                Rules:
+                    - {Status: Enabled, Prefix: 'requests/', ExpirationInDays: 7}
+                    - {Status: Enabled, Prefix: 'creations/', ExpirationInDays: !Ref Expiration}
+
+    CreationsBucketPolicy:
+        Type: AWS::S3::BucketPolicy
+        Properties:
+            Bucket: !Ref CreationsBucket
+            PolicyDocument:
+                Version: '2012-10-17'
+                Statement:
+                    # Allow anyone to delete objects (if know the key)
+                    # Pro = creator can delete own creation if desired or shared too widely
+                    # Con = anyone link shared with could create own delete request (very unlikely)
+                    -   Effect: 'Allow'
+                        Principal: '*'
+                        Action: ['s3:PutObject']
+                        Resource: !Join ['', [!GetAtt CreationsBucket.Arn, '/requests/*']]
+                    -   Effect: 'Allow'
+                        Principal: '*'
+                        Action: ['s3:GetObject', 's3:DeleteObject']
+                        Resource: !Join ['', [!GetAtt CreationsBucket.Arn, '/creations/*']]

@@ -1,0 +1,56 @@
+
+@import url('https://fonts.googleapis.com/css2?family=Libre+Baskerville:ital,wght@0,400;0,700;1,400&display=swap')
+@import url('https://fonts.googleapis.com/css2?family=Libre+Caslon+Text:ital,wght@0,400;0,700;1,400&display=swap')
+@import url('https://fonts.googleapis.com/css2?family=EB+Garamond:ital,wght@0,400;0,700;1,400;1,700&display=swap')
+@import url('https://fonts.googleapis.com/css2?family=Crimson+Pro:ital,wght@0,400;0,700;1,400;1,700&display=swap')
+
+@import url('https://fonts.googleapis.com/css2?family=Noto+Emoji:wght@300&display=swap')
+
+
+html
+    font-size: 12pt
+    line-height: 1
+    height: 100%
+    overflow: hidden !important
+    background-color: #333
+    // Enable momentum scroll for iOS
+    -webkit-overflow-scrolling: touch
+
+body
+    height: 100%
+    overflow: hidden
+
+
+.v-checkbox
+    --v-input-control-height: 24px !important
+
+
+#app
+    display: flex
+    height: 100%
+    overflow: hidden
+
+
+a
+    color: rgb(var(--v-theme-secondary))
+
+
+iframe
+    border-style: none
+
+
+@media print
+    body::before
+        content: "You are printing the app. Click the print button within the generated PDF instead."
+        z-index: 99999
+        position: absolute
+        top: 0
+        bottom: 0
+        right: 0
+        left: 0
+        padding: 48px
+        background-color: white
+        color: black
+        font-size: 40px
+        font-weight: bold
+        text-align: center

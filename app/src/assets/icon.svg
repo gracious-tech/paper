@@ -1,0 +1,12 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg version="1.1" viewBox="0 0 18 20" xmlns="http://www.w3.org/2000/svg">
+  <g transform="translate(2e-5,2e-5)" display="none">
+    <circle cx="9.8032" cy="10.507" r="17.318" fill="#6d4c41" stop-color="#000000" stroke-opacity=".13739" stroke-width="2.7273"/>
+  </g>
+  <g transform="translate(2e-5,2e-5)">
+    <path d="m3.2148 0.28125v19.438h13.092l1.5059-1.5078v-17.93h-14.598z" fill="#fff" stop-color="#000000"/>
+    <path d="m9.6651 3.1344v2.25h-2.25v1.5h2.25v5.25h1.5v-5.25h2.25v-1.5h-2.25v-2.25z" fill="#638cff" stroke-width=".025"/>
+    <path d="m0.15234 14.217v3.8516l1.6797 1.6777h12.199v-5.5293h-13.879z" fill="#f6e9e0" stop-color="#000000" stroke-linejoin="bevel" stroke-width="4.7466"/>
+    <path d="m2.625 20c-0.72917 0-1.349-0.25521-1.8594-0.76562-0.51041-0.51042-0.76562-1.1302-0.76562-1.8594v-3.375h3v-14h15v17.375c0 0.72917-0.25521 1.349-0.76562 1.8594-0.51042 0.51041-1.1302 0.76562-1.8594 0.76562zm12.748-0.5c1.1816 0 2.1272-0.95398 2.1272-2.125v-16.875h-14v13.5h10.75v3.375c0 1.5121 0.53833 2.125 1.1228 2.125zm-12.773 0h11.15v-5h-13.25v2.875c0 1.1557 1.0833 2.125 2.1 2.125z" fill="#e9c6af" stroke-width=".025"/>
+  </g>
+</svg>

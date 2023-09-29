@@ -1,0 +1,54 @@
+doctype html
+html
+
+    head
+        meta(charset='utf-8')
+        meta(name='viewport' content='width=device-width, initial-scale=1')
+        title Paper Bible
+        meta(name='description' content="Print your own Bible, customise how it looks, and optionally include multiple translations and study notes.")
+        meta(property='og:image' content='https://paper.bible/social.jpg')
+        link(rel='icon' href='/icon.png')
+        style
+            :sass
+                // LOADING SCREEN ONLY
+
+                body
+                    margin: 0
+
+                @keyframes loading
+                    from
+                        transform: rotate(0deg)
+                    to
+                        transform: rotate(360deg)
+
+                #app > svg.loading
+                    // Not reusable in other parts of app
+                    position: absolute
+                    top: 46%
+                    left: 46%
+
+                svg.loading
+                    height: 50px
+                    width: 50px
+                    animation-name: loading
+                    animation-duration: 2.5s  // NOTE need to adjust steps if this changes
+                    // NOTE 60's quality close to linear, and ~1/2 CPU usage
+                    animation-timing-function: steps(60)
+                    animation-iteration-count: infinite
+
+                svg.loading circle
+                    fill: transparent
+                    stroke: #888888
+
+
+        //- Define scripts
+        //- NOTE Vite processes URLs relative to where index.html is (not index.pug)
+        script(src='/src/init.ts' type='module')
+
+
+    body
+        div#app
+            //- Simplified low-CPU-cost Material progress circle (proportions same)
+            svg.loading(viewBox='0 0 100 100' preserveAspectRatio='xMidYMid meet')
+                //- Place in middle with radius 40 (stroke length of 250 surrounds whole circle)
+                circle(cx='50' cy='50' r='40' stroke-width='10' stroke-dasharray='190')
