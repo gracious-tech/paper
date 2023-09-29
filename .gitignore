@@ -1,6 +1,7 @@
 
 node_modules/
 
+/app/dist/
 /app/.env.development.local
 
 /generator/.venv/

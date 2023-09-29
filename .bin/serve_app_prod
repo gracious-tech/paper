@@ -1,0 +1,7 @@
+#!/bin/bash
+# Serve app in production mode
+set -e
+cd "$(dirname "$(dirname "$0")")/app"
+
+node_modules/.bin/vite build
+node_modules/.bin/vite preview

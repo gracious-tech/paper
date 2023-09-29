@@ -1,0 +1,29 @@
+
+# Fill in and rename this to config.yaml
+
+version: 0.1
+
+
+dev:
+    deploy:
+        parameters:
+            stack_name: 'paper-bible-dev'
+            region: 'us-west-2'
+            capabilities: 'CAPABILITY_NAMED_IAM'
+            image_repository: 858948057074.dkr.ecr.us-west-2.amazonaws.com/main
+            parameter_overrides: [
+                'AllowedOrigin="*"',
+                'Expiration="30"',
+            ]
+
+
+prod:
+    deploy:
+        parameters:
+            stack_name: 'paper-bible-prod'
+            region: 'us-west-2'
+            capabilities: 'CAPABILITY_NAMED_IAM'
+            image_repository: 147278355463.dkr.ecr.us-west-2.amazonaws.com/main
+            parameter_overrides: [
+                'AllowedOrigin="https://paper.bible"',
+            ]
