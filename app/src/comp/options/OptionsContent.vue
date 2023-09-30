@@ -17,12 +17,13 @@ v-list(bg-color='transparent')
 div.add(class='d-flex align-center flex-wrap')
     strong(class='text-medium-emphasis mr-2') Add
     v-btn(@click='add_passage' size='small' variant='outlined') Passage
-    v-btn(@click='add_custom' size='small' variant='outlined') Text
+    v-btn(@click='add_custom' size='small' variant='outlined'
+        :disabled='translation_forbids_derivatives') Text
     v-btn(@click='add_title' size='small' variant='outlined') Title page
     v-btn(:disabled='has_copyright' @click='add_copyright' size='small' variant='outlined')
         | Copyright
 
-div(v-if='warnings' class='mt-4 text-error text-body-2')
+div.warnings(v-if='warnings' class='mt-4 text-body-2')
     div(v-for='warning of warnings') {{ warning }}
 
 </template>
@@ -33,7 +34,8 @@ div(v-if='warnings' class='mt-4 text-error text-body-2')
 import Draggable from 'vuedraggable'
 import {reactive, computed} from 'vue'
 
-import {blue, state, books_meta, has_copyright, requires_copyright} from '@/services/state'
+import {blue, state, books_meta, has_copyright, requires_copyright, translation_forbids_derivatives,
+    } from '@/services/state'
 import {gen_content_name} from '@/services/blueprints'
 
 import {generate_token} from '@/services/utils'
@@ -58,6 +60,9 @@ const warnings = computed(() => {
     if (blue.content[0]?.type === 'passage' && blue.page_arrangement === 'booklet'
             && (blue.bibles.length === 2 && blue.bibles_layout === 'alternate' || blue.half_blank)){
         items.push("Booklet will start with a blank page (due to layout settings)")
+    }
+    if (translation_forbids_derivatives.value){
+        items.push("Chosen Bible translation does not allow adding your own content")
     }
     return items
 })
@@ -163,5 +168,8 @@ const edit = (item:ContentItem) => {
 .add
     .v-btn
         margin: 6px
+
+.warnings
+    color: hsl(33, 100%, 35%)
 
 </style>

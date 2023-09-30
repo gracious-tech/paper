@@ -49,11 +49,18 @@ export const has_copyright = computed(() => {
 // Whether current content options require attribution
 export const requires_copyright = computed(() => {
     if (blue.notes){
-        return true
+        return true  // TODO Parse restrictions from collection (might have PD ones in future)
     }
     return blue.content.some(item => item.type === 'passage')
         && blue.bibles.some(item =>
             !content.translations[item]?.licenses.find(l => !l.restrictions.forbid_attributionless))
+})
+
+
+// Whether a translation has an ND condition
+export const translation_forbids_derivatives = computed(() => {
+    return blue.bibles.some(item => !content.translations[item]?.licenses
+        .find(l => l.restrictions.forbid_derivatives !== true))
 })
 
 

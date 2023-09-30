@@ -1,5 +1,5 @@
 
-import {blue, books_meta} from '@/services/state'
+import {blue, books_meta, translation_forbids_derivatives} from '@/services/state'
 import {ContentPassage} from '@/services/types'
 import {gen_content_name} from '@/services/blueprints'
 import {content} from '@/services/content'
@@ -66,18 +66,19 @@ export function gen_passage_html(passage:ContentPassage, bible_i:number):string{
 
     // Util for inserting notes before verse markers, if enabled and is primary translation
     function insert_notes(html:string){
-        if (blue.notes && bible_i === 0 && content.notes[passage.book]){
-            html = html.replace(/<sup data-v="(\d):(\d)">/g, (match, c, v) => {
-                if (content.notes[passage.book]![c]?.[v]){
-                    return '<div class="study">'
-                        + `<strong>${c}:${v}</strong> `
-                        + content.notes[passage.book]![c]![v]
-                        + '</div>' + match
-                }
-                return match
-            })
+        if (!blue.notes || translation_forbids_derivatives.value || bible_i !== 0
+                || !content.notes[passage.book]){
+            return html
         }
-        return html
+        return html.replace(/<sup data-v="(\d):(\d)">/g, (match, c, v) => {
+            if (content.notes[passage.book]![c]?.[v]){
+                return '<div class="study">'
+                    + `<strong>${c}:${v}</strong> `
+                    + content.notes[passage.book]![c]![v]
+                    + '</div>' + match
+            }
+            return match
+        })
     }
 
     // Fetch passage contents

@@ -1,6 +1,6 @@
 
 import {content} from '@/services/content'
-import {blue, page_height} from '@/services/state'
+import {blue, page_height, translation_forbids_derivatives} from '@/services/state'
 
 import type {ContentCustom} from '@/services/types'
 import type {MetaRestrictions} from '@gracious.tech/fetch-client/dist/esm/shared_types'
@@ -9,6 +9,12 @@ import type {MetaRestrictions} from '@gracious.tech/fetch-client/dist/esm/shared
 // Render a custom page content item to html
 export function gen_custom_html(content:ContentCustom):string{
     let html = content.html
+
+    // Remove anything except copyright statement if ND condition
+    if (translation_forbids_derivatives.value){
+        html = html.includes('AUTO-COPYRIGHT') ? '<p>AUTO-COPYRIGHT</p>' : ''
+    }
+
     html = html.replace(/AUTO-COPYRIGHT/g, '</p>' + gen_copyright_content() + '<p>')
     return `
         <div class='custom custom-${content.position}'>
@@ -91,7 +97,7 @@ export function gen_copyright_content(){
     }
 
     // Study notes
-    if (blue.notes){
+    if (blue.notes && !translation_forbids_derivatives.value){
         // TODO Get from collection manifest rather than hard-code
         conditions.push({
             forbid_attributionless: true,
@@ -124,7 +130,9 @@ export function gen_copyright_content(){
     if (blue.license !== 'custom'){
         custom = {...content.collection._manifest.licenses[blue.license]!.restrictions}
     }
-    conditions.push(custom)
+    if (!translation_forbids_derivatives.value){
+        conditions.push(custom)
+    }
 
     // Attribution for creator
     const license_name = content.collection._manifest.licenses[blue.license]?.name ?? "No license"
@@ -134,15 +142,17 @@ export function gen_copyright_content(){
     } else if (blue.license.startsWith('cc-')){
         license_url = `https://creativecommons.org/licenses/${blue.license.slice(3)}/4.0/`
     }
-    attribution += `
-        <li>
-            All other material &mdash;
-            ${blue.license_attribution.trim() || "Anonymous"}
-            (${license_name})
-            <br>
-            ${license_url}
-        </li>
-    `
+    if (!translation_forbids_derivatives.value){
+        attribution += `
+            <li>
+                All other material &mdash;
+                ${blue.license_attribution.trim() || "Anonymous"}
+                (${license_name})
+                <br>
+                ${license_url}
+            </li>
+        `
+    }
 
     // Work out what permissions remain
     const forbid_other = conditions.some(c => c.forbid_other)
