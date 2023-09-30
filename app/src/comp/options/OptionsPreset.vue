@@ -5,7 +5,7 @@ v-list(bg-color='transparent')
     v-list-item(@click='apply_general_preset')
         v-list-item-title Standard Bible
         v-list-item-subtitle How most bibles look, with verse numbers and headings
-    v-list-item(@click='apply_study_preset')
+    v-list-item(@click='apply_study_preset' :disabled='translation_forbids_derivatives')
         v-list-item-title Study Bible
         v-list-item-subtitle Extensive footnotes to guide readers
     v-list-item(@click='apply_reading_preset')
@@ -20,7 +20,7 @@ v-list(bg-color='transparent')
 
 <script lang='ts' setup>
 
-import {blue} from '@/services/state'
+import {blue, translation_forbids_derivatives} from '@/services/state'
 
 
 const apply_general_preset = () => {
