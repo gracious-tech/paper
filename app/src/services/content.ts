@@ -3,7 +3,7 @@ import {reactive} from 'vue'
 
 import {BibleClient} from '@gracious.tech/fetch-client'
 
-import type {BibleCollection, GetTranslationsItem, GetLanguagesItem, GetBooksItem
+import type {BibleCollection, GetTranslationsItem, GetLanguagesItem,
     } from '@gracious.tech/fetch-client/dist/esm/collection'
 import type {BibleBookHtml} from '@gracious.tech/fetch-client/dist/esm/book'
 
