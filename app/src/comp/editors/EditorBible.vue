@@ -29,7 +29,8 @@ v-card(class='ma-4 d-flex flex-column flex-grow-1')
                 | &nbsp;
                 | More
         v-list(v-else)
-            v-list-item(base-color='warning')
+            //- NOTE @click='' needed to make Vuetify show cursor etc as if clickable
+            v-list-item(v-if='displayed_language === "eng"' base-color='warning' @click='')
                 v-list-item-title NIV / ESV / NLT / ...
                 DialogPeddlers
             v-list-item(v-for='trans of translations' :key='trans.id' color='primary'
