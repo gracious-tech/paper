@@ -29,6 +29,9 @@ v-card(class='ma-4 d-flex flex-column flex-grow-1')
                 | &nbsp;
                 | More
         v-list(v-else)
+            v-list-item(base-color='warning')
+                v-list-item-title NIV / ESV / NLT / ...
+                DialogPeddlers
             v-list-item(v-for='trans of translations' :key='trans.id' color='primary'
                     :active='trans.id === selected_trans' density='compact'
                     @click='change_trans(trans.id)')
@@ -46,6 +49,8 @@ import {computed, ref, watch} from 'vue'
 import {blue, state} from '@/services/state'
 
 import {content} from '@/services/content'
+
+import DialogPeddlers from '@/comp/dialogs/DialogPeddlers.vue'
 
 import type {VList} from 'vuetify/lib/components/VList/index.mjs'
 
