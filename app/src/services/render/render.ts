@@ -8,7 +8,7 @@ import {blue} from '@/services/state'
 import {gen_base_css} from '@/services/render/render_base'
 
 
-export function gen_subjobs():[string, string|null, boolean][]{
+export function gen_subjobs():[string, string|false|null, boolean][]{
     return blue.content.map(item => {
         if (item.type === 'title'){
             return [gen_title_html(item), false, item.alone]
