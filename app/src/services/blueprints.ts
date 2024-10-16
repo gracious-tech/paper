@@ -1,7 +1,8 @@
 
-import {passage_obj_to_str} from '@gracious.tech/fetch-client'
+import {PassageReference} from '@gracious.tech/fetch-client'
 
-import {blue, books_meta} from '@/services/state'
+import {content} from '@/services/content'
+import {blue} from '@/services/state'
 import {generate_token} from '@/services/utils'
 
 import type {Blueprint, ContentItem} from '@/services/types'
@@ -37,10 +38,10 @@ export function get_default_blueprint():Blueprint{
                 type: 'passage',
                 id: generate_token(),
                 book: 'tit',
-                chapter_start: null,
-                chapter_end: null,
-                verse_start: null,
-                verse_end: null,
+                start_chapter: null,
+                start_verse: null,
+                end_chapter: null,
+                end_verse: null,
                 title: false,
             },
             {
@@ -112,7 +113,7 @@ export function clean_blueprint(blueprint:unknown):Blueprint{
 // Generate name for content item
 export function gen_content_name(item:ContentItem):string{
     if (item.type === 'passage'){
-        return passage_obj_to_str(item, books_meta.value[blue.bibles[0]]!)
+        return content.collection.reference_to_string(new PassageReference(item), blue.bibles[0])
     } else if (item.type === 'custom' && item.name){
         return item.name
     } else if (item.type === 'title'){

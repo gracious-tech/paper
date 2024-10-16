@@ -1,4 +1,6 @@
 
+import {PassageReference} from '@gracious.tech/fetch-client'
+
 import {blue, books_meta, translation_forbids_derivatives} from '@/services/state'
 import {ContentPassage} from '@/services/types'
 import {gen_content_name} from '@/services/blueprints'
@@ -88,15 +90,16 @@ export function gen_passage_html(passage:ContentPassage, bible_i:number):string{
 
         if (blue.bibles.length === 1 || blue.bibles_layout === 'alternate'){
             // Only rendering one translation per subjob
-            passage_content = html_inst.get_passage_from_obj(passage, {attribute: false})
+            passage_content = html_inst.get_passage_from_ref(new PassageReference(passage),
+                {attribute: false})
             passage_content = insert_notes(passage_content)
         } else {
             // Rendering multiple translations in the one subjob
             const get_list_args = [
-                passage.chapter_start ?? 1,
-                passage.verse_start ?? 1,
-                passage.chapter_end ?? undefined,
-                passage.verse_end ?? undefined,
+                passage.start_chapter ?? 1,
+                passage.start_verse ?? 1,
+                passage.end_chapter ?? undefined,
+                passage.end_verse ?? undefined,
             ]
             const bible1 = html_inst.get_list(...get_list_args)
             const bible2_inst = content.books_html[`${blue.bibles[1]}_${passage.book}`]

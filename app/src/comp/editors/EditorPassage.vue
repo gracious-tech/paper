@@ -29,15 +29,14 @@ v-card(class='ma-4 d-flex flex-column flex-grow-1')
 
 <script lang='ts' setup>
 
-import {ref, watch, reactive} from 'vue'
-import {passage_str_to_obj, passage_obj_to_str} from '@gracious.tech/fetch-client'
+import {ref, watch, reactive, computed} from 'vue'
+import {PassageReference} from '@gracious.tech/fetch-client'
 
 import {blue, state, books_meta} from '@/services/state'
 import {content} from '@/services/content'
 import {generate_token} from '@/services/utils'
 
 import type {ContentPassage} from '@/services/types'
-import {computed} from 'vue'
 
 
 const props = defineProps<{item:ContentPassage|null}>()
@@ -54,7 +53,8 @@ const original = props.item ? {...props.item} : null
 // Work out human text for ref since that is what will be edited
 let initial_ref = ''
 if (original){
-    initial_ref = passage_obj_to_str(original, books_meta.value[blue.bibles[0]]!)
+    initial_ref = content.collection.reference_to_string(
+        new PassageReference(original), blue.bibles[0])
 }
 
 
@@ -89,17 +89,24 @@ watch(tmp_ref, () => {
     // See if ref is valid
     errors.value = []
     messages.value = []
-    let ref_obj = passage_str_to_obj(tmp_ref.value, books_meta.value[blue.bibles[0]]!)
+    let ref_obj = content.collection.string_to_reference(tmp_ref.value, blue.bibles[0])
     if (!ref_obj && blue.bibles[1]){
-        ref_obj = passage_str_to_obj(tmp_ref.value, books_meta.value[blue.bibles[1]]!)
-    }
-    if (!ref_obj){
-        // Fallback on English names if no matches
-        ref_obj = passage_str_to_obj(tmp_ref.value, content.collection._manifest.book_names_english)
+        // See if matches a book name in second translation (in case different language)
+        ref_obj = content.collection.string_to_reference(tmp_ref.value, blue.bibles[1])
     }
     if (!ref_obj){
         errors.value = ["Unknown book"]
         return
+    }
+
+    // Common props whether updating or creating
+    // NOTE Saving args generated for PassageReference so can reconstruct correct ref type later
+    const common_props = {
+        book: ref_obj.book,
+        start_chapter: ref_obj._args.start_chapter ?? null,  // DB type excludes undefined
+        start_verse: ref_obj._args.start_verse ?? null,
+        end_chapter: ref_obj._args.end_chapter ?? null,
+        end_verse: ref_obj._args.end_verse ?? null,
     }
 
     // If this is a new content item, need to create
@@ -107,16 +114,16 @@ watch(tmp_ref, () => {
         item = reactive({
             type: 'passage' as 'passage',
             id: generate_token(),
-            ...ref_obj,
+            ...common_props,
             title: tmp_title.value,
         })
         blue.content.push(item)
     } else {
-        Object.assign(item, ref_obj)
+        Object.assign(item, common_props)
     }
 
     // Show detected passage so user can verify correct
-    messages.value = [passage_obj_to_str(item, books_meta.value[blue.bibles[0]]!)]
+    messages.value = [content.collection.reference_to_string(ref_obj, blue.bibles[0])]
 })
 
 watch(tmp_title, () => {

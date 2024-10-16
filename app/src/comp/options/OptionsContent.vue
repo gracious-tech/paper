@@ -31,15 +31,15 @@ div.warnings(v-if='warnings' class='mt-4 text-body-2')
 
 <script lang='ts' setup>
 
-import Draggable from 'vuedraggable'
 import {reactive, computed} from 'vue'
+import {PassageReference} from '@gracious.tech/fetch-client'
+import Draggable from 'vuedraggable'
 
-import {blue, state, books_meta, has_copyright, requires_copyright, translation_forbids_derivatives,
+import {blue, state, has_copyright, requires_copyright, translation_forbids_derivatives,
     } from '@/services/state'
 import {gen_content_name} from '@/services/blueprints'
-
+import {content} from '@/services/content'
 import {generate_token} from '@/services/utils'
-import {passage_obj_to_str} from '@gracious.tech/fetch-client'
 import {book_emoji} from '@/services/emoji'
 
 import type {ContentItem, ContentPassage, ContentTitle} from '@/services/types'
@@ -92,10 +92,17 @@ const add_title = () => {
 
     const passage = blue.content.find(item => item.type === 'passage') as ContentPassage|undefined
 
+    // Auto-set title to first passage discovered if any
+    let default_title = ''
+    if (passage){
+        default_title = content.collection.reference_to_string(
+            new PassageReference(passage), blue.bibles[0])
+    }
+
     const new_title:ContentTitle = reactive({
         id: generate_token(),
         type: 'title',
-        title: passage ? passage_obj_to_str(passage, books_meta.value[blue.bibles[0]]!) : "",
+        title: default_title,
         subtitle: "",
         icon: passage ? book_emoji[passage.book]! : '✟',
         pattern: 'straight',

@@ -6,7 +6,7 @@ import type {Creation} from './types'
 import type {IDBPTransaction, DBSchema, StoreNames} from 'idb'
 
 
-const DATABASE_VERSION = 1
+const DATABASE_VERSION = 2
 
 
 export interface PaperDatabaseSchema extends DBSchema {
@@ -39,6 +39,25 @@ export async function upgrade_database(db:IDBPDatabase<PaperDatabaseSchema>, old
     if (old_version < 1){
         db.createObjectStore('config', {keyPath: 'key'})
         db.createObjectStore('creations', {keyPath: 'request_id'})
+    }
+    if (old_version < 2){
+        for await (const cursor of transaction.objectStore('creations')){
+            // Rename chapter/verse properties
+            for (const item of cursor.value.blueprint.content){
+                if (item.type === 'passage'){  // @ts-ignore
+                    item.start_chapter = item.chapter_start  // @ts-ignore
+                    delete item.chapter_start  // @ts-ignore
+                    item.start_verse = item.verse_start  // @ts-ignore
+                    delete item.verse_start  // @ts-ignore
+                    item.end_chapter = item.chapter_end  // @ts-ignore
+                    delete item.chapter_end  // @ts-ignore
+                    item.end_verse = item.verse_end  // @ts-ignore
+                    delete item.verse_end
+                }
+            }
+            // Save record
+            await cursor.update(cursor.value)
+        }
     }
 }
 

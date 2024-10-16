@@ -80,10 +80,10 @@ export interface ContentPassage {
     type:'passage'
     id:string
     book:string
-    chapter_start:number|null
-    chapter_end:number|null
-    verse_start:number|null
-    verse_end:number|null
+    start_chapter:number|null
+    start_verse:number|null
+    end_chapter:number|null
+    end_verse:number|null
     title:boolean
 }
 
