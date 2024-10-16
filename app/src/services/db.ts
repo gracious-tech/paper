@@ -33,12 +33,12 @@ type VersionChangeTransaction = IDBPTransaction<
 >
 
 
-export async function upgrade_database(db:IDBPDatabase<PaperDatabaseSchema>, old_version:number,
-        transaction:VersionChangeTransaction):Promise<void>{
+export async function upgrade_database(transaction:VersionChangeTransaction,
+        old_version:number):Promise<void>{
     // WARN Always await db methods to prevent overlap, but never anything else (transaction closes)
     if (old_version < 1){
-        db.createObjectStore('config', {keyPath: 'key'})
-        db.createObjectStore('creations', {keyPath: 'request_id'})
+        transaction.db.createObjectStore('config', {keyPath: 'key'})
+        transaction.db.createObjectStore('creations', {keyPath: 'request_id'})
     }
     if (old_version < 2){
         for await (const cursor of transaction.objectStore('creations')){
@@ -71,7 +71,7 @@ class PaperDatabase {
         // WARN May be called again if connection terminated
         this._conn = await openDB<PaperDatabaseSchema>('paper_bible', DATABASE_VERSION, {
             upgrade(db, old_version, new_version, transaction){
-                void upgrade_database(db, old_version, transaction)
+                void upgrade_database(transaction, old_version)
             },
             blocked(){
                 // Will soon unblock after other pages refresh...
