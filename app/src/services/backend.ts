@@ -1,5 +1,5 @@
 
-import {PutObjectCommand, S3Client} from '@aws-sdk/client-s3'
+import {DeleteObjectCommand, PutObjectCommand, S3Client} from '@aws-sdk/client-s3'
 
 import {hex_to_buffer, buffer_to_url64} from './utils'
 
@@ -27,6 +27,22 @@ export async function put_request(id:string, data:string):Promise<string>{
     // Return creation id
     const url64_etag = buffer_to_url64(hex_to_buffer(etag))
     return id.slice(0, 2) + url64_etag
+}
+
+
+export async function delete_creation(id:string):Promise<void>{
+    // Delete creation PDF and blueprint
+    const pdf_resp = S3.send(new DeleteObjectCommand({
+        Bucket: import.meta.env['VITE_BUCKET'],
+        Key: `creations/${id}.pdf`,
+    }))
+    const blue_resp = S3.send(new DeleteObjectCommand({
+        Bucket: import.meta.env['VITE_BUCKET'],
+        Key: `creations/${id}.blue.json`,
+    }))
+
+    // Throw if fails
+    await Promise.all([pdf_resp, blue_resp])
 }
 
 

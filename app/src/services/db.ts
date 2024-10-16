@@ -124,6 +124,11 @@ class PaperDatabase {
         // Save a creation
         await this._conn.put('creations', cloneDeep(creation))
     }
+
+    async creations_delete(creation:Creation):Promise<void>{
+        // Delete a creation
+        await this._conn.delete('creations', creation.request_id)
+    }
 }
 
 
