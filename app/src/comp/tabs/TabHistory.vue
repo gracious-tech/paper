@@ -1,11 +1,9 @@
 
 <template lang='pug'>
 
-div(class='text-body-2 text-center pa-4 text-medium-emphasis') Creations expire after 1 year and will also be lost if you clear your browser history.
-
 div(v-if='!creations.length' class='pa-4 pt-10 text-center') No creations (yet)
 
-v-list(v-else ref='list_comp' bg-color='transparent')
+v-list(v-else ref='list_comp' bg-color='transparent' class='flex-grow-1')
     v-list-item(v-for='creation of creations_sorted' @click='select(creation)'
             :active='creation.request_id === selected_id' color='secondary')
         v-list-item-title {{ creation.blueprint.title }}
@@ -25,6 +23,8 @@ v-list(v-else ref='list_comp' bg-color='transparent')
                 v-list
                     v-list-item(@click='() => remove(creation)' :disabled='creation.status === "pending"')
                         v-list-item-title Delete
+
+div(class='text-body-2 text-center pa-4 text-medium-emphasis') (creations expire after 1 year and if browser history cleared)
 
 </template>
 
