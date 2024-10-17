@@ -21,6 +21,8 @@ v-list(v-else ref='list_comp' bg-color='transparent' class='flex-grow-1')
                 template(#activator='{props}')
                     app-icon(name='more_vert' v-bind='props')
                 v-list
+                    v-list-item(@click='() => edit(creation)')
+                        v-list-item-title Edit as new
                     v-list-item(@click='() => remove(creation)' :disabled='creation.status === "pending"')
                         v-list-item-title Delete
 
@@ -32,8 +34,9 @@ div(class='text-body-2 text-center pa-4 text-medium-emphasis') (creations expire
 <script lang='ts' setup>
 
 import {computed, ref, watch, nextTick} from 'vue'
+import {cloneDeep} from 'lodash-es'
 
-import {creations, selected_id, state} from '@/services/state'
+import {creations, selected_id, state, blue} from '@/services/state'
 import {delete_creation, gen_creation_url} from '@/services/backend'
 import {database} from '@/services/db'
 
@@ -66,6 +69,12 @@ const select = (creation:Creation) => {
 
 const download = (creation:Creation) => {
     self.open(gen_creation_url(creation.creation_id!, 'pdf'), '_blank')
+}
+
+const edit = async (creation:Creation) => {
+    Object.assign(blue, cloneDeep(creation.blueprint))
+    state.tab = 'create'
+    state.editor = null
 }
 
 const remove = async (creation:Creation) => {

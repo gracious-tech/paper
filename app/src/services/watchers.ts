@@ -17,7 +17,8 @@ export function start_watchers(){
     })
 
     // Auto-load Bible books
-    watch([blue.bibles, blue.content], async () => {
+    // WARN Watch sources must be functions so still reactive when blueprint completely replaced
+    watch([() => blue.bibles, () => blue.content], async () => {
 
         const content_books = [...new Set(blue.content.filter(item => item.type === 'passage')
             .map(item => (item as ContentPassage).book))]
