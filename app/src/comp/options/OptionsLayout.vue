@@ -13,7 +13,7 @@ v-radio-group(v-model='blue.bibles_layout' inline label="Layout for multiple tra
     v-radio(value='columns' label="Separate columns")
     v-radio(value='alternate' label="Separate pages")
 
-v-checkbox(v-model='blue.half_blank' label="Insert blank pages for notetaking"
+v-checkbox(v-model='blue.half_blank' label="Keep right-side blank for notetaking"
     :disabled='blue.bibles.length > 1 && blue.bibles_layout === "alternate"')
 
 </template>
