@@ -30,6 +30,7 @@ export interface Blueprint {
     show_chapters:boolean
     show_chapters_style:'divider'|'float'|'heading'
     show_verses:boolean
+    show_pages:boolean
     show_footnotes:boolean
     show_woj:boolean
     show_lines:boolean
@@ -97,11 +98,14 @@ export interface ContentCustom {
 }
 
 
+export type Subjob = [string, string|null|false, boolean, boolean]  // lhs, rhs, alone, show_pages
+
+
 export interface PaperRequest {
     request_id:string
     title:string
     booklet:boolean
     blank_job:string
-    subjobs:[string, string|null, boolean][]
+    subjobs:Subjob[]
     blue:string  // JSON
 }

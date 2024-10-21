@@ -39,7 +39,9 @@ export function monitor_creation(creation:Creation){
         try {
             const result = await resp.json()
             creation.status = result.error ? 'failed' : 'available'
-            if (!result.error){
+            if (result.error){
+                console.error(result.error)
+            } else {
                 creation.pages = result.pages
             }
         } catch {

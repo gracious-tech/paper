@@ -17,7 +17,7 @@ RUN mkdir -p /home/app/
 
 # Install all required python modules
 RUN python3 -m pip install --target /home/app/ \
-    awslambdaric boto3 pypdf "weasyprint@git+https://github.com/Kozea/WeasyPrint"
+    awslambdaric boto3 "pypdf==5.*" "reportlab==4.*" "weasyprint==62.*"
 
 
 ## Create image that will actually be deployed

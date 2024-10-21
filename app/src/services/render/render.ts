@@ -7,13 +7,17 @@ import {gen_custom_css, gen_custom_html} from '@/services/render/render_custom'
 import {blue} from '@/services/state'
 import {gen_base_css} from '@/services/render/render_base'
 
+import type {Subjob} from '@/services/types'
 
-export function gen_subjobs():[string, string|false|null, boolean][]{
+
+export function gen_subjobs():Subjob[]{
+    // Return list of tuples for subjobs (lhs, rhs, alone, show_pages)
+    // NOTE rhs is one of: false (lhs flows across rhs as well), null (rhs blank), string (html)
     return blue.content.map(item => {
         if (item.type === 'title'){
-            return [gen_title_html(item), false, item.alone]
+            return [gen_title_html(item), false, item.alone, false]
         } else if (item.type === 'custom'){
-            return [gen_custom_html(item), false, false]
+            return [gen_custom_html(item), false, false, blue.show_pages]
         } else if (item.type === 'passage'){
             return [
                 gen_passage_html(item, 0),
@@ -21,6 +25,7 @@ export function gen_subjobs():[string, string|false|null, boolean][]{
                     ? gen_passage_html(item, 1)
                     : (blue.half_blank ? null : false),
                 false,
+                blue.show_pages,
             ]
         }
         throw new Error("Invalid type")

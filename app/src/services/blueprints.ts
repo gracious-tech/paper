@@ -60,6 +60,7 @@ export function get_default_blueprint():Blueprint{
         show_chapters: true,
         show_chapters_style: 'divider',
         show_verses: true,
+        show_pages: true,
         show_footnotes: true,
         show_woj: false,
         show_lines: true,

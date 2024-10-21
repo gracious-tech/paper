@@ -31,14 +31,6 @@ export function gen_base_css(){
                 padding: 2mm;
                 border-top: 0.2mm solid #0003;
             }
-            /*
-            @bottom-center {
-                content: '{{page_number}}';
-                margin-bottom: ${blue.margin_bottom}${blue.margin_unit};
-                margin-top: 1em;
-                font-size: 10pt;
-            }
-            */
         }
 
         body {

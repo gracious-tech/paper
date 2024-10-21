@@ -2,11 +2,11 @@
 import {openDB, IDBPDatabase} from 'idb'
 import {cloneDeep} from 'lodash-es'
 
-import type {Creation} from './types'
+import type {Blueprint, Creation} from './types'
 import type {IDBPTransaction, DBSchema, StoreNames} from 'idb'
 
 
-const DATABASE_VERSION = 2
+const DATABASE_VERSION = 3
 
 
 export interface PaperDatabaseSchema extends DBSchema {
@@ -33,30 +33,54 @@ type VersionChangeTransaction = IDBPTransaction<
 >
 
 
+function _update_passage_props(blueprint:Blueprint){
+    // Helper for migrating to the new names for passage properties
+    for (const item of blueprint.content){
+        // NOTE Tests for existance of new props as forgot to update draft object in DBv2
+        if (item.type === 'passage' && !('start_chapter' in item)){  // @ts-ignore
+            item.start_chapter = item.chapter_start  // @ts-ignore
+            delete item.chapter_start  // @ts-ignore
+            item.start_verse = item.verse_start  // @ts-ignore
+            delete item.verse_start  // @ts-ignore
+            item.end_chapter = item.chapter_end  // @ts-ignore
+            delete item.chapter_end  // @ts-ignore
+            item.end_verse = item.verse_end  // @ts-ignore
+            delete item.verse_end
+        }
+    }
+}
+
+
 export async function upgrade_database(transaction:VersionChangeTransaction,
         old_version:number):Promise<void>{
     // WARN Always await db methods to prevent overlap, but never anything else (transaction closes)
+
     if (old_version < 1){
+        // Create object stores
         transaction.db.createObjectStore('config', {keyPath: 'key'})
         transaction.db.createObjectStore('creations', {keyPath: 'request_id'})
     }
+
     if (old_version < 2){
+        // Rename chapter/verse properties
         for await (const cursor of transaction.objectStore('creations')){
-            // Rename chapter/verse properties
-            for (const item of cursor.value.blueprint.content){
-                if (item.type === 'passage'){  // @ts-ignore
-                    item.start_chapter = item.chapter_start  // @ts-ignore
-                    delete item.chapter_start  // @ts-ignore
-                    item.start_verse = item.verse_start  // @ts-ignore
-                    delete item.verse_start  // @ts-ignore
-                    item.end_chapter = item.chapter_end  // @ts-ignore
-                    delete item.chapter_end  // @ts-ignore
-                    item.end_verse = item.verse_end  // @ts-ignore
-                    delete item.verse_end
-                }
-            }
-            // Save record
+            _update_passage_props(cursor.value.blueprint)
             await cursor.update(cursor.value)
+        }
+    }
+
+    if (old_version < 3){
+        // Added `show_pages` property to blueprints
+        for await (const cursor of transaction.objectStore('creations')){
+            cursor.value.blueprint.show_pages = true
+            await cursor.update(cursor.value)
+        }
+        const draft_record = await transaction.objectStore('config').get('draft')
+        if (draft_record){
+            ;(draft_record.value as Blueprint).show_pages = true
+            // Forgot to update draft's props in DBv2
+            _update_passage_props(draft_record.value as Blueprint)
+            await transaction.objectStore('config').put(draft_record)
         }
     }
 }

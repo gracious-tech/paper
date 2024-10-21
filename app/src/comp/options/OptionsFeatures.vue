@@ -6,11 +6,11 @@ div(class='d-flex align-center')
     v-select.ch_style(v-model='blue.show_chapters_style' :items='chapter_styles'
         :disabled='!blue.show_chapters' density='compact' variant='outlined')
 v-checkbox(v-model='blue.show_verses' label="Verse numbers")
+v-checkbox(v-model='blue.show_pages' label="Page numbers")
 v-checkbox(v-model='blue.show_headings' label="Section headings")
 v-checkbox(v-model='blue.show_footnotes' label="Footnotes")
 v-checkbox(v-model='blue.show_woj' label="Color Jesus' words (if bible supports it)")
 v-checkbox(v-model='blue.show_lines' label="Blank pages have lines for notetaking")
-//- v-checkbox(v-model='blue.show_pages' label="Page numbers")
 //- v-checkbox(v-model='blue.show_book_name' label="Book name in footer")
 
 </template>
