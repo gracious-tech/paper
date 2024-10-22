@@ -57,9 +57,9 @@ const warnings = computed(() => {
     if (requires_copyright.value && !has_copyright.value){
         items.push("A copyright statement is required for one or more translations")
     }
-    if (blue.content[0]?.type === 'passage' && blue.page_arrangement === 'booklet'
+    if (blue.content[0]?.type === 'passage' && blue.page_arrangement !== 'normal'
             && (blue.bibles.length === 2 && blue.bibles_layout === 'alternate' || blue.half_blank)){
-        items.push("Booklet will start with a blank page (due to layout settings)")
+        items.push("Document will start with a blank page (due to layout settings)")
     }
     if (translation_forbids_derivatives.value){
         items.push("Chosen Bible translation does not allow adding your own content")

@@ -77,6 +77,7 @@ def handle_request(request, creation_id):
     # Unpack request, none of which is trusted, so don't bother validating
     title = request['title']
     booklet = request['booklet']
+    booklike = request.get('booklike', True)  # TODO No need for default once app updated
     subjobs = request['subjobs']
 
     # Generate single blank page (required for detecting page size and also when lines desired)
@@ -97,6 +98,8 @@ def handle_request(request, creation_id):
 
         # A wrapper around pdf_writer.add_page for tracking whether to show page number
         def add_page(page=None):
+            if page is None and not booklike:
+                return  # Skip adding any blank pages at all when rendering 'normal'/digital use
             pdf_writer.add_page(page or blank_page)
             show_pages_list.append(False if page is None else show_pages)
 
@@ -115,8 +118,8 @@ def handle_request(request, creation_id):
             rhs_stream, rhs_num_pages = html_to_stream(rhs)
             rhs_pages = PdfReader(rhs_stream).pages
 
-        # Need to ensure odd number of pages so lhs & rhs open next to each other when booklet
-        if rhs != False and booklet and len(pdf_writer.pages) % 2 != 1:
+        # Need to ensure odd number of pages so lhs & rhs open next to each other when booklike
+        if rhs != False and booklike and len(pdf_writer.pages) % 2 != 1:
             add_page()
 
         # Add pages, alternating between sides

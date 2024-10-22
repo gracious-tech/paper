@@ -18,7 +18,7 @@ export interface Blueprint {
     paper_unit:'mm'|'in'
     paper_width:number
     paper_height:number
-    page_arrangement:'normal'|'booklet'
+    page_arrangement:'normal'|'book'|'booklet'
 
     // Content
     content:ContentItem[]
@@ -105,6 +105,7 @@ export interface PaperRequest {
     request_id:string
     title:string
     booklet:boolean
+    booklike:boolean
     blank_job:string
     subjobs:Subjob[]
     blue:string  // JSON

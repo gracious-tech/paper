@@ -133,6 +133,7 @@ const generate = async () => {
         request_id: generate_token(),
         title: blue.title,
         booklet: blue.page_arrangement === 'booklet',
+        booklike: blue.page_arrangement !== 'normal',
         blank_job: blue.show_lines
             ? gen_html(gen_base_css() + gen_lines_css(), gen_lines_html())
             : gen_html(gen_base_css(), ''),

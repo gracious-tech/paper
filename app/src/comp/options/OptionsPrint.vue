@@ -1,11 +1,16 @@
 
 <template lang='pug'>
 
-v-radio-group(v-model='blue.page_arrangement' class='mb-6')
-    v-radio(value='booklet' label="Booklet (2 pages per side, ordered for folding)")
-    v-radio(value='normal' label="Regular (1 page per side, ordered sequentially)")
+v-radio-group(v-model='blue.page_arrangement' label="Arrangement of pages")
+    v-radio(value='booklet' label="Booklet (fold at home)")
+    v-radio(value='book' label="Sequential (print professionally)")
+    v-radio(value='normal' label="Sequential without blank pages (digital use)")
 
-div(class='d-flex align-center ml-2')
+p(v-if='blue.page_arrangement === "booklet"' class='text-body-2 text-secondary') Two pages will appear on each side of paper and will only appear in the correct order once the whole booklet has been folded.
+p(v-else-if='blue.page_arrangement === "book"' class='text-body-2 text-secondary') Pages are in correct order, as expected by professional printing services. Each page will match the paper size setting so ensure it is correct for the size of book you are printing.
+p(v-else-if='blue.page_arrangement === "normal"' class='text-body-2 text-red') This is not usually recommended for printing as some pages that should be pairs may go across a page turn. This also overrides any other blank page settings.
+
+div(class='d-flex align-center ml-2 mt-6')
     span(class='mr-4 text-medium-emphasis') Margins
     v-radio-group(v-model='blue.margin_unit' inline)
         v-radio(value='mm' label="mm")
