@@ -28,6 +28,17 @@ div.cont(class='text-body-2')
         h4(class='text-subtitle-2') How do I print the whole Bible?
         p This app is best used for printing portions of Scripture or individual books. While you can technically add all books into one document, it would need to be professionally printed and even then might exceed the limits of some services.
 
+        h4(class='text-subtitle-2') What does the number next to my creation mean?
+        p The number is how many sheets of paper you'll need to print the document. When printing in booklet format, each sheet will have 4 pages on it, and it will show a color for how easy the booklet will be to fold. Green numbers (<span class='text-green'>1-15</span>) are easy to fold, orange numbers (<span class='text-orange'>16-20</span>) are harder to fold, and red numbers (<span class='text-red'>20+</span>) will likely be too difficult to fold.
+
+        h4(class='text-subtitle-2') My booklet is too difficult to fold
+        p You should experiment with the following, printing test pages before trying to print the whole document again:
+        ol
+            li Reduce the font size and/or line height
+            li Experiment with other settings like margins and layout
+            li Buy thinner paper (e.g. 70gsm / 18lb)
+            li Separate your content into two different booklets
+
         v-divider
 
         div(class='mb-16')
