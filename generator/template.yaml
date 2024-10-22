@@ -46,6 +46,9 @@ Resources:
                         -   Effect: Allow
                             Action: ['s3:PutObject']
                             Resource: !Sub 'arn:aws:s3:::${AWS::StackName}/creations/*'
+                        -   Effect: Allow
+                            Action: ['s3:PutObject']
+                            Resource: !Sub 'arn:aws:s3:::${AWS::StackName}/failures/*'
 
     CreationsBucket:
         Type: AWS::S3::Bucket

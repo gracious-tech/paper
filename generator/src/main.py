@@ -46,6 +46,7 @@ def entry(event, context):
     creation_id = object_key.rpartition('/')[2][:2] + url64_etag
 
     # Do everything else within exception handler since now have enough to write result file
+    request = None
     try:
 
         # Get and parse the request data
@@ -69,6 +70,16 @@ def entry(event, context):
         Body=json.dumps(result),
         ContentType='application/json',
     )
+
+    # Also create a failures file if error so can more easily identify failures with request data
+    if 'error' in result:
+        result['request'] = request
+        S3.put_object(
+            Bucket=BUCKET_NAME,
+            Key=f'failures/{creation_id}.json',
+            Body=json.dumps(result),
+            ContentType='application/json',
+        )
 
 
 def handle_request(request, creation_id):
