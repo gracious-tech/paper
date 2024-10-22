@@ -5,11 +5,11 @@ iframe(v-if='iframe_src' :src='iframe_src')
 div.explain(v-else :class='{pending: status === "pending"}')
     template(v-if='status === undefined')
     template(v-else-if='status === "pending"')
-        h3(class='text-h4') Doing stuff...
+        h3(class='text-h4') Generating your creation...
         h1(class='my-10 text-h1') {{ time_since_request }}
         div(class='mb-10')
-            | Short docs &nbsp;&nbsp;&nbsp;&nbsp; &lt; 1 minute<br>
-            | Long docs  &nbsp;&nbsp;&nbsp;&nbsp; &lt; {{ max_minutes }} mins
+            | Most docs &nbsp;&nbsp;&nbsp;&nbsp; &lt; 1 minute&nbsp;&nbsp;&nbsp;&nbsp;<br>
+            | Large docs  &nbsp;&nbsp;&nbsp;&nbsp; &lt; {{ max_minutes }} minutes
     template(v-else-if='status === "failed"')
         h3(class='mb-6') An error occurred
         div
