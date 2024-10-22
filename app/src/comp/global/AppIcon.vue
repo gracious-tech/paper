@@ -19,6 +19,7 @@ import subject from '@material-symbols/svg-400/outlined/subject.svg?component'
 import download from '@material-symbols/svg-400/outlined/download.svg?component'
 import error from '@material-symbols/svg-400/outlined/error.svg?component'
 import more_vert from '@material-symbols/svg-400/outlined/more_vert.svg?component'
+import history_toggle_off from '@material-symbols/svg-400/outlined/history_toggle_off.svg?component'
 
 import planner_banner from '@/assets/planner_banner.svg?component'
 
@@ -32,7 +33,7 @@ defineProps({
 
 const icons = {
     drag_indicator, close, arrow_back, expand_more, planner_banner, copyright, auto_stories,
-    subject, download, error, more_vert,
+    subject, download, error, more_vert, history_toggle_off,
 } as Record<string, FunctionalComponent>
 
 
