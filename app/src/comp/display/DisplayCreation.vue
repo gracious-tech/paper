@@ -2,14 +2,14 @@
 <template lang='pug'>
 
 iframe(v-if='iframe_src' :src='iframe_src')
-div.explain(v-else)
+div.explain(v-else :class='{pending: status === "pending"}')
     template(v-if='status === undefined')
     template(v-else-if='status === "pending"')
-        h3(class='mb-6') Generating your creation...
+        h3(class='text-h4') Doing stuff...
+        h1(class='my-10 text-h1') {{ time_since_request }}
         div(class='mb-10')
-            | Short documents take seconds, where as large ones may be a few minutes
-            |  (max {{ max_minutes }} minutes).
-        v-progress-circular(indeterminate color='secondary' size='60' width='6')
+            | Short docs &nbsp;&nbsp;&nbsp;&nbsp; &lt; 1 minute<br>
+            | Long docs  &nbsp;&nbsp;&nbsp;&nbsp; &lt; {{ max_minutes }} mins
     template(v-else-if='status === "failed"')
         h3(class='mb-6') An error occurred
         div
@@ -27,7 +27,7 @@ div.explain(v-else)
 
 <script lang='ts' setup>
 
-import {computed} from 'vue'
+import {computed, ref, watch, onUnmounted} from 'vue'
 import {cloneDeep} from 'lodash-es'
 
 import {blue, selected_creation, state} from '@/services/state'
@@ -36,6 +36,10 @@ import {TIMEOUT_SECONDS} from '@/services/create'
 
 
 const max_minutes = Math.ceil(TIMEOUT_SECONDS / 60)
+
+
+const time_since_request = ref('')
+let timer_interval:number|null = null
 
 
 const status = computed(() => {
@@ -66,6 +70,42 @@ const recreate = () => {
 }
 
 
+watch(selected_creation, creation => {
+    // Constantly update time since request for selected creation
+
+    // Clear any previous interval
+    if (timer_interval){
+        clearInterval(timer_interval)
+    }
+
+    // Only needed if request is pending
+    if (creation?.status === 'pending'){
+        timer_interval = setInterval(() => {
+
+            // If request is no longer pending then can stop updating
+            if (creation.status !== 'pending'){
+                clearInterval(timer_interval!)
+                return
+            }
+
+            // Get difference in seconds
+            const diff = (new Date().getTime() - creation.created.getTime()) / 1000
+            const minutes = Math.floor(diff / 60).toString()
+            const seconds = Math.floor(diff % 60).toString().padStart(2, '0')
+            time_since_request.value = `${minutes}:${seconds}`
+
+        }, 100)  // Update every 1/10th of second for smooth updates
+    }
+}, {immediate: true})
+
+
+onUnmounted(() => {
+    // Clear any running interval
+    if (timer_interval){
+        clearInterval(timer_interval)
+    }
+})
+
 </script>
 
 
@@ -80,5 +120,23 @@ const recreate = () => {
     color: white
     text-align: center
     padding: 24px
+
+    &.pending
+        background: linear-gradient(-45deg, #ee7752, #e73c7e, #23a6d5, #23d5ab)
+        background-size: 400% 400%
+        animation: pending 20s ease infinite
+
+
+@keyframes pending
+    0%
+        background-position: 0% 0%
+    25%
+        background-position: 100% 50%
+    50%
+        background-position: 0% 100%
+    75%
+        background-position: 100% 100%
+    100%
+        background-position: 0% 0%
 
 </style>
