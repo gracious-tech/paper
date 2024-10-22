@@ -6,18 +6,20 @@ v-list-item(@click='select' :active='creation.request_id === selected_id'
     v-list-item-title {{ creation.blueprint.title }}
     v-list-item-subtitle {{ creation.created.toLocaleString() }}
     template(#append)
-        v-badge(v-if='creation.pages' :content='Math.ceil(creation.pages / 2)' inline
-            :color='pages_to_color(creation.pages)' title="Paper required" class='mr-3')
-        v-progress-circular(v-if='creation.status === "pending"' indeterminate size='32'
-            color='secondary')
-        v-btn(v-else-if='creation.status === "failed"' icon variant='text' color='error')
-            app-icon(name='error')
-        v-btn(v-else @click='download' icon variant='text')
-            app-icon(name='download')
+        div.status
+            v-badge(v-if='creation.status === "available"' :content='paper_count'
+                :color='pages_color' title="Sheets of paper required to print" inline)
+            v-progress-circular(v-else-if='creation.status === "pending"' indeterminate size='32'
+                color='secondary')
+            app-icon(v-else-if='creation.status === "failed"' name='error' class='text-error')
+            app-icon(v-else-if='creation.status === "expired"' name='history_toggle_off' class='text-black')
         v-menu
             template(#activator='{props}')
-                app-icon(name='more_vert' v-bind='props')
+                v-btn(v-bind='props' icon variant='text' color='black')
+                    app-icon(name='more_vert')
             v-list
+                v-list-item(@click='download' :disabled='creation.status !== "available"')
+                    v-list-item-title Download
                 v-list-item(@click='edit')
                     v-list-item-title Edit as new
                 v-list-item(@click='remove' :disabled='creation.status === "pending"')
@@ -41,15 +43,22 @@ import type {Creation} from '@/services/types'
 const props = defineProps<{creation:Creation}>()
 
 
-const pages_to_color = (num:number) => {
-    const paper = Math.ceil(num / 2)
-    if (paper > 20){
+const paper_count = computed(() => {
+    return Math.ceil(props.creation.pages! / 2)
+})
+
+
+const pages_color = computed(() => {
+    if (props.creation.blueprint.page_arrangement !== 'booklet'){
+        return 'grey'
+    }
+    if (paper_count.value > 20){
         return 'red'
-    } else if (paper > 15){
+    } else if (paper_count.value > 15){
         return 'orange'
     }
     return 'green'
-}
+})
 
 
 const select = () => {
@@ -86,6 +95,12 @@ const remove = async () => {
 
 
 <style lang='sass' scoped>
+
+.status
+    width: 48px
+    display: inline-flex
+    justify-content: center
+    align-items: center
 
 .v-progress-circular
     margin: 8px
