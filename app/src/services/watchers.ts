@@ -1,9 +1,10 @@
 
 import {watch} from 'vue'
 
-import {blue, books_meta} from '@/services/state'
+import {blue, books_meta, creations, selected_creation} from '@/services/state'
 import {database} from '@/services/db'
 import {content} from '@/services/content'
+import {gen_creation_url} from '@/services/backend'
 
 import type {ContentPassage} from '@/services/types'
 
@@ -38,4 +39,26 @@ export function start_watchers(){
             }
         }
     }, {deep: true, immediate: true})
+
+    // Auto-detect if a creation has expired whenever a user tries to access it
+    watch(selected_creation, async (creation) => {
+        if (creation?.status === 'available'){
+            const url = gen_creation_url(creation.creation_id!, 'pdf')
+            let resp:Response
+            try {
+                resp = await fetch(url, {method: 'HEAD'})
+            } catch {
+                return  // Ignore network failure
+            }
+            if (resp.status === 403 || resp.status === 404){
+                // Creation has expired
+
+                // Ensure creation hasn't been deleted while waiting for network
+                if (creations.find(c => c.request_id === creation.request_id)){
+                    creation.status = 'expired'
+                    database.creations_set(creation)
+                }
+            }
+        }
+    })
 }
