@@ -6,6 +6,7 @@ div.explain(v-else :class='{pending: status === "pending"}')
     template(v-if='status === undefined')
     template(v-else-if='status === "pending"')
         h3(class='text-h4') Generating your creation...
+        AnimatedBook
         h1(class='my-10 text-h1') {{ time_since_request }}
         div(class='mb-10')
             | Most docs &nbsp;&nbsp;&nbsp;&nbsp; &lt; 1 minute&nbsp;&nbsp;&nbsp;&nbsp;<br>
@@ -33,6 +34,7 @@ import {cloneDeep} from 'lodash-es'
 import {blue, selected_creation, state} from '@/services/state'
 import {gen_creation_url} from '@/services/backend'
 import {TIMEOUT_SECONDS} from '@/services/create'
+import AnimatedBook from '../reuseable/AnimatedBook.vue'
 
 
 const max_minutes = Math.ceil(TIMEOUT_SECONDS / 60)
