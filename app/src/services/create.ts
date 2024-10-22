@@ -6,7 +6,7 @@ import type {Creation} from '@/services/types'
 
 
 // WARN Keep in sync with timeout in generator (generator/template.yaml)
-const TIMEOUT_SECONDS = 600
+export const TIMEOUT_SECONDS = 600
 
 
 // Monitor the creation of a PDF on the backend and update own state when have result
