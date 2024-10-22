@@ -19,7 +19,7 @@ v-list-item(@click='select' :active='creation.request_id === selected_id'
                     app-icon(name='more_vert')
             v-list
                 v-list-item(@click='download' :disabled='creation.status !== "available"')
-                    v-list-item-title Download
+                    v-list-item-title Open
                 v-list-item(@click='edit')
                     v-list-item-title Edit as new
                 v-list-item(@click='remove' :disabled='creation.status === "pending"')
@@ -66,6 +66,7 @@ const select = () => {
 }
 
 const download = () => {
+    // TODO Can't actually download when cross-origin (would need to proxy S3 via same domain)
     self.open(gen_creation_url(props.creation.creation_id!, 'pdf'), '_blank')
 }
 
