@@ -26,7 +26,7 @@ const licenses = [
     {value: 'cc-by-sa', title: "CC Attribution ShareAlike"},
     {value: 'cc-by-nc', title: "CC Attribution NonCommercial"},
     {value: 'cc-by-nc-sa', title: "CC Attribution NonCommercial ShareAlike"},
-    {value: 'custom', title: "Custom"},
+    {value: 'custom', title: "Will specify own terms (not recommended)"},
 ]
 
 </script>
