@@ -1,11 +1,11 @@
 
 <template lang='pug'>
 
-v-select(v-model='blue.license' :items='licenses' variant='outlined'
-    label="License of custom content" density='compact' class='mt-6 mb-4'
+v-text-field(v-model='blue.license_attribution' label="Name of creator" class='my-4'
     :disabled='translation_forbids_derivatives')
 
-v-text-field(v-model='blue.license_attribution' label="Name of creator" class='my-4'
+v-select(v-model='blue.license' :items='licenses' variant='outlined'
+    label="License of custom content" density='compact' class='mt-6 mb-4'
     :disabled='translation_forbids_derivatives')
 
 p(class='text-body-2 text-medium-emphasis') It's recommended to leave this as "Public Domain" so anyone can copy and share your creation without any further restrictions than the Bible translations themselves require. This has no effect on the licenses of third-party material you use, such as Bible translations.
