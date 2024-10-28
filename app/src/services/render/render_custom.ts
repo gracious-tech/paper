@@ -135,7 +135,8 @@ export function gen_copyright_content(){
     }
 
     // Attribution for creator
-    const license_name = content.collection._manifest.licenses[blue.license]?.name ?? "No license"
+    const license_name = content.collection._manifest.licenses[blue.license]?.name
+        ?? "permission required"
     let license_url = ''
     if (blue.license === 'public'){
         license_url = 'https://creativecommons.org/publicdomain/zero/1.0/'
