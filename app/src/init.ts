@@ -5,6 +5,7 @@ import 'vuetify/styles'
 
 import {createApp} from 'vue'
 import {createVuetify} from 'vuetify'
+import {md3} from 'vuetify/blueprints'
 import CheckboxBlank from '@material-symbols/svg-400/rounded/check_box_outline_blank.svg'
 import Checkbox from '@material-symbols/svg-400/rounded/check_box.svg'
 import RadioChecked from '@material-symbols/svg-400/rounded/radio_button_checked.svg'
@@ -32,6 +33,7 @@ app.component('AppHtml', AppHtml)
 
 // Add Vuetify
 app.use(createVuetify({
+    blueprint: md3,
     theme: {
         defaultTheme: 'custom',
         themes: {
@@ -43,11 +45,19 @@ app.use(createVuetify({
                 },
             },
         },
+        variations: {
+            colors: ['primary', 'secondary'],
+            lighten: 2,
+            darken: 2,
+        },
     },
     defaults: {
         global: {
             hideDetails: true,
         },
+        VChip: {
+            rounded: 'pill',
+        }
     },
     icons: {
         aliases: {

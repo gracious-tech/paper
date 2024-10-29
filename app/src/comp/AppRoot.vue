@@ -12,10 +12,10 @@ v-app.app(v-else)
                 v-chip(color='secondary' size='small' class='ml-4' variant='flat')
                     strong(style='font-family: sans-serif') beta
 
-            v-tabs(v-model='state.tab' grow)
-                v-tab(value='create') New
-                v-tab(value='history') Creations
-                v-tab(value='help') Guide
+            v-tabs(v-model='state.tab' grow color='secondary-lighten-2')
+                v-tab(rounded='0' value='create') New
+                v-tab(rounded='0' value='history') Creations
+                v-tab(rounded='0' value='help') Guide
 
         v-window(v-model='state.tab')
 
@@ -72,12 +72,12 @@ import {state} from '@/services/state'
     header
         background-color: rgb(var(--v-theme-primary))
         color: rgb(var(--v-theme-on-primary))
-        padding: 12px 12px 0 12px
 
         h1
             display: flex
             align-items: center
             font-family: "Crimson Pro", serif
+            padding: 12px 12px 0 12px
             margin-bottom: 4px
 
             svg

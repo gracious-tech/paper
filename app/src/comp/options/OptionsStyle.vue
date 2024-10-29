@@ -2,8 +2,10 @@
 <template lang='pug'>
 
 //- v-select(v-model='blue.font_family' :items='fonts' label="Font family")
-v-slider(v-model='blue.font_size' label="Font size" :min='6' :max='18' thumb-label class='my-4')
-v-slider(v-model='blue.line_height' label="Line height" :min='1' :max='4' thumb-label class='my-4')
+v-slider(v-model='blue.font_size' label="Font size" :min='6' :max='18' thumb-label class='my-4'
+    color='')
+v-slider(v-model='blue.line_height' label="Line height" :min='1' :max='4' thumb-label class='my-4'
+    color='')
 
 v-radio-group(v-model='justify' inline label="Justify" class='my-4')
     v-radio(value='null' label="Auto")

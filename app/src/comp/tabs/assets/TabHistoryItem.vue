@@ -1,8 +1,7 @@
 
 <template lang='pug'>
 
-v-list-item(@click='select' :active='creation.request_id === selected_id'
-        color='secondary')
+v-list-item(@click='select' :active='creation.request_id === selected_id' color='primary')
     v-list-item-title {{ creation.blueprint.title }}
     v-list-item-subtitle {{ creation.created.toLocaleString() }}
     template(#append)

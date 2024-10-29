@@ -21,7 +21,7 @@ v-card(class='ma-4 d-flex flex-column flex-grow-1')
         p(class='text-body-2 text-medium-emphasis mb-4') The following books are available in all selected Bible translations.
 
         v-list
-            v-list-item(v-for='book of available_books' @click='tmp_ref = book')
+            v-list-item(v-for='book of available_books' @click='tmp_ref = book' density='compact')
                 v-list-item-title {{ book }}
 
 </template>
