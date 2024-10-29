@@ -1,7 +1,7 @@
 
 <template lang='pug'>
 
-v-card-title(class='d-flex align-center justify-space-between')
+v-card-title(class='d-flex align-center')
     v-text-field.search(v-if='show_languages' v-model='languages_search' variant='plain'
         type='search' placeholder="Search..." density='compact' hide-details single-line
         class='flex-grow-1')
@@ -9,6 +9,7 @@ v-card-title(class='d-flex align-center justify-space-between')
         v-btn(icon color='primary' variant='text' @click='show_languages = true')
             app-icon(name='arrow_back')
         | {{ displayed_language_name }}
+    v-spacer
     v-btn(@click='cancel' variant='text') Cancel
 
 v-divider
