@@ -1,7 +1,8 @@
 
 <template lang='pug'>
 
-component(v-if='editor' :is='editor_component' v-bind='editor.props')
+v-card(v-if='editor' class='ma-4 d-flex flex-column flex-grow-1')
+    component(:is='editor_component' v-bind='editor.props')
 
 </template>
 

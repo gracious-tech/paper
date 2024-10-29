@@ -1,43 +1,41 @@
 
 <template lang='pug'>
 
-v-card(class='ma-4 d-flex flex-column flex-grow-1')
+v-card-title(class='d-flex align-center justify-space-between')
+    v-text-field.search(v-if='show_languages' v-model='languages_search' variant='plain'
+        type='search' placeholder="Search..." density='compact' hide-details single-line
+        class='flex-grow-1')
+    template(v-else)
+        v-btn(icon color='primary' variant='text' @click='show_languages = true')
+            app-icon(name='arrow_back')
+        | {{ displayed_language_name }}
+    v-btn(@click='cancel' variant='text') Cancel
 
-    v-card-title(class='d-flex align-center justify-space-between')
-        v-text-field.search(v-if='show_languages' v-model='languages_search' variant='plain'
-            type='search' placeholder="Search..." density='compact' hide-details single-line
-            class='flex-grow-1')
-        template(v-else)
-            v-btn(icon color='primary' variant='text' @click='show_languages = true')
-                app-icon(name='arrow_back')
-            | {{ displayed_language_name }}
-        v-btn(@click='cancel' variant='text') Cancel
+v-divider
 
-    v-divider
-
-    v-card-text(class='overflow-y-auto')
-        v-list(v-if='show_languages' ref='lang_list_comp')
-            v-list-item(v-for='lang of languages_filtered' :key='lang.code' density='compact'
-                    @click='change_lang(lang.code)')
-                v-list-item-title
-                    | {{ lang.local }}
-                    |
-                    template(v-if='lang.local !== lang.english') ({{ lang.english }})
-            v-btn(v-if='!languages_search && !languages_show_all' variant='text' color='primary'
-                    @click='languages_show_all = true')
-                app-icon(name='expand_more')
-                | &nbsp;
-                | More
-        v-list(v-else)
-            //- NOTE @click='' needed to make Vuetify show cursor etc as if clickable
-            v-list-item(v-if='displayed_language === "eng"' base-color='warning' @click='')
-                v-list-item-title NIV / ESV / NLT / ...
-                DialogPeddlers
-            v-list-item(v-for='trans of translations' :key='trans.id' color='primary'
-                    :active='trans.id === selected_trans' density='compact'
-                    @click='change_trans(trans.id)')
-                v-list-item-title
-                    | {{ trans.name_abbrev }} &mdash; {{ trans.name_local || trans.name_english }}
+v-card-text(class='overflow-y-auto')
+    v-list(v-if='show_languages' ref='lang_list_comp')
+        v-list-item(v-for='lang of languages_filtered' :key='lang.code' density='compact'
+                @click='change_lang(lang.code)')
+            v-list-item-title
+                | {{ lang.local }}
+                |
+                template(v-if='lang.local !== lang.english') ({{ lang.english }})
+        v-btn(v-if='!languages_search && !languages_show_all' variant='text' color='primary'
+                @click='languages_show_all = true')
+            app-icon(name='expand_more')
+            | &nbsp;
+            | More
+    v-list(v-else)
+        //- NOTE @click='' needed to make Vuetify show cursor etc as if clickable
+        v-list-item(v-if='displayed_language === "eng"' base-color='warning' @click='')
+            v-list-item-title NIV / ESV / NLT / ...
+            DialogPeddlers
+        v-list-item(v-for='trans of translations' :key='trans.id' color='primary'
+                :active='trans.id === selected_trans' density='compact'
+                @click='change_trans(trans.id)')
+            v-list-item-title
+                | {{ trans.name_abbrev }} &mdash; {{ trans.name_local || trans.name_english }}
 
 </template>
 

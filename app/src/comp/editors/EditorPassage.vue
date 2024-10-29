@@ -1,28 +1,26 @@
 
 <template lang='pug'>
 
-v-card(class='ma-4 d-flex flex-column flex-grow-1')
+v-card-title(class='d-flex align-center')
+    | Edit passage
+    v-spacer
+    v-btn(@click='cancel' size='large' variant='text') Cancel
+    v-btn(@click='done' :disabled='!tmp_ref || !!errors.length' size='large' variant='text'
+        color='secondary') Done
 
-    v-card-title(class='d-flex align-center')
-        | Edit passage
-        v-spacer
-        v-btn(@click='cancel' size='large' variant='text') Cancel
-        v-btn(@click='done' :disabled='!tmp_ref || !!errors.length' size='large' variant='text'
-            color='secondary') Done
+v-divider
 
-    v-divider
+v-card-text(class='flex-grow-1 d-flex flex-column')
+    div
+        v-text-field(v-model='tmp_ref' label="Passage" :messages='messages' :error-messages='errors' :hide-details='false')
+    div(class='mb-4')
+        v-checkbox(v-model='tmp_title' label="Show passage heading")
+    h3 Available books
+    p(class='text-body-2 text-medium-emphasis mb-4') The following books are available in all selected Bible translations.
 
-    v-card-text(class='flex-grow-1 d-flex flex-column')
-        div
-            v-text-field(v-model='tmp_ref' label="Passage" :messages='messages' :error-messages='errors' :hide-details='false')
-        div(class='mb-4')
-            v-checkbox(v-model='tmp_title' label="Show passage heading")
-        h3 Available books
-        p(class='text-body-2 text-medium-emphasis mb-4') The following books are available in all selected Bible translations.
-
-        v-list
-            v-list-item(v-for='book of available_books' @click='tmp_ref = book' density='compact')
-                v-list-item-title {{ book }}
+    v-list
+        v-list-item(v-for='book of available_books' @click='tmp_ref = book' density='compact')
+            v-list-item-title {{ book }}
 
 </template>
 

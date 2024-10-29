@@ -1,26 +1,24 @@
 
 <template lang='pug'>
 
-v-card(class='ma-4 d-flex flex-column flex-grow-1')
+v-card-title(class='d-flex align-center')
+    | Edit text
+    v-spacer
+    v-btn(@click='cancel' size='large' variant='text') Cancel
+    v-btn(@click='done' size='large' variant='text' color='secondary') Done
 
-    v-card-title(class='d-flex align-center')
-        | Edit text
-        v-spacer
-        v-btn(@click='cancel' size='large' variant='text') Cancel
-        v-btn(@click='done' size='large' variant='text' color='secondary') Done
+v-divider
 
-    v-divider
-
-    v-card-text(class='flex-grow-1 d-flex flex-column')
-        div(class='mb-4')
-            v-text-field(v-model='item.name' placeholder="Label...")
-        app-html(v-model='item.html' class='flex-grow-1')
-        div(class='my-4')
-            p(class='text-caption') Vertical position on page:
-            v-radio-group(v-model='item.position' inline)
-                v-radio(value='top' label="Top")
-                v-radio(value='middle' label="Middle")
-                v-radio(value='bottom' label="Bottom")
+v-card-text(class='flex-grow-1 d-flex flex-column')
+    div(class='mb-4')
+        v-text-field(v-model='item.name' placeholder="Label...")
+    app-html(v-model='item.html' class='flex-grow-1')
+    div(class='my-4')
+        p(class='text-caption') Vertical position on page:
+        v-radio-group(v-model='item.position' inline)
+            v-radio(value='top' label="Top")
+            v-radio(value='middle' label="Middle")
+            v-radio(value='bottom' label="Bottom")
 
 </template>
 
