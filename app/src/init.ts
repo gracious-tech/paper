@@ -77,6 +77,7 @@ void database.connect().then(async () => {
     // Load saved state
     const saved = await database.config_get_all()
     state.splash = (saved['splash'] as boolean|undefined) ?? true
+    state.advanced = (saved['advanced'] as boolean|undefined) ?? false
     const draft = saved['draft'] as Blueprint|undefined
     if (draft){
         Object.assign(blue, clean_blueprint(draft))

@@ -24,7 +24,7 @@ div.cont(v-if='!trigger_rerender')
     h2 Quick configs
     OptionsPreset
     p(v-if='!state.advanced' class='text-center mt-10')
-        v-btn(@click='state.advanced = true' size='small' variant='flat') More Options
+        v-btn(@click='toggle_advanced' size='small' variant='flat') More Options
 
     v-divider(class='my-8')
 
@@ -55,7 +55,7 @@ div.cont(v-if='!trigger_rerender')
         v-divider(class='my-8')
 
         p(class='text-center mt-10')
-            v-btn(@click='state.advanced = false' variant='outlined' size='small' class='ma-2')
+            v-btn(@click='toggle_advanced' variant='outlined' size='small' class='ma-2')
                 | Show less options
             v-btn(@click='revert' variant='outlined' size='small' class='ma-2')
                 | Revert to defaults
@@ -155,6 +155,13 @@ const generate = async () => {
 
     // Poll PDF creation
     monitor_creation(creation)
+}
+
+
+// Toggle whether to display advanced options or not
+const toggle_advanced = () => {
+    state.advanced = !state.advanced
+    void database.config_set('advanced', state.advanced)
 }
 
 
