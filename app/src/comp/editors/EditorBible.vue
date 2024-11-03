@@ -10,7 +10,7 @@ v-card-title(class='d-flex align-center')
             app-icon(name='arrow_back')
         | {{ displayed_language_name }}
     v-spacer
-    v-btn(@click='cancel' variant='text') Cancel
+    v-btn(@click='cancel' variant='text' size='large') Cancel
 
 v-divider
 
