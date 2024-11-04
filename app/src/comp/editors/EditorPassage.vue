@@ -12,11 +12,11 @@ v-divider
 
 v-card-text(class='flex-grow-1 d-flex flex-column')
     div
-        v-text-field(v-model='tmp_ref' label="Passage" :messages='messages' :error-messages='errors' :hide-details='false')
+        v-text-field(v-model='tmp_ref' label="Book or passage" :messages='messages' :error-messages='errors' :hide-details='false')
     div(class='mb-4')
         v-checkbox(v-model='tmp_title' label="Show passage heading")
     h3 Available books
-    p(class='text-body-2 text-medium-emphasis mb-4') The following books are available in all selected Bible translations.
+    p(class='text-body-2 text-medium-emphasis mb-4') Some may be missing if a translation you have selected only has one testament, or is still being translated or digitized.
 
     v-list
         v-list-item(v-for='book of available_books' @click='tmp_ref = book' density='compact')
