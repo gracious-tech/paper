@@ -23,7 +23,7 @@ div.cont(class='text-body-2')
         p Please watch the introduction video for a simple method using a common household stapler and eraser.
 
         h4(class='text-subtitle-2') The translation I want isn't available
-        p We can only legally add openly licensed translations. Many popular translations are under restrictive copyright and the publishers do not want you to be able to print portions of them yourself. We know as #[a(href='https://sellingjesus.org/articles/bible-publishers' target='_blank') we asked them]. You should consider switching to a trustworthy alternative like the #[a(href='https://bereanbibles.com/about-berean-study-bible/' target='_blank') Berean Standard Bible] for English.
+        p We can only legally add openly licensed translations. Many popular translations are under restrictive copyright and the publishers do not want you to be able to print portions of them yourself. We know as #[a(href='https://sellingjesus.org/articles/bible-publishers' target='_blank') we asked them]. You should consider switching to a trustworthy alternative like the #[a(href='https://bsb.freely.giving/' target='_blank') Berean Standard Bible] for English.
 
         h4(class='text-subtitle-2') How do I print the whole Bible?
         p This app is best used for printing portions of Scripture or individual books. While you can technically add all books into one document, it would need to be professionally printed and even then might exceed the limits of some services.

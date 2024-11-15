@@ -5,7 +5,7 @@ v-dialog(v-model='dialog' activator='parent' max-width='800')
     v-card
         template(#title) Commercial translations
         template(#text)
-            p We do not include commercial translations as they are illegal to share. This unfortunately includes the most popular English translations, such as the NIV, ESV, NLT, etc. We instead highly recommend the Berean Standard Bible which has a translation style between the NIV and ESV, and is trustworthy and free to share.
+            p We cannot include commercial translations as the owners do not wish for you to be able to print them, whole or in part. This unfortunately includes the most popular English translations, such as the NIV, ESV, NLT, etc. We instead highly recommend the <a href='https://bsb.freely.giving' target='_blank'>Berean Standard Bible</a> which has a translation style between the NIV and ESV, and is trustworthy and free to share.
         template(#actions)
             v-spacer
             v-btn(@click='dialog = false') Close
