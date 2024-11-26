@@ -69,8 +69,9 @@ Resources:
                         ExposedHeaders: [ETag]
             LifecycleConfiguration:
                 Rules:
-                    - {Status: Enabled, Prefix: 'requests/', ExpirationInDays: 7}
+                    - {Status: Enabled, Prefix: 'requests/', ExpirationInDays: 90}
                     - {Status: Enabled, Prefix: 'creations/', ExpirationInDays: !Ref Expiration}
+                    - {Status: Enabled, Prefix: 'failures/', ExpirationInDays: !Ref Expiration}
 
     CreationsBucketPolicy:
         Type: AWS::S3::BucketPolicy
