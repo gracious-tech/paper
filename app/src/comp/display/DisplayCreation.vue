@@ -14,7 +14,7 @@ div.explain(v-else :class='{pending: status === "pending"}')
     template(v-else-if='status === "failed"')
         h3(class='mb-6') An error occurred
         div
-            v-btn(href='https://gracious.tech/support' target='_blank' color='secondary') Contact Us
+            v-btn(:href='contact_url' target='_blank' color='secondary') Contact Us
         p(class='mt-12 mb-3') Please include this code in your email:
         p
             strong {{ debug }}
@@ -57,11 +57,17 @@ const iframe_src = computed(() => {
 })
 
 
+const contact_url = computed(() => {
+    return 'https://gracious.tech/contact?desc=' + encodeURIComponent(debug.value)
+})
+
+
 const debug = computed(() => {
+    let info = 'request:' + selected_creation.value!.request_id
     if (selected_creation.value?.creation_id){
-        return 'creation:' + selected_creation.value!.creation_id
+        info += ' creation:' + selected_creation.value!.creation_id
     }
-    return 'request:' + selected_creation.value!.request_id
+    return info
 })
 
 
