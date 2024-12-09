@@ -69,7 +69,7 @@ export interface ContentTitle {
     id:string
     title:string
     subtitle:string
-    icon:string
+    icon:string|null  // May be null for some users due to a bug, so continue supporting it
     pattern:string
     color_primary:string
     color_secondary:string

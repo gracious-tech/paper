@@ -25,7 +25,7 @@ export function gen_title_html(content:ContentTitle):string{
                 <h1 class='title_subtitle'>${escape_html(content.subtitle)}</h1>
             </div>
             <div class='title_icon' style='color: ${content.color_secondary}'>
-                ${escape_html(content.icon)}
+                ${escape_html(content.icon ?? '')}
             </div>
         </div>
     `
