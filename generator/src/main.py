@@ -220,7 +220,7 @@ def handle_request(request, creation_id):
             f"Print this out two-sided ({edge} edge)\n\n"
             "If using different paper for the cover, "
             "print the first 2 pages separate from the others.\n\n"
-            "(created with paper.bible)"
+            "(This note won't appear when printed. Created with paper.bible.)"
         ),
         rect=(50, first_box.top - 50, 50, first_box.top - 50),
         open=True,
@@ -231,6 +231,7 @@ def handle_request(request, creation_id):
         '/Title': title,
         '/Producer': "paper.bible",
         '/CreationDate': datetime.now().strftime(f"D\072%Y%m%d%H%M%S"),
+        '/Subject': f"Paper.Bible ID {creation_id}",
     })
 
     # Set default duplex setting
