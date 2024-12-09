@@ -13,7 +13,7 @@ v-card-text(class='overflow-y-auto')
     div
         v-text-field(v-model='item.subtitle' label="Subtitle")
     div
-        v-combobox.symbol(v-model='item.icon' label="Symbol" :items='biblical_emoji')
+        v-combobox.symbol(v-model='item_icon' label="Symbol" :items='biblical_emoji')
             //- Custom item template so font-family applies despite teleport
             template(#item='{props}')
                 v-list-item.symbol-item(v-bind='props')
@@ -38,14 +38,27 @@ v-card-text(class='overflow-y-auto')
 
 <script lang='ts' setup>
 
+import {computed} from 'vue'
+
 import patterns from '@/services/patterns'
+import {state} from '@/services/state'
 import {biblical_emoji} from '@/services/emoji'
 
 import type {ContentTitle} from '@/services/types'
-import {state} from '@/services/state'
 
 
 const props = defineProps<{item:ContentTitle}>()
+
+
+// Proxy for item.icon that ensures v-combobox can't save a null value and cause issues
+const item_icon = computed({
+    get(){
+        return props.item.icon
+    },
+    set(value:string|null){
+        props.item.icon = value ?? ''
+    },
+})
 
 
 const disable = () => {
