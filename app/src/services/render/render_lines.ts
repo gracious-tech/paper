@@ -16,7 +16,7 @@ export function gen_lines_css(){
     return `
         .lines div {
             height: ${line_spacing_mm}mm;
-            border-bottom: 1px dotted #0003;
+            border-bottom: 1px dotted #000;
         }
     `
 }

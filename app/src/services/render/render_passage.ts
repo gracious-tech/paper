@@ -205,7 +205,7 @@ export function gen_passage_css(){
             font-size: 0.7em;
             margin-right: 0.2em;
             font-weight: bold;
-            color: #0008;
+            color: #000;
         }
 
         /* Hide number of psalms but not divider since it is biblical */
@@ -215,7 +215,7 @@ export function gen_passage_css(){
             text-align: start;
         }
         .fetch-bible.no-chapters .book-psa h3[data-c]::before {
-            color: #0006;
+            color: #000;
         }
 
         .fb-book-psa .fb-b {
