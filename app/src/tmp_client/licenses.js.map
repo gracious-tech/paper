@@ -1,0 +1,7 @@
+{
+  "version": 3,
+  "sources": ["../../src/licenses.ts"],
+  "sourcesContent": ["\nimport {UsageConfig, RuntimeLicense} from './types.js'\n\n\n// @internal\nexport function filter_licenses(licenses:RuntimeLicense[], usage:UsageConfig):RuntimeLicense[]{\n    // Filter licenses so only those that are compatible with intended use are present\n    return licenses.filter(license => {\n        const r = license.restrictions\n        return (\n            (!usage.commercial || !r.forbid_commercial)\n            && (!usage.attributionless || !r.forbid_attributionless)\n            && (!usage.derivatives || !r.forbid_derivatives || usage.derivatives === 'same-license'\n                && r.forbid_derivatives === 'same-license')\n            && (!usage.limitless || !r.forbid_limitless)\n        )\n    })\n}\n"],
+  "mappings": "AAKO,SAAS,gBAAgB,UAA2B,OAAmC;AAE1F,SAAO,SAAS,OAAO,aAAW;AAC9B,UAAM,IAAI,QAAQ;AAClB,YACK,CAAC,MAAM,cAAc,CAAC,EAAE,uBACrB,CAAC,MAAM,mBAAmB,CAAC,EAAE,4BAC7B,CAAC,MAAM,eAAe,CAAC,EAAE,sBAAsB,MAAM,gBAAgB,kBAClE,EAAE,uBAAuB,oBAC5B,CAAC,MAAM,aAAa,CAAC,EAAE;AAAA,EAEnC,CAAC;AACL;",
+  "names": []
+}
