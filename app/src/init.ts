@@ -74,6 +74,11 @@ app.use(createVuetify({
 // Wait for critical services before mounting
 void database.connect().then(async () => {
 
+    // Init content state
+    content.collection = await content.client.fetch_collection()
+    content.translations = content.collection.get_translations({object: true})
+    content.languages = content.collection.get_languages({object: true})
+
     // Load saved state
     const saved = await database.config_get_all()
     state.splash = (saved['splash'] as boolean|undefined) ?? true
@@ -88,11 +93,6 @@ void database.connect().then(async () => {
     if (state.splash){
         state.tab = 'help'
     }
-
-    // Init content state
-    content.collection = await content.client.fetch_collection()
-    content.translations = content.collection.get_translations({object: true})
-    content.languages = content.collection.get_languages({object: true})
 
     // Start watchers (don't start earlier or will trigger during initially loading some things)
     start_watchers()
