@@ -35,7 +35,8 @@ export function gen_base_css(){
 
         body {
             margin: 0; /* Weasy does have default 8px which can mess up first line alignment */
-            font-family: "${blue.font_family}", "Georgia", "Times New Roman", serif;
+            /* Default to sans-serif since Noto is sans-serif */
+            font-family: "${blue.font_family}", "Georgia", "Times New Roman", sans-serif;
             font-size: ${blue.font_size}pt;
             line-height: ${blue.line_height};
             text-align: ${blue.justify === false ? 'start' : 'justify'};
