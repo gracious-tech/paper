@@ -18,7 +18,7 @@ div.cont(class='text-body-2')
 
         v-divider
 
-        h3(class='text-h6 mb-5') Common Issues
+        h3(class='text-h6') Printing &amp; Binding
 
         h4(class='text-subtitle-2') My booklet's pages are out of order
         p The order of pages will only make sense once the booklet has been folded. It is correct if you see the first and last pages at the start of the document and the middle pages at the end. It's also correct if you see some blank pages at the start as these are needed to ensure pages are paired correctly when opened.
@@ -29,11 +29,23 @@ div.cont(class='text-body-2')
         h4(class='text-subtitle-2') How do I bind my booklet?
         p Please watch the introduction video for a simple method using a common household stapler and eraser.
 
+        h4(class='text-subtitle-2') My booklet is too difficult to fold
+        p You should experiment with the following, printing test pages before trying to print the whole document again:
+        ol
+            li Reduce the font size and/or line height
+            li Experiment with other settings like margins and layout
+            li Buy thinner paper (e.g. 70gsm / 18lb)
+            li Separate your content into two different booklets
+
+        h3(class='text-h6') Missing translations/books
+
         h4(class='text-subtitle-2') The translation I want isn't available
         p We can only legally add openly licensed translations. Many popular translations are under restrictive copyright and the publishers do not want you to be able to print portions of them yourself. We know as #[a(href='https://sellingjesus.org/articles/bible-publishers' target='_blank') we asked them]. You should consider switching to a trustworthy alternative like the #[a(href='https://bsb.freely.giving/' target='_blank') Berean Standard Bible] for English.
 
         h4(class='text-subtitle-2') Some books of the Bible aren't available
         p We try to include all books of the Protestant canon for every translation. Many translations are missing books due to not being completed by the translators. In rare cases there may have been a problem digitizing a particular book. Feel free to contact us if you are not sure why a particular book isn't available.
+
+        h3(class='text-h6') App Usage
 
         h4(class='text-subtitle-2') The app is taking a long time to finish a creation
         p If it is still going after {{ MAX_MINUTES }} minutes then something is wrong and you should contact us. If it fails to complete then the creation was too large or complex. This is more likely to happen when there is a combination of large books, multiple translations, and study notes enabled. Try breaking the content into separate documents.
@@ -43,14 +55,6 @@ div.cont(class='text-body-2')
 
         h4(class='text-subtitle-2') What does the number next to my creation mean?
         p The number is how many sheets of paper you'll need to print the document. When printing in booklet format, each sheet will have 4 pages on it, and it will show a color for how easy the booklet will be to fold. Green numbers (<span class='text-green'>1-15</span>) are easy to fold, orange numbers (<span class='text-orange'>16-20</span>) are harder to fold, and red numbers (<span class='text-red'>20+</span>) will likely be too difficult to fold.
-
-        h4(class='text-subtitle-2') My booklet is too difficult to fold
-        p You should experiment with the following, printing test pages before trying to print the whole document again:
-        ol
-            li Reduce the font size and/or line height
-            li Experiment with other settings like margins and layout
-            li Buy thinner paper (e.g. 70gsm / 18lb)
-            li Separate your content into two different booklets
 
         div(class='mb-16')
 
@@ -81,8 +85,11 @@ import {MAX_MINUTES} from '@/services/create'
     .v-divider
         margin: 24px 0
 
-    .text-subtitle-2
+    h3
         margin-top: 24px
+
+    h4
+        margin-top: 18px
 
     .v-btn
         margin: 6px
