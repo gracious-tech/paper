@@ -9,10 +9,12 @@ div.cont(class='text-body-2')
 
         p(class='text-body-1 mb-4') This is a free app for printing Scripture and we <strong>highly recommend</strong> watching the very short introduction video before using it.
 
-        div
+        div(class='mb-6')
             v-btn(href='https://gracious.tech' target='_blank' variant='outlined' size='small') Creator
             v-btn(href='https://gracious.tech/support/' target='_blank' variant='outlined' size='small') Contact
             v-btn(href='https://github.com/gracious-tech/paper' target='_blank' variant='outlined' size='small') Source code
+
+        v-alert(color='secondary') This app is still in beta so it may have some rough edges. Please contact us if you encounter any issues.
 
         v-divider
 
@@ -29,6 +31,12 @@ div.cont(class='text-body-2')
 
         h4(class='text-subtitle-2') The translation I want isn't available
         p We can only legally add openly licensed translations. Many popular translations are under restrictive copyright and the publishers do not want you to be able to print portions of them yourself. We know as #[a(href='https://sellingjesus.org/articles/bible-publishers' target='_blank') we asked them]. You should consider switching to a trustworthy alternative like the #[a(href='https://bsb.freely.giving/' target='_blank') Berean Standard Bible] for English.
+
+        h4(class='text-subtitle-2') Some books of the Bible aren't available
+        p We try to include all books of the Protestant canon for every translation. Many translations are missing books due to not being completed by the translators. In rare cases there may have been a problem digitizing a particular book. Feel free to contact us if you are not sure why a particular book isn't available.
+
+        h4(class='text-subtitle-2') The app is taking a long time to finish a creation
+        p If it is still going after {{ MAX_MINUTES }} minutes then something is wrong and you should contact us. If it fails to complete then the creation was too large or complex. This is more likely to happen when there is a combination of large books, multiple translations, and study notes enabled. Try breaking the content into separate documents.
 
         h4(class='text-subtitle-2') How do I print the whole Bible?
         p This app is best used for printing portions of Scripture or individual books. While you can technically add all books into one document, it would need to be professionally printed and even then might exceed the limits of some services.
@@ -52,7 +60,7 @@ div.cont(class='text-body-2')
 <script lang='ts' setup>
 
 import DisplayHelp from '@/comp/display/DisplayHelp.vue'
-
+import {MAX_MINUTES} from '@/services/create'
 
 </script>
 

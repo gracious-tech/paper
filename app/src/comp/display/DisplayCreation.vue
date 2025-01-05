@@ -10,7 +10,7 @@ div.explain(v-else :class='{pending: status === "pending"}')
         h1(class='my-10 text-h1') {{ time_since_request }}
         div(class='mb-10')
             | Most docs &nbsp;&nbsp;&nbsp;&nbsp; &lt; 1 minute&nbsp;&nbsp;&nbsp;&nbsp;<br>
-            | Large docs  &nbsp;&nbsp;&nbsp;&nbsp; &lt; {{ max_minutes }} minutes
+            | Large docs  &nbsp;&nbsp;&nbsp;&nbsp; &lt; {{ MAX_MINUTES }} minutes
     template(v-else-if='status === "failed"')
         h3(class='mb-6') An error occurred
         div
@@ -33,11 +33,8 @@ import {computed, ref, watch, onUnmounted} from 'vue'
 import {blue, selected_creation, state} from '@/services/state'
 import {clean_blueprint} from '@/services/blueprints'
 import {gen_creation_url} from '@/services/backend'
-import {TIMEOUT_SECONDS} from '@/services/create'
+import {MAX_MINUTES} from '@/services/create'
 import AnimatedBook from '../reuseable/AnimatedBook.vue'
-
-
-const max_minutes = Math.ceil(TIMEOUT_SECONDS / 60)
 
 
 const time_since_request = ref('')
