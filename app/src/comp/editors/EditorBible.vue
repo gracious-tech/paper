@@ -29,12 +29,14 @@ v-card-text(class='overflow-y-auto')
         v-list-item(v-if='displayed_language === "eng"' base-color='warning' @click='')
             v-list-item-title NIV / ESV / NLT / ...
             DialogPeddlers
-        v-list-item(v-for='trans of translations' :key='trans.id' color='primary'
-                :active='trans.id === selected_trans' density='compact'
-                @click='change_trans(trans.id)')
-            v-list-item-title
-                | {{ trans.name_abbrev }} &mdash; {{ trans.name }}
-            v-list-item-subtitle(v-if='trans.name_english !== trans.name') {{ trans.name_english }}
+        template(v-for='trans of translations')
+            v-list-subheader(v-if='typeof trans === "string"' :key='trans' class='mt-4') {{ trans }}
+            v-list-item(v-else :key='trans.id' color='primary'
+                    :active='trans.id === selected_trans' density='compact'
+                    @click='change_trans(trans.id)')
+                v-list-item-title
+                    | {{ trans.name_abbrev }} &mdash; {{ trans.name }}
+                v-list-item-subtitle(v-if='trans.name_english !== trans.name') {{ trans.name_english }}
 
 </template>
 
@@ -51,6 +53,7 @@ import {content} from '@/services/content'
 import DialogPeddlers from '@/comp/dialogs/DialogPeddlers.vue'
 
 import type {VList} from 'vuetify/lib/components/VList/index.mjs'
+import type {GetTranslationsItem} from '@gracious.tech/fetch-client'
 
 
 const props = defineProps<{bibles_index:number}>()
@@ -80,7 +83,20 @@ const displayed_language_name = computed(() => {
     return content.languages[displayed_language.value]!.name_local
 })
 const translations = computed(() => {
-    return content.collection.get_translations({language: displayed_language.value})
+
+    // Get translations by category
+    const decent = content.collection.get_translations({language: displayed_language.value,
+        exclude_obsolete: true})
+    const niche = content.collection.get_translations({language: displayed_language.value})
+        .filter(i => !decent.find(di => di.id === i.id))
+
+    // Add in separate groups
+    const items:(GetTranslationsItem|string)[] = decent
+    if (niche.length){
+        items.push("Historical & Niche Translations")
+        items.push(...niche)
+    }
+    return items
 })
 const languages_filtered = computed(() => {
     if (languages_search.value){
