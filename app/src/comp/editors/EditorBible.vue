@@ -33,7 +33,8 @@ v-card-text(class='overflow-y-auto')
                 :active='trans.id === selected_trans' density='compact'
                 @click='change_trans(trans.id)')
             v-list-item-title
-                | {{ trans.name_abbrev }} &mdash; {{ trans.name_local || trans.name_english }}
+                | {{ trans.name_abbrev }} &mdash; {{ trans.name }}
+            v-list-item-subtitle(v-if='trans.name_english !== trans.name') {{ trans.name_english }}
 
 </template>
 
