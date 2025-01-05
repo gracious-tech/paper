@@ -7,7 +7,12 @@ div.cont(class='text-body-2')
 
     div(class='ma-6')
 
-        p(class='text-body-1') This is a free app for printing Scripture and we <strong>highly recommend</strong> watching the very short introduction video before using it.
+        p(class='text-body-1 mb-4') This is a free app for printing Scripture and we <strong>highly recommend</strong> watching the very short introduction video before using it.
+
+        div
+            v-btn(href='https://gracious.tech' target='_blank' variant='outlined' size='small') Creator
+            v-btn(href='https://gracious.tech/support/' target='_blank' variant='outlined' size='small') Contact
+            v-btn(href='https://github.com/gracious-tech/paper' target='_blank' variant='outlined' size='small') Source code
 
         v-divider
 
@@ -39,12 +44,7 @@ div.cont(class='text-body-2')
             li Buy thinner paper (e.g. 70gsm / 18lb)
             li Separate your content into two different booklets
 
-        v-divider
-
         div(class='mb-16')
-            v-btn(href='https://gracious.tech' target='_blank' variant='outlined' size='small') Creator
-            v-btn(href='https://gracious.tech/support/' target='_blank' variant='outlined' size='small') Contact
-            v-btn(href='https://github.com/gracious-tech/paper' target='_blank' variant='outlined' size='small') Source code
 
 </template>
 
