@@ -30,10 +30,10 @@ v-list-item(@click='select' :active='creation.request_id === selected_id' color=
 <script lang='ts' setup>
 
 import {computed} from 'vue'
-import {cloneDeep} from 'lodash-es'
 
 import {creations, selected_id, state, blue} from '@/services/state'
 import {delete_creation, gen_creation_url} from '@/services/backend'
+import {clean_blueprint} from '@/services/blueprints'
 import {database} from '@/services/db'
 
 import type {Creation} from '@/services/types'
@@ -70,7 +70,7 @@ const download = () => {
 }
 
 const edit = async () => {
-    Object.assign(blue, cloneDeep(props.creation.blueprint))
+    Object.assign(blue, clean_blueprint(props.creation.blueprint))
     state.tab = 'create'
     state.editor = null
 }

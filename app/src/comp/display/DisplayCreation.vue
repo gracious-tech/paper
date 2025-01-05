@@ -29,9 +29,9 @@ div.explain(v-else :class='{pending: status === "pending"}')
 <script lang='ts' setup>
 
 import {computed, ref, watch, onUnmounted} from 'vue'
-import {cloneDeep} from 'lodash-es'
 
 import {blue, selected_creation, state} from '@/services/state'
+import {clean_blueprint} from '@/services/blueprints'
 import {gen_creation_url} from '@/services/backend'
 import {TIMEOUT_SECONDS} from '@/services/create'
 import AnimatedBook from '../reuseable/AnimatedBook.vue'
@@ -72,7 +72,7 @@ const debug = computed(() => {
 
 
 const recreate = () => {
-    Object.assign(blue, cloneDeep(selected_creation.value!.blueprint))
+    Object.assign(blue, clean_blueprint(selected_creation.value!.blueprint))
     state.tab = 'create'
     state.editor = null
 }

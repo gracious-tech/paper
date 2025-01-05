@@ -30,7 +30,7 @@ v-card-text(class='flex-grow-1 d-flex flex-column')
 import {ref, watch, reactive, computed} from 'vue'
 import {PassageReference} from '@gracious.tech/fetch-client'
 
-import {blue, state, books_meta} from '@/services/state'
+import {blue, state} from '@/services/state'
 import {content} from '@/services/content'
 import {generate_token} from '@/services/utils'
 
@@ -66,12 +66,12 @@ const messages = ref([] as string[])
 // Determine which books are available in all selected translations
 const available_books = computed(() => {
     const books:string[] = []
-    main_loop: for (const book of Object.values(books_meta.value[blue.bibles[0]]!)){
+    main_loop: for (const book of Object.values(content.books[blue.bibles[0]]!)){
         if (!book.available){
             continue
         }
         for (const bible of blue.bibles.slice(1)){
-            if (!books_meta.value[bible]?.[book.id]?.available){
+            if (!content.books[bible]?.[book.id]?.available){
                 continue main_loop
             }
         }

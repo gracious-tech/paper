@@ -84,9 +84,7 @@ void database.connect().then(async () => {
     state.splash = (saved['splash'] as boolean|undefined) ?? true
     state.advanced = (saved['advanced'] as boolean|undefined) ?? false
     const draft = saved['draft'] as Blueprint|undefined
-    if (draft){
-        Object.assign(blue, clean_blueprint(draft))
-    }
+    Object.assign(blue, clean_blueprint(draft))
     creations.push(...await database.creations_get_all())
 
     // Start on guide tab if first time

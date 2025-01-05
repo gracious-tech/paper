@@ -1,5 +1,6 @@
 
 import {PassageReference} from '@gracious.tech/fetch-client'
+import {cloneDeep} from 'lodash-es'
 
 import {content} from '@/services/content'
 import {blue} from '@/services/state'
@@ -52,7 +53,7 @@ export function get_default_blueprint():Blueprint{
                 position: 'bottom',
             },
         ],
-        bibles: ['eng_bsb'],
+        bibles: [content.collection.get_preferred_translation()],
         bibles_layout: 'columns',
 
         // Features
@@ -104,9 +105,16 @@ export function clean_blueprint(blueprint:unknown):Blueprint{
     }
     for (const [key, val] of Object.entries(blueprint)){
         if (key in valid){
-            valid[key] = val
+            valid[key] = cloneDeep(val)
         }
     }
+
+    // Ensure bibles still exist
+    valid.bibles = valid.bibles.filter(b => b in content.translations) as [string, ...string[]]
+    if (!valid.bibles.length){
+        valid.bibles.push(content.collection.get_preferred_translation())
+    }
+
     return valid
 }
 

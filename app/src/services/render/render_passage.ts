@@ -1,7 +1,7 @@
 
 import {PassageReference} from '@gracious.tech/fetch-client'
 
-import {blue, books_meta, translation_forbids_derivatives} from '@/services/state'
+import {blue, translation_forbids_derivatives} from '@/services/state'
 import {ContentPassage} from '@/services/types'
 import {gen_content_name} from '@/services/blueprints'
 import {content} from '@/services/content'
@@ -43,7 +43,7 @@ export function gen_passage_html(passage:ContentPassage, bible_i:number):string{
 
     // Can't get if translation doesn't have requested book
     const bible = blue.bibles[bible_i]!
-    if (!books_meta.value[bible]?.[passage.book]?.available){
+    if (!content.books[bible]?.[passage.book]?.available){
         return ""
     }
 

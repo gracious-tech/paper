@@ -1,7 +1,7 @@
 
 import {watch} from 'vue'
 
-import {blue, books_meta, creations, selected_creation} from '@/services/state'
+import {blue, creations, selected_creation} from '@/services/state'
 import {database} from '@/services/db'
 import {content} from '@/services/content'
 import {gen_creation_url} from '@/services/backend'
@@ -17,6 +17,23 @@ export function start_watchers(){
         database.config_set('draft', blue)
     })
 
+    // Auto-load book names
+    watch(() => blue.bibles, async () => {
+        for (const bible of blue.bibles){
+            // If don't have books for bible yet, get them
+            if (!content.books[bible]){
+                // Immediately set before local names available
+                content.books[bible]
+                    = content.collection.get_books(bible, {object: true, whole: true})
+                // Once have fetched local names, update the list
+                content.collection.fetch_translation_extras(bible).then(() => {
+                    content.books[bible]
+                        = content.collection.get_books(bible, {object: true, whole: true})
+                })
+            }
+        }
+    }, {deep: true, immediate: true})
+
     // Auto-load Bible books
     // WARN Watch sources must be functions so still reactive when blueprint completely replaced
     watch([() => blue.bibles, () => blue.content], async () => {
@@ -27,7 +44,9 @@ export function start_watchers(){
         for (const bible of blue.bibles){
             for (const book of content_books){
                 const key = `${bible}_${book}`
-                if (!(key in content.books_html) && books_meta.value[bible]?.[book]?.available){
+                // WARN Call get_books() manually in case content.books not populated yet
+                const books_for_bible = content.collection.get_books(bible, {object: true})
+                if (!(key in content.books_html) && books_for_bible[book]?.available){
                     content.collection.fetch_book(bible, book).then(async instance => {
                         content.books_html[key] = instance
                     })

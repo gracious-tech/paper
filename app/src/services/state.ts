@@ -1,11 +1,9 @@
 
 import {reactive, computed, ref} from 'vue'
 
-import {get_default_blueprint} from '@/services/blueprints'
 import {content} from '@/services/content'
 
-import type {ContentPassage, Creation} from '@/services/types'
-import type {GetBooksItem} from '@gracious.tech/fetch-client/dist/esm/collection'
+import type {Blueprint, ContentPassage, Creation} from '@/services/types'
 
 
 // General state
@@ -18,7 +16,8 @@ export const state = reactive({
 
 
 // Draft blueprint
-export const blue = reactive(get_default_blueprint())
+// NOTE This will actually get init'd once content.collection is available
+export const blue = reactive({} as unknown as Blueprint)
 
 
 // The width of page as given to WeasyPrint
@@ -69,19 +68,9 @@ export const translations_have_passages = computed(() => {
     return blue.bibles.every(bible => {
         return blue.content.filter(i => i.type === 'passage').every(p => {
             const book = (p as ContentPassage).book
-            return books_meta.value[bible]?.[book]?.available
+            return content.books[bible]?.[book]?.available
         })
     })
-})
-
-
-// Access to meta data for each book in each bible
-export const books_meta = computed(() => {
-    const books:Record<string, Record<string, GetBooksItem>> = {}
-    for (const bible of blue.bibles){
-        books[bible] = content.collection.get_books(bible, {object: true, whole: true})
-    }
-    return books
 })
 
 
