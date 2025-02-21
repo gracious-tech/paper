@@ -1,4 +1,8 @@
 
+// MUST come first
+import '@/services/errors.sass'
+import '@/services/errors'
+
 // Embed global styles
 import './styles.sass'
 import 'vuetify/styles'
@@ -21,12 +25,14 @@ import {database} from '@/services/db'
 import {start_watchers} from '@/services/watchers'
 import {monitor_creation} from '@/services/create'
 import {clean_blueprint} from '@/services/blueprints'
+import {vue_error_handler} from '@/services/errors'
 
 import type {Blueprint} from '@/services/types'
 
 
 // Create app
 const app = createApp(AppRoot)
+app.config.errorHandler = vue_error_handler
 app.component('AppIcon', AppIcon)
 app.component('AppHtml', AppHtml)
 

@@ -1,0 +1,68 @@
+
+.fail-splash, .fail-banner
+    user-select: none
+    background-color: rgba(100%, 75%, 50%)
+    text-align: center
+
+    @media print
+        display: none
+
+    *
+        color: #000 !important
+        line-height: 1
+
+    a
+        color: #009 !important
+        text-decoration: underline !important
+
+    button
+        background-color: #fffb !important
+        border-style: none
+        border-radius: 6px
+        cursor: pointer
+        box-shadow: 0px 2px 5px 1px rgba(0, 0, 0, 0.2)
+
+
+.fail-splash
+    // Display full screen
+    position: fixed
+    top: 0
+    bottom: 0
+    left: 0
+    right: 0
+    // Cover all
+    z-index: 99999
+    // Scroll if needed
+    overflow: auto
+    // Style
+    padding: 20px
+    padding-top: 80px
+
+    h1
+        font-size: 25px
+
+    p
+        margin: 40px 0
+
+    button
+        font-size: 16px
+        padding: 6px 10px
+
+
+.fail-banner
+    display: flex
+    align-items: center
+    justify-content: center
+    padding: 8px
+    white-space: nowrap
+
+    h1
+        font-size: 14px
+
+    p
+        margin: 0 16px
+        font-size: 14px
+
+    button
+        font-size: 14px
+        padding: 4px 8px
