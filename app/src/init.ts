@@ -3,6 +3,9 @@
 import '@/services/errors.sass'
 import '@/services/errors'
 
+// Polyfills
+import 'core-js/actual/array/at'  // Used by Vuetify
+
 // Embed global styles
 import './styles.sass'
 import 'vuetify/styles'
