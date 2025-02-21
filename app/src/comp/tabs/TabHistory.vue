@@ -33,7 +33,7 @@ watch(() => state.tab, () => {
     // Always reset scroll to top whenever go to history tab, as new items appear there
     if (state.tab === 'history'){
         nextTick(() => {
-            ;(list_comp.value?.$el as HTMLDivElement).scroll({top: 0})
+            ;(list_comp.value?.$el as HTMLDivElement|undefined)?.scroll({top: 0})
         })
     }
 })

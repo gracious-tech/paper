@@ -109,7 +109,7 @@ const languages_filtered = computed(() => {
 // Watches
 watch(languages_show_all, () => {
     // Scroll back to top of lang list when showing all, as new items will be added to top
-    lang_list_comp.value?.$el.scroll({top: 0})
+    lang_list_comp.value?.$el?.scroll({top: 0})
 })
 
 
