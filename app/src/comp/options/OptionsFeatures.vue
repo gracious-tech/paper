@@ -34,7 +34,7 @@ const chapter_styles = [
 
 .ch_style
     line-height: 1
-    width: 150px
+    margin-left: 24px
     :deep() .v-field__field
         align-items: center
         .v-field__input
