@@ -22,6 +22,8 @@ import more_vert from '@material-symbols/svg-400/outlined/more_vert.svg?componen
 import history_toggle_off from '@material-symbols/svg-400/outlined/history_toggle_off.svg?component'
 
 import planner_banner from '@/assets/planner_banner.svg?component'
+import donate from '@/assets/icons/donate.svg?component'
+
 
 import type {FunctionalComponent} from 'vue'
 
@@ -33,7 +35,7 @@ defineProps({
 
 const icons = {
     drag_indicator, close, arrow_back, expand_more, planner_banner, copyright, auto_stories,
-    subject, download, error, more_vert, history_toggle_off,
+    subject, download, error, more_vert, history_toggle_off, donate,
 } as Record<string, FunctionalComponent>
 
 
