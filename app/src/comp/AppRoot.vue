@@ -7,10 +7,12 @@ v-app.app(v-else)
 
         header
             h1
-                BrandIcon
-                | Paper Bible
-                v-chip(color='secondary' size='small' class='ml-4' variant='flat')
-                    strong(style='font-family: sans-serif') beta
+                BrandIcon.brand
+                span Paper Bible
+                v-spacer
+                VBtn.donate(href='https://gracious.tech/donate' target='_blank' color='' icon
+                        variant='text' v-tooltip:left='"Donate"')
+                    AppIcon(name='donate')
 
             v-tabs(v-model='state.tab' grow color='secondary-lighten-2')
                 v-tab(rounded='0' value='create') New
@@ -76,14 +78,20 @@ import {state} from '@/services/state'
         h1
             display: flex
             align-items: center
-            font-family: "Crimson Pro", serif
             padding: 12px 12px 0 12px
             margin-bottom: 4px
 
-            svg
+            > span
+                font-family: "Crimson Pro", serif
+
+            .brand
                 margin-right: 12px
                 width: 36px
                 height: 36px
+
+            .donate svg
+                width: 30px
+                height: 30px
 
     h2
         margin-top: 24px
