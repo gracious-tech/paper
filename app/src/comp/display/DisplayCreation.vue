@@ -127,21 +127,22 @@ onUnmounted(() => {
     padding: 24px
 
     &.pending
-        background: linear-gradient(-45deg, #ee7752, #e73c7e, #23a6d5, #23d5ab)
-        background-size: 400% 400%
+        background: url(@/assets/donate_arrow.svg?url), linear-gradient(-45deg, #ee7752, #e73c7e, #23a6d5, #23d5ab)
+        background-size: 540px, 400% 400%
+        background-repeat: no-repeat
         animation: pending 20s ease infinite
 
 
 @keyframes pending
     0%
-        background-position: 0% 0%
+        background-position: left top, 0% 0%
     25%
-        background-position: 100% 50%
+        background-position: left top, 100% 50%
     50%
-        background-position: 0% 100%
+        background-position: left top, 0% 100%
     75%
-        background-position: 100% 100%
+        background-position: left top, 100% 100%
     100%
-        background-position: 0% 0%
+        background-position: left top, 0% 0%
 
 </style>
