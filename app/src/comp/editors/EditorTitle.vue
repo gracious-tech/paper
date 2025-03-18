@@ -85,7 +85,11 @@ const done = () => {
 .symbol, .symbol-item
     font-family: "Noto Emoji", Roboto, sans-serif
 
-.symbol :deep() .v-field__input, .symbol-item :deep() .v-list-item-title
+.symbol :deep() .v-field__input
+    font-size: 30px
+    padding-left: 4em
+    padding-top: 0
+.symbol-item :deep() .v-list-item-title
     font-size: 40px
     line-height: 1.1
 
