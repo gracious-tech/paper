@@ -2,7 +2,7 @@
 node_modules/
 
 /app/dist/
-/app/.env.development.local
+/app/.env.*.local
 
 /generator/.venv/
 /generator/.aws-sam/
