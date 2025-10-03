@@ -173,8 +173,11 @@ const edit = (item:ContentItem) => {
 .v-chip
     cursor: pointer
     font-weight: bold
-    width: 90px
+    width: 100px
     justify-content: center
+
+.v-list-item
+    padding-inline: 0 !important
 
 .add
     .v-btn
