@@ -13,7 +13,7 @@ import 'vuetify/styles'
 
 import {createApp} from 'vue'
 import {createVuetify} from 'vuetify'
-import {createI18n} from 'petite-vue-i18n'
+import {createI18n} from 'vue-i18n'
 import {md3} from 'vuetify/blueprints'
 import CheckboxBlank from '@material-symbols/svg-400/rounded/check_box_outline_blank.svg'
 import Checkbox from '@material-symbols/svg-400/rounded/check_box.svg'
