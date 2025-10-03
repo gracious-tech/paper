@@ -123,5 +123,9 @@
     "Source code": "Mã nguồn",
     "This app is still in beta so it may have some rough edges. Please contact us if you encounter any issues.": "Ứng dụng này vẫn đang ở giai đoạn beta nên có thể còn một số điểm chưa hoàn thiện. Vui lòng liên hệ với chúng tôi nếu bạn gặp vấn đề.",
     "No creations (yet)": "Chưa có bản tạo nào",
-    "creations expire after 1 year and if browser history cleared": "các bản tạo sẽ hết hạn sau 1 năm hoặc khi lịch sử trình duyệt bị xóa"
+    "creations expire after 1 year and if browser history cleared": "các bản tạo sẽ hết hạn sau 1 năm hoặc khi lịch sử trình duyệt bị xóa",
+    "Sheets of paper required to print": "Số tờ giấy cần để in",
+    "Open": "Mở",
+    "Edit as new": "Chỉnh sửa thành bản mới",
+    "Delete": "Xóa"
 }
