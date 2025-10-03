@@ -7,7 +7,7 @@ v-list-item(@click='select' :active='creation.request_id === selected_id' color=
     template(#append)
         div.status
             v-badge(v-if='creation.status === "available"' :content='paper_count'
-                :color='pages_color' title="Sheets of paper required to print" inline)
+                :color='pages_color' :title='$t("Sheets of paper required to print")' inline)
             v-progress-circular(v-else-if='creation.status === "pending"' indeterminate size='32'
                 color='secondary')
             app-icon(v-else-if='creation.status === "failed"' name='error' class='text-error')
@@ -18,11 +18,11 @@ v-list-item(@click='select' :active='creation.request_id === selected_id' color=
                     app-icon(name='more_vert')
             v-list
                 v-list-item(@click='download' :disabled='creation.status !== "available"')
-                    v-list-item-title Open
+                    v-list-item-title {{$t("Open")}}
                 v-list-item(@click='edit')
-                    v-list-item-title Edit as new
+                    v-list-item-title {{$t("Edit as new")}}
                 v-list-item(@click='remove' :disabled='creation.status === "pending"')
-                    v-list-item-title Delete
+                    v-list-item-title {{$t("Delete")}}
 
 </template>
 
