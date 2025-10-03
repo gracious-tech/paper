@@ -42,15 +42,29 @@ const languages = JSON.parse(fs.readFileSync('src/locales.json', 'utf8')).suppor
 // Get strings that need translating
 const original = fs.readFileSync('src/locales/en.json', 'utf8')
 
+// Get list of keys so can confirm all translated later
+const keys = Object.keys(JSON.parse(original))
+
 
 for (const language of languages){
 
     const out_file = `src/locales/${language}.json`
     if (fs.existsSync(out_file)){
         console.log(`Already exists: ${out_file}`)
-        continue
+    } else {
+        console.log(`Translating to ${out_file}`)
+        const translated = await translate(original, language)
+        fs.writeFileSync(out_file, translated, 'utf8')
     }
-    console.log(`Translating to ${out_file}`)
-    const translated = await translate(original, language)
-    fs.writeFileSync(out_file, translated, 'utf8')
+
+    // Confirm has all expected keys
+    const language_keys = Object.keys(JSON.parse(fs.readFileSync(out_file, 'utf8')))
+    const missing_keys = keys.filter(key => !language_keys.includes(key))
+    const extra_keys = language_keys.filter(key => !keys.includes(key))
+
+    if (missing_keys.length > 0)
+        console.log(`Missing keys in ${out_file}:`, missing_keys)
+
+    if (extra_keys.length > 0)
+        console.log(`Extra keys in ${out_file}:`, extra_keys)
 }
