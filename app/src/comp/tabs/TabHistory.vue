@@ -6,7 +6,7 @@ div(v-if='!creations.length' class='pa-4 pt-10 text-center') {{$t("No creations 
 v-list(v-else ref='list_comp' bg-color='transparent' class='flex-grow-1')
     TabHistoryItem(v-for='creation of creations_sorted' :creation='creation')
 
-div(class='text-body-2 text-center pa-4 text-medium-emphasis') {{$t("(creations expire after 1 year and if browser history cleared)")}}
+div(class='text-body-2 text-center pa-4 text-medium-emphasis') ({{$t("creations expire after 1 year and if browser history cleared")}})
 
 </template>
 

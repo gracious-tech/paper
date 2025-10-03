@@ -24,7 +24,7 @@ import ExpandMore from '@material-symbols/svg-400/rounded/expand_more.svg'
 import AppIcon from './comp/global/AppIcon.vue'
 import AppHtml from './comp/global/AppHtml.vue'
 import AppRoot from './comp/AppRoot.vue'
-import locales_meta from '../locales.json'
+import locales_meta from './locales.json'
 import {blue, creations, state} from '@/services/state'
 import {content} from '@/services/content'
 import {database} from '@/services/db'
@@ -50,11 +50,13 @@ if (browser_locale === 'zh' && ['hant', 'tw', 'hk', 'mo'].includes(lower_lang.sp
     browser_locale = 'zh-hant'  // Such countries primarily use traditional script
 }
 const i18n = createI18n({
+    legacy: false,
     locale: browser_locale,
 })
 app.use(i18n)
+// WARN en shouldn't be included in `supported` array as it maps to empty strings for testing only
 if (locales_meta.supported.includes(browser_locale)){
-    void import(`../locales/${browser_locale}.json`).then(messages => {
+    void import(`./locales/${browser_locale}.json`).then(messages => {
         i18n.global.setLocaleMessage(browser_locale, messages.default)
     }).catch(() => {
         // Don't result in error banner as non-essential

@@ -1,0 +1,7 @@
+#!/bin/bash
+cd "$(dirname "$(dirname "$0")")/app"
+
+# NOTE ~ set as separator so that "." can be used safely in strings
+npx vue-i18n-extract report --add --separator '~' --vueFiles './src/**/*.vue' --languageFiles './src/locales/en.json'
+
+echo "WARN: You may need to remove extraneous back slashes from some keys"

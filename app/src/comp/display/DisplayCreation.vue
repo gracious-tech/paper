@@ -5,7 +5,7 @@ iframe(v-if='iframe_src' :src='iframe_src')
 div.explain(v-else :class='{pending: status === "pending"}')
     template(v-if='status === undefined')
     template(v-else-if='status === "pending"')
-        h3(class='text-h4') {{$t("Preparing some good news...")}}
+        h3(class='text-h4') {{$t("Preparing some good news") + '...'}}
         AnimatedBook
         h1(class='my-10 text-h1') {{ time_since_request }}
         div(class='mb-10')
