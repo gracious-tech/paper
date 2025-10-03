@@ -13,6 +13,7 @@ import 'vuetify/styles'
 
 import {createApp} from 'vue'
 import {createVuetify} from 'vuetify'
+import {createI18n} from 'petite-vue-i18n'
 import {md3} from 'vuetify/blueprints'
 import CheckboxBlank from '@material-symbols/svg-400/rounded/check_box_outline_blank.svg'
 import Checkbox from '@material-symbols/svg-400/rounded/check_box.svg'
@@ -23,6 +24,7 @@ import ExpandMore from '@material-symbols/svg-400/rounded/expand_more.svg'
 import AppIcon from './comp/global/AppIcon.vue'
 import AppHtml from './comp/global/AppHtml.vue'
 import AppRoot from './comp/AppRoot.vue'
+import locales_meta from '../locales.json'
 import {blue, creations, state} from '@/services/state'
 import {content} from '@/services/content'
 import {database} from '@/services/db'
@@ -39,6 +41,26 @@ const app = createApp(AppRoot)
 app.config.errorHandler = vue_error_handler
 app.component('AppIcon', AppIcon)
 app.component('AppHtml', AppHtml)
+
+
+// Register i18n
+const lower_lang = navigator.language.toLowerCase()
+let browser_locale = lower_lang.split('-')[0] ?? 'en'
+if (browser_locale === 'zh' && ['hant', 'tw', 'hk', 'mo'].includes(lower_lang.split('-')[1] ?? '')){
+    browser_locale = 'zh-hant'  // Such countries primarily use traditional script
+}
+const i18n = createI18n({
+    locale: browser_locale,
+})
+app.use(i18n)
+if (locales_meta.supported.includes(browser_locale)){
+    void import(`../locales/${browser_locale}.json`).then(messages => {
+        i18n.global.setLocaleMessage(browser_locale, messages.default)
+    }).catch(() => {
+        // Don't result in error banner as non-essential
+        console.error(`Failed to load i18n for ${browser_locale}`)
+    })
+}
 
 
 // Add Vuetify
