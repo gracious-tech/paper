@@ -3,62 +3,63 @@
 
 div.cont(v-if='!trigger_rerender')
     div.generate
-        v-btn(@click='generate' :disabled='!blue.content.length' color='secondary' size='large' rounded) Create
+        v-btn(@click='generate' :disabled='!blue.content.length' color='secondary' size='large'
+            rounded) {{$t("Create")}}
 
-    v-text-field.title(v-model='blue.title' label="Document name")
+    v-text-field.title(v-model='blue.title' :label='$t("Document name")')
     v-divider(class='my-8')
 
-    h2 Content
+    h2 {{$t("Content")}}
     OptionsContent
     v-divider(class='my-8')
 
-    h2 Bible translations
+    h2 {{$t("Bible translations")}}
     OptionsBibles
     v-divider(class='my-8')
 
-    h2 Paper size
+    h2 {{$t("Paper size")}}
     OptionsPaper
 
     v-divider(class='my-8')
 
-    h2 Quick configs
+    h2 {{$t("Quick configs")}}
     OptionsPreset
     p(v-if='!state.advanced' class='text-center mt-10')
-        v-btn(@click='toggle_advanced' size='small' variant='flat') More Options
+        v-btn(@click='toggle_advanced' size='small' variant='flat') {{$t("More Options")}}
 
     v-divider(class='my-8')
 
     template(v-if='state.advanced')
 
-        h2 Features
+        h2 {{$t("Features")}}
         OptionsFeatures
         v-divider(class='my-8')
 
-        h2 Study
+        h2 {{$t("Study")}}
         OptionsStudy
         v-divider(class='my-8')
 
-        h2 Style
+        h2 {{$t("Style")}}
         OptionsStyle
         v-divider(class='my-8')
 
-        h2 Layout
+        h2 {{$t("Layout")}}
         OptionsLayout
         v-divider(class='my-8')
 
-        h2 Print
+        h2 {{$t("Print")}}
         OptionsPrint
         v-divider(class='my-8')
 
-        h2 Legal
+        h2 {{$t("Legal")}}
         OptionsLegal
         v-divider(class='my-8')
 
         p(class='text-center mt-10')
             v-btn(@click='toggle_advanced' variant='outlined' size='small' class='ma-2')
-                | Show less options
+                | {{$t("Show less options")}}
             v-btn(@click='revert' variant='outlined' size='small' class='ma-2')
-                | Revert to defaults
+                | {{$t("Revert to defaults")}}
 
 </template>
 

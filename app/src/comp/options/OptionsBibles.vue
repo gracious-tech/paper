@@ -22,10 +22,13 @@ div(v-if='warnings' class='mt-4 text-error text-body-2')
 <script lang='ts' setup>
 
 import {computed} from 'vue'
+import {useI18n} from 'vue-i18n'
 
 import {blue, state, translations_have_passages} from '@/services/state'
-
 import {content} from '@/services/content'
+
+
+const {t} = useI18n()
 
 
 const primary_title = computed(() => {
@@ -35,7 +38,7 @@ const primary_title = computed(() => {
 
 const secondary_title = computed(() => {
     if (!blue.bibles[1]){
-        return "Add additional translation"
+        return t("Add additional translation")
     }
     const trans = content.translations[blue.bibles[1]]!
     return trans.name_local || trans.name_english
@@ -48,7 +51,7 @@ const secondary_absent = computed(() => {
 const warnings = computed(() => {
     const items:string[] = []
     if (!translations_have_passages.value){
-        items.push("These translations do not all have the passages chosen")
+        items.push(t("These translations do not all have the passages chosen"))
     }
     return items
 })

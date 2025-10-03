@@ -1,29 +1,32 @@
-
 <template lang='pug'>
 
 div(class='d-flex align-center')
-    v-checkbox(v-model='blue.show_chapters' label="Chapter numbers")
+    v-checkbox(v-model='blue.show_chapters' :label='$t("Chapter numbers")')
     v-select.ch_style(v-model='blue.show_chapters_style' :items='chapter_styles'
         :disabled='!blue.show_chapters' density='compact' variant='outlined')
-v-checkbox(v-model='blue.show_verses' label="Verse numbers")
-v-checkbox(v-model='blue.show_pages' label="Page numbers")
-v-checkbox(v-model='blue.show_headings' label="Section headings")
-v-checkbox(v-model='blue.show_footnotes' label="Footnotes")
-v-checkbox(v-model='blue.show_woj' label="Color Jesus' words (if bible supports it)")
-v-checkbox(v-model='blue.show_lines' label="Blank pages have lines for notetaking")
-//- v-checkbox(v-model='blue.show_book_name' label="Book name in footer")
+v-checkbox(v-model='blue.show_verses' :label='$t("Verse numbers")')
+v-checkbox(v-model='blue.show_pages' :label='$t("Page numbers")')
+v-checkbox(v-model='blue.show_headings' :label='$t("Section headings")')
+v-checkbox(v-model='blue.show_footnotes' :label='$t("Footnotes")')
+v-checkbox(v-model='blue.show_woj' :label='$t(`Color Jesus\' words (if bible supports it)`)')
+v-checkbox(v-model='blue.show_lines' :label='$t("Blank pages have lines for notetaking")')
+//- v-checkbox(v-model='blue.show_book_name' :label='$t("Book name in footer")')
 
 </template>
 
 
 <script lang='ts' setup>
 
+import {useI18n} from 'vue-i18n'
+
 import {blue} from '@/services/state'
 
+const {t} = useI18n()
+
 const chapter_styles = [
-    {value: 'divider', title: "Divider / --- 2 ---"},
-    {value: 'float', title: "Large font / 2"},
-    {value: 'heading', title: "Heading / Chapter 2"},
+    {value: 'divider', title: t("Divider") + " / --- 2 ---"},
+    {value: 'float', title: t("Large font") + " / 2"},
+    {value: 'heading', title: t("Heading / Chapter") + " 2"},
 ]
 
 

@@ -5,23 +5,23 @@ iframe(v-if='iframe_src' :src='iframe_src')
 div.explain(v-else :class='{pending: status === "pending"}')
     template(v-if='status === undefined')
     template(v-else-if='status === "pending"')
-        h3(class='text-h4') Preparing some good news...
+        h3(class='text-h4') {{$t("Preparing some good news...")}}
         AnimatedBook
         h1(class='my-10 text-h1') {{ time_since_request }}
         div(class='mb-10')
-            | Most docs &nbsp;&nbsp;&nbsp;&nbsp; &lt; 1 minute&nbsp;&nbsp;&nbsp;&nbsp;<br>
-            | Large docs  &nbsp;&nbsp;&nbsp;&nbsp; &lt; {{ MAX_MINUTES }} minutes
+            | {{$t("Most docs")}} &nbsp;&nbsp;&nbsp;&nbsp; &lt; 1 {{$t("minute")}}&nbsp;&nbsp;&nbsp;&nbsp;<br>
+            | {{$t("Large docs")}}  &nbsp;&nbsp;&nbsp;&nbsp; &lt; {{ MAX_MINUTES }} {{$t("minutes")}}
     template(v-else-if='status === "failed"')
-        h3(class='mb-6') An error occurred
+        h3(class='mb-6') {{$t("An error occurred")}}
         div
-            v-btn(:href='contact_url' target='_blank' color='secondary') Contact Us
-        p(class='mt-12 mb-3') Please include this code in your email:
+            v-btn(:href='contact_url' target='_blank' color='secondary') {{$t("Contact Us")}}
+        p(class='mt-12 mb-3') {{$t("Please include this code in your email:")}}
         p
             strong {{ debug }}
     template(v-else-if='status === "expired"')
-        h3(class='mb-6') PDF has expired
+        h3(class='mb-6') {{$t("PDF has expired")}}
         div
-            v-btn(@click='recreate' color='secondary') Recreate
+            v-btn(@click='recreate' color='secondary') {{$t("Recreate")}}
 
 </template>
 

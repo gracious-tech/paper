@@ -15,8 +15,12 @@ v-checkbox(v-model='notes' label="Tyndale Open Study Notes"
 <script lang='ts' setup>
 
 import {computed} from 'vue'
+import {useI18n} from 'vue-i18n'
 
 import {blue, translation_forbids_derivatives} from '@/services/state'
+
+
+const {t} = useI18n()
 
 
 const notes = computed({
@@ -30,7 +34,7 @@ const notes = computed({
 
 const forbidden = computed(() => {
     if (translation_forbids_derivatives.value){
-        return "Chosen Bible translation does not allow adding content such as study notes"
+        return t("Chosen Bible translation does not allow adding content such as study notes")
     }
     return ""
 })

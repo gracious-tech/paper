@@ -3,14 +3,14 @@
 
 v-card-title(class='d-flex align-center')
     v-text-field.search(v-if='show_languages' v-model='languages_search' variant='plain'
-        type='search' placeholder="Search..." density='compact' hide-details single-line
+        type='search' :placeholder='$t("Search") + "..."' density='compact' hide-details single-line
         class='flex-grow-1')
     template(v-else)
         v-btn(icon color='primary' variant='text' @click='show_languages = true')
             app-icon(name='arrow_back')
         | {{ displayed_language_name }}
     v-spacer
-    v-btn(@click='cancel' variant='text' size='large') Cancel
+    v-btn(@click='cancel' variant='text' size='large') {{$t("Cancel")}}
 
 v-divider
 
@@ -23,7 +23,7 @@ v-card-text(class='overflow-y-auto')
                 @click='languages_show_all = true')
             app-icon(name='expand_more')
             | &nbsp;
-            | More
+            | {{$t("More")}}
     v-list(v-else)
         //- NOTE @click='' needed to make Vuetify show cursor etc as if clickable
         v-list-item(v-if='displayed_language === "eng"' base-color='warning' @click='')
@@ -47,9 +47,7 @@ v-card-text(class='overflow-y-auto')
 import {computed, ref, watch} from 'vue'
 
 import {blue, state} from '@/services/state'
-
 import {content} from '@/services/content'
-
 import DialogPeddlers from '@/comp/dialogs/DialogPeddlers.vue'
 
 import type {VList} from 'vuetify/lib/components/VList/index.mjs'

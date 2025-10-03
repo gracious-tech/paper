@@ -9,10 +9,14 @@ iframe(ref='iframe' :srcdoc='preview')
 <script lang='ts' setup>
 
 import {ref, computed} from 'vue'
+import {useI18n} from 'vue-i18n'
 
 import {gen_subjobs, gen_combined_css} from '@/services/render/render'
 import {blue, page_height, page_width} from '@/services/state'
 import {gen_html} from '@/services/render/render_base'
+
+
+const {t} = useI18n()
 
 
 function generate_preview_css(){
@@ -119,11 +123,13 @@ const preview = computed(() => {
     const content = gen_subjobs().flat().filter(i => typeof i === 'string')
         .join('<hr class="subjob-break">')
     const css = generate_preview_css() + gen_combined_css()
+    const warn1 = t("This preview cannot display some features and sizes may differ when printed.")
+    const warn2 = t("Always print a test page before finalising your design.")
     return gen_html(css, `
         <div class='wrapper'>
             <div class='warning'>
-                This preview cannot display some features and sizes may differ when printed.<br>
-                Always print a test page before finalising your design.
+                ${warn1}<br>
+                ${warn2}
             </div>
             <div class='content'>${content}</div>
         </div>

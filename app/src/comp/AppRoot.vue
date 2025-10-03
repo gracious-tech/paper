@@ -15,9 +15,9 @@ v-app.app(v-else)
                     AppIcon(name='donate')
 
             v-tabs(v-model='state.tab' grow color='secondary-lighten-2')
-                v-tab(rounded='0' value='create') New
-                v-tab(rounded='0' value='history') Creations
-                v-tab(rounded='0' value='help') Guide
+                v-tab(rounded='0' value='create') {{$t("New")}}
+                v-tab(rounded='0' value='history') {{$t("Creations")}}
+                v-tab(rounded='0' value='help') {{$t("Guide")}}
 
         v-window(v-model='state.tab')
 

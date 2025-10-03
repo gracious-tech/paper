@@ -4,7 +4,7 @@
 v-radio-group(v-model='paper' inline)
     v-radio(value='a4' label="A4")
     v-radio(value='letter' label="US Letter")
-    v-radio(value='other' label="Other")
+    v-radio(value='other' :label='$t("Other")')
 
 div(v-if='paper === "other"' class='d-flex align-center ml-2 mb-4')
     v-text-field(v-model='blue.paper_width' variant='underlined' density='compact' suffix="W" class='mr-4')

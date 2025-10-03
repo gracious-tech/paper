@@ -1,19 +1,18 @@
-
 <template lang='pug'>
 
 v-list(bg-color='transparent')
     v-list-item(@click='apply_general_preset')
-        v-list-item-title Standard Bible
-        v-list-item-subtitle How most bibles look, with verse numbers and headings
+        v-list-item-title {{$t("Standard Bible")}}
+        v-list-item-subtitle {{$t("How most bibles look, with verse numbers and headings")}}
     v-list-item(@click='apply_study_preset' :disabled='translation_forbids_derivatives')
-        v-list-item-title Study Bible
-        v-list-item-subtitle Extensive footnotes to guide readers
+        v-list-item-title {{$t("Study Bible")}}
+        v-list-item-subtitle {{$t("Extensive footnotes to guide readers")}}
     v-list-item(@click='apply_reading_preset')
-        v-list-item-title Reading Bible
-        v-list-item-subtitle No verse numbers, like a normal book
+        v-list-item-title {{$t("Reading Bible")}}
+        v-list-item-subtitle {{$t("No verse numbers, like a normal book")}}
     v-list-item(@click='apply_writing_preset')
-        v-list-item-title Notetaking Bible
-        v-list-item-subtitle Lots of space to write notes
+        v-list-item-title {{$t("Notetaking Bible")}}
+        v-list-item-subtitle {{$t("Lots of space to write notes")}}
 
 </template>
 

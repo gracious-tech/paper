@@ -2,16 +2,16 @@
 <template lang='pug'>
 
 //- v-select(v-model='blue.font_family' :items='fonts' label="Font family")
-v-slider(v-model='blue.font_size' label="Font size" :min='6' :max='18' thumb-label class='my-4'
-    color='')
-v-slider(v-model='blue.line_height' label="Line height" :min='1' :max='4' thumb-label class='my-4'
-    color='')
+v-slider(v-model='blue.font_size' :label='$t("Font size")' :min='6' :max='18' thumb-label
+    class='my-4' color='')
+v-slider(v-model='blue.line_height' :label='$t("Line height")' :min='1' :max='4' thumb-label
+    class='my-4' color='')
 
-v-radio-group(v-model='justify' inline label="Justify" class='my-4')
-    v-radio(value='null' label="Auto")
-    v-radio(value='true' label="Yes")
-    v-radio(value='false' label="No")
-p(class='text-body-2 text-disabled') Auto will not justify when width is too narrow
+v-radio-group(v-model='justify' inline :label='$t("Justify")' class='my-4')
+    v-radio(value='null' :label='$t("Auto")')
+    v-radio(value='true' :label='$t("Yes")')
+    v-radio(value='false' :label='$t("No")')
+p(class='text-body-2 text-disabled') {{$t("Auto will not justify when width is too narrow")}}
 
 </template>
 

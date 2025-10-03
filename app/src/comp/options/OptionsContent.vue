@@ -15,13 +15,13 @@ v-list(bg-color='transparent')
                 v-list-item-title {{ gen_content_name(element) }}
 
 div.add(class='d-flex align-center flex-wrap')
-    strong(class='text-medium-emphasis mr-2') Add
-    v-btn(@click='add_passage' size='small' variant='outlined') Passage
+    strong(class='text-medium-emphasis mr-2') {{$t("Add")}}
+    v-btn(@click='add_passage' size='small' variant='outlined') {{$t("Passage")}}
     v-btn(@click='add_custom' size='small' variant='outlined'
-        :disabled='translation_forbids_derivatives') Text
-    v-btn(@click='add_title' size='small' variant='outlined') Title page
+        :disabled='translation_forbids_derivatives') {{$t("Text")}}
+    v-btn(@click='add_title' size='small' variant='outlined') {{$t("Title page")}}
     v-btn(:disabled='has_copyright' @click='add_copyright' size='small' variant='outlined')
-        | Copyright
+        | {{$t("Copyright")}}
 
 div.warnings(v-if='warnings' class='mt-4 text-body-2')
     div(v-for='warning of warnings') {{ warning }}
@@ -32,6 +32,7 @@ div.warnings(v-if='warnings' class='mt-4 text-body-2')
 <script lang='ts' setup>
 
 import {reactive, computed} from 'vue'
+import {useI18n} from 'vue-i18n'
 import {PassageReference} from '@gracious.tech/fetch-client'
 import Draggable from 'vuedraggable'
 
@@ -45,24 +46,27 @@ import {book_emoji} from '@/services/emoji'
 import type {ContentItem, ContentPassage, ContentTitle} from '@/services/types'
 
 
+const {t} = useI18n()
+
+
 const type_label:Record<string, string> = {
-    passage: "Passage",
-    custom: "Text",
-    title: "Title page",
+    passage: t("Passage"),
+    custom: t("Text"),
+    title: t("Title page"),
 }
 
 
 const warnings = computed(() => {
     const items:string[] = []
     if (requires_copyright.value && !has_copyright.value){
-        items.push("A copyright statement is required for one or more translations")
+        items.push(t("A copyright statement is required for one or more translations"))
     }
     if (blue.content[0]?.type === 'passage' && blue.page_arrangement !== 'normal'
             && (blue.bibles.length === 2 && blue.bibles_layout === 'alternate' || blue.half_blank)){
-        items.push("Document will start with a blank page (due to layout settings)")
+        items.push(t("Document will start with a blank page (due to layout settings)"))
     }
     if (translation_forbids_derivatives.value){
-        items.push("Chosen Bible translation does not allow adding your own content")
+        items.push(t("Chosen Bible translation does not allow adding your own content"))
     }
     return items
 })

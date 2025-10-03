@@ -7,14 +7,17 @@ div.cont(class='text-body-2')
 
     div(class='ma-6')
 
-        p(class='text-body-1 mb-4') This is a free app for printing Scripture and we <strong>highly recommend</strong> watching the very short introduction video before using it.
+        p(class='text-body-1 mb-4') {{$t("This is a free app for printing Scripture and we highly recommend watching the very short introduction video before using it.")}}
 
         div(class='mb-6')
-            v-btn(href='https://gracious.tech' target='_blank' variant='outlined' size='small') Creator
-            v-btn(href='https://gracious.tech/support/' target='_blank' variant='outlined' size='small') Contact
-            v-btn(href='https://github.com/gracious-tech/paper' target='_blank' variant='outlined' size='small') Source code
+            v-btn(href='https://gracious.tech' target='_blank' variant='outlined'
+                size='small') {{$t("Creator")}}
+            v-btn(href='https://gracious.tech/support/' target='_blank' variant='outlined'
+                size='small') {{$t("Contact")}}
+            v-btn(href='https://github.com/gracious-tech/paper' target='_blank' variant='outlined'
+                size='small') {{$t("Source code")}}
 
-        v-alert(color='secondary') This app is still in beta so it may have some rough edges. Please contact us if you encounter any issues.
+        v-alert(color='secondary') {{$t("This app is still in beta so it may have some rough edges. Please contact us if you encounter any issues.")}}
 
         v-divider
 

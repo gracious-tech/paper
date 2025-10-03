@@ -1,35 +1,34 @@
-
 <template lang='pug'>
 
 v-card-title(class='d-flex justify-space-between align-center')
-    | Edit title page
-    v-btn(@click='done' size='large' variant='text' color='secondary') Done
+    | {{$t("Edit title page")}}
+    v-btn(@click='done' size='large' variant='text' color='secondary') {{$t("Done")}}
 
 v-divider
 
 v-card-text(class='overflow-y-auto')
     div
-        v-text-field(v-model='item.title' label="Title")
+        v-text-field(v-model='item.title' :label='$t("Title")')
     div
-        v-text-field(v-model='item.subtitle' label="Subtitle")
+        v-text-field(v-model='item.subtitle' :label='$t("Subtitle")')
     div
-        v-combobox.symbol(v-model='item.icon' label="Symbol" :items='biblical_emoji')
+        v-combobox.symbol(v-model='item.icon' :label='$t("Symbol")' :items='biblical_emoji')
             //- Custom item template so font-family applies despite teleport
             template(#item='{props}')
                 v-list-item.symbol-item(v-bind='props')
     div.patterns
-        div.none(@click='disable' :class='{active: item.pattern === "none"}') None
+        div.none(@click='disable' :class='{active: item.pattern === "none"}') {{$t("None")}}
         img(v-for='pattern of pattern_items' :src='pattern.src' @click='pattern.click'
             :class='{active: item.pattern === pattern.pattern}')
     v-divider(class='my-8')
     div
-        v-checkbox(v-model='item.alone' label="Ensure other side of page blank")
+        v-checkbox(v-model='item.alone' :label='$t("Ensure other side of page blank")')
     v-divider(class='my-8')
     div
-        p(class='text-body-2 mb-3 text-medium-emphasis') Color of text
+        p(class='text-body-2 mb-3 text-medium-emphasis') {{$t("Color of text")}}
         v-color-picker(v-model='item.color_primary' mode='hexa')
     div
-        p(class='text-body-2 mb-3 text-medium-emphasis') Color of graphics
+        p(class='text-body-2 mb-3 text-medium-emphasis') {{$t("Color of graphics")}}
         v-color-picker(v-model='item.color_secondary' mode='hexa')
 
 

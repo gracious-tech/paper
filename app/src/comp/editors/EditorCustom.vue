@@ -2,23 +2,23 @@
 <template lang='pug'>
 
 v-card-title(class='d-flex align-center')
-    | Edit text
+    | {{$t("Edit text")}}
     v-spacer
-    v-btn(@click='cancel' size='large' variant='text') Cancel
-    v-btn(@click='done' size='large' variant='text' color='secondary') Done
+    v-btn(@click='cancel' size='large' variant='text') {{$t("Cancel")}}
+    v-btn(@click='done' size='large' variant='text' color='secondary') {{$t("Done")}}
 
 v-divider
 
 v-card-text(class='flex-grow-1 d-flex flex-column')
     div(class='mb-4')
-        v-text-field(v-model='item.name' placeholder="Label...")
+        v-text-field(v-model='item.name' :placeholder='$t("Label") + "..."')
     app-html(v-model='item.html' class='flex-grow-1')
     div(class='my-4')
-        p(class='text-caption') Vertical position on page:
+        p(class='text-caption') {{$t("Vertical position on page") + ":"}}
         v-radio-group(v-model='item.position' inline)
-            v-radio(value='top' label="Top")
-            v-radio(value='middle' label="Middle")
-            v-radio(value='bottom' label="Bottom")
+            v-radio(value='top' :label='$t("Top")')
+            v-radio(value='middle' :label='$t("Middle")')
+            v-radio(value='bottom' :label='$t("Bottom")')
 
 </template>
 
