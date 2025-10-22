@@ -2,8 +2,12 @@
 <template lang='pug'>
 
 //- v-select(v-model='blue.font_family' :items='fonts' label="Font family")
-v-slider(v-model='blue.font_size' :label='$t("Font size")' :min='6' :max='18' thumb-label
+
+//- NOTE Allow large font for users with poor eyesight
+v-slider(v-model='blue.font_size' :label='$t("Font size")' :min='6' :max='26' thumb-label
     class='my-4' color='')
+div(v-if='blue.font_size > 15' class='text-body-2 text-red') {{ $t("A large font size may result in too many pages, depending on the amount of text.") }}
+
 v-slider(v-model='blue.line_height' :label='$t("Line height")' :min='1' :max='4' thumb-label
     class='my-4' color='')
 
