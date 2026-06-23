@@ -1,7 +1,0 @@
-{
-  "version": 3,
-  "sources": ["../../src/crossref.ts"],
-  "sourcesContent": ["\nimport type {CrossrefData} from './shared_types'\n\n\nexport interface CrossrefItem {\n    book:string\n    start_chapter:number\n    end_chapter:number\n    start_verse:number|null\n    end_verse:number|null\n    single_verse:boolean\n}\n\n\n// Access to cross-reference data for a book\nexport class BookCrossref {\n\n    _data:CrossrefData\n\n    constructor(data:CrossrefData){\n        this._data = data\n    }\n\n    // Get cross-references for given verse of book\n    get_refs(chapter:number, verse:number):CrossrefItem[]{\n        return this._data[chapter]?.[verse]?.map(ref => {\n            return {\n                book: ref[0],\n                start_chapter: ref[1],\n                start_verse: ref[2],\n                end_chapter: ref[3] ?? ref[1],\n                end_verse: ref[4] ?? ref[2],\n                single_verse: !!ref[2] && ref[3] === undefined,\n            }\n        }) ?? []\n    }\n}\n"],
-  "mappings": ";;;;;;AAeO,MAAM,aAAa;AAAA,EAItB,YAAY,MAAkB;AAF9B;AAGI,SAAK,QAAQ;AAAA,EACjB;AAAA;AAAA,EAGA,SAAS,SAAgB,OAA4B;AAxBzD;AAyBQ,YAAO,sBAAK,MAAM,OAAO,MAAlB,mBAAsB,WAAtB,mBAA8B,IAAI,SAAO;AAzBxD,UAAAA,KAAAC;AA0BY,aAAO;AAAA,QACH,MAAM,IAAI,CAAC;AAAA,QACX,eAAe,IAAI,CAAC;AAAA,QACpB,aAAa,IAAI,CAAC;AAAA,QAClB,cAAaD,MAAA,IAAI,CAAC,MAAL,OAAAA,MAAU,IAAI,CAAC;AAAA,QAC5B,YAAWC,MAAA,IAAI,CAAC,MAAL,OAAAA,MAAU,IAAI,CAAC;AAAA,QAC1B,cAAc,CAAC,CAAC,IAAI,CAAC,KAAK,IAAI,CAAC,MAAM;AAAA,MACzC;AAAA,IACJ,OATO,YASD,CAAC;AAAA,EACX;AACJ;",
-  "names": ["_a", "_b"]
-}

@@ -1,7 +1,0 @@
-{
-  "version": 3,
-  "sources": ["../../src/index.ts"],
-  "sourcesContent": ["\n// Export everything intended for direct use (code and types)\n\n\n// Re-export everything from bible-references for convenience\nexport * from '@gracious.tech/bible-references'\nexport type * from '@gracious.tech/bible-references'\n\n\n// Code\n// NOTE Don't export classes not meant to be initiated directly, export them as types instead\nexport {BibleClient} from './client.js'\n\n\n// Types (only expose those relevant to the user and willing to support going forward)\nexport type {\n    GetPassageOptions,\n    GetTxtOptions,\n    IndividualVerse,\n    BibleBook,\n    BibleBookHtml,\n    BibleBookTxt,\n    BibleBookUsfm,\n    BibleBookUsx,\n} from './book.js'\n\nexport type {BibleClientConfig} from './client.js'\n\nexport type {\n    GetLanguagesOptions,\n    GetLanguagesItem,\n    GetTranslationsOptions,\n    GetTranslationsItem,\n    GetBooksOptions,\n    GetBooksItem,\n    GetCompletionReturn,\n    BibleCollection,\n} from './collection.js'\n\nexport type {\n    CrossrefItem,\n    BookCrossref,\n} from './crossref.js'\n\nexport type {\n    UsageConfig,\n    UsageOptions,\n    RuntimeLicense,\n    RuntimeCopyright,\n    RuntimeTranslation,\n    RuntimeManifest,\n} from './types.js'\n"],
-  "mappings": "AAKA,cAAc;AAMd,SAAQ,mBAAkB;",
-  "names": []
-}
