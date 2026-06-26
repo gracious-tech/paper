@@ -152,7 +152,6 @@ paper_bible2/
           render_title.ts    # Decorative title page with SVG corner patterns
           render_custom.ts   # User HTML + AUTO-COPYRIGHT placeholder replacement
           render_lines.ts    # Ruled paper for note-taking pages
-      tmp_client/            # Local copy of @gracious.tech/fetch-client types + JS
   generator/
     template.yaml            # AWS SAM CloudFormation (Lambda + S3 bucket)
     src/
@@ -359,8 +358,6 @@ migration.
 ### @gracious.tech/fetch-client (Bible data)
 
 - Provides `BibleClient` and `BibleCollection` for accessing Bible translations
-- The `tmp_client/` directory contains a local copy of its types and JS, suggesting
-  the published package may lag behind needed features
 - In dev, it connects to `localhost:8430`; in prod, `https://v1.fetch.bible/`
 - The collection provides book metadata, translation info, license restrictions, and
   rendered HTML for Bible passages
@@ -436,5 +433,3 @@ migration.
 - Full nested validation in `clean_blueprint()`
 - Add more supported locales beyond Vietnamese
 - ESLint/Prettier configuration for consistent code formatting
-- Consider replacing `tmp_client/` with the published `@gracious.tech/fetch-client`
-  package once it catches up

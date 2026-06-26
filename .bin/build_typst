@@ -1,0 +1,12 @@
+#!/bin/bash
+# Build local Typst modules in dependency order (core, then web/node wrappers)
+set -e
+cd "$(dirname "$(dirname "$0")")"
+
+
+# Compile each module's TypeScript to its dist/ output
+for module in typst typst-web typst-node; do
+    cd "$module"
+    npx tsc
+    cd ..
+done
