@@ -85,7 +85,8 @@ export interface TypstTitlePage {
     type:'title'
     title:string
     subtitle:string
-    icon:string|null            // Emoji character
+    icon:string|null            // Resolved + recolored icon SVG (from an Iconify ID or raw SVG)
+    icon_size:number            // Size multiplier for the icon (1 = default)
     // One corner SVG string — module mirrors to all 4 corners
     pattern_svg:string|null
     color_primary:string        // Hex color for text
@@ -192,7 +193,8 @@ export interface ContentTitle {
     id:string
     title:string
     subtitle:string
-    icon:string|null  // May be null for some users due to a bug, so continue supporting it
+    icon:string|null
+    icon_size:number  // Size multiplier for the icon (1 = default)
     pattern:string
     color_primary:string|null
     color_secondary:string|null

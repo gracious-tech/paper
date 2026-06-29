@@ -52,16 +52,13 @@ export function gen_title(title:TypstTitlePage, page:PageConfig):string {
     parts.push(`        fill: rgb("${title.color_primary}"),`)
     parts.push(`    )[${escape_typst(title.subtitle)}]`)
 
-    // Icon (emoji)
+    // Icon (recolored SVG, embedded as an image and scaled to a fraction of the page width,
+    // adjusted by the user's size multiplier)
     if (title.icon) {
-        const icon_size = `${(page_h.num / 4).toFixed(2)}${page_h.unit}`
+        const icon_w = `${(page_w.num / 4 * title.icon_size).toFixed(2)}${page_w.unit}`
+        const icon_bytes = `bytes("${escape_svg_for_typst(title.icon)}")`
         parts.push(`    #v(${mid_space})`)
-        parts.push(`    #text(`)
-        parts.push(`        font: "Noto Emoji",`)
-        parts.push(`        weight: 300,`)
-        parts.push(`        size: ${icon_size},`)
-        parts.push(`        fill: rgb("${title.color_secondary}"),`)
-        parts.push(`    )[${title.icon}]`)
+        parts.push(`    #image.decode(${icon_bytes}, width: ${icon_w})`)
     }
 
     parts.push(`]`)

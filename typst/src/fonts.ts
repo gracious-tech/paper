@@ -52,10 +52,9 @@ export function collect_fonts(request:TypstRequest):string[] {
         }
     }
 
-    // Title pages use the display font for text and the emoji font for icons
+    // Title pages use the display font for text (icons are embedded SVG images, not a font)
     if (request.content.some(item => item.type === 'title')){
         needed.add('Dancing Script')
-        needed.add('Noto Emoji')
     }
 
     // Base font always first, then the rest (excluding base) sorted for a stable cache key

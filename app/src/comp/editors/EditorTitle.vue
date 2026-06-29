@@ -11,11 +11,7 @@ v-card-text(class='overflow-y-auto')
         v-text-field(v-model='item.title' :label='$t("Title")')
     div
         v-text-field(v-model='item.subtitle' :label='$t("Subtitle")')
-    div
-        v-combobox.symbol(v-model='item.icon' :label='$t("Symbol")' :items='biblical_emoji')
-            //- Custom item template so font-family applies despite teleport
-            template(#item='{props}')
-                v-list-item.symbol-item(v-bind='props')
+    IconField(v-model:icon='item.icon' v-model:size='item.icon_size')
     div.patterns
         div.none(@click='disable' :class='{active: item.pattern === "none"}') {{$t("None")}}
         img(v-for='pattern of pattern_items' :src='pattern.src' @click='pattern.click'
@@ -36,7 +32,7 @@ v-card-text(class='overflow-y-auto')
 <script lang='ts' setup>
 
 import {PATTERNS as patterns} from 'paper-bible-typst'
-import {biblical_emoji} from '@/services/emoji'
+import IconField from '@/comp/editors/assets/IconField.vue'
 
 import type {ContentTitle} from '@/services/types'
 import {state} from '@/services/state'
@@ -78,17 +74,6 @@ const done = () => {
 
 .v-text-field, .v-color-picker
     margin-bottom: 24px
-
-.symbol, .symbol-item
-    font-family: "Noto Emoji", Roboto, sans-serif
-
-.symbol :deep() .v-field__input
-    font-size: 30px
-    padding-left: 4em
-    padding-top: 0
-.symbol-item :deep() .v-list-item-title
-    font-size: 40px
-    line-height: 1.1
 
 
 .patterns

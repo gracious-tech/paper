@@ -39,7 +39,7 @@ import {blue, state, has_copyright, requires_copyright} from '@/services/state'
 import {gen_content_name} from '@/services/blueprints'
 import {content} from '@/services/content'
 import {generate_token} from '@/services/utils'
-import {book_emoji} from '@/services/emoji'
+import {book_icon} from '@/services/icons'
 
 import type {ContentItem, ContentPassage, ContentTitle} from '@/services/types'
 
@@ -105,7 +105,8 @@ const add_title = () => {
         type: 'title',
         title: default_title,
         subtitle: "",
-        icon: passage ? book_emoji[passage.book]! : '✟',
+        icon: passage ? book_icon[passage.book]! : 'mdi:cross',
+        icon_size: 1,
         pattern: 'straight',
         color_primary: null,
         color_secondary: null,

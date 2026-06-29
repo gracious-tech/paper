@@ -9,6 +9,7 @@ import {get_common_sizes, get_service} from 'printing-services'
 
 import {prose_to_typst, replace_copyright_marker} from './prose.js'
 import {gen_copyright_typst} from './copyright.js'
+import {resolve_icon} from './icon_cache.js'
 import {PATTERNS} from './generated/patterns.js'
 
 import type {BibleCollection, BibleBookTypst, GetResourcesItem,
@@ -120,7 +121,7 @@ export class BibleContent {
             if (item.type === 'passage') {
                 items.push(await this.gen_passage_item(blue, item))
             } else if (item.type === 'title') {
-                items.push(this.gen_title_item(item))
+                items.push(await this.gen_title_item(item))
             } else if (item.type === 'custom') {
                 items.push(this.gen_custom_item(blue, item, resources))
             }
@@ -241,16 +242,30 @@ export class BibleContent {
     }
 
     // Convert a title content item to its Typst equivalent
-    private gen_title_item(title:ContentTitle):TypstTitlePage {
+    private async gen_title_item(title:ContentTitle):Promise<TypstTitlePage> {
+        const color_secondary = title.color_secondary ?? '#000000'
+
+        // Resolve the Iconify ID (or raw SVG) to a recolored SVG; ignore a failed fetch so a bad
+        // icon ID never breaks the whole document (the title just renders without an icon)
+        let icon:string|null = null
+        if (title.icon) {
+            try {
+                icon = await resolve_icon(title.icon, color_secondary)
+            } catch {
+                icon = null
+            }
+        }
+
         return {
             type: 'title',
             title: title.title,
             subtitle: title.subtitle,
-            icon: title.icon,
+            icon,
+            icon_size: title.icon_size ?? 1,
             // Raw pattern SVG — the renderer substitutes the secondary colour itself
             pattern_svg: this.patterns[title.pattern] ?? null,
             color_primary: title.color_primary ?? '#000000',
-            color_secondary: title.color_secondary ?? '#000000',
+            color_secondary,
             alone: title.alone,
         }
     }

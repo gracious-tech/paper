@@ -59,6 +59,7 @@ export function make_title(overrides:Partial<TypstTitlePage> = {}):TypstTitlePag
         title: 'Holy Bible',
         subtitle: 'New International Version',
         icon: null,
+        icon_size: 1,
         pattern_svg: null,
         color_primary: '#333333',
         color_secondary: '#666666',

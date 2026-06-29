@@ -28,15 +28,21 @@ describe('gen_title', () => {
         expect(result).toContain('\\#')
     })
 
-    it('renders icon with Noto Emoji font when provided', () => {
-        const result = gen_title(make_title({icon: '✝'}), TEST_PAGE)
-        expect(result).toContain('font: "Noto Emoji"')
-        expect(result).toContain('✝')
+    it('embeds icon SVG as an image when provided', () => {
+        const result = gen_title(make_title({icon: '<svg><circle/></svg>'}), TEST_PAGE)
+        expect(result).toContain('#image.decode(bytes(')
+        expect(result).toContain('<svg><circle/></svg>')
     })
 
     it('omits icon section when icon is null', () => {
         const result = gen_title(make_title({icon: null}), TEST_PAGE)
-        expect(result).not.toContain('Noto Emoji')
+        expect(result).not.toContain('#image.decode(')
+    })
+
+    it('scales icon width by the size multiplier', () => {
+        // Base width is page_width / 4 = 148mm / 4 = 37mm; doubled at size 2
+        const result = gen_title(make_title({icon: '<svg/>', icon_size: 2}), TEST_PAGE)
+        expect(result).toContain('width: 74.00mm')
     })
 
     it('renders SVG corner patterns when provided', () => {
