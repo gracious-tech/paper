@@ -40,8 +40,8 @@ export function get_default_blueprint():Blueprint{
                 subtitle: "",
                 icon: '✉️',
                 pattern: 'straight',
-                color_primary: '#000000',
-                color_secondary: '#000000',
+                color_primary: null,
+                color_secondary: null,
                 alone: true,
             },
             {

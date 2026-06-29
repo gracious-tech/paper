@@ -26,7 +26,7 @@ v-card-text(class='overflow-y-auto')
     v-divider(class='my-8')
     div
         AppColor(v-model='item.color_primary' :label='$t("Color of text")')
-    div
+    div(class='mt-4')
         AppColor(v-model='item.color_secondary' :label='$t("Color of graphics")')
 
 
@@ -76,7 +76,7 @@ const done = () => {
     padding-bottom: 30vh
 
 
-.v-text-field, .app-color
+.v-text-field, .v-color-picker
     margin-bottom: 24px
 
 .symbol, .symbol-item

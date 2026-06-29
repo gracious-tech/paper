@@ -249,8 +249,8 @@ export class BibleContent {
             icon: title.icon,
             // Raw pattern SVG — the renderer substitutes the secondary colour itself
             pattern_svg: this.patterns[title.pattern] ?? null,
-            color_primary: title.color_primary,
-            color_secondary: title.color_secondary,
+            color_primary: title.color_primary ?? '#000000',
+            color_secondary: title.color_secondary ?? '#000000',
             alone: title.alone,
         }
     }

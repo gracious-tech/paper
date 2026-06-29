@@ -194,8 +194,8 @@ export interface ContentTitle {
     subtitle:string
     icon:string|null  // May be null for some users due to a bug, so continue supporting it
     pattern:string
-    color_primary:string
-    color_secondary:string
+    color_primary:string|null
+    color_secondary:string|null
     alone:boolean  // Ensure appears on own page with blank rear (and also not on rear of previous)
 }
 
