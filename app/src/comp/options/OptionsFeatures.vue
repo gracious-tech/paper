@@ -8,8 +8,8 @@ v-checkbox(v-model='blue.show_verses' :label='$t("Verse numbers")')
 v-checkbox(v-model='blue.show_pages' :label='$t("Page numbers")')
 v-checkbox(v-model='blue.show_headings' :label='$t("Section headings")')
 v-checkbox(v-model='blue.show_footnotes' :label='$t("Footnotes")')
-v-checkbox(v-model='blue.show_woj' :disabled='!supports_woj' :label='woj_label')
 v-checkbox(v-model='blue.show_lines' :label='$t("Blank pages have lines for notetaking")')
+v-checkbox(v-model='blue.show_woj' :disabled='!supports_woj' :label='woj_label')
 //- v-checkbox(v-model='blue.show_book_name' :label='$t("Book name in footer")')
 
 </template>
