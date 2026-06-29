@@ -42,8 +42,8 @@ div.cont(v-if='!trigger_rerender')
     OptionsPrint
     v-divider(class='my-8')
 
-    h2 {{$t("Legal")}}
-    OptionsLegal
+    h2 {{$t("Other stuff...")}}
+    OptionsIgnore
 
 </template>
 
@@ -57,7 +57,7 @@ import OptionsContent from '@/comp/options/OptionsContent.vue'
 import OptionsPreset from '@/comp/options/OptionsPreset.vue'
 import OptionsFeatures from '@/comp/options/OptionsFeatures.vue'
 import OptionsStyle from '@/comp/options/OptionsStyle.vue'
-import OptionsLegal from '@/comp/options/OptionsLegal.vue'
+import OptionsIgnore from '@/comp/options/OptionsIgnore.vue'
 import OptionsLayout from '@/comp/options/OptionsLayout.vue'
 import OptionsPaper from '@/comp/options/OptionsPaper.vue'
 import OptionsPrint from '@/comp/options/OptionsPrint.vue'
