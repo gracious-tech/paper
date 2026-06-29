@@ -58,7 +58,8 @@ const emit = defineEmits<{(e:'update:modelValue', value:PmDoc):void}>()
 const editor = useEditor({
     content: props.modelValue,
     extensions: [
-        StarterKit,
+        // Disable link to prevent auto-linking (Typst will still auto-link itself but harmless)
+        StarterKit.configure({link: false}),
         Subscript,
         Superscript,
         TextAlign.configure({types: ['heading', 'paragraph']}),
