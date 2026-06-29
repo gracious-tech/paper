@@ -6,9 +6,6 @@ div.cont(v-if='!trigger_rerender')
         v-btn(@click='generate' :disabled='!blue.content.length || !typst_generator'
             :loading='generating' color='secondary' size='large' rounded) {{$t("Create")}}
 
-    v-text-field.title(v-model='blue.title' :label='$t("Document name")')
-    v-divider(class='my-8')
-
     h2 {{$t("Content")}}
     OptionsContent
     v-divider(class='my-8')
