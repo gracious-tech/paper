@@ -10,7 +10,7 @@ import type {Blueprint, ContentPassage, Creation} from '@/services/types'
 
 // General state
 export const state = reactive({
-    splash: true,
+    splash: false,  // TODO true before launch
     tab: 'create' as 'create'|'history'|'help',
     advanced: false,
     editor: null as null|{component:string, props:Record<string, unknown>}
