@@ -35,6 +35,7 @@ export interface TypographyConfig {
     font_size:string        // e.g. "10pt"
     line_height:number      // e.g. 1.75 — module converts to Typst leading
     justify:boolean|null    // null = auto (justify when width permits)
+    text_color:string|null  // Hex color for all text; unset = no fill rule (Typst default)
 }
 
 
@@ -163,6 +164,7 @@ export interface Blueprint {
     font_size:number
     line_height:number
     justify:null|boolean
+    text_color:string|null
     columns:null|boolean
 
     // Spacing

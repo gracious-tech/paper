@@ -135,6 +135,7 @@ export class BibleContent {
                 font_size: `${blue.font_size}pt`,
                 line_height: blue.line_height,
                 justify: blue.justify,
+                text_color: blue.text_color,
             },
             content: items,
             arrangement: blue.booklet ? 'booklet' : 'book',

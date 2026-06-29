@@ -52,7 +52,8 @@ export function gen_preamble(request:TypstRequest):string {
     footer: ${footer},
     footer-descent: 20%,
 )
-#set text(font: (${fonts}), size: ${typography.font_size})
+#set text(font: (${fonts}), size: ${typography.font_size}${
+        typography.text_color ? `, fill: rgb("${typography.text_color}")` : ''})
 #set par(
     leading: ${leading},
     justify: ${justify},

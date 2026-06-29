@@ -88,6 +88,7 @@ export function get_default_blueprint():Blueprint{
         line_height: 1.75,  // Pref 1.75, lowest 1.5
 
         justify: null,
+        text_color: null,
         columns: null,
 
         // Spacing
