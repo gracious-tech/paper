@@ -7,7 +7,7 @@
 import {FetchClient, PassageReference} from '@gracious.tech/fetch-client'
 import {get_common_sizes, get_service} from 'printing-services'
 
-import {prose_to_typst, COPYRIGHT_MARKER} from './prose.js'
+import {prose_to_typst, replace_copyright_marker} from './prose.js'
 import {gen_copyright_typst} from './copyright.js'
 import {PATTERNS} from './generated/patterns.js'
 
@@ -260,7 +260,7 @@ export class BibleContent {
         let markup = prose_to_typst(custom.doc)
 
         // Replace the AUTO-COPYRIGHT marker with the generated copyright block
-        markup = markup.split(COPYRIGHT_MARKER).join(gen_copyright_typst(blue, resources))
+        markup = replace_copyright_marker(markup, gen_copyright_typst(blue, resources))
 
         return {
             type: 'custom',

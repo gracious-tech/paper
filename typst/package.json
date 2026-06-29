@@ -19,7 +19,8 @@
         "@gracious.tech/fetch-client": "^2.2.0",
         "pdf-lib": "^1.17.1",
         "pm-to-typst": "*",
-        "printing-services": "^1.5.1"
+        "printing-services": "^1.5.1",
+        "typst-utils": "*"
     },
     "devDependencies": {
         "vitest": "^4.1.2"
