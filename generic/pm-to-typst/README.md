@@ -61,8 +61,8 @@ const typst = pm_to_typst(editor.getJSON())
 | ProseMirror node | Typst output |
 |---|---|
 | `doc` | block children joined by a blank line |
-| `paragraph` | inline content |
-| `heading` (level N) | `=` repeated N times, then the content |
+| `paragraph` | inline content (wrapped in `#align(...)` when `textAlign` is set) |
+| `heading` (level N) | `=` repeated N times, then the content (also honours `textAlign`) |
 | `bulletList` / `listItem` | `- ` markers (wrapped/nested lines indented) |
 | `orderedList` / `listItem` | `+ ` markers |
 | `blockquote` | `#quote[...]` |
@@ -76,6 +76,8 @@ const typst = pm_to_typst(editor.getJSON())
 | `italic` | `_..._` |
 | `strike` | `#strike[...]` |
 | `underline` | `#underline[...]` |
+| `subscript` | `#sub[...]` |
+| `superscript` | `#super[...]` |
 | `code` | `#raw("...")` |
 | `link` | collapsed to plain text |
 

@@ -12,6 +12,18 @@ function collect_text(node:PmNode):string {
     return (node.content ?? []).map(collect_text).join('')
 }
 
+// Tiptap textAlign values that map onto a Typst #align call (left is the default and justify is
+// a paragraph setting rather than an alignment, so neither is included)
+const TYPST_ALIGNS = new Set(['center', 'right'])
+
+// Wrap block content in a Typst alignment call when a supported alignment is set
+function align_typst(content:string, node:PmNode):string {
+    const align = node.attrs?.textAlign as string|undefined
+    if (!align || !TYPST_ALIGNS.has(align))
+        return content
+    return `#align(${align})[${content}]`
+}
+
 // Render a list node: one item per line, with wrapped/nested lines indented under the marker
 function render_list(node:PmNode, ctx:RenderContext, marker:string):string {
     const items = (node.content ?? []).map(item => {
@@ -38,13 +50,13 @@ export const typst_renderer:Renderer = {
         // Root: block children separated by a blank line
         doc: (_node, ctx) => ctx.children('\n\n'),
 
-        // Paragraph: just its inline content
-        paragraph: (_node, ctx) => ctx.children(),
+        // Paragraph: its inline content, wrapped in an alignment call when set
+        paragraph: (node, ctx) => align_typst(ctx.children(), node),
 
-        // Heading: level 1 -> "=", level 2 -> "==", etc.
+        // Heading: level 1 -> "=", level 2 -> "==", etc., with optional alignment
         heading: (node, ctx) => {
             const level = Number(node.attrs?.level ?? 1)
-            return '='.repeat(level) + ' ' + ctx.children()
+            return align_typst('='.repeat(level) + ' ' + ctx.children(), node)
         },
 
         // Bullet and ordered lists use Typst's "- " and "+ " markers
@@ -72,6 +84,8 @@ export const typst_renderer:Renderer = {
         italic: (_mark, inner) => `_${inner}_`,
         strike: (_mark, inner) => `#strike[${inner}]`,
         underline: (_mark, inner) => `#underline[${inner}]`,
+        subscript: (_mark, inner) => `#sub[${inner}]`,
+        superscript: (_mark, inner) => `#super[${inner}]`,
     },
 }
 

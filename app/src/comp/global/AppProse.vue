@@ -41,7 +41,6 @@ import format_list_numbered from '@material-symbols/svg-400/outlined/format_list
 import format_align_left from '@material-symbols/svg-400/outlined/format_align_left.svg?component'
 import format_align_center from '@material-symbols/svg-400/outlined/format_align_center.svg?component'
 import format_align_right from '@material-symbols/svg-400/outlined/format_align_right.svg?component'
-import format_align_justify from '@material-symbols/svg-400/outlined/format_align_justify.svg?component'
 import horizontal_rule from '@material-symbols/svg-400/outlined/horizontal_rule.svg?component'
 import undo_icon from '@material-symbols/svg-400/outlined/undo.svg?component'
 import redo_icon from '@material-symbols/svg-400/outlined/redo.svg?component'
@@ -122,9 +121,6 @@ const groups = [
         {title: "Align right", icon: format_align_right,
             active: () => editor.value!.isActive({textAlign: 'right'}),
             run: () => editor.value!.chain().focus().setTextAlign('right').run()},
-        {title: "Justify", icon: format_align_justify,
-            active: () => editor.value!.isActive({textAlign: 'justify'}),
-            run: () => editor.value!.chain().focus().setTextAlign('justify').run()},
     ],
     [
         {title: "Divider", icon: horizontal_rule,
