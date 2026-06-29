@@ -40,7 +40,7 @@ div.cont(v-if='!trigger_rerender')
     v-divider(class='my-8')
 
     h2 {{$t("Other stuff...")}}
-    OptionsIgnore
+    OptionsOther
 
 </template>
 
@@ -54,7 +54,7 @@ import OptionsContent from '@/comp/options/OptionsContent.vue'
 import OptionsPreset from '@/comp/options/OptionsPreset.vue'
 import OptionsFeatures from '@/comp/options/OptionsFeatures.vue'
 import OptionsStyle from '@/comp/options/OptionsStyle.vue'
-import OptionsIgnore from '@/comp/options/OptionsIgnore.vue'
+import OptionsOther from '@/comp/options/OptionsOther.vue'
 import OptionsLayout from '@/comp/options/OptionsLayout.vue'
 import OptionsPaper from '@/comp/options/OptionsPaper.vue'
 import OptionsPrint from '@/comp/options/OptionsPrint.vue'

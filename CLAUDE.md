@@ -124,7 +124,7 @@ paper_bible2/
           OptionsStyle.vue   # Font, size, line-height, justify, columns
           OptionsLayout.vue  # Margins, binding swap, column gap
           OptionsPrint.vue   # Booklet/page numbers/blank pages
-          OptionsIgnore.vue   # License and attribution
+          OptionsOther.vue   # License and attribution
         display/
           DisplayPreview.vue    # Live preview in iframe (first page)
           DisplayCreation.vue   # PDF result display (pending/available/failed)
