@@ -152,19 +152,21 @@ function gen_heading_rules(passage:TypstPassage):string {
     // Level 1 (= Title): major heading (ms, mr) — bold, slightly larger
     // Level 2 (== Section): section heading (s, s1-4, sr) — italic, 0.9em
     // Level 3 (=== Minor): minor heading (sp, qa, superscriptions) — italic, smaller
+    // Wrap each heading body in a `block` so it isn't treated as a continuation
+    // paragraph — otherwise the document's `first-line-indent` would indent it.
     return `#show heading.where(level: 1): it => {
     vspace(0.5em)
-    text(weight: "bold", size: 1.1em, it.body)
+    block(text(weight: "bold", size: 1.1em, it.body))
     vspace(0.25em)
 }
 #show heading.where(level: 2): it => {
     vspace(0.5em)
-    text(weight: "bold", style: "italic", size: 0.9em, it.body)
+    block(text(weight: "bold", style: "italic", size: 0.9em, it.body))
     vspace(0.25em)
 }
 #show heading.where(level: 3): it => {
     vspace(0.25em)
-    text(style: "italic", size: 0.85em, it.body)
+    block(text(style: "italic", size: 0.85em, it.body))
     vspace(0.15em)
 }`
 }
