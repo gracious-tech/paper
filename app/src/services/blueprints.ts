@@ -29,6 +29,7 @@ export function get_default_blueprint():Blueprint{
         custom_bleed: 3,
         custom_spine: 10,
         booklet: true,
+        booklet_portrait: false,
 
         // Content
         content: [

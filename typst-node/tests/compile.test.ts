@@ -53,6 +53,7 @@ function make_request(overrides:Partial<TypstRequest> = {}):TypstRequest {
         }],
         arrangement: 'normal',
         show_pages: false,
+        booklet_portrait: false,
         ...overrides,
     }
 }

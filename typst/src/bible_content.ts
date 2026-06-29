@@ -139,6 +139,7 @@ export class BibleContent {
             content: items,
             arrangement: blue.booklet ? 'booklet' : 'book',
             show_pages: blue.show_pages,
+            booklet_portrait: blue.booklet_portrait,
         }
     }
 

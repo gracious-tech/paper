@@ -1,5 +1,5 @@
 
-import {PDFDocument, PDFPage, rgb} from 'pdf-lib'
+import {PDFDocument, PDFPage, degrees, rgb} from 'pdf-lib'
 
 import {generate_typst, generate_typst_passage, generate_typst_blank,
     generate_typst_lines} from './generate.js'
@@ -373,14 +373,23 @@ async function apply_booklet(
         // LHS at x=0, RHS at x=page_w
         new_page.drawPage(lhs_embed!, {x: 0, y: 0, width: page_w, height: page_h})
         new_page.drawPage(rhs_embed!, {x: page_w, y: 0, width: page_w, height: page_h})
+
+        // Portrait mode: rotate each landscape spread 90° so it prints on a portrait sheet.
+        // The booklet pages alternate front/back (even = front, odd = back), so rotate the
+        // backs an extra 180° (front 90°, back 270°). That bakes in the short-edge flip the
+        // imposition expects, so the printer's ordinary flip-on-long-edge duplex reproduces
+        // it — for printers that can't do flip-on-short-edge themselves.
+        if (request.booklet_portrait) {
+            new_page.setRotation(degrees(i % 2 === 0 ? 90 : 270))
+        }
     }
 
-    // Set duplex preference (short-edge for booklet)
-    // pdf-lib doesn't have direct ViewerPreferences API, so set via catalog
+    // Set duplex preference: short-edge for landscape booklets, long-edge when rotated to
+    // portrait (pdf-lib has no ViewerPreferences API, so set it via the catalog directly)
     const catalog = booklet_doc.catalog
     const context = booklet_doc.context
     const prefs = context.obj({
-        Duplex: '/DuplexFlipShortEdge',
+        Duplex: request.booklet_portrait ? '/DuplexFlipLongEdge' : '/DuplexFlipShortEdge',
     })
     catalog.set(context.obj('ViewerPreferences') as any, prefs)
 
@@ -399,16 +408,6 @@ async function apply_metadata(
     doc.setProducer('paper.bible')
     doc.setCreationDate(new Date())
     doc.setSubject(`Paper.Bible`)
-
-    // Set duplex preference for non-booklet
-    if (request.arrangement !== 'booklet') {
-        const catalog = doc.catalog
-        const context = doc.context
-        const prefs = context.obj({
-            Duplex: '/DuplexFlipLongEdge',
-        })
-        catalog.set(context.obj('ViewerPreferences') as any, prefs)
-    }
 
     return doc.save()
 }

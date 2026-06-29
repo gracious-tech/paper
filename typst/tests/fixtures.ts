@@ -98,6 +98,7 @@ export function make_request(overrides:Partial<TypstRequest> = {}):TypstRequest 
         content: [make_passage()],
         arrangement: 'normal',
         show_pages: true,
+        booklet_portrait: false,
         ...overrides,
     }
 }

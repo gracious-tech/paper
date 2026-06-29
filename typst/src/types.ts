@@ -10,6 +10,7 @@ export interface TypstRequest {
     content:TypstContentItem[]
     arrangement:'normal'|'book'|'booklet'
     show_pages:boolean
+    booklet_portrait:boolean
 }
 
 
@@ -137,6 +138,7 @@ export interface Blueprint {
     custom_bleed:number
     custom_spine:number
     booklet:boolean
+    booklet_portrait:boolean
 
     // Content
     content:ContentItem[]
