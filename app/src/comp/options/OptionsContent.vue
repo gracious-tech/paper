@@ -108,7 +108,7 @@ const add_title = () => {
         icon: passage ? book_emoji[passage.book]! : '✟',
         pattern: 'straight',
         color_primary: '#000000',
-        color_secondary: '#00000044',
+        color_secondary: '#000000',
         alone: true,
     })
     if (passage){

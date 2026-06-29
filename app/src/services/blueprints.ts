@@ -41,7 +41,7 @@ export function get_default_blueprint():Blueprint{
                 icon: '✉️',
                 pattern: 'straight',
                 color_primary: '#000000',
-                color_secondary: '#00000044',
+                color_secondary: '#000000',
                 alone: true,
             },
             {

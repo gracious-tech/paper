@@ -25,11 +25,9 @@ v-card-text(class='overflow-y-auto')
         v-checkbox(v-model='item.alone' :label='$t("Ensure other side of page blank")')
     v-divider(class='my-8')
     div
-        p(class='text-body-2 mb-3 text-medium-emphasis') {{$t("Color of text")}}
-        v-color-picker(v-model='item.color_primary' mode='hexa')
+        AppColor(v-model='item.color_primary' :label='$t("Color of text")')
     div
-        p(class='text-body-2 mb-3 text-medium-emphasis') {{$t("Color of graphics")}}
-        v-color-picker(v-model='item.color_secondary' mode='hexa')
+        AppColor(v-model='item.color_secondary' :label='$t("Color of graphics")')
 
 
 </template>
@@ -78,7 +76,7 @@ const done = () => {
     padding-bottom: 30vh
 
 
-.v-text-field, .v-color-picker
+.v-text-field, .app-color
     margin-bottom: 24px
 
 .symbol, .symbol-item

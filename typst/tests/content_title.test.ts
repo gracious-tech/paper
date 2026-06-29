@@ -40,7 +40,7 @@ describe('gen_title', () => {
     })
 
     it('renders SVG corner patterns when provided', () => {
-        const svg = '<svg><rect fill="#00000033"/></svg>'
+        const svg = '<svg><rect fill="#000000"/></svg>'
         const result = gen_title(make_title({
             pattern_svg: svg,
             color_secondary: '#aabbcc',

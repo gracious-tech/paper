@@ -15,7 +15,7 @@ export function gen_title(title:TypstTitlePage, page:PageConfig):string {
     // SVG corner patterns (one SVG mirrored to 4 corners)
     if (title.pattern_svg) {
         // Replace default color in SVG with the user's secondary color
-        const svg = title.pattern_svg.replace(/#00000033/g, title.color_secondary)
+        const svg = title.pattern_svg.replace(/#000000/g, title.color_secondary)
         const svg_bytes = `bytes("${escape_svg_for_typst(svg)}")`
 
         parts.push(`// Corner patterns`)
