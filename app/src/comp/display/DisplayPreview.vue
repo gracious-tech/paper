@@ -4,7 +4,7 @@
 div.preview
     div.toolbar
         v-btn-toggle(:model-value='mode' @update:model-value='set_mode'
-            density='compact' variant='elevated' color='primary' divided mandatory)
+            density='compact' variant='elevated' color='secondary' divided mandatory)
             v-btn(v-if='blue.booklet' value='reading' size='small') {{ $t("Reading") }}
             v-btn(value='print' size='small') {{ $t("Print") }}
 
