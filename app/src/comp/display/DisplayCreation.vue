@@ -18,10 +18,6 @@ div.explain(v-else :class='{pending: status === "pending"}')
         p(class='mt-12 mb-3') {{$t("Please include this code in your email:")}}
         p
             strong {{ debug }}
-    template(v-else-if='status === "expired"')
-        h3(class='mb-6') {{$t("PDF has expired")}}
-        div
-            v-btn(@click='recreate' color='secondary') {{$t("Recreate")}}
 
 </template>
 
@@ -30,9 +26,7 @@ div.explain(v-else :class='{pending: status === "pending"}')
 
 import {computed, ref, watch, onUnmounted} from 'vue'
 
-import {blue, selected_creation, state} from '@/services/state'
-import {clean_blueprint} from '@/services/blueprints'
-import {gen_creation_url} from '@/services/backend'
+import {selected_creation} from '@/services/state'
 import {MAX_MINUTES} from '@/services/create'
 import AnimatedBook from '../reuseable/AnimatedBook.vue'
 
@@ -47,10 +41,9 @@ const status = computed(() => {
 
 
 const iframe_src = computed(() => {
-    if (selected_creation.value?.status === 'available'){
-        return gen_creation_url(selected_creation.value.creation_id!, 'pdf')
-    }
-    return null
+    return selected_creation.value?.status === 'available'
+        ? selected_creation.value.pdf_url
+        : null
 })
 
 
@@ -60,19 +53,8 @@ const contact_url = computed(() => {
 
 
 const debug = computed(() => {
-    let info = 'request:' + selected_creation.value!.request_id
-    if (selected_creation.value?.creation_id){
-        info += ' creation:' + selected_creation.value!.creation_id
-    }
-    return info
+    return 'request:' + selected_creation.value!.request_id
 })
-
-
-const recreate = () => {
-    Object.assign(blue, clean_blueprint(selected_creation.value!.blueprint))
-    state.tab = 'create'
-    state.editor = null
-}
 
 
 watch(selected_creation, creation => {

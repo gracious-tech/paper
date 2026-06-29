@@ -1,0 +1,27 @@
+{
+    "name": "paper-bible-typst",
+    "version": "0.1.0",
+    "type": "module",
+    "main": "dist/index.js",
+    "types": "dist/index.d.ts",
+    "exports": {
+        ".": {
+            "import": "./dist/index.js",
+            "types": "./dist/index.d.ts"
+        }
+    },
+    "scripts": {
+        "build": "tsc",
+        "watch": "tsc --watch",
+        "test": "vitest run"
+    },
+    "dependencies": {
+        "@gracious.tech/fetch-client": "^2.2.0",
+        "pdf-lib": "^1.17.1",
+        "pm-to-typst": "*",
+        "printing-services": "^1.5.1"
+    },
+    "devDependencies": {
+        "vitest": "^4.1.2"
+    }
+}

@@ -3,8 +3,8 @@
 
 div.cont(v-if='!trigger_rerender')
     div.generate
-        v-btn(@click='generate' :disabled='!blue.content.length' color='secondary' size='large'
-            rounded) {{$t("Create")}}
+        v-btn(@click='generate' :disabled='!blue.content.length || !typst_generator'
+            :loading='generating' color='secondary' size='large' rounded) {{$t("Create")}}
 
     v-text-field.title(v-model='blue.title' :label='$t("Document name")')
     v-divider(class='my-8')
@@ -17,49 +17,33 @@ div.cont(v-if='!trigger_rerender')
     OptionsBibles
     v-divider(class='my-8')
 
-    h2 {{$t("Paper size")}}
+    h2 {{$t("Book size")}}
     OptionsPaper
 
     v-divider(class='my-8')
 
-    h2 {{$t("Quick configs")}}
-    OptionsPreset
-    p(v-if='!state.advanced' class='text-center mt-10')
-        v-btn(@click='toggle_advanced' size='small' variant='flat') {{$t("More Options")}}
-
+    h2 {{$t("Features")}}
+    OptionsFeatures
     v-divider(class='my-8')
 
-    template(v-if='state.advanced')
+    h2 {{$t("Study")}}
+    OptionsStudy
+    v-divider(class='my-8')
 
-        h2 {{$t("Features")}}
-        OptionsFeatures
-        v-divider(class='my-8')
+    h2 {{$t("Style")}}
+    OptionsStyle
+    v-divider(class='my-8')
 
-        h2 {{$t("Study")}}
-        OptionsStudy
-        v-divider(class='my-8')
+    h2 {{$t("Layout")}}
+    OptionsLayout
+    v-divider(class='my-8')
 
-        h2 {{$t("Style")}}
-        OptionsStyle
-        v-divider(class='my-8')
+    h2 {{$t("Print")}}
+    OptionsPrint
+    v-divider(class='my-8')
 
-        h2 {{$t("Layout")}}
-        OptionsLayout
-        v-divider(class='my-8')
-
-        h2 {{$t("Print")}}
-        OptionsPrint
-        v-divider(class='my-8')
-
-        h2 {{$t("Legal")}}
-        OptionsLegal
-        v-divider(class='my-8')
-
-        p(class='text-center mt-10')
-            v-btn(@click='toggle_advanced' variant='outlined' size='small' class='ma-2')
-                | {{$t("Show less options")}}
-            v-btn(@click='revert' variant='outlined' size='small' class='ma-2')
-                | {{$t("Revert to defaults")}}
+    h2 {{$t("Legal")}}
+    OptionsLegal
 
 </template>
 
@@ -79,39 +63,50 @@ import OptionsPaper from '@/comp/options/OptionsPaper.vue'
 import OptionsPrint from '@/comp/options/OptionsPrint.vue'
 import OptionsStudy from '@/comp/options/OptionsStudy.vue'
 import OptionsBibles from '@/comp/options/OptionsBibles.vue'
-import {blue, state, creations, selected_id} from '@/services/state'
-import {gen_combined_css, gen_subjobs} from '@/services/render/render'
-import {gen_lines_html, gen_lines_css} from '@/services/render/render_lines'
-import {gen_base_css, gen_html} from '@/services/render/render_base'
-import {gen_content_name, get_default_blueprint} from '@/services/blueprints'
-import {put_request} from '@/services/backend'
-import {generate_token} from '@/services/utils'
-import {monitor_creation} from '@/services/create'
-import {database} from '@/services/db'
+import {PDFDocument} from 'pdf-lib'
 
-import type {Creation, PaperRequest} from '@/services/types'
+import {blue, state, creations, selected_id} from '@/services/state'
+import {bible_content} from '@/services/content'
+import {typst_generator} from '@/services/typst'
+import {gen_content_name, get_default_blueprint} from '@/services/blueprints'
+import {generate_token} from '@/services/utils'
+
+import type {Creation} from '@/services/types'
 
 
 const trigger_rerender = ref(false)
 
 
+// Whether a PDF is currently being compiled (disables the Create button)
+const generating = ref(false)
+
+
 const generate = async () => {
+
+    // Compiler must be ready (the button is disabled until it is, but guard anyway)
+    const generator = typst_generator.value
+    if (!generator){
+        return
+    }
 
     // Auto-set title if none yet
     if (!blue.title.trim()){
         blue.title = gen_content_name(blue.content[0]!)
     }
 
-    // Save to db
+    // Snapshot the request from the current draft before any further mutation (it's a plain
+    // object, so later edits to `blue` won't affect this in-flight creation)
+    const request = await bible_content.resolve(blue)
+
+    // Record the new creation in state
     const creation:Creation = reactive({
         request_id: generate_token(),
         blueprint: cloneDeep(blue),
         created: new Date(),
-        creation_id: null,
         status: 'pending',
         pages: null,
+        pdf_url: null,
     })
-    await database.creations_set(creation)
     creations.push(creation)
 
     // Clear document title
@@ -121,67 +116,20 @@ const generate = async () => {
     selected_id.value = creation.request_id
     state.tab = 'history'
 
-    // Form request
-    const css = gen_combined_css()
-    const subjobs = gen_subjobs()
-    for (const subjob of subjobs){
-        subjob[0] = gen_html(css, subjob[0])
-        if (subjob[1]){
-            subjob[1] = gen_html(css, subjob[1])
-        }
-    }
-    const body:PaperRequest = {
-        request_id: generate_token(),
-        title: blue.title,
-        booklet: blue.page_arrangement === 'booklet',
-        booklike: blue.page_arrangement !== 'normal',
-        blank_job: blue.show_lines
-            ? gen_html(gen_base_css() + gen_lines_css(), gen_lines_html())
-            : gen_html(gen_base_css(), ''),
-        subjobs,
-        blue: JSON.stringify(blue),
-    }
-
-    // Send request
+    // Compile the final PDF in-browser via Typst
+    generating.value = true
     try {
-        creation.creation_id = await put_request(creation.request_id, JSON.stringify(body))
+        const bytes = await generator.compile_pdf(request)
+        creation.pages = (await PDFDocument.load(bytes)).getPageCount()
+        creation.pdf_url = URL.createObjectURL(
+            new Blob([bytes as BlobPart], {type: 'application/pdf'}))
+        creation.status = 'available'
     } catch (error){
         console.error(error)
         creation.status = 'failed'
-        return
     } finally {
-        // Save changes to creation record to db
-        void database.creations_set(creation)
+        generating.value = false
     }
-
-    // Poll PDF creation
-    monitor_creation(creation)
-}
-
-
-// Toggle whether to display advanced options or not
-const toggle_advanced = () => {
-    state.advanced = !state.advanced
-    void database.config_set('advanced', state.advanced)
-}
-
-
-// Revert all settings to their defaults (except content)
-const revert = () => {
-    const defaults = get_default_blueprint()
-    for (const [key, val] of Object.entries(defaults)){
-        if (['content'].includes(key)){
-            continue  // Don't wipe content
-        }
-        // @ts-ignore Can't know type but all will be valid
-        blue[key] = val
-    }
-
-    // OptionsPaper (and possibly others) have state that won't update properly unless rerendered
-    trigger_rerender.value = true
-    nextTick(() => {
-        trigger_rerender.value = false
-    })
 }
 
 

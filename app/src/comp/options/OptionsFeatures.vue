@@ -8,7 +8,7 @@ v-checkbox(v-model='blue.show_verses' :label='$t("Verse numbers")')
 v-checkbox(v-model='blue.show_pages' :label='$t("Page numbers")')
 v-checkbox(v-model='blue.show_headings' :label='$t("Section headings")')
 v-checkbox(v-model='blue.show_footnotes' :label='$t("Footnotes")')
-v-checkbox(v-model='blue.show_woj' :label='$t(`Color Jesus\' words (if bible supports it)`)')
+v-checkbox(v-model='blue.show_woj' :disabled='!supports_woj' :label='woj_label')
 v-checkbox(v-model='blue.show_lines' :label='$t("Blank pages have lines for notetaking")')
 //- v-checkbox(v-model='blue.show_book_name' :label='$t("Book name in footer")')
 
@@ -17,11 +17,19 @@ v-checkbox(v-model='blue.show_lines' :label='$t("Blank pages have lines for note
 
 <script lang='ts' setup>
 
+import {computed} from 'vue'
 import {useI18n} from 'vue-i18n'
 
-import {blue} from '@/services/state'
+import {blue, supports_woj} from '@/services/state'
 
 const {t} = useI18n()
+
+// Label for the words-of-Jesus toggle, flagging when no chosen translation supports it
+const woj_label = computed(() => {
+    return supports_woj.value
+        ? t(`Color Jesus' words (if bible supports it)`)
+        : t(`Color Jesus' words (N/A in chosen translations)`)
+})
 
 const chapter_styles = [
     {value: 'divider', title: t("Divider") + " / --- 2 ---"},

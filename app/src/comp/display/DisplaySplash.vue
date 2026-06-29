@@ -20,12 +20,10 @@ div.cont
 <script lang='ts' setup>
 
 import BrandIcon from '@/assets/icon.svg?component'
-import {database} from '@/services/db'
 import {state} from '@/services/state'
 
 
 const start = () => {
-    database.config_set('splash', false)
     state.splash = false
 }
 

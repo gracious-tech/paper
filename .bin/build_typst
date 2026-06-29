@@ -4,9 +4,13 @@ set -e
 cd "$(dirname "$(dirname "$0")")"
 
 
-# Compile each module's TypeScript to its dist/ output
-for module in typst typst-web typst-node; do
-    cd "$module"
+# Regenerate the inlined title-page pattern SVGs (embeds them into the typst package's JS)
+ROOT="$PWD"
+node "$ROOT/typst/gen_patterns.ts"
+
+
+# Compile each module's TypeScript to its dist/ output (paths relative to repo root)
+for module in generic/typst-utils generic/pm-to-typst typst typst-web typst-node; do
+    cd "$ROOT/$module"
     npx tsc
-    cd ..
 done

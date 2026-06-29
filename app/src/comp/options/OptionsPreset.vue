@@ -4,7 +4,7 @@ v-list(bg-color='transparent')
     v-list-item(@click='apply_general_preset')
         v-list-item-title {{$t("Standard Bible")}}
         v-list-item-subtitle {{$t("How most bibles look, with verse numbers and headings")}}
-    v-list-item(@click='apply_study_preset' :disabled='translation_forbids_derivatives')
+    v-list-item(@click='apply_study_preset')
         v-list-item-title {{$t("Study Bible")}}
         v-list-item-subtitle {{$t("Extensive footnotes to guide readers")}}
     v-list-item(@click='apply_reading_preset')
@@ -19,7 +19,7 @@ v-list(bg-color='transparent')
 
 <script lang='ts' setup>
 
-import {blue, translation_forbids_derivatives} from '@/services/state'
+import {blue} from '@/services/state'
 
 
 const apply_general_preset = () => {
@@ -29,7 +29,7 @@ const apply_general_preset = () => {
     blue.show_footnotes = true
     blue.notes = null
     blue.line_height = 1.75
-    blue.half_blank = false
+    blue.half_blank = null
 }
 
 const apply_reading_preset = () => {
@@ -39,7 +39,7 @@ const apply_reading_preset = () => {
     blue.show_footnotes = false
     blue.notes = null
     blue.line_height = 1.75
-    blue.half_blank = false
+    blue.half_blank = null
 }
 
 const apply_writing_preset = () => {
@@ -49,7 +49,7 @@ const apply_writing_preset = () => {
     blue.show_footnotes = false
     blue.notes = null
     blue.line_height = 2.5
-    blue.half_blank = true
+    blue.half_blank = 'right'
     blue.bibles_layout = 'columns'  // Required for half_blank
 }
 
@@ -60,7 +60,7 @@ const apply_study_preset = () => {
     blue.show_footnotes = false
     blue.notes = 'eng_tyndale'
     blue.line_height = 1.5
-    blue.half_blank = false
+    blue.half_blank = null
 }
 
 

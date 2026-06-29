@@ -21,26 +21,26 @@ import RadioChecked from '@material-symbols/svg-400/rounded/radio_button_checked
 import RadioUnchecked from '@material-symbols/svg-400/rounded/radio_button_unchecked.svg'
 import ExpandMore from '@material-symbols/svg-400/rounded/expand_more.svg'
 
+import wasm_url from '@myriaddreamin/typst-ts-web-compiler/pkg/typst_ts_web_compiler_bg.wasm?url'
+import {init as init_typst} from 'paper-bible-typst-web'
+
 import AppIcon from './comp/global/AppIcon.vue'
-import AppHtml from './comp/global/AppHtml.vue'
+import AppProse from './comp/global/AppProse.vue'
 import AppRoot from './comp/AppRoot.vue'
 import locales_meta from './locales.json'
-import {blue, creations, state} from '@/services/state'
-import {content} from '@/services/content'
-import {database} from '@/services/db'
+import {blue, state} from '@/services/state'
+import {content, bible_content} from '@/services/content'
+import {typst_generator} from '@/services/typst'
 import {start_watchers} from '@/services/watchers'
-import {monitor_creation} from '@/services/create'
 import {clean_blueprint} from '@/services/blueprints'
-import {vue_error_handler} from '@/services/errors'
-
-import type {Blueprint} from '@/services/types'
+import {report_error, vue_error_handler} from '@/services/errors'
 
 
 // Create app
 const app = createApp(AppRoot)
 app.config.errorHandler = vue_error_handler
 app.component('AppIcon', AppIcon)
-app.component('AppHtml', AppHtml)
+app.component('AppProse', AppProse)
 
 
 // Register i18n
@@ -52,6 +52,7 @@ if (browser_locale === 'zh' && ['hant', 'tw', 'hk', 'mo'].includes(lower_lang.sp
 const i18n = createI18n({
     legacy: false,
     locale: browser_locale,
+    missingWarn: false,  // TODO remove when i18n fully implemented
 })
 app.use(i18n)
 // WARN en shouldn't be included in `supported` array as it maps to empty strings for testing only
@@ -106,20 +107,25 @@ app.use(createVuetify({
 
 
 // Wait for critical services before mounting
-void database.connect().then(async () => {
+void (async () => {
 
-    // Init content state
-    content.collection = await content.client.fetch_collection()
-    content.translations = content.collection.get_translations({object: true})
+    // Init content state (the shared Bible-content layer owns the collection)
+    await bible_content.init()
+    content.collection = bible_content.collection
+    content.translations = content.collection.get_resources({object: true})
     content.languages = content.collection.get_languages({object: true})
 
-    // Load saved state
-    const saved = await database.config_get_all()
-    state.splash = (saved['splash'] as boolean|undefined) ?? true
-    state.advanced = (saved['advanced'] as boolean|undefined) ?? false
-    const draft = saved['draft'] as Blueprint|undefined
-    Object.assign(blue, clean_blueprint(draft))
-    creations.push(...await database.creations_get_all())
+    // Initialise the in-browser Typst compiler (non-blocking — preview waits on it).
+    // Fonts are served from the public dir under this assets prefix (see .bin/setup).
+    const assets_prefix = new URL('/generator_assets/', window.location.href).href
+    void init_typst({wasm_url, assets_prefix}).then(generator => {
+        typst_generator.value = generator
+    }).catch((error:unknown) => {
+        report_error('banner', error)
+    })
+
+    // Init draft blueprint (TODO load from online storage when available)
+    Object.assign(blue, clean_blueprint(undefined))
 
     // Start on guide tab if first time
     if (state.splash){
@@ -131,11 +137,4 @@ void database.connect().then(async () => {
 
     // Mount app
     app.mount('#app')
-
-    // Monitor any creations that were still in progress when last used app
-    for (const creation of creations){
-        if (creation.status === 'pending'){
-            monitor_creation(creation)
-        }
-    }
-})
+})()

@@ -1,146 +1,160 @@
 
 <template lang='pug'>
 
-iframe(ref='iframe' :srcdoc='preview')
+div.preview
+    div.toolbar
+        v-btn-toggle(:model-value='mode' @update:model-value='set_mode'
+            density='compact' variant='elevated' color='primary' divided mandatory)
+            v-btn(v-if='blue.booklet' value='reading' size='small') {{ $t("Reading") }}
+            v-btn(value='print' size='small') {{ $t("Print") }}
+
+    iframe(v-if='pdf_url' :src='pdf_url')
+    div.status(v-else-if='error_msg')
+        h3(class='mb-4') {{ $t("Couldn't generate preview") }}
+        p(class='status-detail') {{ error_msg }}
+    div.status(v-else)
+        p {{ $t("Generating preview") + "…" }}
 
 </template>
 
 
 <script lang='ts' setup>
 
-import {ref, computed} from 'vue'
-import {useI18n} from 'vue-i18n'
+import {ref, watch, onUnmounted} from 'vue'
+import {debounce} from 'lodash-es'
 
-import {gen_subjobs, gen_combined_css} from '@/services/render/render'
-import {blue, page_height, page_width} from '@/services/state'
-import {gen_html} from '@/services/render/render_base'
-
-
-const {t} = useI18n()
+import {blue} from '@/services/state'
+import {content, bible_content} from '@/services/content'
+import {typst_generator} from '@/services/typst'
 
 
-function generate_preview_css(){
+// Object URL of the current compiled PDF, and any compile error message
+const pdf_url = ref<string|null>(null)
+const error_msg = ref<string|null>(null)
 
-    const margin_offset = `${blue.margin_bottom + blue.margin_top}${blue.margin_unit}`
+// Which layout to render: 'reading' = facing-page book spreads (default),
+// 'print' = the actual final PDF (folded booklet order or sequential pages)
+const mode = ref<'reading'|'print'>('reading')
 
-    return `
-        @import url('https://fonts.googleapis.com/css2?family=Libre+Baskerville:ital,wght@0,400;0,700;1,400&display=swap');
-        @import url('https://fonts.googleapis.com/css2?family=Libre+Caslon+Text:ital,wght@0,400;0,700;1,400&display=swap');
-        @import url('https://fonts.googleapis.com/css2?family=EB+Garamond:ital,wght@0,400;0,700;1,400;1,700&display=swap');
-        @import url('https://fonts.googleapis.com/css2?family=Crimson+Pro:ital,wght@0,400;0,700;1,400;1,700&display=swap');
-        @import url('https://fonts.googleapis.com/css2?family=Dancing+Script:wght@700&display=swap');
-        @import url('https://fonts.googleapis.com/css2?family=Noto+Emoji:wght@300&display=swap');
+// The reading spread view only makes sense for booklets; non-booklets print sequentially,
+// so force 'print' whenever booklet is off (the Reading toggle is also hidden then)
+watch(() => blue.booklet, booklet => {
+    if (!booklet){
+        mode.value = 'print'
+    }
+}, {immediate: true})
 
-        html {
-            background-color: #333;
-            height: 100%;
-        }
-
-        body {
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            height: 100%;
-            margin: 12px;
-            overflow: hidden;
-        }
-
-        .wrapper {
-            display: flex;
-            flex-direction: column;
-            width: 100%;
-            height: 100%;
-            max-width: ${page_width.value}${blue.paper_unit};
-            max-height: ${page_height.value}${blue.paper_unit};
-            overflow: hidden;
-            background-color: white;
-            counter-reset: footnote;
-        }
-
-        .warning {
-            min-height: ${blue.margin_top}${blue.margin_unit};
-            max-height: ${blue.margin_top}${blue.margin_unit};
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            text-align: center;
-            font-size: 12px;
-            color: #f60;
-            font-family: "Arial", sans-serif;
-            line-height: 1.2;
-        }
-        .wrapper:not(:hover) .warning {
-            visibility: hidden;
-        }
-
-        .content {
-            position: relative;  /* For corner patterns, but would mess up print position */
-            overflow: hidden scroll;
-            margin: 0 ${blue.margin_right}${blue.margin_unit}
-            ${blue.margin_bottom}${blue.margin_unit} ${blue.margin_left}${blue.margin_unit};
-        }
-        .wrapper:hover .content {
-            max-width: calc(${page_width.value}${blue.paper_unit} + 15px);
-            margin-right: calc(${blue.margin_right}${blue.margin_unit} - 15px);
-        }
-        .wrapper:not(:hover) .content::-webkit-scrollbar {
-            display: none;
-        }
-
-        .title {
-            height: calc(${page_height.value}${blue.paper_unit} - ${margin_offset});
-            position: relative;
-        }
-
-        .fb-note {
-            counter-increment: footnote;
-        }
-        .fb-note::before {
-            content: counter(footnote, lower-alpha);
-            vertical-align: super;
-            opacity: 0.5;
-            font-size: 0.8em;
-        }
-
-        .study, .fb-note {
-            display: none;
-        }
-
-        .subjob-break, .page-break {
-            margin-top: ${blue.margin_bottom}${blue.margin_unit};
-            margin-bottom: ${blue.margin_top}${blue.margin_unit};
-            border: 1px dashed #0002;
-            border-bottom-width: 0;
-        }
-    `
+// Switch the preview layout and immediately recompile (no debounce for an explicit click)
+function set_mode(value:'reading'|'print'){
+    mode.value = value
+    compile()
 }
 
-const iframe = ref<HTMLIFrameElement>()
+// Incrementing id so out-of-order async compiles can be discarded
+let latest_run = 0
 
 
-const preview = computed(() => {
-    // Preview approximation in browser
-    const content = gen_subjobs().flat().filter(i => typeof i === 'string')
-        .join('<hr class="subjob-break">')
-    const css = generate_preview_css() + gen_combined_css()
-    const warn1 = t("This preview cannot display some features and sizes may differ when printed.")
-    const warn2 = t("Always print a test page before finalising your design.")
-    return gen_html(css, `
-        <div class='wrapper'>
-            <div class='warning'>
-                ${warn1}<br>
-                ${warn2}
-            </div>
-            <div class='content'>${content}</div>
-        </div>
-    `)
+// Compile the current blueprint to a PDF and display it
+async function compile(){
+
+    // Wait until the WASM compiler is ready (watcher retriggers when it becomes available)
+    const generator = typst_generator.value
+    if (!generator){
+        return
+    }
+
+    const run = ++latest_run
+    error_msg.value = null
+
+    try {
+        // 'reading' lays out the pages as facing-page book spreads (as if the book were opened);
+        // 'print' produces the actual final PDF (booklet fold order, or sequential if not a booklet)
+        const request = await bible_content.resolve(blue)
+        const bytes = mode.value === 'print'
+            ? await generator.compile_pdf(request)
+            : await generator.compile_pdf_preview(request)
+
+        // Ignore if a newer compile has started since
+        if (run !== latest_run){
+            return
+        }
+
+        // Swap in the new PDF and revoke the previous object URL
+        const url = URL.createObjectURL(new Blob([bytes], {type: 'application/pdf'}))
+        if (pdf_url.value){
+            URL.revokeObjectURL(pdf_url.value)
+        }
+        pdf_url.value = url
+
+    } catch (error){
+        if (run !== latest_run){
+            return
+        }
+        error_msg.value = error instanceof Error ? error.message : String(error)
+        console.error(error)
+    }
+}
+
+
+// Debounce so rapid option changes don't trigger a compile per keystroke
+const compile_debounced = debounce(compile, 500)
+
+
+// Recompile whenever the blueprint, fetched Typst content, or compiler availability changes
+watch(
+    [() => blue, () => content.loaded, () => typst_generator.value],
+    () => compile_debounced(),
+    {deep: true, immediate: true},
+)
+
+
+// Clean up pending work and the last object URL
+onUnmounted(() => {
+    compile_debounced.cancel()
+    if (pdf_url.value){
+        URL.revokeObjectURL(pdf_url.value)
+    }
 })
-
 
 </script>
 
 
 <style lang='sass' scoped>
 
+.preview
+    display: flex
+    flex-direction: column
+    width: 100%
+    height: 100%
+
+.toolbar
+    flex-shrink: 0
+    display: flex
+    justify-content: center
+    padding: 8px
+    background-color: rgba(0, 0, 0, 0.2)
+
+iframe
+    flex-grow: 1
+    width: 100%
+    border: none
+
+.status
+    flex-grow: 1
+    display: flex
+    flex-direction: column
+    justify-content: center
+    align-items: center
+    height: 100%
+    color: white
+    text-align: center
+    padding: 24px
+
+    .status-detail
+        max-width: 600px
+        font-family: monospace
+        font-size: 12px
+        white-space: pre-wrap
+        opacity: 0.8
 
 </style>

@@ -11,7 +11,6 @@ v-list-item(@click='select' :active='creation.request_id === selected_id' color=
             v-progress-circular(v-else-if='creation.status === "pending"' indeterminate size='32'
                 color='secondary')
             app-icon(v-else-if='creation.status === "failed"' name='error' class='text-error')
-            app-icon(v-else-if='creation.status === "expired"' name='history_toggle_off' class='text-black')
         v-menu
             template(#activator='{props}')
                 v-btn(v-bind='props' icon variant='text' color='black')
@@ -32,9 +31,7 @@ v-list-item(@click='select' :active='creation.request_id === selected_id' color=
 import {computed} from 'vue'
 
 import {creations, selected_id, state, blue} from '@/services/state'
-import {delete_creation, gen_creation_url} from '@/services/backend'
 import {clean_blueprint} from '@/services/blueprints'
-import {database} from '@/services/db'
 
 import type {Creation} from '@/services/types'
 
@@ -48,7 +45,7 @@ const paper_count = computed(() => {
 
 
 const pages_color = computed(() => {
-    if (props.creation.blueprint.page_arrangement !== 'booklet'){
+    if (!props.creation.blueprint.booklet){
         return 'grey'
     }
     if (paper_count.value > 20){
@@ -65,8 +62,10 @@ const select = () => {
 }
 
 const download = () => {
-    // TODO Can't actually download when cross-origin (would need to proxy S3 via same domain)
-    self.open(gen_creation_url(props.creation.creation_id!, 'pdf'), '_blank')
+    // Open the locally-compiled PDF in a new tab
+    if (props.creation.pdf_url){
+        self.open(props.creation.pdf_url, '_blank')
+    }
 }
 
 const edit = async () => {
@@ -77,13 +76,12 @@ const edit = async () => {
 
 const remove = async () => {
 
-    // NOTE Failed creations won't have a creation_id
-    if (props.creation.creation_id){
-        await delete_creation(props.creation.creation_id)
+    // Release the in-memory PDF object URL
+    if (props.creation.pdf_url){
+        URL.revokeObjectURL(props.creation.pdf_url)
     }
 
-    // Remove from database and state if successfully removed from server
-    await database.creations_delete(props.creation)
+    // Remove from state
     const array_index = creations.findIndex(c => c.request_id === props.creation.request_id)
     if (array_index !== -1){
         creations.splice(array_index, 1)

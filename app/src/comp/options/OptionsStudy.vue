@@ -6,8 +6,7 @@
 //-     v-radio(value='small' label="Most relevant")
 //-     v-radio(value='medium' label="All available")
 
-v-checkbox(v-model='notes' label="Tyndale Open Study Notes"
-    :disabled='translation_forbids_derivatives' :error-messages='forbidden' :hide-details='false')
+v-checkbox(v-model='notes' label="Tyndale Open Study Notes" :hide-details='false')
 
 </template>
 
@@ -15,28 +14,17 @@ v-checkbox(v-model='notes' label="Tyndale Open Study Notes"
 <script lang='ts' setup>
 
 import {computed} from 'vue'
-import {useI18n} from 'vue-i18n'
 
-import {blue, translation_forbids_derivatives} from '@/services/state'
-
-
-const {t} = useI18n()
+import {blue} from '@/services/state'
 
 
 const notes = computed({
     get(){
-        return blue.notes !== null && !translation_forbids_derivatives.value
+        return blue.notes !== null
     },
     set(value:boolean){
         blue.notes = value ? 'eng_tyndale' : null
     },
-})
-
-const forbidden = computed(() => {
-    if (translation_forbids_derivatives.value){
-        return t("Chosen Bible translation does not allow adding content such as study notes")
-    }
-    return ""
 })
 
 

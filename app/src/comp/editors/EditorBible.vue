@@ -50,7 +50,7 @@ import {blue, state} from '@/services/state'
 import {content} from '@/services/content'
 import DialogPeddlers from '@/comp/dialogs/DialogPeddlers.vue'
 
-import type {VList} from 'vuetify/lib/components/VList/index.mjs'
+import type {VList} from 'vuetify/components'
 import type {GetTranslationsItem} from '@gracious.tech/fetch-client'
 
 
@@ -83,9 +83,9 @@ const displayed_language_name = computed(() => {
 const translations = computed(() => {
 
     // Get translations by category
-    const decent = content.collection.get_translations({language: displayed_language.value,
+    const decent = content.collection.get_resources({language: displayed_language.value,
         exclude_obsolete: true})
-    const niche = content.collection.get_translations({language: displayed_language.value})
+    const niche = content.collection.get_resources({language: displayed_language.value})
         .filter(i => !decent.find(di => di.id === i.id))
 
     // Add in separate groups

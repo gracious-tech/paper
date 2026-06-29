@@ -2,19 +2,6 @@
 import {debounce as lodash_debounce} from 'lodash-es'
 
 
-export function escape_html(text:string):string{
-    // Escape the given string for use in HTML
-    const escapes:Record<string, string> = {
-        '&': '&amp;',
-        '<': '&lt;',
-        '>': '&gt;',
-        '"': '&quot;',
-        "'": '&#39;',
-    }
-    return text.replace(/[&<>"']/g, char => escapes[char]!)
-}
-
-
 export function buffer_to_url64(buffer:ArrayBuffer):string{
     // Encode binary data as a url-safe base64 string
     // NOTE btoa only works with strings so convert each byte to a char
@@ -57,13 +44,6 @@ export async function compress(buffer:ArrayBuffer):Promise<ArrayBuffer>{
 export function string_to_utf8(text:string):ArrayBuffer{
     // Convert a string to a UTF8 ArrayBuffer
     return new TextEncoder().encode(text).buffer
-}
-
-
-export function hex_to_buffer(hex:string):ArrayBuffer{
-    // Convert a hexadecimal string to an ArrayBuffer
-    const bytes = hex.match(/../g)?.map(pair => parseInt(pair, 16))
-    return new Uint8Array(bytes ?? []).buffer
 }
 
 

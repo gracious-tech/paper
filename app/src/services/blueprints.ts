@@ -17,10 +17,18 @@ export function get_default_blueprint():Blueprint{
         title: '',
 
         // Printing
-        paper_unit: 'mm',
-        paper_width: 210,
-        paper_height: 297,
-        page_arrangement: 'booklet',
+        service_id: 'home',
+        size_id: 'a4',
+        page_count: 300,
+        binding_type: 'paperback',
+        ink_type: 'bw',
+        paper_type: 'white',
+        custom_unit: 'mm',
+        custom_trim_width: 152,
+        custom_trim_height: 229,
+        custom_bleed: 3,
+        custom_spine: 10,
+        booklet: true,
 
         // Content
         content: [
@@ -49,11 +57,13 @@ export function get_default_blueprint():Blueprint{
                 type: 'custom',
                 id: generate_token(),
                 name: "Copyright",
-                html: '<p>AUTO-COPYRIGHT</p>',
+                doc: {type: 'doc', content: [
+                    {type: 'paragraph', content: [{type: 'text', text: 'AUTO-COPYRIGHT'}]},
+                ]},
                 position: 'bottom',
             },
         ],
-        bibles: [content.collection.get_preferred_translation()],
+        bibles: [content.collection.get_preferred_resource().id],
         bibles_layout: 'columns',
 
         // Features
@@ -67,7 +77,7 @@ export function get_default_blueprint():Blueprint{
         show_lines: true,
         notes: null,
         crossref: null,
-        half_blank: false,
+        half_blank: null,
 
         // Style
         font_family: "Crimson Pro",
@@ -83,14 +93,13 @@ export function get_default_blueprint():Blueprint{
         margin_unit: 'mm',
         margin_top: 10,
         margin_bottom: 10,
-        margin_left: 10,
-        margin_right: 10,
+        margin_inner: 10,
+        margin_outer: 10,
         margin_swap: true,
         column_gap: 5,
 
         // Legal
-        license: 'public',
-        license_attribution: '',
+        public_domain: true,
         app_link: true,
     }
 }
@@ -112,7 +121,7 @@ export function clean_blueprint(blueprint:unknown):Blueprint{
     // Ensure bibles still exist
     valid.bibles = valid.bibles.filter(b => b in content.translations) as [string, ...string[]]
     if (!valid.bibles.length){
-        valid.bibles.push(content.collection.get_preferred_translation())
+        valid.bibles.push(content.collection.get_preferred_resource().id)
     }
 
     return valid

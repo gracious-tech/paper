@@ -30,9 +30,9 @@ export default function(template_path:string):Plugin{
             // Replace default index contents with rendered pug template instead
 
             // Run before all core Vite plugins
-            enforce: 'pre',
+            order: 'pre',
 
-            async transform(html, context){
+            async handler(html, context){
                 // NOTE index.html is ignored as replacing entirely by index.pug
                 // NOTE context.bundle will never be available because plugin runs 'pre' others
                 const template = readFileSync(template_path, {encoding: 'utf-8'})

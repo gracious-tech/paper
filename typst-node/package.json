@@ -1,0 +1,26 @@
+{
+    "name": "paper-bible-typst-node",
+    "version": "0.1.0",
+    "type": "module",
+    "main": "dist/index.js",
+    "types": "dist/index.d.ts",
+    "exports": {
+        ".": {
+            "import": "./dist/index.js",
+            "types": "./dist/index.d.ts"
+        }
+    },
+    "scripts": {
+        "build": "tsc",
+        "watch": "tsc --watch",
+        "test": "vitest run"
+    },
+    "dependencies": {
+        "paper-bible-typst": "*"
+    },
+    "devDependencies": {
+        "@types/node": "^22.0.0",
+        "pdf-lib": "^1.17.1",
+        "vitest": "^4.1.2"
+    }
+}

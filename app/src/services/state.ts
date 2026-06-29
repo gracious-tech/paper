@@ -1,6 +1,8 @@
 
 import {reactive, computed, ref} from 'vue'
 
+import {doc_has_copyright} from 'paper-bible-typst'
+
 import {content} from '@/services/content'
 
 import type {Blueprint, ContentPassage, Creation} from '@/services/types'
@@ -20,28 +22,10 @@ export const state = reactive({
 export const blue = reactive({} as unknown as Blueprint)
 
 
-// The width of page as given to WeasyPrint
-export const page_width = computed(() => {
-    if (blue.page_arrangement === 'booklet'){
-        return blue.paper_height / 2
-    }
-    return blue.paper_width
-})
-
-
-// The height of page as given to WeasyPrint
-export const page_height = computed(() => {
-    if (blue.page_arrangement === 'booklet'){
-        return blue.paper_width
-    }
-    return blue.paper_height
-})
-
-
 // Whether current blueprint includes a copyright item
 export const has_copyright = computed(() => {
-    return !!blue.content.find(
-        item => item.type === 'custom' && item.html.includes('AUTO-COPYRIGHT'))
+    return blue.content.some(
+        item => item.type === 'custom' && doc_has_copyright(item.doc))
 })
 
 
@@ -56,10 +40,9 @@ export const requires_copyright = computed(() => {
 })
 
 
-// Whether a translation has an ND condition
-export const translation_forbids_derivatives = computed(() => {
-    return blue.bibles.some(item => !content.translations[item]?.licenses
-        .find(l => l.restrictions.forbid_derivatives !== true))
+// Whether any selected translation supports words-of-Jesus markup (red letters)
+export const supports_woj = computed(() => {
+    return blue.bibles.some(bible => content.wj_markup[bible])
 })
 
 

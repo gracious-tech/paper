@@ -17,8 +17,7 @@ v-list(bg-color='transparent')
 div.add(class='d-flex align-center flex-wrap')
     strong(class='text-medium-emphasis mr-2') {{$t("Add")}}
     v-btn(@click='add_passage' size='small' variant='outlined') {{$t("Passage")}}
-    v-btn(@click='add_custom' size='small' variant='outlined'
-        :disabled='translation_forbids_derivatives') {{$t("Text")}}
+    v-btn(@click='add_custom' size='small' variant='outlined') {{$t("Text")}}
     v-btn(@click='add_title' size='small' variant='outlined') {{$t("Title page")}}
     v-btn(:disabled='has_copyright' @click='add_copyright' size='small' variant='outlined')
         | {{$t("Copyright")}}
@@ -36,8 +35,7 @@ import {useI18n} from 'vue-i18n'
 import {PassageReference} from '@gracious.tech/fetch-client'
 import Draggable from 'vuedraggable'
 
-import {blue, state, has_copyright, requires_copyright, translation_forbids_derivatives,
-    } from '@/services/state'
+import {blue, state, has_copyright, requires_copyright} from '@/services/state'
 import {gen_content_name} from '@/services/blueprints'
 import {content} from '@/services/content'
 import {generate_token} from '@/services/utils'
@@ -61,12 +59,11 @@ const warnings = computed(() => {
     if (requires_copyright.value && !has_copyright.value){
         items.push(t("A copyright statement is required for one or more translations"))
     }
-    if (blue.content[0]?.type === 'passage' && blue.page_arrangement !== 'normal'
-            && (blue.bibles.length === 2 && blue.bibles_layout === 'alternate' || blue.half_blank)){
+    // Book-like layouts always insert a leading blank when the first item needs a recto start
+    if (blue.content[0]?.type === 'passage'
+            && (blue.bibles.length === 2 && blue.bibles_layout === 'alternate'
+                || blue.half_blank !== null)){
         items.push(t("Document will start with a blank page (due to layout settings)"))
-    }
-    if (translation_forbids_derivatives.value){
-        items.push(t("Chosen Bible translation does not allow adding your own content"))
     }
     return items
 })
@@ -133,7 +130,9 @@ const add_copyright = () => {
         type: 'custom',
         id: generate_token(),
         name: "Copyright",
-        html: '<p>AUTO-COPYRIGHT</p>',
+        doc: {type: 'doc', content: [
+            {type: 'paragraph', content: [{type: 'text', text: 'AUTO-COPYRIGHT'}]},
+        ]},
         position: 'bottom',
     }))
 }

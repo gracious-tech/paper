@@ -12,7 +12,7 @@ v-divider
 v-card-text(class='flex-grow-1 d-flex flex-column')
     div(class='mb-4')
         v-text-field(v-model='item.name' :placeholder='$t("Label") + "..."')
-    app-html(v-model='item.html' class='flex-grow-1')
+    app-prose(v-model='item.doc' class='flex-grow-1')
     div(class='my-4')
         p(class='text-caption') {{$t("Vertical position on page") + ":"}}
         v-radio-group(v-model='item.position' inline)
@@ -47,7 +47,7 @@ if (!item){
         type: 'custom',
         id: generate_token(),
         name: '',
-        html: '',
+        doc: {type: 'doc', content: [{type: 'paragraph'}]},
         position: 'top',
     } as ContentCustom)
     blue.content.push(item)

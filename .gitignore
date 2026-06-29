@@ -1,7 +1,9 @@
 
+dist/
 node_modules/
 
-/app/dist/
+/.bin/typst
+
 /app/.env.*.local
 
 /generator/.venv/

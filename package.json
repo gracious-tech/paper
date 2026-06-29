@@ -1,0 +1,14 @@
+{
+    "private": true,
+    "workspaces": [
+        "app",
+        "typst",
+        "typst-web",
+        "typst-node",
+        "generic/pm-to-typst",
+        "generic/typst-utils"
+    ],
+    "dependencies": {
+        "typescript": "^6.0.3"
+    }
+}

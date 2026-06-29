@@ -12,8 +12,11 @@ v-radio-group(v-model='blue.bibles_layout' inline :label='$t("Layout for multipl
     v-radio(value='columns' :label='$t("Separate columns")')
     v-radio(value='alternate' :label='$t("Separate pages")')
 
-v-checkbox(v-model='blue.half_blank' :label='$t("Keep right-side blank for notetaking")'
-    :disabled='blue.bibles.length > 1 && blue.bibles_layout === "alternate"')
+v-radio-group(v-model='half_blank' inline :label='$t("Keep a side blank for notetaking")'
+        :disabled='blue.bibles.length > 1 && blue.bibles_layout === "alternate"' class='my-6')
+    v-radio(value='null' :label='$t("None")')
+    v-radio(value='left' :label='$t("Left")')
+    v-radio(value='right' :label='$t("Right")')
 
 </template>
 
@@ -29,6 +32,15 @@ const columns = computed({
     get: () => String(blue.columns),
     set: value => {
         blue.columns = value === 'null' ? null : (value === 'true')
+    },
+})
+
+
+// Wrap half_blank so the radio group can use string values (null isn't a valid radio value)
+const half_blank = computed({
+    get: () => String(blue.half_blank),
+    set: value => {
+        blue.half_blank = value === 'null' ? null : (value as 'left'|'right')
     },
 })
 

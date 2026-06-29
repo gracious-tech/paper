@@ -37,7 +37,7 @@ v-card-text(class='overflow-y-auto')
 
 <script lang='ts' setup>
 
-import patterns from '@/services/patterns'
+import {PATTERNS as patterns} from 'paper-bible-typst'
 import {biblical_emoji} from '@/services/emoji'
 
 import type {ContentTitle} from '@/services/types'
