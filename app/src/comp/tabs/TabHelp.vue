@@ -29,6 +29,9 @@ div.cont(class='text-body-2')
         h4(class='text-subtitle-2') Some pages are upside down
         p The setting for double sided printing is likely incorrect. When printing a booklet it needs to be set to flip on "short edge" since the document is in landscape.
 
+        h4(class='text-subtitle-2') My printer can only print on one side
+        p You can still print double sided manually. In your printer settings choose to print only the odd pages, then flip the printed stack over and put it back in the tray to print the even pages on the blank sides. Flipping the whole stack usually works, but printers vary, so print a few test pages first.
+
         h4(class='text-subtitle-2') How do I bind my booklet?
         p Please watch the introduction video for a simple method using a common household stapler and eraser.
 
