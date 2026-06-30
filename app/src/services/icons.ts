@@ -37,6 +37,7 @@ export const biblical_icons:string[] = [
     'game-icons:stone-pile',
     'game-icons:summits',
     'game-icons:sunrise',
+    'game-icons:tornado',
     'game-icons:valley',
     'game-icons:wave-crest',
     'game-icons:wildfires',
@@ -78,6 +79,7 @@ export const biblical_icons:string[] = [
     'game-icons:pine-tree',
     'game-icons:plant-roots',
     'game-icons:plant-watering',
+    'game-icons:rose',
     'game-icons:shepherds-crook',
     'game-icons:shiny-apple',
     'game-icons:stump-regrowth',
@@ -120,10 +122,12 @@ export const biblical_icons:string[] = [
     'game-icons:crested-helmet',
     'game-icons:crossed-chains',
     'game-icons:crossed-swords',
+    'game-icons:deadly-strike',
     'game-icons:defensive-wall',
     'game-icons:dodging',
     'game-icons:dodge',
     'game-icons:manacles',
+    'game-icons:shattered-sword',
     'game-icons:shield-reflect',
     'game-icons:spartan-helmet',
     'game-icons:spears',
@@ -139,6 +143,7 @@ export const biblical_icons:string[] = [
     'game-icons:broken-wall',
     'game-icons:byzantin-temple',
     'game-icons:church',
+    'boxicons:church-filled',
     'game-icons:coliseum',
     'game-icons:concrete-bag',
     'game-icons:doorway',
@@ -148,10 +153,14 @@ export const biblical_icons:string[] = [
     'game-icons:greek-temple',
     'game-icons:open-gate',
     'game-icons:samara-mosque',
+    'game-icons:stone-block',
+    'game-icons:tower-fall',
+    'game-icons:watchtower',
     'game-icons:window-bars',
 
     // Royalty & Power
     'game-icons:caesar',
+    'game-icons:card-queen-hearts',
     'game-icons:coronation',
     'game-icons:crenel-crown',
     'game-icons:crown',
@@ -170,13 +179,16 @@ export const biblical_icons:string[] = [
     'game-icons:chalice-drops',
     'game-icons:crown-of-thorns',
     'game-icons:crucifix',
+    'mdi:cross',
     'game-icons:enlightenment',
+    'game-icons:feathered-wing',
     'game-icons:fluffy-trefoil',
     'game-icons:heavy-thorny-triskelion',
     'game-icons:omega',
     'game-icons:pouring-chalice',
     'game-icons:prayer',
     'game-icons:rod-of-asclepius',
+    'game-icons:temple-door',
 
     // Magic & Fantasy
     'game-icons:charm',
@@ -200,6 +212,7 @@ export const biblical_icons:string[] = [
     'game-icons:tied-scroll',
     'game-icons:wax-tablet',
     'game-icons:white-book',
+    'icon-park-outline:doc-fail',
 
     // Love & Romance
     'game-icons:big-diamond-ring',
@@ -226,6 +239,7 @@ export const biblical_icons:string[] = [
     'game-icons:harp',
     'game-icons:lyre',
     'game-icons:musical-notes',
+    'game-icons:musical-score',
     'game-icons:sound-waves',
 
     // Travel & Exploration
@@ -250,6 +264,7 @@ export const biblical_icons:string[] = [
     'game-icons:bandaged',
     'game-icons:biceps',
     'game-icons:blindfold',
+    'game-icons:cloaked-figure-on-horseback',
     'game-icons:family-tree',
     'game-icons:finger-print',
     'game-icons:prisoner',
@@ -261,24 +276,30 @@ export const biblical_icons:string[] = [
     'game-icons:contract',
     'game-icons:conversation',
     'game-icons:envelope',
+    'game-icons:face-to-face',
     'game-icons:present',
     'game-icons:shaking-hands',
     'game-icons:wine-glass',
+    'mdi:broadcast',
+    'streamline-freehand:business-management-teamwork-clap',
 
     // Symbols & Abstract
     'game-icons:annexation',
     'game-icons:anticlockwise-rotation',
     'game-icons:back-forth',
     'game-icons:breaking-chain',
+    'game-icons:broken-pottery',
     'game-icons:chess-rook',
     'game-icons:choice',
     'game-icons:cycle',
+    'material-symbols:cycle',
     'game-icons:expand',
     'game-icons:hasty-grave',
     'game-icons:hourglass',
     'game-icons:infinity',
     'game-icons:injustice',
     'game-icons:key',
+    'game-icons:magnifying-glass',
     'game-icons:misdirection',
     'game-icons:mirror-mirror',
     'game-icons:organigram',
@@ -294,68 +315,70 @@ export const biblical_icons:string[] = [
 export const book_icon:Record<string, string> = {
     'gen': `game-icons:world`,            // Earth
     'exo': `game-icons:mountaintop`,      // Mountain (Sinai)
-    'lev': `game-icons:blood`,            // Blood/sacrifice
-    'num': `game-icons:footprint`,        // Wilderness footprints
-    'deu': `game-icons:scroll-unfurled`,  // Scroll/law
+    'lev': `game-icons:temple-door`,      // Temple curtain
+    'num': `game-icons:path-distance`,    // Wandering
+    'deu': `game-icons:direction-signs`,  // Choose blessing or curse
     'jos': `game-icons:crossed-swords`,   // Conquest
-    'jdg': `game-icons:flying-flag`,      // Surrender
+    'jdg': `material-symbols:cycle`,      // Cycle
     'rut': `game-icons:wheat`,            // Harvest fields
     '1sa': `game-icons:crown`,            // Kingship
     '2sa': `game-icons:crown`,            // Same as 1 Samuel
-    '1ki': `game-icons:plain-dagger`,     // Intrigue
-    '2ki': `game-icons:plain-dagger`,     // Same as 1 Kings
-    '1ch': `game-icons:clock-tower`,      // Chronicles/history
-    '2ch': `game-icons:clock-tower`,      // Same as 1 Chronicles
-    'ezr': `game-icons:brick-wall`,       // Rebuilding
-    'neh': `game-icons:brick-wall`,       // Rebuilding the wall
-    'est': `game-icons:hourglass`,        // For such a time
+    '1ki': `game-icons:shattered-sword`,  // Shattered sword
+    '2ki': `game-icons:shattered-sword`,  // Same as 1 Kings
+    '1ch': `game-icons:family-tree`,      // Chronicles/history
+    '2ch': `game-icons:family-tree`,      // Same as 1 Chronicles
+    'ezr': `game-icons:broken-wall`,      // Rebuilding
+    'neh': `game-icons:broken-wall`,      // Rebuilding the wall
+    'est': `game-icons:card-queen-hearts`,// Queen/love
     'job': `game-icons:tornado`,          // Whirlwind
     'psa': `game-icons:musical-score`,    // Songs
-    'pro': `game-icons:chat-bubble`,      // Sayings
+    'pro': `game-icons:choice`,           // Choose good not bad
     'ecc': `game-icons:magnifying-glass`, // Searching for meaning
     'sng': `game-icons:rose`,             // Love song
-    'isa': `game-icons:trumpet`,          // Prophetic warning
-    'jer': `game-icons:newspaper`,        // Proclamation
+    'isa': `game-icons:throne-king`,      // Vision of God on throne
+    'jer': `game-icons:broken-pottery`,   // Broken jar
     'lam': `game-icons:heavy-rain`,       // Weeping
     'ezk': `game-icons:feathered-wing`,   // Cherubim
-    'dan': `game-icons:fire`,             // Furnace
-    'hos': `game-icons:diamond-ring`,     // Marriage
+    'dan': `game-icons:fire-silhouette`,  // Furnace
+    'hos': `game-icons:shattered-heart`,  // Unfaithful wife
     'jol': `game-icons:cricket`,          // Locusts
     'amo': `game-icons:lightning-storm`,  // Judgement
-    'oba': `game-icons:chess-pawn`,       // Nations
-    'jon': `game-icons:sperm-whale`,      // The great fish
-    'mic': `game-icons:megaphone`,        // Proclamation
-    'nam': `game-icons:fire-bomb`,        // Nineveh's fall
-    'hab': `game-icons:prayer`,           // Dialogue with God
-    'zep': `game-icons:seedling`,         // Remnant
-    'hag': `game-icons:house`,            // Rebuild the temple
-    'zec': `game-icons:horse-head`,       // Visions of horses
-    'mal': `game-icons:shut-rose`,        // Faded devotion
-    'mat': `mdi:cross`,      // Cross
-    'mrk': `mdi:cross`,      // Cross
-    'luk': `mdi:cross`,      // Cross
-    'jhn': `mdi:cross`,      // Cross
-    'act': `game-icons:peace-dove`,       // The Spirit
+    'oba': `game-icons:falling-rocks`,    // Destruction of Edom
+    'jon': `game-icons:whale-tail`,       // The great fish
+    'mic': `game-icons:injustice`,        // Injustice
+    'nam': `game-icons:tower-fall`,       // Nineveh's fall
+    'hab': `game-icons:watchtower`,       // Watchtower
+    'zep': `game-icons:stump-regrowth`,   // Faithful remnant
+    'hag': `game-icons:ancient-ruins`,    // Rebuild the temple
+    'zec': `game-icons:cloaked-figure-on-horseback`, // Visions of horses
+    'mal': `game-icons:face-to-face`,     // Argument back and forth / stubborn
+
+    'mat': `game-icons:king`,             // Fulfilment / king
+    'mrk': `game-icons:crown-of-thorns`,  // Suffering servant
+    'luk': `mdi:cross`,                   // Cross
+    'jhn': `game-icons:beams-aura`,       // Son of God
+
+    'act': `mdi:broadcast`,               // Spread of gospel
     'rom': `game-icons:scales`,           // Righteousness
-    '1co': `game-icons:gift-of-knowledge`,// Spiritual gifts
-    '2co': `game-icons:megaphone`,        // Defence
-    'gal': `game-icons:cherry`,           // Fruit of the Spirit
-    'eph': `game-icons:bordered-shield`,  // Armour of God
-    'php': `game-icons:crossed-chains`,   // Paul's chains
-    'col': `game-icons:prayer`,           // Prayer
-    '1th': `game-icons:tombstone`,        // The dead in Christ
-    '2th': `game-icons:rock`,             // Stand firm
-    '1ti': `game-icons:church`,           // The church
+    '1co': `icon-park-outline:doc-fail`,  // Problems in church
+    '2co': `game-icons:scroll-quill`,     // Letter (many themes)
+    'gal': `game-icons:fruit-tree`,       // Fruit of the Spirit
+    'eph': `game-icons:battle-gear`,      // Armour of God
+    'php': `game-icons:dungeon-light`,    // Hope in prison
+    'col': `game-icons:aura`,             // Prayer
+    '1th': `game-icons:hasty-grave`,      // The dead in Christ
+    '2th': `game-icons:deadly-strike`,    // Jesus' return / man of lawlessness
+    '1ti': `boxicons:church-filled`,      // The church
     '2ti': `game-icons:compass`,          // Keep the course
     'tit': `game-icons:tied-scroll`,      // Letter
-    'phm': `game-icons:key-lock`,         // Freedom
-    'heb': `game-icons:candle-light`,     // Hope
+    'phm': `game-icons:breaking-chain`,   // Freedom
+    'heb': `game-icons:open-gate`,        // Access to God
     'jas': `game-icons:mirror-mirror`,    // Mirror of the word
-    '1pe': `game-icons:gems`,             // Living stones
-    '2pe': `game-icons:heavy-timer`,      // The day of the Lord
+    '1pe': `game-icons:stone-block`,      // Living stones
+    '2pe': `game-icons:small-fire`,       // The day of the Lord
     '1jn': `game-icons:crowned-heart`,    // Love
     '2jn': `game-icons:love-letter`,      // Letter
-    '3jn': `game-icons:chained-heart`,    // Fellowship
-    'jud': `game-icons:explosion-rays`,   // Contend
-    'rev': `game-icons:wine-glass`,       // The cup/feast
+    '3jn': `streamline-freehand:business-management-teamwork-clap`, // Teamwork
+    'jud': `game-icons:dead-wood`,        // Fruitless trees
+    'rev': `game-icons:pouring-chalice`,  // God's wrath poured out
 }
