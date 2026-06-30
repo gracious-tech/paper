@@ -38,7 +38,7 @@ export function get_default_blueprint():Blueprint{
                 id: generate_token(),
                 title: "Titus",
                 subtitle: "",
-                icon: 'game-icons:envelope',
+                icon: 'game-icons:tied-scroll',
                 icon_size: 1,
                 pattern: 'straight',
                 color_primary: null,

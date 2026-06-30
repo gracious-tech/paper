@@ -180,6 +180,8 @@ export const biblical_icons:string[] = [
     'game-icons:crown-of-thorns',
     'game-icons:crucifix',
     'mdi:cross',
+    'mdi:cross-outline',
+    'mdi:shield-cross-outline',
     'game-icons:enlightenment',
     'game-icons:feathered-wing',
     'game-icons:fluffy-trefoil',
