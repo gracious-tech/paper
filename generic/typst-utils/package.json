@@ -11,6 +11,10 @@
     ],
     "scripts": {
         "build": "tsc",
-        "dev": "tsc --watch"
+        "dev": "tsc --watch",
+        "test": "vitest run"
+    },
+    "devDependencies": {
+        "vitest": "^4.1.2"
     }
 }
