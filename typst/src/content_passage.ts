@@ -147,9 +147,8 @@ function gen_verse_def(passage:TypstPassage):string {
     }
     // Superscript, small, gray, bold — matching current CSS
     return `#let v(n) = {
-    h(2pt)
-    text(size: 0.7em, fill: gray, weight: "bold", super(str(n)))
-    h(2pt)
+    text(weight: "bold", super(str(n)))
+    h(1pt)
 }`
 }
 
