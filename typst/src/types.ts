@@ -70,7 +70,6 @@ export interface TypstPassage {
     // see FeatureConfig on TypstRequest)
     show_headings:boolean
     show_footnotes:boolean
-    show_footnote_calls:boolean
     // Dotted lines on blank half-pages
     show_lines:boolean
     // Column layout: 'auto' uses book code to decide, 1 or 2 forces column count

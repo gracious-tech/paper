@@ -121,19 +121,17 @@ function gen_footnote_rules(passage:TypstPassage):string {
 
     const lines:string[] = []
 
-    // Footnote entry styling (the content at page bottom)
-    // NOTE leading is a `par` property, not a `text` argument
+    // Enumerate footnotes alphabetically (a, b, c, …aa, ab…) so each in-text call shows a
+    // visible superscript letter marking the word/phrase the note refers to
+    lines.push('#set footnote(numbering: "a")')
+
+    // Footnote entry styling (the content at page bottom), prefixed with its matching mark so
+    // readers can pair each note with its superscript call in the text
     lines.push(`#show footnote.entry: it => {
-    set text(size: 0.8em)
-    set par(leading: 1.2em)
+    super(numbering("a", ..counter(footnote).at(it.note.location())))
+    h(1pt)
     it.note.body
 }`)
-
-    // Hide or show the in-text call marker
-    if (!passage.show_footnote_calls) {
-        // Hide the superscript call in the text — use zero-width space as numbering
-        lines.push('#set footnote(numbering: it => [])')
-    }
 
     return lines.join('\n')
 }

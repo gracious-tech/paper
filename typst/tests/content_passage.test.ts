@@ -40,21 +40,14 @@ describe('gen_passage', () => {
 
     describe('footnote rules', () => {
 
-        it('shows footnotes with calls by default', () => {
+        it('shows footnotes with visible alphabetic call markers', () => {
             const result = gen_passage(make_passage({
                 show_footnotes: true,
-                show_footnote_calls: true,
             }))
             expect(result).toContain('#show footnote.entry')
+            // Alphabetic enumeration and a visible in-text mark (no empty-numbering override)
+            expect(result).toContain('#set footnote(numbering: "a")')
             expect(result).not.toContain('numbering: it => []')
-        })
-
-        it('hides footnote calls when show_footnote_calls is false', () => {
-            const result = gen_passage(make_passage({
-                show_footnotes: true,
-                show_footnote_calls: false,
-            }))
-            expect(result).toContain('#set footnote(numbering: it => [])')
         })
 
         it('hides footnotes entirely when show_footnotes is false', () => {

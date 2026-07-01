@@ -104,6 +104,7 @@ export function gen_preamble(request:TypstRequest):string {
     width: ${page.width},
     height: ${page.height},
     margin: ${margin},
+    header: context counter(footnote).update(0),
     footer: ${footer},
     footer-descent: 20%,
 )
@@ -116,7 +117,7 @@ export function gen_preamble(request:TypstRequest):string {
 )
 
 // Footnote area styling
-#set footnote.entry(separator: line(length: 30%, stroke: 0.2mm + rgb("#0003")))
+#set footnote.entry(separator: line(length: 30%, stroke: 0.2mm + rgb("#000")))
 
 // Consumer-function definitions emitted by the USX→Typst converter
 ${chapter}

@@ -48,7 +48,6 @@ export function make_passage(overrides:Partial<TypstPassage> = {}):TypstPassage 
         half_blank: null,
         show_headings: true,
         show_footnotes: true,
-        show_footnote_calls: true,
         show_lines: false,
         columns: 1,
         column_gap: '5mm',
