@@ -20,8 +20,9 @@ describe('gen_custom', () => {
             position: 'middle',
             content: 'Middle content',
         }))
-        expect(result).toContain('#block(height: 100%)')
-        expect(result).toContain('#align(horizon)')
+        // Measures the content and centres it when it fits, else lets it flow across pages
+        expect(result).toContain('measure(box(width: size.width, body))')
+        expect(result).toContain('align(horizon, body)')
         expect(result).toContain('Middle content')
     })
 
@@ -30,9 +31,16 @@ describe('gen_custom', () => {
             position: 'bottom',
             content: 'Bottom content',
         }))
-        expect(result).toContain('#block(height: 100%)')
-        expect(result).toContain('#align(bottom)')
+        expect(result).toContain('measure(box(width: size.width, body))')
+        expect(result).toContain('align(bottom, body)')
         expect(result).toContain('Bottom content')
+    })
+
+    it('falls back to normal flow when content is taller than the page', () => {
+        const result = gen_custom(make_custom({position: 'middle', content: 'x'}))
+        // The else branch renders the raw body so it can break across pages
+        expect(result).toContain('} else {')
+        expect(result).toContain('body')
     })
 
     it('preserves Typst markup in content', () => {

@@ -44,7 +44,7 @@ describe('generate_typst', () => {
             content: [make_custom({position: 'middle', content: 'Custom text'})],
         }))
         expect(result).toContain('Custom text')
-        expect(result).toContain('#align(horizon)')
+        expect(result).toContain('align(horizon, body)')
     })
 
     it('renders lines page', () => {
@@ -179,24 +179,26 @@ describe('merged content page breaks', () => {
         expect(split).toContain('#pagebreak()')
     })
 
-    it('does not let a custom fill the page when items are merged below it', () => {
+    it('does not position a custom when items are merged below it', () => {
         // A bottom-positioned custom followed by a merged passage must flow inline, otherwise the
-        // full-height block would push the passage onto the next page
+        // positioning block would push the passage onto the next page
         const merged = generate_typst(make_request({
             content: [
                 make_custom({position: 'bottom', content: 'INTRO'}),
                 make_passage({new_page: false}),
             ],
         }))
-        expect(merged).not.toContain('block(height: 100%)')
+        expect(merged).not.toContain('align(bottom, body)')
         expect(merged).not.toContain('#pagebreak()')
     })
 
-    it('still fills the page for a custom alone on its page', () => {
+    it('positions a custom alone on its page, falling back to flow when it overflows', () => {
         const alone = generate_typst(make_request({
             content: [make_custom({position: 'bottom'})],
         }))
-        expect(alone).toContain('block(height: 100%)')
+        // Full-height alignment when it fits, else render the body in normal flow
+        expect(alone).toContain('align(bottom, body)')
+        expect(alone).toContain('measure(box(width: size.width, body))')
     })
 })
 
