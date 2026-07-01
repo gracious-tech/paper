@@ -119,7 +119,7 @@ paper_bible2/
           OptionsBibles.vue  # Primary/secondary translation selectors
           OptionsPaper.vue   # Paper size (A4/Letter/custom)
           OptionsPreset.vue  # Quick presets
-          OptionsFeatures.vue # Toggle headings/chapters/verses/footnotes/woj
+          OptionsFeatures.vue # Toggle headings/chapters/verses/footnotes/wj
           OptionsStudy.vue   # Study notes and cross-references
           OptionsStyle.vue   # Font, size, line-height, justify, columns
           OptionsLayout.vue  # Margins, binding swap, column gap

@@ -59,7 +59,10 @@ export interface TypstPassage {
     show_verses:boolean
     show_footnotes:boolean
     show_footnote_calls:boolean
-    show_woj:boolean
+    show_wj:boolean
+    show_wj_color:string|null
+    show_wj_bold:boolean
+    show_wj_italic:boolean
     // Dotted lines on blank half-pages
     show_lines:boolean
     // Column layout: 'auto' uses book code to decide, 1 or 2 forces column count
@@ -154,7 +157,10 @@ export interface Blueprint {
     show_verses:boolean
     show_pages:boolean
     show_footnotes:boolean
-    show_woj:boolean
+    show_wj:boolean
+    show_wj_color:string|null
+    show_wj_bold:boolean
+    show_wj_italic:boolean
     show_lines:boolean
     notes:string|null
     crossref:'small'|'medium'|'large'|null

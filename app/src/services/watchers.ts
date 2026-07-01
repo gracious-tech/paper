@@ -18,7 +18,7 @@ export function start_watchers(){
                 // Immediately set before local names available
                 content.books[bible]
                     = bible_content.collection.get_books(bible, {object: true, whole: true})
-                // Once have fetched local names, update the list and record woj support
+                // Once have fetched local names, update the list and record wj support
                 const {wj_markup} = await bible_content.load_translation(bible)
                 content.wj_markup[bible] = wj_markup
                 content.books[bible]

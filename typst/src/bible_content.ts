@@ -228,7 +228,10 @@ export class BibleContent {
             show_footnotes: blue.show_footnotes,
             // Markers are hidden by default (verse references serve as the reference instead)
             show_footnote_calls: false,
-            show_woj: blue.show_woj,
+            show_wj: blue.show_wj,
+            show_wj_color: blue.show_wj_color,
+            show_wj_bold: blue.show_wj_bold,
+            show_wj_italic: blue.show_wj_italic,
             show_lines: blue.show_lines,
             // null = auto-detect by book, true = 2 columns, false = single column
             columns: blue.columns === null ? 'auto' : (blue.columns ? 2 : 1),

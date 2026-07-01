@@ -41,7 +41,7 @@ export const requires_copyright = computed(() => {
 
 
 // Whether any selected translation supports words-of-Jesus markup (red letters)
-export const supports_woj = computed(() => {
+export const supports_wj = computed(() => {
     return blue.bibles.some(bible => content.wj_markup[bible])
 })
 

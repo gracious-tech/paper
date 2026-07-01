@@ -68,7 +68,7 @@ export function gen_preamble(request:TypstRequest):string {
 // Values approximate the Paratext USFM default stylesheet (see the converter for details).
 ${STYLE_DEFS}
 
-// Words of Jesus function (plain by default; passages enable red when show_woj is on)
+// Words of Jesus function (plain by default; passages enable red when show_wj is on)
 #let wj(body) = body
 `
 }

@@ -65,14 +65,26 @@ describe('gen_passage', () => {
 
     describe('words of jesus', () => {
 
-        it('adds wj function when show_woj is true', () => {
-            const result = gen_passage(make_passage({show_woj: true}))
-            expect(result).toContain('#let wj(body) = text(fill: red, body)')
+        it('adds wj function with the chosen color when show_wj is true', () => {
+            const result = gen_passage(make_passage({show_wj: true, show_wj_color: '#cc0000'}))
+            expect(result).toContain('#let wj(body) = text(fill: rgb("#cc0000"), body)')
         })
 
-        it('does not add woj override when show_woj is false', () => {
-            const result = gen_passage(make_passage({show_woj: false}))
-            expect(result).not.toContain('fill: red')
+        it('applies bold and italic styling when enabled', () => {
+            const result = gen_passage(make_passage(
+                {show_wj: true, show_wj_color: null, show_wj_bold: true, show_wj_italic: true}))
+            expect(result).toContain('#let wj(body) = text(weight: "bold", style: "italic", body)')
+        })
+
+        it('leaves wj as a pass-through when no styling is chosen', () => {
+            const result = gen_passage(make_passage(
+                {show_wj: true, show_wj_color: null, show_wj_bold: false, show_wj_italic: false}))
+            expect(result).toContain('#let wj(body) = text(body)')
+        })
+
+        it('does not add wj override when show_wj is false', () => {
+            const result = gen_passage(make_passage({show_wj: false}))
+            expect(result).not.toContain('fill: rgb')
         })
     })
 

@@ -63,9 +63,21 @@ function gen_passage_inner(
     // Verse marker function
     lines.push(gen_verse_def(passage))
 
-    // Words of Jesus function override (if showing)
-    if (passage.show_woj) {
-        lines.push('#let wj(body) = text(fill: red, body)')
+    // Words of Jesus function override (if showing): apply the chosen color and/or bold/italic
+    if (passage.show_wj) {
+        const styles:string[] = []
+        if (passage.show_wj_color) {
+            styles.push(`fill: rgb("${passage.show_wj_color}")`)
+        }
+        if (passage.show_wj_bold) {
+            styles.push('weight: "bold"')
+        }
+        if (passage.show_wj_italic) {
+            styles.push('style: "italic"')
+        }
+        // If no styling was chosen, leave wj as a no-op pass-through
+        const args = styles.length ? `${styles.join(', ')}, body` : 'body'
+        lines.push(`#let wj(body) = text(${args})`)
     }
 
     // Heading show rules
