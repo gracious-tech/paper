@@ -16,14 +16,16 @@ v-card-text(class='overflow-y-auto')
         div.none(@click='disable' :class='{active: item.pattern === "none"}') {{$t("None")}}
         img(v-for='pattern of pattern_items' :src='pattern.src' @click='pattern.click'
             :class='{active: item.pattern === pattern.pattern}')
+
     v-divider(class='my-8')
+
+    div(class='mb-4')
+        AppColor(v-model='item.color_primary' :label='$t("Color of text")')
+    div(class='mb-4')
+        AppColor(v-model='item.color_secondary' :label='$t("Color of graphics")')
     div
         v-checkbox(v-model='item.alone' :label='$t("Ensure other side of page blank")')
-    v-divider(class='my-8')
-    div
-        AppColor(v-model='item.color_primary' :label='$t("Color of text")')
-    div(class='mt-4')
-        AppColor(v-model='item.color_secondary' :label='$t("Color of graphics")')
+    p(class='text-body-2 text-medium-emphasis') {{$t("Title pages can look nicer when nothing on the other side shows through the paper.")}}
 
 
 </template>
@@ -81,8 +83,8 @@ const done = () => {
     flex-wrap: wrap
 
     img, .none
-        width: 110px
-        height: 110px
+        width: 90px
+        height: 90px
         cursor: pointer
         margin: 6px
 
