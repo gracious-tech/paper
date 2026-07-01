@@ -178,6 +178,26 @@ describe('merged content page breaks', () => {
         }))
         expect(split).toContain('#pagebreak()')
     })
+
+    it('does not let a custom fill the page when items are merged below it', () => {
+        // A bottom-positioned custom followed by a merged passage must flow inline, otherwise the
+        // full-height block would push the passage onto the next page
+        const merged = generate_typst(make_request({
+            content: [
+                make_custom({position: 'bottom', content: 'INTRO'}),
+                make_passage({new_page: false}),
+            ],
+        }))
+        expect(merged).not.toContain('block(height: 100%)')
+        expect(merged).not.toContain('#pagebreak()')
+    })
+
+    it('still fills the page for a custom alone on its page', () => {
+        const alone = generate_typst(make_request({
+            content: [make_custom({position: 'bottom'})],
+        }))
+        expect(alone).toContain('block(height: 100%)')
+    })
 })
 
 

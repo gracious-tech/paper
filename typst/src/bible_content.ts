@@ -285,14 +285,13 @@ export class BibleContent {
         // Replace the AUTO-COPYRIGHT marker with the generated copyright block
         markup = replace_copyright_marker(markup, gen_copyright_typst(blue, resources))
 
-        // When merged onto the section above, vertical position is meaningless — flow inline
-        const new_page = custom.new_page ?? true
-
+        // Position is applied by the renderer, which only lets a custom fill the page when it is
+        // alone on it (a merged custom flows inline regardless of this setting)
         return {
             type: 'custom',
             content: markup,
-            position: new_page ? custom.position : 'top',
-            new_page,
+            position: custom.position,
+            new_page: custom.new_page ?? true,
         }
     }
 }

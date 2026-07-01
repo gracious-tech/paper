@@ -35,9 +35,13 @@ export function generate_typst(request:TypstRequest):string {
             parts.push('#pagebreak()')
         }
 
-        // Render every item in the group with no page break between them (they flow together)
+        // Render every item in the group with no page break between them (they flow together).
+        // A custom page may only fill the page (middle/bottom positioning) when it is alone on
+        // its page; when it shares the group it must flow inline so following items aren't pushed
+        // onto the next page.
+        const page_fill = group.length === 1
         for (const item of group) {
-            parts.push(gen_content_item(item, request))
+            parts.push(gen_content_item(item, request, page_fill))
         }
 
         // For alone items in book mode, ensure the next group starts on a new sheet
@@ -135,15 +139,16 @@ ${gen_lines({type: 'lines', spacing}, request.page)}`
 }
 
 
-// Render a single content item to Typst
-function gen_content_item(item:TypstContentItem, request:TypstRequest):string {
+// Render a single content item to Typst. page_fill=false forces a custom page to flow inline
+// (position 'top') rather than filling the page, so items merged below it aren't pushed off.
+function gen_content_item(item:TypstContentItem, request:TypstRequest, page_fill = true):string {
     switch (item.type) {
         case 'passage':
             return gen_passage(item)
         case 'title':
             return gen_title(item, request.page)
         case 'custom':
-            return gen_custom(item)
+            return gen_custom(page_fill ? item : {...item, position: 'top'})
         case 'lines':
             return gen_lines(item, request.page)
     }
