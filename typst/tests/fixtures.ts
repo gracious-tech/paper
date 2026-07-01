@@ -1,6 +1,6 @@
 
 import type {
-    TypstRequest, PageConfig, TypographyConfig,
+    TypstRequest, PageConfig, TypographyConfig, FeatureConfig,
     TypstPassage, TypstTitlePage, TypstCustomPage, TypstLinesPage,
 } from '../src/types.js'
 
@@ -27,23 +27,28 @@ export const TEST_TYPOGRAPHY:TypographyConfig = {
 }
 
 
+// Reusable test feature config (document-wide chapter/verse/wj markers)
+export const TEST_FEATURES:FeatureConfig = {
+    show_chapters: true,
+    show_chapters_style: 'divider',
+    show_verses: true,
+    show_wj: false,
+    show_wj_color: '#cc0000',
+    show_wj_bold: false,
+    show_wj_italic: false,
+}
+
+
 // Minimal passage for testing
 export function make_passage(overrides:Partial<TypstPassage> = {}):TypstPassage {
     return {
         type: 'passage',
-        bibles: [{content: '#v(1)In the beginning God created the heavens and the earth.'}],
+        bibles: [{content: '#vn(1)In the beginning God created the heavens and the earth.'}],
         multi_layout: 'columns',
         half_blank: null,
         show_headings: true,
-        show_chapters: true,
-        show_chapters_style: 'divider',
-        show_verses: true,
         show_footnotes: true,
         show_footnote_calls: true,
-        show_wj: false,
-        show_wj_color: '#cc0000',
-        show_wj_bold: false,
-        show_wj_italic: false,
         show_lines: false,
         columns: 1,
         column_gap: '5mm',
@@ -99,6 +104,7 @@ export function make_request(overrides:Partial<TypstRequest> = {}):TypstRequest 
         title: 'Test Bible',
         page: TEST_PAGE,
         typography: TEST_TYPOGRAPHY,
+        features: TEST_FEATURES,
         content: [make_passage()],
         arrangement: 'normal',
         show_pages: true,

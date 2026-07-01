@@ -2,7 +2,7 @@
 import {describe, it, expect} from 'vitest'
 
 import {gen_preamble} from '../src/preamble.js'
-import {make_request, TEST_PAGE, TEST_TYPOGRAPHY} from './fixtures.js'
+import {make_request, TEST_PAGE, TEST_TYPOGRAPHY, TEST_FEATURES} from './fixtures.js'
 
 
 describe('gen_preamble', () => {
@@ -103,8 +103,96 @@ describe('gen_preamble', () => {
         expect(result).toContain('footer: none')
     })
 
-    it('includes default wj function', () => {
-        const result = gen_preamble(make_request())
-        expect(result).toContain('#let wj(body) = body')
+    // --- Chapter marker (#ch) ---
+
+    describe('chapter marker', () => {
+
+        it('generates divider chapter style', () => {
+            const result = gen_preamble(make_request({
+                features: {...TEST_FEATURES, show_chapters: true, show_chapters_style: 'divider'},
+            }))
+            expect(result).toContain('#let ch(n) = if n > 1')
+            expect(result).toContain('———')
+        })
+
+        it('generates float chapter style', () => {
+            const result = gen_preamble(make_request({
+                features: {...TEST_FEATURES, show_chapters: true, show_chapters_style: 'float'},
+            }))
+            expect(result).toContain('#let ch(n) =')
+            expect(result).toContain('place(')
+            expect(result).toContain('size: 2em')
+        })
+
+        it('generates heading chapter style', () => {
+            const result = gen_preamble(make_request({
+                features: {...TEST_FEATURES, show_chapters: true, show_chapters_style: 'heading'},
+            }))
+            expect(result).toContain('#let ch(n) = heading(level: 1, "Chapter "')
+        })
+
+        it('hides chapters when show_chapters is false', () => {
+            const result = gen_preamble(make_request({
+                features: {...TEST_FEATURES, show_chapters: false},
+            }))
+            expect(result).toContain('#let ch(n) = []')
+        })
+    })
+
+    // --- Verse marker (#vn) ---
+
+    describe('verse marker', () => {
+
+        it('generates visible verse markers', () => {
+            const result = gen_preamble(make_request({
+                features: {...TEST_FEATURES, show_verses: true},
+            }))
+            expect(result).toContain('#let vn(n) =')
+            expect(result).toContain('super(str(n))')
+            // A narrow no-break space keeps the number glued to the following word
+            expect(result).toContain('sym.space.nobreak.narrow')
+        })
+
+        it('hides verses when show_verses is false', () => {
+            const result = gen_preamble(make_request({
+                features: {...TEST_FEATURES, show_verses: false},
+            }))
+            expect(result).toContain('#let vn(n) = []')
+        })
+    })
+
+    // --- Words of Jesus (#wj) ---
+
+    describe('words of jesus', () => {
+
+        it('defines wj with the chosen color when show_wj is true', () => {
+            const result = gen_preamble(make_request({
+                features: {...TEST_FEATURES, show_wj: true, show_wj_color: '#cc0000'},
+            }))
+            expect(result).toContain('#let wj(body) = text(fill: rgb("#cc0000"), body)')
+        })
+
+        it('applies bold and italic styling when enabled', () => {
+            const result = gen_preamble(make_request({
+                features: {...TEST_FEATURES, show_wj: true, show_wj_color: null,
+                    show_wj_bold: true, show_wj_italic: true},
+            }))
+            expect(result).toContain('#let wj(body) = text(weight: "bold", style: "italic", body)')
+        })
+
+        it('leaves wj as a pass-through when show_wj is on but no styling is chosen', () => {
+            const result = gen_preamble(make_request({
+                features: {...TEST_FEATURES, show_wj: true, show_wj_color: null,
+                    show_wj_bold: false, show_wj_italic: false},
+            }))
+            expect(result).toContain('#let wj(body) = body')
+        })
+
+        it('defines a plain wj pass-through when show_wj is false', () => {
+            const result = gen_preamble(make_request({
+                features: {...TEST_FEATURES, show_wj: false},
+            }))
+            expect(result).toContain('#let wj(body) = body')
+        })
     })
 })

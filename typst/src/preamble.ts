@@ -1,12 +1,15 @@
 
+import {escape_typst_str} from 'typst-utils'
+
 import {parse_unit} from './helpers.js'
 
 import type {TypstRequest} from './types.js'
 
 
-// Generate the document preamble: page setup, fonts, paragraph settings, footer
+// Generate the document preamble: page setup, fonts, paragraph settings, footer, and the
+// consumer-function definitions emitted by the USX→Typst converter
 export function gen_preamble(request:TypstRequest):string {
-    const {page, typography} = request
+    const {page, typography, features} = request
 
     // Calculate leading from line_height (Typst leading = gap between lines, not multiplier)
     const font = parse_unit(typography.font_size)
@@ -43,8 +46,60 @@ export function gen_preamble(request:TypstRequest):string {
             counter(page).display()))`
         : 'none'
 
-    return `// Document setup
-#set document(title: "${request.title.replace(/"/g, '\\"')}")
+    // Chapter marker (#ch) — style depends on the chosen option
+    let chapter:string
+    if (!features.show_chapters) {
+        chapter = '#let ch(n) = []'
+    } else if (features.show_chapters_style === 'divider') {
+        // Centered divider with dashes, hidden for chapter 1
+        chapter = `#let ch(n) = if n > 1 {
+    v(1em)
+    align(center, text(size: 0.8em, weight: "regular", font: "Noto Sans",
+        [——— #str(n) ———]))
+    v(1em)
+}`
+    } else if (features.show_chapters_style === 'float') {
+        // Large floating chapter number positioned to the left
+        chapter = `#let ch(n) = {
+    v(0.6em)
+    place(dx: -0.75em, text(size: 2em, weight: "bold", str(n)))
+}`
+    } else {
+        // 'heading' — Chapter N as a heading
+        chapter = '#let ch(n) = heading(level: 1, "Chapter " + str(n))'
+    }
+
+    // Verse marker (#vn) — superscript bold number glued to the next word with a narrow
+    // no-break space (U+202F) so it can't be stranded at a line end when the text wraps
+    const verse = features.show_verses
+        ? `#let vn(n) = [#text(weight: "bold", super(str(n)))#sym.space.nobreak.narrow]`
+        : '#let vn(n) = []'
+
+    // Words of Jesus (#wj) — plain unless color/bold/italic styling is enabled
+    const wj_styles:string[] = []
+    if (features.show_wj) {
+        if (features.show_wj_color) {
+            wj_styles.push(`fill: rgb("${features.show_wj_color}")`)
+        }
+        if (features.show_wj_bold) {
+            wj_styles.push('weight: "bold"')
+        }
+        if (features.show_wj_italic) {
+            wj_styles.push('style: "italic"')
+        }
+    }
+    const wj = wj_styles.length
+        ? `#let wj(body) = text(${wj_styles.join(', ')}, body)`
+        : '#let wj(body) = body'
+
+    // The whole preamble, with the computed values substituted in. The chapter/verse/wj
+    // markers vary with the feature options above; the poetry (#q, #qm), list (#li, #lim) and
+    // character styles (#qc, #qr, #qd, #lh, #lf, #qac, #qs, #bk, #tl, #add, #sig) are static
+    // and approximate the Paratext USFM default stylesheet.
+    return `
+
+// Document setup
+#set document(title: "${escape_typst_str(request.title)}")
 #set page(
     width: ${page.width},
     height: ${page.height},
@@ -63,21 +118,11 @@ export function gen_preamble(request:TypstRequest):string {
 // Footnote area styling
 #set footnote.entry(separator: line(length: 30%, stroke: 0.2mm + rgb("#0003")))
 
-// Default definitions for the consumer functions emitted by the USX→Typst converter.
-// c, v and wj are (re)defined per passage based on options; the rest are styled here.
-// Values approximate the Paratext USFM default stylesheet (see the converter for details).
-${STYLE_DEFS}
-
-// Words of Jesus function (plain by default; passages enable red when show_wj is on)
-#let wj(body) = body
-`
-}
-
-
-// Typst definitions for the poetry/list/character consumer functions emitted by the
-// converter (#q, #qm, #li, #lim, #qc, #qr, #qd, #lh, #lf, #qac, #qs, #bk, #tl, #add, #sig).
-// Leveled families take a level argument; the rest take just their content.
-const STYLE_DEFS = `// Poetry — hanging indent that deepens with level
+// Consumer-function definitions emitted by the USX→Typst converter
+${chapter}
+${verse}
+${wj}
+// Poetry — hanging indent that deepens with level
 #let q(n, c) = pad(
     left: 0.25in + (n - 1) * 0.125in,
     par(hanging-indent: 0.75in - (0.25in + (n - 1) * 0.125in), c),
@@ -109,4 +154,6 @@ const STYLE_DEFS = `// Poetry — hanging indent that deepens with level
 #let bk(c) = emph(c)
 #let tl(c) = emph(c)
 #let add(c) = emph(c)
-#let sig(c) = emph(c)`
+#let sig(c) = emph(c)
+
+`.trim()}

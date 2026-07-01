@@ -32,6 +32,7 @@ export type {
     TypstRequest,
     PageConfig,
     TypographyConfig,
+    FeatureConfig,
     TypstContentItem,
     TypstPassage,
     BiblePassageData,

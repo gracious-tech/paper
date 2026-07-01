@@ -7,10 +7,24 @@ export interface TypstRequest {
     title:string
     page:PageConfig
     typography:TypographyConfig
+    features:FeatureConfig
     content:TypstContentItem[]
     arrangement:'normal'|'book'|'booklet'
     show_pages:boolean
     booklet_portrait:boolean
+}
+
+
+// Document-wide display options for the chapter (#ch), verse (#vn) and words-of-Jesus (#wj)
+// markers. These drive global function definitions in the preamble rather than per-passage.
+export interface FeatureConfig {
+    show_chapters:boolean
+    show_chapters_style:'divider'|'float'|'heading'
+    show_verses:boolean
+    show_wj:boolean
+    show_wj_color:string|null
+    show_wj_bold:boolean
+    show_wj_italic:boolean
 }
 
 
@@ -52,17 +66,11 @@ export interface TypstPassage {
     multi_layout:'columns'|'alternate'
     // Which side gets blank/lines pages (null = no half-blank)
     half_blank:'left'|'right'|null
-    // Content display toggles
+    // Per-passage content display toggles (chapter/verse/wj markers are document-wide,
+    // see FeatureConfig on TypstRequest)
     show_headings:boolean
-    show_chapters:boolean
-    show_chapters_style:'divider'|'float'|'heading'
-    show_verses:boolean
     show_footnotes:boolean
     show_footnote_calls:boolean
-    show_wj:boolean
-    show_wj_color:string|null
-    show_wj_bold:boolean
-    show_wj_italic:boolean
     // Dotted lines on blank half-pages
     show_lines:boolean
     // Column layout: 'auto' uses book code to decide, 1 or 2 forces column count

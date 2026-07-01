@@ -7,85 +7,8 @@ import {make_passage} from './fixtures.js'
 
 describe('gen_passage', () => {
 
-    // --- Chapter styles ---
-
-    describe('chapter styles', () => {
-
-        it('generates divider chapter style', () => {
-            const result = gen_passage(make_passage({
-                show_chapters: true,
-                show_chapters_style: 'divider',
-            }))
-            expect(result).toContain('#let c(n) = if n > 1')
-            expect(result).toContain('\u2014\u2014\u2014')
-        })
-
-        it('generates float chapter style', () => {
-            const result = gen_passage(make_passage({
-                show_chapters: true,
-                show_chapters_style: 'float',
-            }))
-            expect(result).toContain('place(')
-            expect(result).toContain('size: 2em')
-        })
-
-        it('generates heading chapter style', () => {
-            const result = gen_passage(make_passage({
-                show_chapters: true,
-                show_chapters_style: 'heading',
-            }))
-            expect(result).toContain('"Chapter "')
-        })
-
-        it('hides chapters when show_chapters is false', () => {
-            const result = gen_passage(make_passage({show_chapters: false}))
-            expect(result).toContain('#let c(n) = []')
-        })
-    })
-
-    // --- Verse markers ---
-
-    describe('verse markers', () => {
-
-        it('generates visible verse markers', () => {
-            const result = gen_passage(make_passage({show_verses: true}))
-            expect(result).toContain('super(str(n))')
-            // A narrow no-break space keeps the number glued to the following word
-            expect(result).toContain('sym.space.nobreak.narrow')
-        })
-
-        it('hides verses when show_verses is false', () => {
-            const result = gen_passage(make_passage({show_verses: false}))
-            expect(result).toContain('#let v(n) = []')
-        })
-    })
-
-    // --- Words of Jesus ---
-
-    describe('words of jesus', () => {
-
-        it('adds wj function with the chosen color when show_wj is true', () => {
-            const result = gen_passage(make_passage({show_wj: true, show_wj_color: '#cc0000'}))
-            expect(result).toContain('#let wj(body) = text(fill: rgb("#cc0000"), body)')
-        })
-
-        it('applies bold and italic styling when enabled', () => {
-            const result = gen_passage(make_passage(
-                {show_wj: true, show_wj_color: null, show_wj_bold: true, show_wj_italic: true}))
-            expect(result).toContain('#let wj(body) = text(weight: "bold", style: "italic", body)')
-        })
-
-        it('leaves wj as a pass-through when no styling is chosen', () => {
-            const result = gen_passage(make_passage(
-                {show_wj: true, show_wj_color: null, show_wj_bold: false, show_wj_italic: false}))
-            expect(result).toContain('#let wj(body) = text(body)')
-        })
-
-        it('does not add wj override when show_wj is false', () => {
-            const result = gen_passage(make_passage({show_wj: false}))
-            expect(result).not.toContain('fill: rgb')
-        })
-    })
+    // Note: chapter (#ch), verse (#vn) and words-of-Jesus (#wj) markers are now defined
+    // document-wide in the preamble \u2014 see preamble.test.ts for their coverage.
 
     // --- Heading rules ---
 

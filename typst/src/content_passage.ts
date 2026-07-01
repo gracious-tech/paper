@@ -53,32 +53,6 @@ function gen_passage_inner(
 ):string {
     const lines:string[] = []
 
-    // Alias the built-in vertical-space function before `v` is redefined as the verse marker
-    // (the converter emits `#v(N)` for verses, which would otherwise shadow Typst's `v()`)
-    lines.push('#let vspace = v')
-
-    // Chapter marker function
-    lines.push(gen_chapter_def(passage))
-
-    // Verse marker function
-    lines.push(gen_verse_def(passage))
-
-    // Words of Jesus function override (if showing): apply the chosen color and/or bold/italic
-    if (passage.show_wj) {
-        const styles:string[] = []
-        if (passage.show_wj_color) {
-            styles.push(`fill: rgb("${passage.show_wj_color}")`)
-        }
-        if (passage.show_wj_bold) {
-            styles.push('weight: "bold"')
-        }
-        if (passage.show_wj_italic) {
-            styles.push('style: "italic"')
-        }
-        // If no styling was chosen, leave wj as a no-op pass-through
-        const args = styles.length ? `${styles.join(', ')}, body` : 'body'
-        lines.push(`#let wj(body) = text(${args})`)
-    }
 
     // Heading show rules
     lines.push(gen_heading_rules(passage))
@@ -106,51 +80,6 @@ function gen_passage_inner(
 }
 
 
-// Generate the #let c(n) function definition based on chapter style
-function gen_chapter_def(passage:TypstPassage):string {
-    if (!passage.show_chapters) {
-        return '#let c(n) = []'
-    }
-
-    switch (passage.show_chapters_style) {
-        case 'divider':
-            // Centered divider with dashes, hidden for chapter 1
-            // Matches current CSS: centered, 0.8em, normal weight, sans-serif
-            return `#let c(n) = if n > 1 {
-    vspace(1em)
-    align(center, text(size: 0.8em, weight: "regular", font: "Noto Sans",
-        [\u2014\u2014\u2014 #str(n) \u2014\u2014\u2014]))
-    vspace(1em)
-}`
-
-        case 'float':
-            // Large floating chapter number positioned to the left
-            return `#let c(n) = {
-    vspace(0.6em)
-    place(dx: -0.75em, text(size: 2em, weight: "bold", str(n)))
-}`
-
-        case 'heading':
-            // Chapter N as a heading
-            return '#let c(n) = heading(level: 1, "Chapter " + str(n))'
-
-        default:
-            return '#let c(n) = []'
-    }
-}
-
-
-// Generate the #let v(n) function definition for verse numbers
-function gen_verse_def(passage:TypstPassage):string {
-    if (!passage.show_verses) {
-        return '#let v(n) = []'
-    }
-    // Superscript, bold, followed by a narrow no-break space (U+202F) so the number stays
-    // glued to the following word and can't be stranded at the end of a line when text wraps
-    return `#let v(n) = [#text(weight: "bold", super(str(n)))#sym.space.nobreak.narrow]`
-}
-
-
 // Generate heading show rules
 function gen_heading_rules(passage:TypstPassage):string {
     if (!passage.show_headings) {
@@ -164,19 +93,19 @@ function gen_heading_rules(passage:TypstPassage):string {
     // Wrap each heading body in a `block` so it isn't treated as a continuation
     // paragraph — otherwise the document's `first-line-indent` would indent it.
     return `#show heading.where(level: 1): it => {
-    vspace(0.5em)
+    v(0.5em)
     block(text(weight: "bold", size: 1.1em, it.body))
-    vspace(0.25em)
+    v(0.25em)
 }
 #show heading.where(level: 2): it => {
-    vspace(0.5em)
+    v(0.5em)
     block(text(weight: "bold", style: "italic", size: 0.9em, it.body))
-    vspace(0.25em)
+    v(0.25em)
 }
 #show heading.where(level: 3): it => {
-    vspace(0.25em)
+    v(0.25em)
     block(text(style: "italic", size: 0.85em, it.body))
-    vspace(0.15em)
+    v(0.15em)
 }`
 }
 
