@@ -243,6 +243,7 @@ export class BibleContent {
                 ? this.collection.reference_to_string(new PassageReference(passage), blue.bibles[0])
                 : null,
             alone: false,
+            new_page: passage.new_page ?? true,
         }
     }
 
@@ -284,10 +285,14 @@ export class BibleContent {
         // Replace the AUTO-COPYRIGHT marker with the generated copyright block
         markup = replace_copyright_marker(markup, gen_copyright_typst(blue, resources))
 
+        // When merged onto the section above, vertical position is meaningless — flow inline
+        const new_page = custom.new_page ?? true
+
         return {
             type: 'custom',
             content: markup,
-            position: custom.position,
+            position: new_page ? custom.position : 'top',
+            new_page,
         }
     }
 }

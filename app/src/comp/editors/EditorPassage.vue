@@ -14,8 +14,10 @@ v-card-text(class='flex-grow-1 d-flex flex-column')
     div
         v-text-field(v-model='tmp_ref' :label='$t("Book or passage")' :messages='messages'
             :error-messages='errors' :hide-details='false')
-    div(class='mb-4')
+    div
         v-checkbox(v-model='tmp_title' :label='$t("Show passage heading")')
+    div(class='mb-4')
+        v-checkbox(v-model='tmp_new_page' :label='$t("Start on new page")')
     h3 {{$t("Available books")}}
     p(class='text-body-2 text-medium-emphasis mb-4') {{$t("Some may be missing if a translation you have selected only has one testament, or is still being translated or digitized.")}}
 
@@ -60,6 +62,7 @@ if (original){
 // Edit fields using tmp refs so actual data not changed unless valid
 const tmp_ref = ref(initial_ref)
 const tmp_title = ref(original?.title ?? true)
+const tmp_new_page = ref(original?.new_page ?? true)
 const errors = ref([] as string[])
 const messages = ref([] as string[])
 
@@ -115,6 +118,7 @@ watch(tmp_ref, () => {
             id: generate_token(),
             ...common_props,
             title: tmp_title.value,
+            new_page: tmp_new_page.value,
         })
         blue.content.push(item)
     } else {
@@ -128,6 +132,12 @@ watch(tmp_ref, () => {
 watch(tmp_title, () => {
     if (item){
         item.title = tmp_title.value
+    }
+})
+
+watch(tmp_new_page, () => {
+    if (item){
+        item.new_page = tmp_new_page.value
     }
 })
 

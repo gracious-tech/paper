@@ -2,7 +2,7 @@
 import {describe, it, expect} from 'vitest'
 
 import {generate_typst, generate_typst_passage, generate_typst_blank,
-    generate_typst_lines} from '../src/generate.js'
+    generate_typst_lines, group_content} from '../src/generate.js'
 import {make_request, make_passage, make_title, make_custom, make_lines,
     TEST_PAGE} from './fixtures.js'
 
@@ -103,6 +103,80 @@ describe('page arrangement', () => {
         }))
         // Preamble first, then passage — no pagebreak between them
         expect(result).not.toContain('#pagebreak()')
+    })
+})
+
+
+describe('group_content', () => {
+
+    it('puts each new_page item in its own group', () => {
+        const groups = group_content([make_passage(), make_passage(), make_custom()])
+        expect(groups.map(g => g.length)).toEqual([1, 1, 1])
+    })
+
+    it('merges a new_page=false item into the group above', () => {
+        const groups = group_content([
+            make_passage(),
+            make_custom({new_page: false}),
+        ])
+        expect(groups).toHaveLength(1)
+        expect(groups[0]).toHaveLength(2)
+    })
+
+    it('does not merge into a title (title is not a mergeable head)', () => {
+        const groups = group_content([
+            make_title(),
+            make_custom({new_page: false}),
+        ])
+        expect(groups).toHaveLength(2)
+    })
+
+    it('does not merge into an alternate-translation passage', () => {
+        const groups = group_content([
+            make_passage({bibles: [{content: 'a'}, {content: 'b'}], multi_layout: 'alternate'}),
+            make_custom({new_page: false}),
+        ])
+        expect(groups).toHaveLength(2)
+    })
+
+    it('forces an alternate-translation passage onto its own page even when merged', () => {
+        const groups = group_content([
+            make_custom(),
+            make_passage({
+                bibles: [{content: 'a'}, {content: 'b'}],
+                multi_layout: 'alternate',
+                new_page: false,
+            }),
+        ])
+        expect(groups).toHaveLength(2)
+    })
+
+    it('still merges into a half-blank passage (blanks added after render)', () => {
+        const groups = group_content([
+            make_passage({half_blank: 'right'}),
+            make_custom({new_page: false}),
+        ])
+        expect(groups).toHaveLength(1)
+        expect(groups[0]).toHaveLength(2)
+    })
+})
+
+
+describe('merged content page breaks', () => {
+
+    it('omits the page break between merged items', () => {
+        const merged = generate_typst(make_request({
+            content: [make_passage(), make_custom({new_page: false})],
+        }))
+        // A single group means no page break at all (only preamble + the two items)
+        expect(merged).not.toContain('#pagebreak()')
+    })
+
+    it('keeps the page break when the item starts on a new page', () => {
+        const split = generate_typst(make_request({
+            content: [make_passage(), make_custom({new_page: true})],
+        }))
+        expect(split).toContain('#pagebreak()')
     })
 })
 

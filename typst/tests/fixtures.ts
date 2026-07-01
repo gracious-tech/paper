@@ -55,6 +55,7 @@ export function make_passage(overrides:Partial<TypstPassage> = {}):TypstPassage 
         book: 'gen',
         passage_title: null,
         alone: false,
+        new_page: true,
         ...overrides,
     }
 }
@@ -83,6 +84,7 @@ export function make_custom(overrides:Partial<TypstCustomPage> = {}):TypstCustom
         type: 'custom',
         content: 'Copyright 2024. All rights reserved.',
         position: 'bottom',
+        new_page: true,
         ...overrides,
     }
 }

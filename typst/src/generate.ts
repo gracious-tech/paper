@@ -18,30 +18,78 @@ export function generate_typst(request:TypstRequest):string {
     // Document preamble (page, fonts, paragraph, footer)
     parts.push(gen_preamble(request))
 
-    // Generate each content item
+    // Group items so that merged sections (new_page === false) share a page with the
+    // section above — page breaks are inserted between groups only, never within a group
     const booklike = request.arrangement !== 'normal'
+    const groups = group_content(request.content)
 
-    for (let i = 0; i < request.content.length; i++) {
-        const item = request.content[i]!
+    for (let gi = 0; gi < groups.length; gi++) {
+        const group = groups[gi]!
+        const head = group[0]!
 
         // Page arrangement: ensure alone items start on an even page (recto)
-        if (booklike && is_alone(item) && i > 0) {
+        if (booklike && is_alone(head) && gi > 0) {
             parts.push('#pagebreak(to: "even")')
-        } else if (i > 0) {
-            // Standard page break between content items
+        } else if (gi > 0) {
+            // Standard page break between groups
             parts.push('#pagebreak()')
         }
 
-        // Render the content item
-        parts.push(gen_content_item(item, request))
+        // Render every item in the group with no page break between them (they flow together)
+        for (const item of group) {
+            parts.push(gen_content_item(item, request))
+        }
 
-        // For alone items in book mode, ensure the next item starts on a new sheet
-        if (booklike && is_alone(item)) {
+        // For alone items in book mode, ensure the next group starts on a new sheet
+        if (booklike && is_alone(head)) {
             parts.push('#pagebreak(to: "even")')
         }
     }
 
     return parts.join('\n\n')
+}
+
+
+// Whether a passage is rendered as two separately-compiled, interleaved translations. Such
+// passages aren't a single continuous document, so nothing can merge into or out of them.
+export function passage_is_alternate(item:TypstContentItem):boolean {
+    return item.type === 'passage' && item.bibles.length > 1 && item.multi_layout === 'alternate'
+}
+
+
+// Whether an item can flow inline (be merged with the section above or accept merged followers)
+function is_inline(item:TypstContentItem):boolean {
+    if (item.type === 'custom') {
+        return true
+    }
+    if (item.type === 'passage') {
+        return !passage_is_alternate(item)
+    }
+    return false
+}
+
+
+// Partition content into groups. A group is a leading item plus any following items with
+// new_page === false that are allowed to merge into it (see is_inline). Titles, lines
+// pages and alternate-translation passages are never mergeable heads or followers.
+export function group_content(content:TypstContentItem[]):TypstContentItem[][] {
+    const groups:TypstContentItem[][] = []
+
+    for (const item of content) {
+        const current = groups[groups.length - 1]
+        const is_follower = (item.type === 'passage' || item.type === 'custom')
+            && item.new_page === false
+        const can_merge = is_follower && current !== undefined
+            && is_inline(current[0]!) && is_inline(item)
+
+        if (can_merge) {
+            current!.push(item)
+        } else {
+            groups.push([item])
+        }
+    }
+
+    return groups
 }
 
 
