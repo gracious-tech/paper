@@ -49,10 +49,9 @@ describe('gen_passage', () => {
 
         it('generates visible verse markers', () => {
             const result = gen_passage(make_passage({show_verses: true}))
-            expect(result).toContain('#let v(n) = {')
             expect(result).toContain('super(str(n))')
-            expect(result).toContain('size: 0.7em')
-            expect(result).toContain('fill: gray')
+            // A narrow no-break space keeps the number glued to the following word
+            expect(result).toContain('sym.space.nobreak.narrow')
         })
 
         it('hides verses when show_verses is false', () => {

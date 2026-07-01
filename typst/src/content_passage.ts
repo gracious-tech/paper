@@ -145,11 +145,9 @@ function gen_verse_def(passage:TypstPassage):string {
     if (!passage.show_verses) {
         return '#let v(n) = []'
     }
-    // Superscript, small, gray, bold — matching current CSS
-    return `#let v(n) = {
-    text(weight: "bold", super(str(n)))
-    h(1pt)
-}`
+    // Superscript, bold, followed by a narrow no-break space (U+202F) so the number stays
+    // glued to the following word and can't be stranded at the end of a line when text wraps
+    return `#let v(n) = [#text(weight: "bold", super(str(n)))#sym.space.nobreak.narrow]`
 }
 
 
