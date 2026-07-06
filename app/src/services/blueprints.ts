@@ -103,7 +103,6 @@ export function get_default_blueprint():Blueprint{
         margin_bottom: 10,
         margin_inner: 10,
         margin_outer: 10,
-        margin_swap: true,
         column_gap: 5,
 
         // Legal

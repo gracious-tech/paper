@@ -23,23 +23,10 @@ describe('gen_preamble', () => {
         expect(result).toContain('height: 210mm')
     })
 
-    it('uses left/right margins when margin_swap is false', () => {
-        const result = gen_preamble(make_request({
-            page: {...TEST_PAGE, margin_swap: false},
-        }))
-        expect(result).toContain('left: 15mm')
-        expect(result).toContain('right: 15mm')
-        expect(result).not.toContain('inside:')
-        expect(result).not.toContain('outside:')
-    })
-
-    it('uses inside/outside margins when margin_swap is true', () => {
-        const result = gen_preamble(make_request({
-            page: {...TEST_PAGE, margin_swap: true},
-        }))
+    it('uses inside/outside margins for binding-aware layout', () => {
+        const result = gen_preamble(make_request({page: TEST_PAGE}))
         expect(result).toContain('inside: 15mm')
         expect(result).toContain('outside: 15mm')
-        // The page margin spec should not use left/right (those are reserved for non-swap)
         expect(result).not.toContain('left: 15mm')
         expect(result).not.toContain('right: 15mm')
     })

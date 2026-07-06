@@ -37,8 +37,6 @@ export interface PageConfig {
     margin_bottom:string
     margin_left:string
     margin_right:string
-    // Swap left/right to inside/outside for binding-aware margins
-    margin_swap:boolean
 }
 
 
@@ -191,7 +189,6 @@ export interface Blueprint {
     margin_bottom:number
     margin_inner:number
     margin_outer:number
-    margin_swap:boolean
     column_gap:number
 
     // Legal

@@ -13,7 +13,6 @@ export const TEST_PAGE:PageConfig = {
     margin_bottom: '15mm',
     margin_left: '15mm',
     margin_right: '15mm',
-    margin_swap: false,
 }
 
 

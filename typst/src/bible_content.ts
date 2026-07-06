@@ -163,10 +163,9 @@ export class BibleContent {
             height: `${trim.height}${trim.unit}`,
             margin_top: `${blue.margin_top}${blue.margin_unit}`,
             margin_bottom: `${blue.margin_bottom}${blue.margin_unit}`,
-            // Inner/outer map to typst's left/right + swap (inside/outside binding)
+            // Inner/outer map to typst's inside/outside binding-aware margins
             margin_left: `${blue.margin_inner}${blue.margin_unit}`,
             margin_right: `${blue.margin_outer}${blue.margin_unit}`,
-            margin_swap: blue.margin_swap,
         }
     }
 

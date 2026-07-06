@@ -29,16 +29,9 @@ export function gen_preamble(request:TypstRequest):string {
         justify = 'true'
     }
 
-    // Build margin specification
-    let margin:string
-    if (page.margin_swap) {
-        // Use inside/outside so Typst swaps on alternating pages
-        margin = `(top: ${page.margin_top}, bottom: ${page.margin_bottom}, `
-            + `inside: ${page.margin_left}, outside: ${page.margin_right})`
-    } else {
-        margin = `(top: ${page.margin_top}, bottom: ${page.margin_bottom}, `
-            + `left: ${page.margin_left}, right: ${page.margin_right})`
-    }
+    // Build margin specification (inside/outside so Typst swaps on alternating pages)
+    const margin = `(top: ${page.margin_top}, bottom: ${page.margin_bottom}, `
+        + `inside: ${page.margin_left}, outside: ${page.margin_right})`
 
     // Page footer with page numbers (state-based visibility)
     const footer = request.show_pages
