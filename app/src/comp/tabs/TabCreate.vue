@@ -35,10 +35,6 @@ div.cont(v-if='!trigger_rerender')
     OptionsLayout
     v-divider(class='my-8')
 
-    h2 {{$t("Print")}}
-    OptionsPrint
-    v-divider(class='my-8')
-
     h2 {{$t("Other stuff...")}}
     OptionsOther
 
@@ -57,7 +53,6 @@ import OptionsStyle from '@/comp/options/OptionsStyle.vue'
 import OptionsOther from '@/comp/options/OptionsOther.vue'
 import OptionsLayout from '@/comp/options/OptionsLayout.vue'
 import OptionsPaper from '@/comp/options/OptionsPaper.vue'
-import OptionsPrint from '@/comp/options/OptionsPrint.vue'
 import OptionsStudy from '@/comp/options/OptionsStudy.vue'
 import OptionsBibles from '@/comp/options/OptionsBibles.vue'
 import {PDFDocument} from 'pdf-lib'
