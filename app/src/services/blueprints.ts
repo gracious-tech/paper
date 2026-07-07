@@ -87,7 +87,9 @@ export function get_default_blueprint():Blueprint{
         half_blank: null,
 
         // Style
-        font_family: "Crimson Pro",
+        font_text: "Crimson Pro",
+        font_headings: null,
+        font_titles: null,
 
         // Max pages 30 (15 sheets) but ideally not greater than 20 (10 sheets)
         font_size: 10,  // Pref 10, lowest 8

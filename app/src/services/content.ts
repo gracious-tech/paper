@@ -2,8 +2,11 @@
 import {reactive} from 'vue'
 
 import {BibleContent} from 'paper-bible-typst'
+import {get_fonts} from 'typst-fonts'
+import {load_fonts_prefix} from 'typst-fonts/web'
 
 import type {BibleCollection, GetResourcesItem, GetLanguagesItem, GetBooksItem} from '@gracious.tech/fetch-client'
+import type {BundledFont} from 'typst-fonts'
 
 
 const endpoint = import.meta.env.PROD ? 'https://v1.fetch.bible/' : 'http://localhost:8430/'
@@ -29,4 +32,16 @@ export const content = {
     wj_markup: reactive({}) as Record<string, boolean>,
     // Which Typst books are cached and ready, keyed `${bible}_${book}` — drives preview refresh
     loaded: reactive({}) as Record<string, boolean>,
+    // Curated font manifest for the style picker (see load_fonts() below), grouped by
+    // BundledFont.group. Empty until load_fonts() resolves.
+    fonts: reactive([]) as BundledFont[],
+}
+
+
+// Fetch the curated font manifest (see .bin/download_fonts) and populate content.fonts.
+// paper-bible-typst-web independently loads the same manifest for the compiler itself — both
+// share typst-fonts' module-level state, so whichever runs first wins with no ill effect.
+export async function load_fonts(fonts_prefix:string):Promise<void> {
+    await load_fonts_prefix(fonts_prefix)
+    content.fonts.splice(0, content.fonts.length, ...get_fonts())
 }

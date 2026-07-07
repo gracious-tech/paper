@@ -16,7 +16,7 @@ export function gen_preamble(request:TypstRequest):string {
     const leading = `${((typography.line_height - 1) * font.num).toFixed(2)}${font.unit}`
 
     // Build font list
-    const fonts = [typography.font_family, ...typography.font_fallbacks]
+    const fonts = [typography.font_text, ...typography.font_fallbacks]
         .map(f => `"${f}"`)
         .join(', ')
 
@@ -58,7 +58,8 @@ export function gen_preamble(request:TypstRequest):string {
     place(dx: -0.75em, text(size: 2em, weight: "bold", str(n)))
 }`
     } else {
-        // 'heading' — Chapter N as a heading
+        // 'heading' — Chapter N as a heading (font comes from the document-wide heading
+        // show rule below, same as any other heading)
         chapter = '#let ch(n) = heading(level: 1, "Chapter " + str(n))'
     }
 
@@ -108,6 +109,9 @@ export function gen_preamble(request:TypstRequest):string {
     justify: ${justify},
     first-line-indent: (amount: 1.5em, all: false),
 )
+
+// Heading font — applies document-wide to any heading (chapter markers, section headings)
+#show heading: set text(font: "${escape_typst_str(typography.font_headings)}")
 
 // Footnote area styling
 #set footnote.entry(separator: line(length: 30%, stroke: 0.2mm + rgb("#000")))

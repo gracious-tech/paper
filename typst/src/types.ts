@@ -42,7 +42,9 @@ export interface PageConfig {
 
 // Font and paragraph settings
 export interface TypographyConfig {
-    font_family:string
+    font_text:string
+    font_headings:string    // Font for chapter headings (show_chapters_style === 'heading')
+    font_titles:string      // Font for title-page title/subtitle text
     font_fallbacks:string[]
     font_size:string        // e.g. "10pt"
     line_height:number      // e.g. 1.75 — module converts to Typst leading
@@ -176,7 +178,9 @@ export interface Blueprint {
     half_blank:'left'|'right'|null
 
     // Style
-    font_family:string
+    font_text:string
+    font_headings:string|null  // null = auto (matches font_text)
+    font_titles:string|null    // null = auto (matches font_text)
     font_size:number
     line_height:number
     justify:null|boolean

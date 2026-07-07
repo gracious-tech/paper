@@ -157,7 +157,9 @@ export class BibleContent {
             title: blue.title,
             page: this.gen_page(blue),
             typography: {
-                font_family: blue.font_family,
+                font_text: blue.font_text,
+                font_headings: blue.font_headings ?? blue.font_text,
+                font_titles: blue.font_titles ?? blue.font_text,
                 font_fallbacks: [],
                 font_size: `${blue.font_size}pt`,
                 line_height: blue.line_height,

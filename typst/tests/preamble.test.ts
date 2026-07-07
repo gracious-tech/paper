@@ -38,6 +38,13 @@ describe('gen_preamble', () => {
         expect(result).toContain('"serif"')
     })
 
+    it('sets the heading font document-wide, regardless of chapter/heading settings', () => {
+        const result = gen_preamble(make_request({
+            features: {...TEST_FEATURES, show_chapters: false},
+        }))
+        expect(result).toContain('#show heading: set text(font: "Crimson Pro")')
+    })
+
     it('sets font size', () => {
         const result = gen_preamble(make_request())
         expect(result).toContain('size: 10pt')
@@ -115,7 +122,7 @@ describe('gen_preamble', () => {
             const result = gen_preamble(make_request({
                 features: {...TEST_FEATURES, show_chapters: true, show_chapters_style: 'heading'},
             }))
-            expect(result).toContain('#let ch(n) = heading(level: 1, "Chapter "')
+            expect(result).toContain('#let ch(n) = heading(level: 1, "Chapter " + str(n))')
         })
 
         it('hides chapters when show_chapters is false', () => {

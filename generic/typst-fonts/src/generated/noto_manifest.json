@@ -1,0 +1,2775 @@
+{
+    "sans": [
+        {
+            "family": "Noto Sans Adlam",
+            "files": [
+                "NotoSansAdlam-Regular.otf",
+                "NotoSansAdlam-Bold.otf"
+            ]
+        },
+        {
+            "family": "Noto Sans Anatolian Hieroglyphs",
+            "files": [
+                "NotoSansAnatolianHieroglyphs-Regular.otf"
+            ]
+        },
+        {
+            "family": "Noto Sans Arabic",
+            "files": [
+                "NotoSansArabic-Bold.otf",
+                "NotoSansArabic-Regular.otf"
+            ]
+        },
+        {
+            "family": "Noto Sans Armenian",
+            "files": [
+                "NotoSansArmenian-Regular.otf",
+                "NotoSansArmenian-Bold.otf"
+            ]
+        },
+        {
+            "family": "Noto Sans Avestan",
+            "files": [
+                "NotoSansAvestan-Regular.otf"
+            ]
+        },
+        {
+            "family": "Noto Sans Balinese",
+            "files": [
+                "NotoSansBalinese-Bold.otf",
+                "NotoSansBalinese-Regular.otf"
+            ]
+        },
+        {
+            "family": "Noto Sans Bamum",
+            "files": [
+                "NotoSansBamum-Bold.otf",
+                "NotoSansBamum-Regular.otf"
+            ]
+        },
+        {
+            "family": "Noto Sans Bassa Vah",
+            "files": [
+                "NotoSansBassaVah-Bold.otf",
+                "NotoSansBassaVah-Regular.otf"
+            ]
+        },
+        {
+            "family": "Noto Sans Batak",
+            "files": [
+                "NotoSansBatak-Regular.otf"
+            ]
+        },
+        {
+            "family": "Noto Sans Bengali",
+            "files": [
+                "NotoSansBengali-Regular.otf",
+                "NotoSansBengali-Bold.otf"
+            ]
+        },
+        {
+            "family": "Noto Sans Bhaiksuki",
+            "files": [
+                "NotoSansBhaiksuki-Regular.otf"
+            ]
+        },
+        {
+            "family": "Noto Sans Brahmi",
+            "files": [
+                "NotoSansBrahmi-Regular.otf"
+            ]
+        },
+        {
+            "family": "Noto Sans Buginese",
+            "files": [
+                "NotoSansBuginese-Regular.otf"
+            ]
+        },
+        {
+            "family": "Noto Sans Buhid",
+            "files": [
+                "NotoSansBuhid-Regular.otf"
+            ]
+        },
+        {
+            "family": "Noto Sans Canadian Aboriginal",
+            "files": [
+                "NotoSansCanadianAboriginal-Bold.otf",
+                "NotoSansCanadianAboriginal-Regular.otf"
+            ]
+        },
+        {
+            "family": "Noto Sans Carian",
+            "files": [
+                "NotoSansCarian-Regular.otf"
+            ]
+        },
+        {
+            "family": "Noto Sans Caucasian Albanian",
+            "files": [
+                "NotoSansCaucasianAlbanian-Regular.otf"
+            ]
+        },
+        {
+            "family": "Noto Sans Chakma",
+            "files": [
+                "NotoSansChakma-Regular.otf"
+            ]
+        },
+        {
+            "family": "Noto Sans Cham",
+            "files": [
+                "NotoSansCham-Regular.otf",
+                "NotoSansCham-Bold.otf"
+            ]
+        },
+        {
+            "family": "Noto Sans Cherokee",
+            "files": [
+                "NotoSansCherokee-Regular.otf",
+                "NotoSansCherokee-Bold.otf"
+            ]
+        },
+        {
+            "family": "Noto Sans Chorasmian",
+            "files": [
+                "NotoSansChorasmian-Regular.otf"
+            ]
+        },
+        {
+            "family": "Noto Sans Coptic",
+            "files": [
+                "NotoSansCoptic-Regular.otf"
+            ]
+        },
+        {
+            "family": "Noto Sans Cuneiform",
+            "files": [
+                "NotoSansCuneiform-Regular.otf"
+            ]
+        },
+        {
+            "family": "Noto Sans Cypriot",
+            "files": [
+                "NotoSansCypriot-Regular.otf"
+            ]
+        },
+        {
+            "family": "Noto Sans Cypro Minoan",
+            "files": [
+                "NotoSansCyproMinoan-Regular.otf"
+            ]
+        },
+        {
+            "family": "Noto Sans Deseret",
+            "files": [
+                "NotoSansDeseret-Regular.otf"
+            ]
+        },
+        {
+            "family": "Noto Sans Devanagari",
+            "files": [
+                "NotoSansDevanagari-Regular.otf",
+                "NotoSansDevanagari-Bold.otf"
+            ]
+        },
+        {
+            "family": "Noto Sans Duployan",
+            "files": [
+                "NotoSansDuployan-Bold.otf",
+                "NotoSansDuployan-Regular.otf"
+            ]
+        },
+        {
+            "family": "Noto Sans Egyptian Hieroglyphs",
+            "files": [
+                "NotoSansEgyptianHieroglyphs-Regular.otf"
+            ]
+        },
+        {
+            "family": "Noto Sans Elbasan",
+            "files": [
+                "NotoSansElbasan-Regular.otf"
+            ]
+        },
+        {
+            "family": "Noto Sans Elymaic",
+            "files": [
+                "NotoSansElymaic-Regular.otf"
+            ]
+        },
+        {
+            "family": "Noto Sans Ethiopic",
+            "files": [
+                "NotoSansEthiopic-Bold.otf",
+                "NotoSansEthiopic-Regular.otf"
+            ]
+        },
+        {
+            "family": "Noto Sans Georgian",
+            "files": [
+                "NotoSansGeorgian-Regular.otf",
+                "NotoSansGeorgian-Bold.otf"
+            ]
+        },
+        {
+            "family": "Noto Sans Glagolitic",
+            "files": [
+                "NotoSansGlagolitic-Regular.otf"
+            ]
+        },
+        {
+            "family": "Noto Sans Gothic",
+            "files": [
+                "NotoSansGothic-Regular.otf"
+            ]
+        },
+        {
+            "family": "Noto Sans Grantha",
+            "files": [
+                "NotoSansGrantha-Regular.otf"
+            ]
+        },
+        {
+            "family": "Noto Sans Gujarati",
+            "files": [
+                "NotoSansGujarati-Bold.otf",
+                "NotoSansGujarati-Regular.otf"
+            ]
+        },
+        {
+            "family": "Noto Sans Gunjala Gondi",
+            "files": [
+                "NotoSansGunjalaGondi-Regular.otf",
+                "NotoSansGunjalaGondi-Bold.otf"
+            ]
+        },
+        {
+            "family": "Noto Sans Gurmukhi",
+            "files": [
+                "NotoSansGurmukhi-Regular.otf",
+                "NotoSansGurmukhi-Bold.otf"
+            ]
+        },
+        {
+            "family": "Noto Sans Hanifi Rohingya",
+            "files": [
+                "NotoSansHanifiRohingya-Regular.otf",
+                "NotoSansHanifiRohingya-Bold.otf"
+            ]
+        },
+        {
+            "family": "Noto Sans Hanunoo",
+            "files": [
+                "NotoSansHanunoo-Regular.otf"
+            ]
+        },
+        {
+            "family": "Noto Sans Hatran",
+            "files": [
+                "NotoSansHatran-Regular.otf"
+            ]
+        },
+        {
+            "family": "Noto Sans Hebrew",
+            "files": [
+                "NotoSansHebrew-Bold.otf",
+                "NotoSansHebrew-Regular.otf"
+            ]
+        },
+        {
+            "family": "Noto Sans Imperial Aramaic",
+            "files": [
+                "NotoSansImperialAramaic-Regular.otf"
+            ]
+        },
+        {
+            "family": "Noto Sans Indic Siyaq Numbers",
+            "files": [
+                "NotoSansIndicSiyaqNumbers-Regular.otf"
+            ]
+        },
+        {
+            "family": "Noto Sans Inscriptional Pahlavi",
+            "files": [
+                "NotoSansInscriptionalPahlavi-Regular.otf"
+            ]
+        },
+        {
+            "family": "Noto Sans Inscriptional Parthian",
+            "files": [
+                "NotoSansInscriptionalParthian-Regular.otf"
+            ]
+        },
+        {
+            "family": "Noto Sans Javanese",
+            "files": [
+                "NotoSansJavanese-Regular.otf",
+                "NotoSansJavanese-Bold.otf"
+            ]
+        },
+        {
+            "family": "Noto Sans Kaithi",
+            "files": [
+                "NotoSansKaithi-Regular.otf"
+            ]
+        },
+        {
+            "family": "Noto Sans Kannada",
+            "files": [
+                "NotoSansKannada-Regular.otf",
+                "NotoSansKannada-Bold.otf"
+            ]
+        },
+        {
+            "family": "Noto Sans Kawi",
+            "files": [
+                "NotoSansKawi-Regular.otf",
+                "NotoSansKawi-Bold.otf"
+            ]
+        },
+        {
+            "family": "Noto Sans Kayah Li",
+            "files": [
+                "NotoSansKayahLi-Regular.otf",
+                "NotoSansKayahLi-Bold.otf"
+            ]
+        },
+        {
+            "family": "Noto Sans Kharoshthi",
+            "files": [
+                "NotoSansKharoshthi-Regular.otf"
+            ]
+        },
+        {
+            "family": "Noto Sans Khmer",
+            "files": [
+                "NotoSansKhmer-Regular.otf",
+                "NotoSansKhmer-Bold.otf"
+            ]
+        },
+        {
+            "family": "Noto Sans Khojki",
+            "files": [
+                "NotoSansKhojki-Regular.otf"
+            ]
+        },
+        {
+            "family": "Noto Sans Khudawadi",
+            "files": [
+                "NotoSansKhudawadi-Regular.otf"
+            ]
+        },
+        {
+            "family": "Noto Sans Lao",
+            "files": [
+                "NotoSansLao-Bold.otf",
+                "NotoSansLao-Regular.otf"
+            ]
+        },
+        {
+            "family": "Noto Sans Lepcha",
+            "files": [
+                "NotoSansLepcha-Regular.otf"
+            ]
+        },
+        {
+            "family": "Noto Sans Limbu",
+            "files": [
+                "NotoSansLimbu-Regular.otf"
+            ]
+        },
+        {
+            "family": "Noto Sans Linear A",
+            "files": [
+                "NotoSansLinearA-Regular.otf"
+            ]
+        },
+        {
+            "family": "Noto Sans Linear B",
+            "files": [
+                "NotoSansLinearB-Regular.otf"
+            ]
+        },
+        {
+            "family": "Noto Sans Lisu",
+            "files": [
+                "NotoSansLisu-Regular.otf",
+                "NotoSansLisu-Bold.otf"
+            ]
+        },
+        {
+            "family": "Noto Sans Lycian",
+            "files": [
+                "NotoSansLycian-Regular.otf"
+            ]
+        },
+        {
+            "family": "Noto Sans Lydian",
+            "files": [
+                "NotoSansLydian-Regular.otf"
+            ]
+        },
+        {
+            "family": "Noto Sans Mahajani",
+            "files": [
+                "NotoSansMahajani-Regular.otf"
+            ]
+        },
+        {
+            "family": "Noto Sans Malayalam",
+            "files": [
+                "NotoSansMalayalam-Bold.otf",
+                "NotoSansMalayalam-Regular.otf"
+            ]
+        },
+        {
+            "family": "Noto Sans Mandaic",
+            "files": [
+                "NotoSansMandaic-Regular.otf"
+            ]
+        },
+        {
+            "family": "Noto Sans Manichaean",
+            "files": [
+                "NotoSansManichaean-Regular.otf"
+            ]
+        },
+        {
+            "family": "Noto Sans Marchen",
+            "files": [
+                "NotoSansMarchen-Regular.otf"
+            ]
+        },
+        {
+            "family": "Noto Sans Masaram Gondi",
+            "files": [
+                "NotoSansMasaramGondi-Regular.otf"
+            ]
+        },
+        {
+            "family": "Noto Sans Mayan Numerals",
+            "files": [
+                "NotoSansMayanNumerals-Regular.otf"
+            ]
+        },
+        {
+            "family": "Noto Sans Medefaidrin",
+            "files": [
+                "NotoSansMedefaidrin-Bold.otf",
+                "NotoSansMedefaidrin-Regular.otf"
+            ]
+        },
+        {
+            "family": "Noto Sans Meetei Mayek",
+            "files": [
+                "NotoSansMeeteiMayek-Regular.otf",
+                "NotoSansMeeteiMayek-Bold.otf"
+            ]
+        },
+        {
+            "family": "Noto Sans Mende Kikakui",
+            "files": [
+                "NotoSansMendeKikakui-Regular.otf"
+            ]
+        },
+        {
+            "family": "Noto Sans Meroitic",
+            "files": [
+                "NotoSansMeroitic-Regular.otf"
+            ]
+        },
+        {
+            "family": "Noto Sans Miao",
+            "files": [
+                "NotoSansMiao-Regular.otf"
+            ]
+        },
+        {
+            "family": "Noto Sans Modi",
+            "files": [
+                "NotoSansModi-Regular.otf"
+            ]
+        },
+        {
+            "family": "Noto Sans Mongolian",
+            "files": [
+                "NotoSansMongolian-Regular.otf"
+            ]
+        },
+        {
+            "family": "Noto Sans Mro",
+            "files": [
+                "NotoSansMro-Regular.otf"
+            ]
+        },
+        {
+            "family": "Noto Sans Multani",
+            "files": [
+                "NotoSansMultani-Regular.otf"
+            ]
+        },
+        {
+            "family": "Noto Sans Myanmar",
+            "files": [
+                "NotoSansMyanmar-Regular.otf",
+                "NotoSansMyanmar-Bold.otf"
+            ]
+        },
+        {
+            "family": "Noto Sans Nabataean",
+            "files": [
+                "NotoSansNabataean-Regular.otf"
+            ]
+        },
+        {
+            "family": "Noto Sans Nag Mundari",
+            "files": [
+                "NotoSansNagMundari-Regular.otf",
+                "NotoSansNagMundari-Bold.otf"
+            ]
+        },
+        {
+            "family": "Noto Sans Nandinagari",
+            "files": [
+                "NotoSansNandinagari-Regular.otf"
+            ]
+        },
+        {
+            "family": "Noto Sans New Tai Lue",
+            "files": [
+                "NotoSansNewTaiLue-Regular.otf",
+                "NotoSansNewTaiLue-Bold.otf"
+            ]
+        },
+        {
+            "family": "Noto Sans Newa",
+            "files": [
+                "NotoSansNewa-Regular.otf"
+            ]
+        },
+        {
+            "family": "Noto Sans NKo",
+            "files": [
+                "NotoSansNKo-Regular.otf"
+            ]
+        },
+        {
+            "family": "Noto Sans Nushu",
+            "files": [
+                "NotoSansNushu-Regular.otf"
+            ]
+        },
+        {
+            "family": "Noto Sans Ogham",
+            "files": [
+                "NotoSansOgham-Regular.otf"
+            ]
+        },
+        {
+            "family": "Noto Sans Ol Chiki",
+            "files": [
+                "NotoSansOlChiki-Regular.otf",
+                "NotoSansOlChiki-Bold.otf"
+            ]
+        },
+        {
+            "family": "Noto Sans Old Hungarian",
+            "files": [
+                "NotoSansOldHungarian-Regular.otf"
+            ]
+        },
+        {
+            "family": "Noto Sans Old Italic",
+            "files": [
+                "NotoSansOldItalic-Regular.otf"
+            ]
+        },
+        {
+            "family": "Noto Sans Old North Arabian",
+            "files": [
+                "NotoSansOldNorthArabian-Regular.otf"
+            ]
+        },
+        {
+            "family": "Noto Sans Old Permic",
+            "files": [
+                "NotoSansOldPermic-Regular.otf"
+            ]
+        },
+        {
+            "family": "Noto Sans Old Persian",
+            "files": [
+                "NotoSansOldPersian-Regular.otf"
+            ]
+        },
+        {
+            "family": "Noto Sans Old Sogdian",
+            "files": [
+                "NotoSansOldSogdian-Regular.otf"
+            ]
+        },
+        {
+            "family": "Noto Sans Old South Arabian",
+            "files": [
+                "NotoSansOldSouthArabian-Regular.otf"
+            ]
+        },
+        {
+            "family": "Noto Sans Old Turkic",
+            "files": [
+                "NotoSansOldTurkic-Regular.otf"
+            ]
+        },
+        {
+            "family": "Noto Sans Oriya",
+            "files": [
+                "NotoSansOriya-Bold.otf",
+                "NotoSansOriya-Regular.otf"
+            ]
+        },
+        {
+            "family": "Noto Sans Osage",
+            "files": [
+                "NotoSansOsage-Regular.otf"
+            ]
+        },
+        {
+            "family": "Noto Sans Osmanya",
+            "files": [
+                "NotoSansOsmanya-Regular.otf"
+            ]
+        },
+        {
+            "family": "Noto Sans Pahawh Hmong",
+            "files": [
+                "NotoSansPahawhHmong-Regular.otf"
+            ]
+        },
+        {
+            "family": "Noto Sans Palmyrene",
+            "files": [
+                "NotoSansPalmyrene-Regular.otf"
+            ]
+        },
+        {
+            "family": "Noto Sans Pau Cin Hau",
+            "files": [
+                "NotoSansPauCinHau-Regular.otf"
+            ]
+        },
+        {
+            "family": "Noto Sans Phags Pa",
+            "files": [
+                "NotoSansPhagsPa-Regular.otf"
+            ]
+        },
+        {
+            "family": "Noto Sans Phoenician",
+            "files": [
+                "NotoSansPhoenician-Regular.otf"
+            ]
+        },
+        {
+            "family": "Noto Sans Psalter Pahlavi",
+            "files": [
+                "NotoSansPsalterPahlavi-Regular.otf"
+            ]
+        },
+        {
+            "family": "Noto Sans Rejang",
+            "files": [
+                "NotoSansRejang-Regular.otf"
+            ]
+        },
+        {
+            "family": "Noto Sans Runic",
+            "files": [
+                "NotoSansRunic-Regular.otf"
+            ]
+        },
+        {
+            "family": "Noto Sans Samaritan",
+            "files": [
+                "NotoSansSamaritan-Regular.otf"
+            ]
+        },
+        {
+            "family": "Noto Sans Saurashtra",
+            "files": [
+                "NotoSansSaurashtra-Regular.otf"
+            ]
+        },
+        {
+            "family": "Noto Sans Sharada",
+            "files": [
+                "NotoSansSharada-Regular.otf"
+            ]
+        },
+        {
+            "family": "Noto Sans Shavian",
+            "files": [
+                "NotoSansShavian-Regular.otf"
+            ]
+        },
+        {
+            "family": "Noto Sans Siddham",
+            "files": [
+                "NotoSansSiddham-Regular.otf"
+            ]
+        },
+        {
+            "family": "Noto Sans Sign Writing",
+            "files": [
+                "NotoSansSignWriting-Regular.otf"
+            ]
+        },
+        {
+            "family": "Noto Sans Sinhala",
+            "files": [
+                "NotoSansSinhala-Bold.otf",
+                "NotoSansSinhala-Regular.otf"
+            ]
+        },
+        {
+            "family": "Noto Sans Sogdian",
+            "files": [
+                "NotoSansSogdian-Regular.otf"
+            ]
+        },
+        {
+            "family": "Noto Sans Sora Sompeng",
+            "files": [
+                "NotoSansSoraSompeng-Regular.otf",
+                "NotoSansSoraSompeng-Bold.otf"
+            ]
+        },
+        {
+            "family": "Noto Sans Soyombo",
+            "files": [
+                "NotoSansSoyombo-Regular.otf"
+            ]
+        },
+        {
+            "family": "Noto Sans Sundanese",
+            "files": [
+                "NotoSansSundanese-Bold.otf",
+                "NotoSansSundanese-Regular.otf"
+            ]
+        },
+        {
+            "family": "Noto Sans Sunuwar",
+            "files": [
+                "NotoSansSunuwar-Regular.otf"
+            ]
+        },
+        {
+            "family": "Noto Sans Syloti Nagri",
+            "files": [
+                "NotoSansSylotiNagri-Regular.otf"
+            ]
+        },
+        {
+            "family": "Noto Sans Symbols",
+            "files": [
+                "NotoSansSymbols-Regular.otf",
+                "NotoSansSymbols-Bold.otf"
+            ]
+        },
+        {
+            "family": "Noto Sans Syriac",
+            "files": [
+                "NotoSansSyriac-Regular.otf"
+            ]
+        },
+        {
+            "family": "Noto Sans Tagalog",
+            "files": [
+                "NotoSansTagalog-Regular.otf"
+            ]
+        },
+        {
+            "family": "Noto Sans Tagbanwa",
+            "files": [
+                "NotoSansTagbanwa-Regular.otf"
+            ]
+        },
+        {
+            "family": "Noto Sans Tai Le",
+            "files": [
+                "NotoSansTaiLe-Regular.otf"
+            ]
+        },
+        {
+            "family": "Noto Sans Tai Tham",
+            "files": [
+                "NotoSansTaiTham-Regular.otf",
+                "NotoSansTaiTham-Bold.otf"
+            ]
+        },
+        {
+            "family": "Noto Sans Tai Viet",
+            "files": [
+                "NotoSansTaiViet-Regular.otf"
+            ]
+        },
+        {
+            "family": "Noto Sans Takri",
+            "files": [
+                "NotoSansTakri-Regular.otf"
+            ]
+        },
+        {
+            "family": "Noto Sans Tamil",
+            "files": [
+                "NotoSansTamil-Regular.otf",
+                "NotoSansTamil-Bold.otf"
+            ]
+        },
+        {
+            "family": "Noto Sans Tangsa",
+            "files": [
+                "NotoSansTangsa-Regular.otf",
+                "NotoSansTangsa-Bold.otf"
+            ]
+        },
+        {
+            "family": "Noto Sans Telugu",
+            "files": [
+                "NotoSansTelugu-Bold.otf",
+                "NotoSansTelugu-Regular.otf"
+            ]
+        },
+        {
+            "family": "Noto Sans Test",
+            "files": [
+                "NotoSansTest-Regular.otf"
+            ]
+        },
+        {
+            "family": "Noto Sans Thaana",
+            "files": [
+                "NotoSansThaana-Bold.otf",
+                "NotoSansThaana-Regular.otf"
+            ]
+        },
+        {
+            "family": "Noto Sans Thai",
+            "files": [
+                "NotoSansThai-Bold.otf",
+                "NotoSansThai-Regular.otf"
+            ]
+        },
+        {
+            "family": "Noto Sans Tifinagh",
+            "files": [
+                "NotoSansTifinagh-Regular.otf"
+            ]
+        },
+        {
+            "family": "Noto Sans Tirhuta",
+            "files": [
+                "NotoSansTirhuta-Regular.otf"
+            ]
+        },
+        {
+            "family": "Noto Sans Ugaritic",
+            "files": [
+                "NotoSansUgaritic-Regular.otf"
+            ]
+        },
+        {
+            "family": "Noto Sans Vai",
+            "files": [
+                "NotoSansVai-Regular.otf"
+            ]
+        },
+        {
+            "family": "Noto Sans Vithkuqi",
+            "files": [
+                "NotoSansVithkuqi-Regular.otf",
+                "NotoSansVithkuqi-Bold.otf"
+            ]
+        },
+        {
+            "family": "Noto Sans Wancho",
+            "files": [
+                "NotoSansWancho-Regular.otf"
+            ]
+        },
+        {
+            "family": "Noto Sans Warang Citi",
+            "files": [
+                "NotoSansWarangCiti-Regular.otf"
+            ]
+        },
+        {
+            "family": "Noto Sans Yi",
+            "files": [
+                "NotoSansYi-Regular.otf"
+            ]
+        },
+        {
+            "family": "Noto Sans Zanabazar Square",
+            "files": [
+                "NotoSansZanabazarSquare-Regular.otf"
+            ]
+        },
+        {
+            "family": "Noto Serif Ahom",
+            "files": [
+                "NotoSerifAhom-Regular.otf"
+            ]
+        },
+        {
+            "family": "Noto Serif Dives Akuru",
+            "files": [
+                "NotoSerifDivesAkuru-Regular.otf"
+            ]
+        },
+        {
+            "family": "Noto Serif Dogra",
+            "files": [
+                "NotoSerifDogra-Regular.otf"
+            ]
+        },
+        {
+            "family": "Noto Serif Hentaigana",
+            "files": [
+                "NotoSerifHentaigana-Bold.otf",
+                "NotoSerifHentaigana-Regular.otf"
+            ]
+        },
+        {
+            "family": "Noto Serif Khitan Small Script",
+            "files": [
+                "NotoSerifKhitanSmallScript-Regular.otf"
+            ]
+        },
+        {
+            "family": "Noto Serif Makasar",
+            "files": [
+                "NotoSerifMakasar-Regular.otf"
+            ]
+        },
+        {
+            "family": "Noto Serif NPHmong",
+            "files": [
+                "NotoSerifNPHmong-Bold.otf",
+                "NotoSerifNPHmong-Regular.otf"
+            ]
+        },
+        {
+            "family": "Noto Serif Old Uyghur",
+            "files": [
+                "NotoSerifOldUyghur-Regular.otf"
+            ]
+        },
+        {
+            "family": "Noto Serif Ottoman Siyaq",
+            "files": [
+                "NotoSerifOttomanSiyaq-Regular.otf"
+            ]
+        },
+        {
+            "family": "Noto Serif Tangut",
+            "files": [
+                "NotoSerifTangut-Regular.otf"
+            ]
+        },
+        {
+            "family": "Noto Serif Tibetan",
+            "files": [
+                "NotoSerifTibetan-Bold.otf",
+                "NotoSerifTibetan-Regular.otf"
+            ]
+        },
+        {
+            "family": "Noto Serif Todhri",
+            "files": [
+                "NotoSerifTodhri-Regular.otf"
+            ]
+        },
+        {
+            "family": "Noto Serif Toto",
+            "files": [
+                "NotoSerifToto-Regular.otf",
+                "NotoSerifToto-Bold.otf"
+            ]
+        },
+        {
+            "family": "Noto Serif Yezidi",
+            "files": [
+                "NotoSerifYezidi-Bold.otf",
+                "NotoSerifYezidi-Regular.otf"
+            ]
+        },
+        {
+            "family": "Noto Sans JP",
+            "files": [
+                "NotoSansJP-Regular.otf",
+                "NotoSansJP-Bold.otf"
+            ]
+        },
+        {
+            "family": "Noto Sans KR",
+            "files": [
+                "NotoSansKR-Regular.otf",
+                "NotoSansKR-Bold.otf"
+            ]
+        },
+        {
+            "family": "Noto Sans SC",
+            "files": [
+                "NotoSansSC-Regular.otf",
+                "NotoSansSC-Bold.otf"
+            ]
+        },
+        {
+            "family": "Noto Sans TC",
+            "files": [
+                "NotoSansTC-Regular.otf",
+                "NotoSansTC-Bold.otf"
+            ]
+        },
+        {
+            "family": "Noto Sans HK",
+            "files": [
+                "NotoSansHK-Regular.otf",
+                "NotoSansHK-Bold.otf"
+            ]
+        }
+    ],
+    "serif": [
+        {
+            "family": "Noto Serif Ahom",
+            "files": [
+                "NotoSerifAhom-Regular.otf"
+            ]
+        },
+        {
+            "family": "Noto Serif Armenian",
+            "files": [
+                "NotoSerifArmenian-Regular.otf",
+                "NotoSerifArmenian-Bold.otf"
+            ]
+        },
+        {
+            "family": "Noto Serif Balinese",
+            "files": [
+                "NotoSerifBalinese-Regular.otf"
+            ]
+        },
+        {
+            "family": "Noto Serif Bengali",
+            "files": [
+                "NotoSerifBengali-Regular.otf",
+                "NotoSerifBengali-Bold.otf"
+            ]
+        },
+        {
+            "family": "Noto Serif Devanagari",
+            "files": [
+                "NotoSerifDevanagari-Regular.otf",
+                "NotoSerifDevanagari-Bold.otf"
+            ]
+        },
+        {
+            "family": "Noto Serif Dives Akuru",
+            "files": [
+                "NotoSerifDivesAkuru-Regular.otf"
+            ]
+        },
+        {
+            "family": "Noto Serif Dogra",
+            "files": [
+                "NotoSerifDogra-Regular.otf"
+            ]
+        },
+        {
+            "family": "Noto Serif Ethiopic",
+            "files": [
+                "NotoSerifEthiopic-Regular.otf",
+                "NotoSerifEthiopic-Bold.otf"
+            ]
+        },
+        {
+            "family": "Noto Serif Georgian",
+            "files": [
+                "NotoSerifGeorgian-Regular.otf",
+                "NotoSerifGeorgian-Bold.otf"
+            ]
+        },
+        {
+            "family": "Noto Serif Grantha",
+            "files": [
+                "NotoSerifGrantha-Regular.otf"
+            ]
+        },
+        {
+            "family": "Noto Serif Gujarati",
+            "files": [
+                "NotoSerifGujarati-Regular.otf",
+                "NotoSerifGujarati-Bold.otf"
+            ]
+        },
+        {
+            "family": "Noto Serif Gurmukhi",
+            "files": [
+                "NotoSerifGurmukhi-Regular.otf",
+                "NotoSerifGurmukhi-Bold.otf"
+            ]
+        },
+        {
+            "family": "Noto Serif Hebrew",
+            "files": [
+                "NotoSerifHebrew-Bold.otf",
+                "NotoSerifHebrew-Regular.otf"
+            ]
+        },
+        {
+            "family": "Noto Serif Hentaigana",
+            "files": [
+                "NotoSerifHentaigana-Bold.otf",
+                "NotoSerifHentaigana-Regular.otf"
+            ]
+        },
+        {
+            "family": "Noto Serif Kannada",
+            "files": [
+                "NotoSerifKannada-Bold.otf",
+                "NotoSerifKannada-Regular.otf"
+            ]
+        },
+        {
+            "family": "Noto Serif Khitan Small Script",
+            "files": [
+                "NotoSerifKhitanSmallScript-Regular.otf"
+            ]
+        },
+        {
+            "family": "Noto Serif Khmer",
+            "files": [
+                "NotoSerifKhmer-Regular.otf",
+                "NotoSerifKhmer-Bold.otf"
+            ]
+        },
+        {
+            "family": "Noto Serif Khojki",
+            "files": [
+                "NotoSerifKhojki-Regular.otf",
+                "NotoSerifKhojki-Bold.otf"
+            ]
+        },
+        {
+            "family": "Noto Serif Lao",
+            "files": [
+                "NotoSerifLao-Bold.otf",
+                "NotoSerifLao-Regular.otf"
+            ]
+        },
+        {
+            "family": "Noto Serif Makasar",
+            "files": [
+                "NotoSerifMakasar-Regular.otf"
+            ]
+        },
+        {
+            "family": "Noto Serif Malayalam",
+            "files": [
+                "NotoSerifMalayalam-Regular.otf",
+                "NotoSerifMalayalam-Bold.otf"
+            ]
+        },
+        {
+            "family": "Noto Serif Myanmar",
+            "files": [
+                "NotoSerifMyanmar-Bold.otf",
+                "NotoSerifMyanmar-Regular.otf"
+            ]
+        },
+        {
+            "family": "Noto Serif NPHmong",
+            "files": [
+                "NotoSerifNPHmong-Bold.otf",
+                "NotoSerifNPHmong-Regular.otf"
+            ]
+        },
+        {
+            "family": "Noto Serif Old Uyghur",
+            "files": [
+                "NotoSerifOldUyghur-Regular.otf"
+            ]
+        },
+        {
+            "family": "Noto Serif Oriya",
+            "files": [
+                "NotoSerifOriya-Regular.otf",
+                "NotoSerifOriya-Bold.otf"
+            ]
+        },
+        {
+            "family": "Noto Serif Ottoman Siyaq",
+            "files": [
+                "NotoSerifOttomanSiyaq-Regular.otf"
+            ]
+        },
+        {
+            "family": "Noto Serif Sinhala",
+            "files": [
+                "NotoSerifSinhala-Regular.otf",
+                "NotoSerifSinhala-Bold.otf"
+            ]
+        },
+        {
+            "family": "Noto Serif Tamil",
+            "files": [
+                "NotoSerifTamil-Regular.otf",
+                "NotoSerifTamil-Bold.otf"
+            ]
+        },
+        {
+            "family": "Noto Serif Tangut",
+            "files": [
+                "NotoSerifTangut-Regular.otf"
+            ]
+        },
+        {
+            "family": "Noto Serif Telugu",
+            "files": [
+                "NotoSerifTelugu-Regular.otf",
+                "NotoSerifTelugu-Bold.otf"
+            ]
+        },
+        {
+            "family": "Noto Serif Test",
+            "files": [
+                "NotoSerifTest-Regular.otf",
+                "NotoSerifTest-Bold.otf"
+            ]
+        },
+        {
+            "family": "Noto Serif Thai",
+            "files": [
+                "NotoSerifThai-Bold.otf",
+                "NotoSerifThai-Regular.otf"
+            ]
+        },
+        {
+            "family": "Noto Serif Tibetan",
+            "files": [
+                "NotoSerifTibetan-Bold.otf",
+                "NotoSerifTibetan-Regular.otf"
+            ]
+        },
+        {
+            "family": "Noto Serif Todhri",
+            "files": [
+                "NotoSerifTodhri-Regular.otf"
+            ]
+        },
+        {
+            "family": "Noto Serif Toto",
+            "files": [
+                "NotoSerifToto-Regular.otf",
+                "NotoSerifToto-Bold.otf"
+            ]
+        },
+        {
+            "family": "Noto Serif Vithkuqi",
+            "files": [
+                "NotoSerifVithkuqi-Regular.otf",
+                "NotoSerifVithkuqi-Bold.otf"
+            ]
+        },
+        {
+            "family": "Noto Serif Yezidi",
+            "files": [
+                "NotoSerifYezidi-Bold.otf",
+                "NotoSerifYezidi-Regular.otf"
+            ]
+        },
+        {
+            "family": "Noto Sans Adlam",
+            "files": [
+                "NotoSansAdlam-Regular.otf",
+                "NotoSansAdlam-Bold.otf"
+            ]
+        },
+        {
+            "family": "Noto Sans Anatolian Hieroglyphs",
+            "files": [
+                "NotoSansAnatolianHieroglyphs-Regular.otf"
+            ]
+        },
+        {
+            "family": "Noto Sans Arabic",
+            "files": [
+                "NotoSansArabic-Bold.otf",
+                "NotoSansArabic-Regular.otf"
+            ]
+        },
+        {
+            "family": "Noto Sans Avestan",
+            "files": [
+                "NotoSansAvestan-Regular.otf"
+            ]
+        },
+        {
+            "family": "Noto Sans Bamum",
+            "files": [
+                "NotoSansBamum-Bold.otf",
+                "NotoSansBamum-Regular.otf"
+            ]
+        },
+        {
+            "family": "Noto Sans Bassa Vah",
+            "files": [
+                "NotoSansBassaVah-Bold.otf",
+                "NotoSansBassaVah-Regular.otf"
+            ]
+        },
+        {
+            "family": "Noto Sans Batak",
+            "files": [
+                "NotoSansBatak-Regular.otf"
+            ]
+        },
+        {
+            "family": "Noto Sans Bhaiksuki",
+            "files": [
+                "NotoSansBhaiksuki-Regular.otf"
+            ]
+        },
+        {
+            "family": "Noto Sans Brahmi",
+            "files": [
+                "NotoSansBrahmi-Regular.otf"
+            ]
+        },
+        {
+            "family": "Noto Sans Buginese",
+            "files": [
+                "NotoSansBuginese-Regular.otf"
+            ]
+        },
+        {
+            "family": "Noto Sans Buhid",
+            "files": [
+                "NotoSansBuhid-Regular.otf"
+            ]
+        },
+        {
+            "family": "Noto Sans Canadian Aboriginal",
+            "files": [
+                "NotoSansCanadianAboriginal-Bold.otf",
+                "NotoSansCanadianAboriginal-Regular.otf"
+            ]
+        },
+        {
+            "family": "Noto Sans Carian",
+            "files": [
+                "NotoSansCarian-Regular.otf"
+            ]
+        },
+        {
+            "family": "Noto Sans Caucasian Albanian",
+            "files": [
+                "NotoSansCaucasianAlbanian-Regular.otf"
+            ]
+        },
+        {
+            "family": "Noto Sans Chakma",
+            "files": [
+                "NotoSansChakma-Regular.otf"
+            ]
+        },
+        {
+            "family": "Noto Sans Cham",
+            "files": [
+                "NotoSansCham-Regular.otf",
+                "NotoSansCham-Bold.otf"
+            ]
+        },
+        {
+            "family": "Noto Sans Cherokee",
+            "files": [
+                "NotoSansCherokee-Regular.otf",
+                "NotoSansCherokee-Bold.otf"
+            ]
+        },
+        {
+            "family": "Noto Sans Chorasmian",
+            "files": [
+                "NotoSansChorasmian-Regular.otf"
+            ]
+        },
+        {
+            "family": "Noto Sans Coptic",
+            "files": [
+                "NotoSansCoptic-Regular.otf"
+            ]
+        },
+        {
+            "family": "Noto Sans Cuneiform",
+            "files": [
+                "NotoSansCuneiform-Regular.otf"
+            ]
+        },
+        {
+            "family": "Noto Sans Cypriot",
+            "files": [
+                "NotoSansCypriot-Regular.otf"
+            ]
+        },
+        {
+            "family": "Noto Sans Cypro Minoan",
+            "files": [
+                "NotoSansCyproMinoan-Regular.otf"
+            ]
+        },
+        {
+            "family": "Noto Sans Deseret",
+            "files": [
+                "NotoSansDeseret-Regular.otf"
+            ]
+        },
+        {
+            "family": "Noto Sans Duployan",
+            "files": [
+                "NotoSansDuployan-Bold.otf",
+                "NotoSansDuployan-Regular.otf"
+            ]
+        },
+        {
+            "family": "Noto Sans Egyptian Hieroglyphs",
+            "files": [
+                "NotoSansEgyptianHieroglyphs-Regular.otf"
+            ]
+        },
+        {
+            "family": "Noto Sans Elbasan",
+            "files": [
+                "NotoSansElbasan-Regular.otf"
+            ]
+        },
+        {
+            "family": "Noto Sans Elymaic",
+            "files": [
+                "NotoSansElymaic-Regular.otf"
+            ]
+        },
+        {
+            "family": "Noto Sans Glagolitic",
+            "files": [
+                "NotoSansGlagolitic-Regular.otf"
+            ]
+        },
+        {
+            "family": "Noto Sans Gothic",
+            "files": [
+                "NotoSansGothic-Regular.otf"
+            ]
+        },
+        {
+            "family": "Noto Sans Gunjala Gondi",
+            "files": [
+                "NotoSansGunjalaGondi-Regular.otf",
+                "NotoSansGunjalaGondi-Bold.otf"
+            ]
+        },
+        {
+            "family": "Noto Sans Hanifi Rohingya",
+            "files": [
+                "NotoSansHanifiRohingya-Regular.otf",
+                "NotoSansHanifiRohingya-Bold.otf"
+            ]
+        },
+        {
+            "family": "Noto Sans Hanunoo",
+            "files": [
+                "NotoSansHanunoo-Regular.otf"
+            ]
+        },
+        {
+            "family": "Noto Sans Hatran",
+            "files": [
+                "NotoSansHatran-Regular.otf"
+            ]
+        },
+        {
+            "family": "Noto Sans Imperial Aramaic",
+            "files": [
+                "NotoSansImperialAramaic-Regular.otf"
+            ]
+        },
+        {
+            "family": "Noto Sans Indic Siyaq Numbers",
+            "files": [
+                "NotoSansIndicSiyaqNumbers-Regular.otf"
+            ]
+        },
+        {
+            "family": "Noto Sans Inscriptional Pahlavi",
+            "files": [
+                "NotoSansInscriptionalPahlavi-Regular.otf"
+            ]
+        },
+        {
+            "family": "Noto Sans Inscriptional Parthian",
+            "files": [
+                "NotoSansInscriptionalParthian-Regular.otf"
+            ]
+        },
+        {
+            "family": "Noto Sans Javanese",
+            "files": [
+                "NotoSansJavanese-Regular.otf",
+                "NotoSansJavanese-Bold.otf"
+            ]
+        },
+        {
+            "family": "Noto Sans Kaithi",
+            "files": [
+                "NotoSansKaithi-Regular.otf"
+            ]
+        },
+        {
+            "family": "Noto Sans Kawi",
+            "files": [
+                "NotoSansKawi-Regular.otf",
+                "NotoSansKawi-Bold.otf"
+            ]
+        },
+        {
+            "family": "Noto Sans Kayah Li",
+            "files": [
+                "NotoSansKayahLi-Regular.otf",
+                "NotoSansKayahLi-Bold.otf"
+            ]
+        },
+        {
+            "family": "Noto Sans Kharoshthi",
+            "files": [
+                "NotoSansKharoshthi-Regular.otf"
+            ]
+        },
+        {
+            "family": "Noto Sans Khudawadi",
+            "files": [
+                "NotoSansKhudawadi-Regular.otf"
+            ]
+        },
+        {
+            "family": "Noto Sans Lepcha",
+            "files": [
+                "NotoSansLepcha-Regular.otf"
+            ]
+        },
+        {
+            "family": "Noto Sans Limbu",
+            "files": [
+                "NotoSansLimbu-Regular.otf"
+            ]
+        },
+        {
+            "family": "Noto Sans Linear A",
+            "files": [
+                "NotoSansLinearA-Regular.otf"
+            ]
+        },
+        {
+            "family": "Noto Sans Linear B",
+            "files": [
+                "NotoSansLinearB-Regular.otf"
+            ]
+        },
+        {
+            "family": "Noto Sans Lisu",
+            "files": [
+                "NotoSansLisu-Regular.otf",
+                "NotoSansLisu-Bold.otf"
+            ]
+        },
+        {
+            "family": "Noto Sans Lycian",
+            "files": [
+                "NotoSansLycian-Regular.otf"
+            ]
+        },
+        {
+            "family": "Noto Sans Lydian",
+            "files": [
+                "NotoSansLydian-Regular.otf"
+            ]
+        },
+        {
+            "family": "Noto Sans Mahajani",
+            "files": [
+                "NotoSansMahajani-Regular.otf"
+            ]
+        },
+        {
+            "family": "Noto Sans Mandaic",
+            "files": [
+                "NotoSansMandaic-Regular.otf"
+            ]
+        },
+        {
+            "family": "Noto Sans Manichaean",
+            "files": [
+                "NotoSansManichaean-Regular.otf"
+            ]
+        },
+        {
+            "family": "Noto Sans Marchen",
+            "files": [
+                "NotoSansMarchen-Regular.otf"
+            ]
+        },
+        {
+            "family": "Noto Sans Masaram Gondi",
+            "files": [
+                "NotoSansMasaramGondi-Regular.otf"
+            ]
+        },
+        {
+            "family": "Noto Sans Mayan Numerals",
+            "files": [
+                "NotoSansMayanNumerals-Regular.otf"
+            ]
+        },
+        {
+            "family": "Noto Sans Medefaidrin",
+            "files": [
+                "NotoSansMedefaidrin-Bold.otf",
+                "NotoSansMedefaidrin-Regular.otf"
+            ]
+        },
+        {
+            "family": "Noto Sans Meetei Mayek",
+            "files": [
+                "NotoSansMeeteiMayek-Regular.otf",
+                "NotoSansMeeteiMayek-Bold.otf"
+            ]
+        },
+        {
+            "family": "Noto Sans Mende Kikakui",
+            "files": [
+                "NotoSansMendeKikakui-Regular.otf"
+            ]
+        },
+        {
+            "family": "Noto Sans Meroitic",
+            "files": [
+                "NotoSansMeroitic-Regular.otf"
+            ]
+        },
+        {
+            "family": "Noto Sans Miao",
+            "files": [
+                "NotoSansMiao-Regular.otf"
+            ]
+        },
+        {
+            "family": "Noto Sans Modi",
+            "files": [
+                "NotoSansModi-Regular.otf"
+            ]
+        },
+        {
+            "family": "Noto Sans Mongolian",
+            "files": [
+                "NotoSansMongolian-Regular.otf"
+            ]
+        },
+        {
+            "family": "Noto Sans Mro",
+            "files": [
+                "NotoSansMro-Regular.otf"
+            ]
+        },
+        {
+            "family": "Noto Sans Multani",
+            "files": [
+                "NotoSansMultani-Regular.otf"
+            ]
+        },
+        {
+            "family": "Noto Sans Nabataean",
+            "files": [
+                "NotoSansNabataean-Regular.otf"
+            ]
+        },
+        {
+            "family": "Noto Sans Nag Mundari",
+            "files": [
+                "NotoSansNagMundari-Regular.otf",
+                "NotoSansNagMundari-Bold.otf"
+            ]
+        },
+        {
+            "family": "Noto Sans Nandinagari",
+            "files": [
+                "NotoSansNandinagari-Regular.otf"
+            ]
+        },
+        {
+            "family": "Noto Sans New Tai Lue",
+            "files": [
+                "NotoSansNewTaiLue-Regular.otf",
+                "NotoSansNewTaiLue-Bold.otf"
+            ]
+        },
+        {
+            "family": "Noto Sans Newa",
+            "files": [
+                "NotoSansNewa-Regular.otf"
+            ]
+        },
+        {
+            "family": "Noto Sans NKo",
+            "files": [
+                "NotoSansNKo-Regular.otf"
+            ]
+        },
+        {
+            "family": "Noto Sans Nushu",
+            "files": [
+                "NotoSansNushu-Regular.otf"
+            ]
+        },
+        {
+            "family": "Noto Sans Ogham",
+            "files": [
+                "NotoSansOgham-Regular.otf"
+            ]
+        },
+        {
+            "family": "Noto Sans Ol Chiki",
+            "files": [
+                "NotoSansOlChiki-Regular.otf",
+                "NotoSansOlChiki-Bold.otf"
+            ]
+        },
+        {
+            "family": "Noto Sans Old Hungarian",
+            "files": [
+                "NotoSansOldHungarian-Regular.otf"
+            ]
+        },
+        {
+            "family": "Noto Sans Old Italic",
+            "files": [
+                "NotoSansOldItalic-Regular.otf"
+            ]
+        },
+        {
+            "family": "Noto Sans Old North Arabian",
+            "files": [
+                "NotoSansOldNorthArabian-Regular.otf"
+            ]
+        },
+        {
+            "family": "Noto Sans Old Permic",
+            "files": [
+                "NotoSansOldPermic-Regular.otf"
+            ]
+        },
+        {
+            "family": "Noto Sans Old Persian",
+            "files": [
+                "NotoSansOldPersian-Regular.otf"
+            ]
+        },
+        {
+            "family": "Noto Sans Old Sogdian",
+            "files": [
+                "NotoSansOldSogdian-Regular.otf"
+            ]
+        },
+        {
+            "family": "Noto Sans Old South Arabian",
+            "files": [
+                "NotoSansOldSouthArabian-Regular.otf"
+            ]
+        },
+        {
+            "family": "Noto Sans Old Turkic",
+            "files": [
+                "NotoSansOldTurkic-Regular.otf"
+            ]
+        },
+        {
+            "family": "Noto Sans Osage",
+            "files": [
+                "NotoSansOsage-Regular.otf"
+            ]
+        },
+        {
+            "family": "Noto Sans Osmanya",
+            "files": [
+                "NotoSansOsmanya-Regular.otf"
+            ]
+        },
+        {
+            "family": "Noto Sans Pahawh Hmong",
+            "files": [
+                "NotoSansPahawhHmong-Regular.otf"
+            ]
+        },
+        {
+            "family": "Noto Sans Palmyrene",
+            "files": [
+                "NotoSansPalmyrene-Regular.otf"
+            ]
+        },
+        {
+            "family": "Noto Sans Pau Cin Hau",
+            "files": [
+                "NotoSansPauCinHau-Regular.otf"
+            ]
+        },
+        {
+            "family": "Noto Sans Phags Pa",
+            "files": [
+                "NotoSansPhagsPa-Regular.otf"
+            ]
+        },
+        {
+            "family": "Noto Sans Phoenician",
+            "files": [
+                "NotoSansPhoenician-Regular.otf"
+            ]
+        },
+        {
+            "family": "Noto Sans Psalter Pahlavi",
+            "files": [
+                "NotoSansPsalterPahlavi-Regular.otf"
+            ]
+        },
+        {
+            "family": "Noto Sans Rejang",
+            "files": [
+                "NotoSansRejang-Regular.otf"
+            ]
+        },
+        {
+            "family": "Noto Sans Runic",
+            "files": [
+                "NotoSansRunic-Regular.otf"
+            ]
+        },
+        {
+            "family": "Noto Sans Samaritan",
+            "files": [
+                "NotoSansSamaritan-Regular.otf"
+            ]
+        },
+        {
+            "family": "Noto Sans Saurashtra",
+            "files": [
+                "NotoSansSaurashtra-Regular.otf"
+            ]
+        },
+        {
+            "family": "Noto Sans Sharada",
+            "files": [
+                "NotoSansSharada-Regular.otf"
+            ]
+        },
+        {
+            "family": "Noto Sans Shavian",
+            "files": [
+                "NotoSansShavian-Regular.otf"
+            ]
+        },
+        {
+            "family": "Noto Sans Siddham",
+            "files": [
+                "NotoSansSiddham-Regular.otf"
+            ]
+        },
+        {
+            "family": "Noto Sans Sign Writing",
+            "files": [
+                "NotoSansSignWriting-Regular.otf"
+            ]
+        },
+        {
+            "family": "Noto Sans Sogdian",
+            "files": [
+                "NotoSansSogdian-Regular.otf"
+            ]
+        },
+        {
+            "family": "Noto Sans Sora Sompeng",
+            "files": [
+                "NotoSansSoraSompeng-Regular.otf",
+                "NotoSansSoraSompeng-Bold.otf"
+            ]
+        },
+        {
+            "family": "Noto Sans Soyombo",
+            "files": [
+                "NotoSansSoyombo-Regular.otf"
+            ]
+        },
+        {
+            "family": "Noto Sans Sundanese",
+            "files": [
+                "NotoSansSundanese-Bold.otf",
+                "NotoSansSundanese-Regular.otf"
+            ]
+        },
+        {
+            "family": "Noto Sans Sunuwar",
+            "files": [
+                "NotoSansSunuwar-Regular.otf"
+            ]
+        },
+        {
+            "family": "Noto Sans Syloti Nagri",
+            "files": [
+                "NotoSansSylotiNagri-Regular.otf"
+            ]
+        },
+        {
+            "family": "Noto Sans Symbols",
+            "files": [
+                "NotoSansSymbols-Regular.otf",
+                "NotoSansSymbols-Bold.otf"
+            ]
+        },
+        {
+            "family": "Noto Sans Syriac",
+            "files": [
+                "NotoSansSyriac-Regular.otf"
+            ]
+        },
+        {
+            "family": "Noto Sans Tagalog",
+            "files": [
+                "NotoSansTagalog-Regular.otf"
+            ]
+        },
+        {
+            "family": "Noto Sans Tagbanwa",
+            "files": [
+                "NotoSansTagbanwa-Regular.otf"
+            ]
+        },
+        {
+            "family": "Noto Sans Tai Le",
+            "files": [
+                "NotoSansTaiLe-Regular.otf"
+            ]
+        },
+        {
+            "family": "Noto Sans Tai Tham",
+            "files": [
+                "NotoSansTaiTham-Regular.otf",
+                "NotoSansTaiTham-Bold.otf"
+            ]
+        },
+        {
+            "family": "Noto Sans Tai Viet",
+            "files": [
+                "NotoSansTaiViet-Regular.otf"
+            ]
+        },
+        {
+            "family": "Noto Sans Takri",
+            "files": [
+                "NotoSansTakri-Regular.otf"
+            ]
+        },
+        {
+            "family": "Noto Sans Tangsa",
+            "files": [
+                "NotoSansTangsa-Regular.otf",
+                "NotoSansTangsa-Bold.otf"
+            ]
+        },
+        {
+            "family": "Noto Sans Thaana",
+            "files": [
+                "NotoSansThaana-Bold.otf",
+                "NotoSansThaana-Regular.otf"
+            ]
+        },
+        {
+            "family": "Noto Sans Tifinagh",
+            "files": [
+                "NotoSansTifinagh-Regular.otf"
+            ]
+        },
+        {
+            "family": "Noto Sans Tirhuta",
+            "files": [
+                "NotoSansTirhuta-Regular.otf"
+            ]
+        },
+        {
+            "family": "Noto Sans Ugaritic",
+            "files": [
+                "NotoSansUgaritic-Regular.otf"
+            ]
+        },
+        {
+            "family": "Noto Sans Vai",
+            "files": [
+                "NotoSansVai-Regular.otf"
+            ]
+        },
+        {
+            "family": "Noto Sans Wancho",
+            "files": [
+                "NotoSansWancho-Regular.otf"
+            ]
+        },
+        {
+            "family": "Noto Sans Warang Citi",
+            "files": [
+                "NotoSansWarangCiti-Regular.otf"
+            ]
+        },
+        {
+            "family": "Noto Sans Yi",
+            "files": [
+                "NotoSansYi-Regular.otf"
+            ]
+        },
+        {
+            "family": "Noto Sans Zanabazar Square",
+            "files": [
+                "NotoSansZanabazarSquare-Regular.otf"
+            ]
+        },
+        {
+            "family": "Noto Serif JP",
+            "files": [
+                "NotoSerifJP-Regular.otf",
+                "NotoSerifJP-Bold.otf"
+            ]
+        },
+        {
+            "family": "Noto Serif KR",
+            "files": [
+                "NotoSerifKR-Regular.otf",
+                "NotoSerifKR-Bold.otf"
+            ]
+        },
+        {
+            "family": "Noto Serif SC",
+            "files": [
+                "NotoSerifSC-Regular.otf",
+                "NotoSerifSC-Bold.otf"
+            ]
+        },
+        {
+            "family": "Noto Serif TC",
+            "files": [
+                "NotoSerifTC-Regular.otf",
+                "NotoSerifTC-Bold.otf"
+            ]
+        },
+        {
+            "family": "Noto Serif HK",
+            "files": [
+                "NotoSerifHK-Regular.otf",
+                "NotoSerifHK-Bold.otf"
+            ]
+        }
+    ],
+    "by_script": {
+        "Adlam": {
+            "sans": "Noto Sans Adlam",
+            "serif": null
+        },
+        "Anatolian_Hieroglyphs": {
+            "sans": "Noto Sans Anatolian Hieroglyphs",
+            "serif": null
+        },
+        "Arabic": {
+            "sans": "Noto Sans Arabic",
+            "serif": null
+        },
+        "Armenian": {
+            "sans": "Noto Sans Armenian",
+            "serif": "Noto Serif Armenian"
+        },
+        "Avestan": {
+            "sans": "Noto Sans Avestan",
+            "serif": null
+        },
+        "Balinese": {
+            "sans": "Noto Sans Balinese",
+            "serif": "Noto Serif Balinese"
+        },
+        "Bamum": {
+            "sans": "Noto Sans Bamum",
+            "serif": null
+        },
+        "Bassa_Vah": {
+            "sans": "Noto Sans Bassa Vah",
+            "serif": null
+        },
+        "Batak": {
+            "sans": "Noto Sans Batak",
+            "serif": null
+        },
+        "Bengali": {
+            "sans": "Noto Sans Bengali",
+            "serif": "Noto Serif Bengali"
+        },
+        "Bhaiksuki": {
+            "sans": "Noto Sans Bhaiksuki",
+            "serif": null
+        },
+        "Brahmi": {
+            "sans": "Noto Sans Brahmi",
+            "serif": null
+        },
+        "Buginese": {
+            "sans": "Noto Sans Buginese",
+            "serif": null
+        },
+        "Buhid": {
+            "sans": "Noto Sans Buhid",
+            "serif": null
+        },
+        "Canadian_Aboriginal": {
+            "sans": "Noto Sans Canadian Aboriginal",
+            "serif": null
+        },
+        "Carian": {
+            "sans": "Noto Sans Carian",
+            "serif": null
+        },
+        "Caucasian_Albanian": {
+            "sans": "Noto Sans Caucasian Albanian",
+            "serif": null
+        },
+        "Chakma": {
+            "sans": "Noto Sans Chakma",
+            "serif": null
+        },
+        "Cham": {
+            "sans": "Noto Sans Cham",
+            "serif": null
+        },
+        "Cherokee": {
+            "sans": "Noto Sans Cherokee",
+            "serif": null
+        },
+        "Chorasmian": {
+            "sans": "Noto Sans Chorasmian",
+            "serif": null
+        },
+        "Coptic": {
+            "sans": "Noto Sans Coptic",
+            "serif": null
+        },
+        "Cuneiform": {
+            "sans": "Noto Sans Cuneiform",
+            "serif": null
+        },
+        "Cypriot": {
+            "sans": "Noto Sans Cypriot",
+            "serif": null
+        },
+        "Cypro_Minoan": {
+            "sans": "Noto Sans Cypro Minoan",
+            "serif": null
+        },
+        "Deseret": {
+            "sans": "Noto Sans Deseret",
+            "serif": null
+        },
+        "Devanagari": {
+            "sans": "Noto Sans Devanagari",
+            "serif": "Noto Serif Devanagari"
+        },
+        "Duployan": {
+            "sans": "Noto Sans Duployan",
+            "serif": null
+        },
+        "Egyptian_Hieroglyphs": {
+            "sans": "Noto Sans Egyptian Hieroglyphs",
+            "serif": null
+        },
+        "Elbasan": {
+            "sans": "Noto Sans Elbasan",
+            "serif": null
+        },
+        "Elymaic": {
+            "sans": "Noto Sans Elymaic",
+            "serif": null
+        },
+        "Ethiopic": {
+            "sans": "Noto Sans Ethiopic",
+            "serif": "Noto Serif Ethiopic"
+        },
+        "Georgian": {
+            "sans": "Noto Sans Georgian",
+            "serif": "Noto Serif Georgian"
+        },
+        "Glagolitic": {
+            "sans": "Noto Sans Glagolitic",
+            "serif": null
+        },
+        "Gothic": {
+            "sans": "Noto Sans Gothic",
+            "serif": null
+        },
+        "Grantha": {
+            "sans": "Noto Sans Grantha",
+            "serif": "Noto Serif Grantha"
+        },
+        "Gujarati": {
+            "sans": "Noto Sans Gujarati",
+            "serif": "Noto Serif Gujarati"
+        },
+        "Gunjala_Gondi": {
+            "sans": "Noto Sans Gunjala Gondi",
+            "serif": null
+        },
+        "Gurmukhi": {
+            "sans": "Noto Sans Gurmukhi",
+            "serif": "Noto Serif Gurmukhi"
+        },
+        "Hanifi_Rohingya": {
+            "sans": "Noto Sans Hanifi Rohingya",
+            "serif": null
+        },
+        "Hanunoo": {
+            "sans": "Noto Sans Hanunoo",
+            "serif": null
+        },
+        "Hatran": {
+            "sans": "Noto Sans Hatran",
+            "serif": null
+        },
+        "Hebrew": {
+            "sans": "Noto Sans Hebrew",
+            "serif": "Noto Serif Hebrew"
+        },
+        "Imperial_Aramaic": {
+            "sans": "Noto Sans Imperial Aramaic",
+            "serif": null
+        },
+        "Inscriptional_Pahlavi": {
+            "sans": "Noto Sans Inscriptional Pahlavi",
+            "serif": null
+        },
+        "Inscriptional_Parthian": {
+            "sans": "Noto Sans Inscriptional Parthian",
+            "serif": null
+        },
+        "Javanese": {
+            "sans": "Noto Sans Javanese",
+            "serif": null
+        },
+        "Kaithi": {
+            "sans": "Noto Sans Kaithi",
+            "serif": null
+        },
+        "Kannada": {
+            "sans": "Noto Sans Kannada",
+            "serif": "Noto Serif Kannada"
+        },
+        "Kawi": {
+            "sans": "Noto Sans Kawi",
+            "serif": null
+        },
+        "Kayah_Li": {
+            "sans": "Noto Sans Kayah Li",
+            "serif": null
+        },
+        "Kharoshthi": {
+            "sans": "Noto Sans Kharoshthi",
+            "serif": null
+        },
+        "Khmer": {
+            "sans": "Noto Sans Khmer",
+            "serif": "Noto Serif Khmer"
+        },
+        "Khojki": {
+            "sans": "Noto Sans Khojki",
+            "serif": "Noto Serif Khojki"
+        },
+        "Khudawadi": {
+            "sans": "Noto Sans Khudawadi",
+            "serif": null
+        },
+        "Lao": {
+            "sans": "Noto Sans Lao",
+            "serif": "Noto Serif Lao"
+        },
+        "Latin": {
+            "sans": "Noto Sans",
+            "serif": "Noto Serif"
+        },
+        "Greek": {
+            "sans": "Noto Sans",
+            "serif": "Noto Serif"
+        },
+        "Cyrillic": {
+            "sans": "Noto Sans",
+            "serif": "Noto Serif"
+        },
+        "Lepcha": {
+            "sans": "Noto Sans Lepcha",
+            "serif": null
+        },
+        "Limbu": {
+            "sans": "Noto Sans Limbu",
+            "serif": null
+        },
+        "Linear_A": {
+            "sans": "Noto Sans Linear A",
+            "serif": null
+        },
+        "Linear_B": {
+            "sans": "Noto Sans Linear B",
+            "serif": null
+        },
+        "Lisu": {
+            "sans": "Noto Sans Lisu",
+            "serif": null
+        },
+        "Lycian": {
+            "sans": "Noto Sans Lycian",
+            "serif": null
+        },
+        "Lydian": {
+            "sans": "Noto Sans Lydian",
+            "serif": null
+        },
+        "Mahajani": {
+            "sans": "Noto Sans Mahajani",
+            "serif": null
+        },
+        "Malayalam": {
+            "sans": "Noto Sans Malayalam",
+            "serif": "Noto Serif Malayalam"
+        },
+        "Mandaic": {
+            "sans": "Noto Sans Mandaic",
+            "serif": null
+        },
+        "Manichaean": {
+            "sans": "Noto Sans Manichaean",
+            "serif": null
+        },
+        "Marchen": {
+            "sans": "Noto Sans Marchen",
+            "serif": null
+        },
+        "Masaram_Gondi": {
+            "sans": "Noto Sans Masaram Gondi",
+            "serif": null
+        },
+        "Medefaidrin": {
+            "sans": "Noto Sans Medefaidrin",
+            "serif": null
+        },
+        "Meetei_Mayek": {
+            "sans": "Noto Sans Meetei Mayek",
+            "serif": null
+        },
+        "Mende_Kikakui": {
+            "sans": "Noto Sans Mende Kikakui",
+            "serif": null
+        },
+        "Meroitic": {
+            "sans": "Noto Sans Meroitic",
+            "serif": null
+        },
+        "Miao": {
+            "sans": "Noto Sans Miao",
+            "serif": null
+        },
+        "Modi": {
+            "sans": "Noto Sans Modi",
+            "serif": null
+        },
+        "Mongolian": {
+            "sans": "Noto Sans Mongolian",
+            "serif": null
+        },
+        "Mro": {
+            "sans": "Noto Sans Mro",
+            "serif": null
+        },
+        "Multani": {
+            "sans": "Noto Sans Multani",
+            "serif": null
+        },
+        "Myanmar": {
+            "sans": "Noto Sans Myanmar",
+            "serif": "Noto Serif Myanmar"
+        },
+        "Nabataean": {
+            "sans": "Noto Sans Nabataean",
+            "serif": null
+        },
+        "Nag_Mundari": {
+            "sans": "Noto Sans Nag Mundari",
+            "serif": null
+        },
+        "Nandinagari": {
+            "sans": "Noto Sans Nandinagari",
+            "serif": null
+        },
+        "New_Tai_Lue": {
+            "sans": "Noto Sans New Tai Lue",
+            "serif": null
+        },
+        "Newa": {
+            "sans": "Noto Sans Newa",
+            "serif": null
+        },
+        "Nko": {
+            "sans": "Noto Sans NKo",
+            "serif": null
+        },
+        "Nushu": {
+            "sans": "Noto Sans Nushu",
+            "serif": null
+        },
+        "Ogham": {
+            "sans": "Noto Sans Ogham",
+            "serif": null
+        },
+        "Ol_Chiki": {
+            "sans": "Noto Sans Ol Chiki",
+            "serif": null
+        },
+        "Old_Hungarian": {
+            "sans": "Noto Sans Old Hungarian",
+            "serif": null
+        },
+        "Old_Italic": {
+            "sans": "Noto Sans Old Italic",
+            "serif": null
+        },
+        "Old_North_Arabian": {
+            "sans": "Noto Sans Old North Arabian",
+            "serif": null
+        },
+        "Old_Permic": {
+            "sans": "Noto Sans Old Permic",
+            "serif": null
+        },
+        "Old_Persian": {
+            "sans": "Noto Sans Old Persian",
+            "serif": null
+        },
+        "Old_Sogdian": {
+            "sans": "Noto Sans Old Sogdian",
+            "serif": null
+        },
+        "Old_South_Arabian": {
+            "sans": "Noto Sans Old South Arabian",
+            "serif": null
+        },
+        "Old_Turkic": {
+            "sans": "Noto Sans Old Turkic",
+            "serif": null
+        },
+        "Oriya": {
+            "sans": "Noto Sans Oriya",
+            "serif": "Noto Serif Oriya"
+        },
+        "Osage": {
+            "sans": "Noto Sans Osage",
+            "serif": null
+        },
+        "Osmanya": {
+            "sans": "Noto Sans Osmanya",
+            "serif": null
+        },
+        "Pahawh_Hmong": {
+            "sans": "Noto Sans Pahawh Hmong",
+            "serif": null
+        },
+        "Palmyrene": {
+            "sans": "Noto Sans Palmyrene",
+            "serif": null
+        },
+        "Pau_Cin_Hau": {
+            "sans": "Noto Sans Pau Cin Hau",
+            "serif": null
+        },
+        "Phags_Pa": {
+            "sans": "Noto Sans Phags Pa",
+            "serif": null
+        },
+        "Phoenician": {
+            "sans": "Noto Sans Phoenician",
+            "serif": null
+        },
+        "Psalter_Pahlavi": {
+            "sans": "Noto Sans Psalter Pahlavi",
+            "serif": null
+        },
+        "Rejang": {
+            "sans": "Noto Sans Rejang",
+            "serif": null
+        },
+        "Runic": {
+            "sans": "Noto Sans Runic",
+            "serif": null
+        },
+        "Samaritan": {
+            "sans": "Noto Sans Samaritan",
+            "serif": null
+        },
+        "Saurashtra": {
+            "sans": "Noto Sans Saurashtra",
+            "serif": null
+        },
+        "Sharada": {
+            "sans": "Noto Sans Sharada",
+            "serif": null
+        },
+        "Shavian": {
+            "sans": "Noto Sans Shavian",
+            "serif": null
+        },
+        "Siddham": {
+            "sans": "Noto Sans Siddham",
+            "serif": null
+        },
+        "Sign_Writing": {
+            "sans": "Noto Sans Sign Writing",
+            "serif": null
+        },
+        "Sinhala": {
+            "sans": "Noto Sans Sinhala",
+            "serif": "Noto Serif Sinhala"
+        },
+        "Sogdian": {
+            "sans": "Noto Sans Sogdian",
+            "serif": null
+        },
+        "Sora_Sompeng": {
+            "sans": "Noto Sans Sora Sompeng",
+            "serif": null
+        },
+        "Soyombo": {
+            "sans": "Noto Sans Soyombo",
+            "serif": null
+        },
+        "Sundanese": {
+            "sans": "Noto Sans Sundanese",
+            "serif": null
+        },
+        "Sunuwar": {
+            "sans": "Noto Sans Sunuwar",
+            "serif": null
+        },
+        "Syloti_Nagri": {
+            "sans": "Noto Sans Syloti Nagri",
+            "serif": null
+        },
+        "Syriac": {
+            "sans": "Noto Sans Syriac",
+            "serif": null
+        },
+        "Tagalog": {
+            "sans": "Noto Sans Tagalog",
+            "serif": null
+        },
+        "Tagbanwa": {
+            "sans": "Noto Sans Tagbanwa",
+            "serif": null
+        },
+        "Tai_Le": {
+            "sans": "Noto Sans Tai Le",
+            "serif": null
+        },
+        "Tai_Tham": {
+            "sans": "Noto Sans Tai Tham",
+            "serif": null
+        },
+        "Tai_Viet": {
+            "sans": "Noto Sans Tai Viet",
+            "serif": null
+        },
+        "Takri": {
+            "sans": "Noto Sans Takri",
+            "serif": null
+        },
+        "Tamil": {
+            "sans": "Noto Sans Tamil",
+            "serif": "Noto Serif Tamil"
+        },
+        "Tangsa": {
+            "sans": "Noto Sans Tangsa",
+            "serif": null
+        },
+        "Telugu": {
+            "sans": "Noto Sans Telugu",
+            "serif": "Noto Serif Telugu"
+        },
+        "Thaana": {
+            "sans": "Noto Sans Thaana",
+            "serif": null
+        },
+        "Thai": {
+            "sans": "Noto Sans Thai",
+            "serif": "Noto Serif Thai"
+        },
+        "Tifinagh": {
+            "sans": "Noto Sans Tifinagh",
+            "serif": null
+        },
+        "Tirhuta": {
+            "sans": "Noto Sans Tirhuta",
+            "serif": null
+        },
+        "Ugaritic": {
+            "sans": "Noto Sans Ugaritic",
+            "serif": null
+        },
+        "Vai": {
+            "sans": "Noto Sans Vai",
+            "serif": null
+        },
+        "Vithkuqi": {
+            "sans": "Noto Sans Vithkuqi",
+            "serif": "Noto Serif Vithkuqi"
+        },
+        "Wancho": {
+            "sans": "Noto Sans Wancho",
+            "serif": null
+        },
+        "Warang_Citi": {
+            "sans": "Noto Sans Warang Citi",
+            "serif": null
+        },
+        "Yi": {
+            "sans": "Noto Sans Yi",
+            "serif": null
+        },
+        "Zanabazar_Square": {
+            "sans": "Noto Sans Zanabazar Square",
+            "serif": null
+        },
+        "Ahom": {
+            "sans": null,
+            "serif": "Noto Serif Ahom"
+        },
+        "Dives_Akuru": {
+            "sans": null,
+            "serif": "Noto Serif Dives Akuru"
+        },
+        "Dogra": {
+            "sans": null,
+            "serif": "Noto Serif Dogra"
+        },
+        "Khitan_Small_Script": {
+            "sans": null,
+            "serif": "Noto Serif Khitan Small Script"
+        },
+        "Makasar": {
+            "sans": null,
+            "serif": "Noto Serif Makasar"
+        },
+        "Nyiakeng_Puachue_Hmong": {
+            "sans": null,
+            "serif": "Noto Serif NPHmong"
+        },
+        "Old_Uyghur": {
+            "sans": null,
+            "serif": "Noto Serif Old Uyghur"
+        },
+        "Tangut": {
+            "sans": null,
+            "serif": "Noto Serif Tangut"
+        },
+        "Tibetan": {
+            "sans": null,
+            "serif": "Noto Serif Tibetan"
+        },
+        "Todhri": {
+            "sans": null,
+            "serif": "Noto Serif Todhri"
+        },
+        "Toto": {
+            "sans": null,
+            "serif": "Noto Serif Toto"
+        },
+        "Yezidi": {
+            "sans": null,
+            "serif": "Noto Serif Yezidi"
+        },
+        "Han": {
+            "sans": {
+                "JP": "Noto Sans JP",
+                "KR": "Noto Sans KR",
+                "SC": "Noto Sans SC",
+                "TC": "Noto Sans TC",
+                "HK": "Noto Sans HK"
+            },
+            "serif": {
+                "JP": "Noto Serif JP",
+                "KR": "Noto Serif KR",
+                "SC": "Noto Serif SC",
+                "TC": "Noto Serif TC",
+                "HK": "Noto Serif HK"
+            }
+        },
+        "Hiragana": {
+            "sans": {
+                "JP": "Noto Sans JP",
+                "KR": "Noto Sans KR",
+                "SC": "Noto Sans SC",
+                "TC": "Noto Sans TC",
+                "HK": "Noto Sans HK"
+            },
+            "serif": {
+                "JP": "Noto Serif JP",
+                "KR": "Noto Serif KR",
+                "SC": "Noto Serif SC",
+                "TC": "Noto Serif TC",
+                "HK": "Noto Serif HK"
+            }
+        },
+        "Katakana": {
+            "sans": {
+                "JP": "Noto Sans JP",
+                "KR": "Noto Sans KR",
+                "SC": "Noto Sans SC",
+                "TC": "Noto Sans TC",
+                "HK": "Noto Sans HK"
+            },
+            "serif": {
+                "JP": "Noto Serif JP",
+                "KR": "Noto Serif KR",
+                "SC": "Noto Serif SC",
+                "TC": "Noto Serif TC",
+                "HK": "Noto Serif HK"
+            }
+        },
+        "Hangul": {
+            "sans": {
+                "JP": "Noto Sans JP",
+                "KR": "Noto Sans KR",
+                "SC": "Noto Sans SC",
+                "TC": "Noto Sans TC",
+                "HK": "Noto Sans HK"
+            },
+            "serif": {
+                "JP": "Noto Serif JP",
+                "KR": "Noto Serif KR",
+                "SC": "Noto Serif SC",
+                "TC": "Noto Serif TC",
+                "HK": "Noto Serif HK"
+            }
+        }
+    }
+}

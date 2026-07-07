@@ -10,7 +10,7 @@ node "$ROOT/typst/gen_patterns.ts"
 
 
 # Compile each module's TypeScript to its dist/ output (paths relative to repo root)
-for module in generic/typst-utils generic/pm-to-typst typst typst-web typst-node; do
+for module in generic/typst-utils generic/pm-to-typst generic/typst-fonts typst typst-web typst-node; do
     cd "$ROOT/$module"
     npx tsc
 done

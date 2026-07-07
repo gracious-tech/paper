@@ -1,63 +1,41 @@
 
-import {FONT_MANIFEST} from './generated/font_manifest.js'
+import {get_bundled_font, base_font} from 'typst-fonts'
 
-import type {BundledFont} from './generated/font_manifest.js'
 import type {TypstRequest} from './types.js'
 
-
-// Re-export the bundled font type for consumers
-export type {BundledFont} from './generated/font_manifest.js'
-
-
-// Asset subdirectory name for fonts (under a consumer-provided assets prefix)
-export const FONTS_DIR = 'fonts'
-
-
-// All bundled fonts — the base font is always first
-export const BUNDLED_FONTS:BundledFont[] = FONT_MANIFEST
-
-
-// The base font family (always first in the manifest) — used for footers and dividers,
-// so it must always be loaded regardless of the chosen body font
-export const BASE_FONT = BUNDLED_FONTS[0]!.family
-
-
-// Index by family name for fast lookup
-const by_family = new Map(BUNDLED_FONTS.map(font => [font.family, font]))
-
-
-// Look up a bundled font by its family name
-export function get_bundled_font(family:string):BundledFont | undefined {
-    return by_family.get(family)
-}
-
-
-// Join path segments with '/' — works for both filesystem paths and URLs
-export function asset_path(base:string, ...segments:string[]):string {
-    return [base.replace(/\/+$/, ''), ...segments].join('/')
-}
+// Re-export the bundled font type and lookup — callers must init typst-fonts first (via
+// typst-fonts/node's load_fonts_dir() or typst-fonts/web's load_fonts_prefix()) before this
+// or collect_fonts() below will throw
+export type {BundledFont} from 'typst-fonts'
+export {get_bundled_font} from 'typst-fonts'
 
 
 // Collect the unique font families needed to render a request (base font always included
-// first). The body font comes from typography; title pages additionally need the display
-// font and the emoji font.
+// first). The body font comes from typography; the heading font applies document-wide to any
+// heading (chapter markers, section headings) so it's always needed. The title font (already
+// resolved from "auto" to font_text by BibleContent.resolve() if not explicitly chosen) is
+// only needed when the content that uses it is actually present.
 export function collect_fonts(request:TypstRequest):string[] {
     const needed = new Set<string>()
 
     // Body font and any fallbacks (only those that are actually bundled)
-    needed.add(request.typography.font_family)
+    needed.add(request.typography.font_text)
     for (const fallback of request.typography.font_fallbacks){
-        if (by_family.has(fallback)){
+        if (get_bundled_font(fallback)){
             needed.add(fallback)
         }
     }
 
-    // Title pages use the display font for text (icons are embedded SVG images, not a font)
+    // Heading font — applies to any heading, regardless of which features use them
+    needed.add(request.typography.font_headings)
+
+    // Title pages use the title font for text (icons are embedded SVG images, not a font)
     if (request.content.some(item => item.type === 'title')){
-        needed.add('Dancing Script')
+        needed.add(request.typography.font_titles)
     }
 
     // Base font always first, then the rest (excluding base) sorted for a stable cache key
-    needed.delete(BASE_FONT)
-    return [BASE_FONT, ...[...needed].sort()]
+    const base = base_font()
+    needed.delete(base)
+    return [base, ...[...needed].sort()]
 }

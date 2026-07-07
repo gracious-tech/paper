@@ -27,6 +27,11 @@ v-card-text(class='overflow-y-auto')
         v-checkbox(v-model='item.alone' :label='$t("Ensure other side of page blank")')
     p(class='text-body-2 text-medium-emphasis') {{$t("Title pages can look nicer when nothing on the other side shows through the paper.")}}
 
+    v-divider(class='my-8')
+
+    v-select(v-model='blue.font_titles' :items='font_items_auto' :label='$t("Font for title pages")'
+        :hint='$t("Applies to all title pages.")')
+
 
 </template>
 
@@ -34,10 +39,17 @@ v-card-text(class='overflow-y-auto')
 <script lang='ts' setup>
 
 import {PATTERNS as patterns} from 'paper-bible-typst'
+import {useI18n} from 'vue-i18n'
+
 import IconField from '@/comp/editors/assets/IconField.vue'
 
 import type {ContentTitle} from '@/services/types'
-import {state} from '@/services/state'
+import {blue, state} from '@/services/state'
+import {font_items_with_auto} from '@/services/fonts'
+
+
+const {t} = useI18n()
+const font_items_auto = font_items_with_auto(t)
 
 
 const props = defineProps<{item:ContentTitle}>()

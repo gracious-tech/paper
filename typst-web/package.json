@@ -16,6 +16,7 @@
     },
     "dependencies": {
         "paper-bible-typst": "*",
+        "typst-fonts": "*",
         "@myriaddreamin/typst.ts": "^0.7.0-rc2",
         "@myriaddreamin/typst-ts-web-compiler": "^0.7.0-rc2"
     },

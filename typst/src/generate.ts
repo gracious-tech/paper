@@ -146,7 +146,7 @@ function gen_content_item(item:TypstContentItem, request:TypstRequest, page_fill
         case 'passage':
             return gen_passage(item)
         case 'title':
-            return gen_title(item, request.page)
+            return gen_title(item, request.page, request.typography.font_titles)
         case 'custom':
             return gen_custom(page_fill ? item : {...item, position: 'top'})
         case 'lines':

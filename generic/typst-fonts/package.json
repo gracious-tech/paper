@@ -1,0 +1,29 @@
+{
+    "name": "typst-fonts",
+    "version": "0.1.0",
+    "license": "MIT-0",
+    "type": "module",
+    "main": "dist/index.js",
+    "types": "dist/index.d.ts",
+    "exports": {
+        ".": {"types": "./dist/index.d.ts", "default": "./dist/index.js"},
+        "./node": {"types": "./dist/node.d.ts", "default": "./dist/node.js"},
+        "./web": {"types": "./dist/web.d.ts", "default": "./dist/web.js"},
+        "./download": {"types": "./dist/download/run.d.ts", "default": "./dist/download/run.js"}
+    },
+    "bin": {
+        "typst-fonts-download": "dist/download/cli.js"
+    },
+    "files": [
+        "dist/"
+    ],
+    "scripts": {
+        "build": "tsc",
+        "dev": "tsc --watch",
+        "update-noto-data": "tsc && node dist/scripts/update_noto_data.js",
+        "update-han-hints": "tsc && node dist/scripts/update_han_hints.js"
+    },
+    "devDependencies": {
+        "@types/node": "^22.0.0"
+    }
+}

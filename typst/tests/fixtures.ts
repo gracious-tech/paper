@@ -18,11 +18,14 @@ export const TEST_PAGE:PageConfig = {
 
 // Reusable test typography config
 export const TEST_TYPOGRAPHY:TypographyConfig = {
-    font_family: 'Crimson Pro',
+    font_text: 'Crimson Pro',
+    font_headings: 'Crimson Pro',
+    font_titles: 'Dancing Script',
     font_fallbacks: ['Georgia', 'serif'],
     font_size: '10pt',
     line_height: 1.75,
     justify: true,
+    text_color: null,
 }
 
 

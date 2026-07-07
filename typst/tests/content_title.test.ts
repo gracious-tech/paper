@@ -8,40 +8,40 @@ import {TEST_PAGE, make_title} from './fixtures.js'
 describe('gen_title', () => {
 
     it('renders title text with Dancing Script font', () => {
-        const result = gen_title(make_title(), TEST_PAGE)
+        const result = gen_title(make_title(), TEST_PAGE, 'Dancing Script')
         expect(result).toContain('font: "Dancing Script"')
         expect(result).toContain('Holy Bible')
     })
 
     it('renders subtitle', () => {
-        const result = gen_title(make_title(), TEST_PAGE)
+        const result = gen_title(make_title(), TEST_PAGE, 'Dancing Script')
         expect(result).toContain('New International Version')
     })
 
     it('applies primary color to text', () => {
-        const result = gen_title(make_title({color_primary: '#ff0000'}), TEST_PAGE)
+        const result = gen_title(make_title({color_primary: '#ff0000'}), TEST_PAGE, 'Dancing Script')
         expect(result).toContain('fill: rgb("#ff0000")')
     })
 
     it('escapes special characters in title', () => {
-        const result = gen_title(make_title({title: 'The #1 Bible'}), TEST_PAGE)
+        const result = gen_title(make_title({title: 'The #1 Bible'}), TEST_PAGE, 'Dancing Script')
         expect(result).toContain('\\#')
     })
 
     it('embeds icon SVG as an image when provided', () => {
-        const result = gen_title(make_title({icon: '<svg><circle/></svg>'}), TEST_PAGE)
+        const result = gen_title(make_title({icon: '<svg><circle/></svg>'}), TEST_PAGE, 'Dancing Script')
         expect(result).toContain('#image.decode(bytes(')
         expect(result).toContain('<svg><circle/></svg>')
     })
 
     it('omits icon section when icon is null', () => {
-        const result = gen_title(make_title({icon: null}), TEST_PAGE)
+        const result = gen_title(make_title({icon: null}), TEST_PAGE, 'Dancing Script')
         expect(result).not.toContain('#image.decode(')
     })
 
     it('scales icon width by the size multiplier', () => {
         // Base width is page_width / 4 = 148mm / 4 = 37mm; doubled at size 2
-        const result = gen_title(make_title({icon: '<svg/>', icon_size: 2}), TEST_PAGE)
+        const result = gen_title(make_title({icon: '<svg/>', icon_size: 2}), TEST_PAGE, 'Dancing Script')
         expect(result).toContain('width: 74.00mm')
     })
 
@@ -50,7 +50,7 @@ describe('gen_title', () => {
         const result = gen_title(make_title({
             pattern_svg: svg,
             color_secondary: '#aabbcc',
-        }), TEST_PAGE)
+        }), TEST_PAGE, 'Dancing Script')
         // Should have 4 placements (4 corners)
         const place_count = (result.match(/#place\(/g) || []).length
         expect(place_count).toBe(4)
@@ -59,13 +59,13 @@ describe('gen_title', () => {
     })
 
     it('omits corner patterns when pattern_svg is null', () => {
-        const result = gen_title(make_title({pattern_svg: null}), TEST_PAGE)
+        const result = gen_title(make_title({pattern_svg: null}), TEST_PAGE, 'Dancing Script')
         expect(result).not.toContain('#place(')
     })
 
     it('uses mirrored scales for corners', () => {
         const svg = '<svg></svg>'
-        const result = gen_title(make_title({pattern_svg: svg}), TEST_PAGE)
+        const result = gen_title(make_title({pattern_svg: svg}), TEST_PAGE, 'Dancing Script')
         // Top-right: x mirrored
         expect(result).toContain('scale(x: -100%')
         // Bottom-left: y mirrored
@@ -77,13 +77,13 @@ describe('gen_title', () => {
     it('calculates pattern width as 1/3 of page width', () => {
         const result = gen_title(make_title({
             pattern_svg: '<svg></svg>',
-        }), TEST_PAGE)
+        }), TEST_PAGE, 'Dancing Script')
         // 148mm / 3 = 49.33mm
         expect(result).toContain('width: 49.33mm')
     })
 
     it('centers content', () => {
-        const result = gen_title(make_title(), TEST_PAGE)
+        const result = gen_title(make_title(), TEST_PAGE, 'Dancing Script')
         expect(result).toContain('#align(center)')
     })
 })

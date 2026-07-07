@@ -10,9 +10,9 @@ export {generate_pdf} from './pdf_postprocess.js'
 // Preview pipeline: lays out the printed pages as facing-page book spreads (preview only)
 export {generate_pdf_spread_preview} from './pdf_postprocess.js'
 
-// Bundled font manifest + helpers (used by the web/node compilers to load fonts)
-export {FONTS_DIR, BUNDLED_FONTS, BASE_FONT, get_bundled_font, asset_path, collect_fonts,
-    } from './fonts.js'
+// Bundled font manifest helpers (used by the web/node compilers to load fonts). The manifest
+// itself is loaded at runtime by typst-fonts/node or typst-fonts/web — see .bin/download_fonts
+export {get_bundled_font, collect_fonts} from './fonts.js'
 export type {BundledFont} from './fonts.js'
 
 // Bible-content resolver: turns a user Blueprint into a resolved TypstRequest (fetches/caches)

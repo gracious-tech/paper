@@ -18,11 +18,14 @@ const TEST_PAGE:PageConfig = {
 }
 
 const TEST_TYPOGRAPHY:TypographyConfig = {
-    font_family: 'serif',
+    font_text: 'serif',
     font_fallbacks: [],
     font_size: '10pt',
     line_height: 1.5,
     justify: true,
+    text_color: null,
+    font_headings: 'serif',
+    font_titles: 'serif',
 }
 
 // Helper to make a minimal request

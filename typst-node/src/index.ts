@@ -4,7 +4,9 @@ import {writeFile, readFile, mkdtemp, rm} from 'node:fs/promises'
 import {tmpdir} from 'node:os'
 import {join} from 'node:path'
 
-import {generate_typst, generate_pdf, generate_pdf_spread_preview, BibleContent,
+import {load_fonts_dir, resolve_font_dirs} from 'typst-fonts/node'
+
+import {generate_typst, generate_pdf, generate_pdf_spread_preview, BibleContent, collect_fonts,
     } from 'paper-bible-typst'
 
 import type {TypstRequest, CompileFn, Blueprint} from 'paper-bible-typst'
@@ -14,7 +16,12 @@ import type {TypstRequest, CompileFn, Blueprint} from 'paper-bible-typst'
 export interface NodeCompileOptions {
     // Path to the typst CLI binary (default: "typst")
     typst_path?:string
-    // Additional font directories to pass to the typst CLI
+    // Directory of fonts downloaded by .bin/download_fonts (manifest.json + per-family
+    // dirs). When set, font directories for the families a request needs are resolved
+    // automatically via typst-fonts/node
+    fonts_dir?:string
+    // Additional font directories to pass to the typst CLI, on top of any resolved from
+    // fonts_dir
     font_paths?:string[]
 }
 
@@ -33,7 +40,8 @@ export interface BlueprintCompileOptions extends NodeCompileOptions {
 export async function compile_pdf(
     request:TypstRequest, options?:NodeCompileOptions,
 ):Promise<Uint8Array> {
-    const compile_fn = make_compile_fn(options)
+    const font_paths = await resolve_font_paths(request, options)
+    const compile_fn = make_compile_fn(options, font_paths)
     return generate_pdf(request, compile_fn)
 }
 
@@ -42,7 +50,8 @@ export async function compile_pdf(
 export async function compile_pdf_spread_preview(
     request:TypstRequest, options?:NodeCompileOptions,
 ):Promise<Uint8Array> {
-    const compile_fn = make_compile_fn(options)
+    const font_paths = await resolve_font_paths(request, options)
+    const compile_fn = make_compile_fn(options, font_paths)
     return generate_pdf_spread_preview(request, compile_fn)
 }
 
@@ -59,7 +68,22 @@ export async function compile_pdf_from_blueprint(
     })
     await content.init()
     const request = await content.resolve(blueprint)
-    return generate_pdf(request, make_compile_fn(options))
+    const font_paths = await resolve_font_paths(request, options)
+    return generate_pdf(request, make_compile_fn(options, font_paths))
+}
+
+
+// Resolve the on-disk font directories a request needs: auto-resolved from fonts_dir (if
+// given) plus any caller-supplied extras
+async function resolve_font_paths(
+    request:TypstRequest, options?:NodeCompileOptions,
+):Promise<string[]> {
+    const extra = options?.font_paths ?? []
+    if (!options?.fonts_dir) {
+        return extra
+    }
+    await load_fonts_dir(options.fonts_dir)
+    return [...resolve_font_dirs(options.fonts_dir, collect_fonts(request)), ...extra]
 }
 
 
@@ -76,9 +100,8 @@ export type {
 
 
 // Create a compile function that uses the Typst CLI
-function make_compile_fn(options?:NodeCompileOptions):CompileFn {
+function make_compile_fn(options:NodeCompileOptions | undefined, font_paths:string[]):CompileFn {
     const typst_path = options?.typst_path ?? 'typst'
-    const font_paths = options?.font_paths ?? []
 
     return async (source:string):Promise<Uint8Array> => {
         // Create a temp directory for this compilation

@@ -16,7 +16,8 @@
         "test": "vitest run"
     },
     "dependencies": {
-        "paper-bible-typst": "*"
+        "paper-bible-typst": "*",
+        "typst-fonts": "*"
     },
     "devDependencies": {
         "@types/node": "^22.0.0",

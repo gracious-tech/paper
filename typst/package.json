@@ -20,6 +20,7 @@
         "pdf-lib": "^1.17.1",
         "pm-to-typst": "*",
         "printing-services": "^1.5.1",
+        "typst-fonts": "*",
         "typst-utils": "*"
     },
     "devDependencies": {

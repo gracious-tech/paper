@@ -1,12 +1,15 @@
 
+import {escape_typst_str} from 'typst-utils'
+
 import {escape_typst, parse_unit} from './helpers.js'
 
 import type {PageConfig, TypstTitlePage} from './types.js'
 
 
 // Generate Typst markup for a decorative title page
-export function gen_title(title:TypstTitlePage, page:PageConfig):string {
+export function gen_title(title:TypstTitlePage, page:PageConfig, font_titles:string):string {
     const parts:string[] = []
+    const font = escape_typst_str(font_titles)
 
     const page_w = parse_unit(page.width)
     const page_h = parse_unit(page.height)
@@ -37,7 +40,7 @@ export function gen_title(title:TypstTitlePage, page:PageConfig):string {
     parts.push(`#align(center)[`)
     parts.push(`    #v(${top_space})`)
     parts.push(`    #text(`)
-    parts.push(`        font: "Dancing Script",`)
+    parts.push(`        font: "${font}",`)
     parts.push(`        weight: 700,`)
     parts.push(`        size: 55pt,`)
     parts.push(`        fill: rgb("${title.color_primary}"),`)
@@ -46,7 +49,7 @@ export function gen_title(title:TypstTitlePage, page:PageConfig):string {
     // Subtitle
     parts.push(`    #v(0.5cm)`)
     parts.push(`    #text(`)
-    parts.push(`        font: "Dancing Script",`)
+    parts.push(`        font: "${font}",`)
     parts.push(`        weight: 700,`)
     parts.push(`        size: 20pt,`)
     parts.push(`        fill: rgb("${title.color_primary}"),`)

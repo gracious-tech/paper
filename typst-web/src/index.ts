@@ -2,11 +2,17 @@
 import {createTypstCompiler, CompileFormatEnum} from '@myriaddreamin/typst.ts/compiler'
 import {loadFonts} from '@myriaddreamin/typst.ts'
 
-import {generate_pdf, generate_pdf_spread_preview, collect_fonts,
-    get_bundled_font, asset_path, FONTS_DIR} from 'paper-bible-typst'
+import {load_fonts_prefix, font_urls_for} from 'typst-fonts/web'
+
+import {generate_pdf, generate_pdf_spread_preview, collect_fonts} from 'paper-bible-typst'
 
 import type {TypstCompiler} from '@myriaddreamin/typst.ts/compiler'
 import type {TypstRequest, CompileFn} from 'paper-bible-typst'
+
+
+// Asset subdirectory name for fonts (under a consumer-provided assets prefix), matching
+// where .bin/download_fonts writes its output
+const FONTS_DIR = 'fonts'
 
 
 // Options for initialising the in-browser Typst compiler
@@ -32,15 +38,18 @@ function throw_compile_error(diagnostics:unknown):never {
 // with the appropriate fonts whenever the set of fonts a request needs changes.
 export class TypstWeb {
     private wasm_url:string
-    private assets_prefix:string
+    private fonts_prefix:string
     private compiler:TypstCompiler
     // Comma-joined font families last used to init the compiler ('' = base fonts only)
     private active_fonts = ''
+    // Resolves once the curated font manifest has been fetched (see typst-fonts/web)
+    private fonts_manifest_ready:Promise<void>
 
     constructor(wasm_url:string, assets_prefix:string, compiler:TypstCompiler) {
         this.wasm_url = wasm_url
-        this.assets_prefix = assets_prefix
+        this.fonts_prefix = `${assets_prefix.replace(/\/+$/, '')}/${FONTS_DIR}`
         this.compiler = compiler
+        this.fonts_manifest_ready = load_fonts_prefix(this.fonts_prefix)
     }
 
     // (Re)initialise the compiler so it can shape text with the given font URLs
@@ -73,23 +82,15 @@ export class TypstWeb {
 
     // Reinitialise the compiler only when the set of fonts a request needs changes
     private async ensure_fonts(request:TypstRequest):Promise<void> {
+        await this.fonts_manifest_ready
         const families = collect_fonts(request)
         const cache_key = families.join(',')
         if (cache_key === this.active_fonts) {
             return
         }
-        // Build a flat list of font file URLs for every family the request uses
-        const font_urls:string[] = []
-        for (const family of families) {
-            const bundled = get_bundled_font(family)
-            if (!bundled) {
-                continue
-            }
-            for (const file of bundled.files) {
-                font_urls.push(asset_path(this.assets_prefix, FONTS_DIR,
-                    encodeURIComponent(family), encodeURIComponent(file)))
-            }
-        }
+        // Build a flat list of font file URLs for every family the request uses (curated
+        // fonts and Noto per-script fallbacks alike)
+        const font_urls = font_urls_for(this.fonts_prefix, families)
         await this.reinit_compiler(font_urls)
         this.active_fonts = cache_key
     }

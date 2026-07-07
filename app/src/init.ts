@@ -30,7 +30,7 @@ import AppColor from './comp/global/AppColor.vue'
 import AppRoot from './comp/AppRoot.vue'
 import locales_meta from './locales.json'
 import {blue, state} from '@/services/state'
-import {content, bible_content} from '@/services/content'
+import {content, bible_content, load_fonts} from '@/services/content'
 import {typst_generator} from '@/services/typst'
 import {start_watchers} from '@/services/watchers'
 import {clean_blueprint} from '@/services/blueprints'
@@ -90,11 +90,14 @@ app.use(createVuetify({
     },
     defaults: {
         global: {
-            hideDetails: true,
+            persistentHint: true,
         },
         VChip: {
             rounded: 'pill',
-        }
+        },
+        VCheckbox: {
+            hideDetails: true,
+        },
     },
     icons: {
         aliases: {
@@ -118,13 +121,20 @@ void (async () => {
     content.languages = content.collection.get_languages({object: true})
 
     // Initialise the in-browser Typst compiler (non-blocking — preview waits on it).
-    // Fonts are served from the public dir under this assets prefix (see .bin/setup).
+    // Fonts are served from the top-level fonts/ dir under this assets prefix (see
+    // .bin/download_fonts and vite_plugin_fonts.ts for how it's served in dev)
     const assets_prefix = new URL('/generator_assets/', window.location.href).href
     void init_typst({wasm_url, assets_prefix}).then(generator => {
         typst_generator.value = generator
     }).catch((error:unknown) => {
         report_error('banner', error)
     })
+
+    // Load the curated font manifest for the style picker (see OptionsStyle.vue)
+    void load_fonts(new URL('/generator_assets/fonts/', window.location.href).href)
+        .catch((error:unknown) => {
+            report_error('banner', error)
+        })
 
     // Init draft blueprint (TODO load from online storage when available)
     Object.assign(blue, clean_blueprint(undefined))

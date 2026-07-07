@@ -156,5 +156,10 @@
     "Ink type": "",
     "Paper type": "",
     "Custom…": "",
-    "Home": ""
+    "Home": "",
+    "Text font": "",
+    "Headings font": "",
+    "Titles font": "",
+    "Auto (matches text font)": "",
+    "This font is used for all title pages in this document, not just this one.": ""
 }
