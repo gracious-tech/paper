@@ -149,5 +149,14 @@ ${wj}
 #let tl(c) = emph(c)
 #let add(c) = emph(c)
 #let sig(c) = emph(c)
+// Original-language word glosses used by study notes — no special styling for now
+#let greek(c) = c
+#let hebrew(c) = c
+#let aramaic(c) = c
+#let latin(c) = c
+// Study note footnote — hidden in-text marker and entry mark (verse numbers are the reference).
+// Defined here (global scope) so it keeps working even when a passage scope later shadows
+// #footnote to disable regular translator footnotes — closures capture this binding, not that one.
+#let studynote(body) = footnote(numbering: n => [], body)
 
 `.trim()}

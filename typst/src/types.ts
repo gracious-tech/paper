@@ -239,3 +239,26 @@ export interface ContentCustom {
     position:'top'|'middle'|'bottom'
     new_page:boolean
 }
+
+
+// --- Study notes -------------------------------------------------------------------------
+// Fetched notes data for one book, already pre-rendered as Typst markup by the content API
+
+
+// A note that spans a verse range, inserted at its start verse
+export interface TypstNoteRange {
+    start_chapter:number
+    start_verse:number
+    end_chapter:number
+    end_verse:number
+    contents:string  // pre-rendered Typst markup
+}
+
+
+// A book's full set of study notes: single-verse notes plus verse-range notes
+export interface TypstNotesFile {
+    notes_id:string
+    book:string
+    verses:Record<string, Record<string, string>>  // chapter -> verse -> Typst markup
+    ranges:TypstNoteRange[]
+}

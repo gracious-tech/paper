@@ -11,12 +11,13 @@ import {prose_to_typst, replace_copyright_marker} from './prose.js'
 import {gen_copyright_typst} from './copyright.js'
 import {resolve_icon} from './icon_cache.js'
 import {PATTERNS} from './generated/patterns.js'
+import {inject_study_notes} from './content_notes.js'
 
 import type {BibleCollection, BibleBookTypst, GetResourcesItem,
     } from '@gracious.tech/fetch-client'
 import type {Blueprint, ContentPassage, ContentTitle, ContentCustom, TypstRequest,
     TypstContentItem, TypstPassage, TypstTitlePage, TypstCustomPage, BiblePassageData,
-    PageConfig} from './types.js'
+    PageConfig, TypstNotesFile} from './types.js'
 
 
 // Default Bible content API endpoint (production fetch.bible)
@@ -47,14 +48,18 @@ export class BibleContent {
     private client:FetchClient|null
     private _collection:BibleCollection|null
     private patterns:Record<string, string>
+    private endpoint:string
     // Cache of fetched Typst books, keyed `${bible}_${book}`
     private books_typst = new Map<string, BibleBookTypst>()
+    // Cache of fetched study notes files, keyed `${resource}_${book}` (null = none available)
+    private notes_cache = new Map<string, TypstNotesFile|null>()
 
     constructor(opts:BibleContentOptions = {}) {
         this._collection = opts.collection ?? null
+        this.endpoint = opts.endpoint ?? DEFAULT_ENDPOINT
         this.client = this._collection
             ? null
-            : new FetchClient({endpoints: [opts.endpoint ?? DEFAULT_ENDPOINT]})
+            : new FetchClient({endpoints: [this.endpoint]})
         this.patterns = opts.patterns ?? PATTERNS
     }
 
@@ -93,6 +98,27 @@ export class BibleContent {
         const instance = await this.collection.fetch_book(bible, book, 'typst')
         this.books_typst.set(key, instance)
         return instance
+    }
+
+    // Fetch (and cache) a book's study notes file for the given resource (e.g. 'eng_tyndale'),
+    // or null if unavailable. Never throws — a missing/unreachable notes file just means no
+    // notes for that book, not a broken PDF
+    async fetch_notes(resource:string, book:string):Promise<TypstNotesFile|null> {
+        const key = `${resource}_${book}`
+        if (this.notes_cache.has(key)) {
+            return this.notes_cache.get(key)!
+        }
+        let result:TypstNotesFile|null = null
+        try {
+            const res = await fetch(`${this.endpoint}notes/${resource}/typst/${book}.json`)
+            if (res.ok) {
+                result = await res.json() as TypstNotesFile
+            }
+        } catch {
+            // Network/parse failure — degrade gracefully, no notes for this book
+        }
+        this.notes_cache.set(key, result)
+        return result
     }
 
     // Pre-fetch every Typst book the blueprint's passages need (keeps the live preview snappy)
@@ -217,6 +243,17 @@ export class BibleContent {
         if (!bibles.length) {
             bibles.push({content: ''})
         }
+
+        // Splice study notes into the primary translation only — footnotes render once per page
+        // regardless of column/alternate layout, so injecting into a second translation too
+        // would duplicate every note
+        if (blue.notes) {
+            const notes_file = await this.fetch_notes(blue.notes, passage.book)
+            if (notes_file) {
+                bibles[0]!.content = inject_study_notes(bibles[0]!.content, notes_file, ref)
+            }
+        }
+
         return bibles
     }
 
@@ -230,7 +267,8 @@ export class BibleContent {
             multi_layout: blue.bibles_layout,
             half_blank: blue.half_blank,
             show_headings: blue.show_headings,
-            show_footnotes: blue.show_footnotes,
+            // Regular translator footnotes are disabled while study notes are on
+            show_footnotes: blue.notes ? false : blue.show_footnotes,
             show_lines: blue.show_lines,
             // null = auto-detect by book, true = 2 columns, false = single column
             columns: blue.columns === null ? 'auto' : (blue.columns ? 2 : 1),
