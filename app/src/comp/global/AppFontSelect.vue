@@ -7,6 +7,13 @@ v-select(v-model='model' :items='items' :label='label' :hint='hint')
             template(#title v-if='typeof item.raw === "string"')
                 div(class='font-sample' :style='{fontFamily: item.raw}') {{ example_text }}
                 div(class='font-name text-caption text-medium-emphasis') {{ item.raw }}
+    template(#append-item)
+        v-divider
+        v-list-item
+            template(#prepend)
+                AppIcon(name='upload')
+            template(#title) {{$t("Upload custom font...")}}
+            DialogFontUpload(@font-added='model = $event')
 
 </template>
 
@@ -21,6 +28,9 @@ import {useI18n} from 'vue-i18n'
 
 import {content} from '@/services/content'
 import {font_items, font_items_with_auto, DEFAULT_FONT_EXAMPLE} from '@/services/fonts'
+
+import AppIcon from '@/comp/global/AppIcon.vue'
+import DialogFontUpload from '@/comp/dialogs/DialogFontUpload.vue'
 
 
 const props = defineProps<{

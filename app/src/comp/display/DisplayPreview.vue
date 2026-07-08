@@ -26,6 +26,7 @@ import {debounce} from 'lodash-es'
 import {blue} from '@/services/state'
 import {content, bible_content} from '@/services/content'
 import {typst_generator} from '@/services/typst'
+import {get_custom_font_styles} from '@/services/custom_fonts'
 
 
 // Object URL of the current compiled PDF, and any compile error message
@@ -69,7 +70,7 @@ async function compile(){
     try {
         // 'reading' lays out the pages as facing-page book spreads (as if the book were opened);
         // 'print' produces the actual final PDF (booklet fold order, or sequential if not a booklet)
-        const request = await bible_content.resolve(blue)
+        const request = await bible_content.resolve(blue, get_custom_font_styles())
         const bytes = mode.value === 'print'
             ? await generator.compile_pdf(request)
             : await generator.compile_pdf_preview(request)

@@ -2,9 +2,11 @@
 // Node-only helpers: load a curated font manifest from disk, and resolve on-disk font
 // directories for spawning a typst binary with --font-path.
 
-import {readFile} from 'node:fs/promises'
+import {readFile, writeFile, mkdir} from 'node:fs/promises'
 import {join} from 'node:path'
 import {init_fonts, get_bundled_font, get_noto_font} from './index.js'
+
+import type {CustomFont} from './index.js'
 
 // Reads manifest.json from fonts_dir (as written by this package's own download CLI, or
 // hand-placed there some other way) and calls init_fonts. Only the curated manifest is
@@ -23,6 +25,23 @@ export function resolve_font_dirs(fonts_dir:string, families:string[]):string[] 
             dirs.push(join(fonts_dir, family))
         else if (get_noto_font(family))
             dirs.push(join(fonts_dir, '_noto', family))
+    }
+    return dirs
+}
+
+
+// Write a set of custom (user-uploaded) fonts' bytes into dir, one subdirectory per family, for
+// spawning a typst binary with an extra --font-path per returned directory. Callers own dir's
+// lifecycle (e.g. a per-compile temp directory) — nothing here creates or cleans up dir itself
+// beyond the family subdirectories.
+export async function write_custom_fonts(dir:string, fonts:CustomFont[]):Promise<string[]> {
+    const dirs:string[] = []
+    for (const font of fonts) {
+        const family_dir = join(dir, font.family)
+        await mkdir(family_dir, {recursive: true})
+        await Promise.all(font.files.map((data, i) =>
+            writeFile(join(family_dir, `file-${i}.ttf`), data)))
+        dirs.push(family_dir)
     }
     return dirs
 }

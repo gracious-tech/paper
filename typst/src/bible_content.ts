@@ -12,7 +12,9 @@ import {gen_copyright_typst} from './copyright.js'
 import {resolve_icon} from './icon_cache.js'
 import {PATTERNS} from './generated/patterns.js'
 import {inject_study_notes} from './content_notes.js'
+import {detect_font_fallbacks} from './fonts_detect.js'
 
+import type {FontStyle} from 'typst-fonts'
 import type {BibleCollection, BibleBookTypst, GetResourcesItem,
     } from '@gracious.tech/fetch-client'
 import type {Blueprint, ContentPassage, ContentTitle, ContentCustom, TypstRequest,
@@ -135,8 +137,12 @@ export class BibleContent {
         await Promise.all(jobs)
     }
 
-    // Resolve a Blueprint into a fully-resolved TypstRequest, fetching any missing content
-    async resolve(blue:Blueprint):Promise<TypstRequest> {
+    // Resolve a Blueprint into a fully-resolved TypstRequest, fetching any missing content.
+    // custom_font_styles is a family -> style lookup for the caller's custom (user-uploaded)
+    // fonts, which aren't in the curated typst-fonts manifest so their style can't otherwise be
+    // detected — only blue.font_text's entry (if any) is actually used, since font_fallbacks
+    // detection is keyed off the body font's style
+    async resolve(blue:Blueprint, custom_font_styles?:Record<string, FontStyle>):Promise<TypstRequest> {
 
         // License metadata for the copyright statement (computed once, shared by custom pages)
         const resources = this.collection.get_resources({object: true})
@@ -160,7 +166,8 @@ export class BibleContent {
                 font_text: blue.font_text,
                 font_headings: blue.font_headings ?? blue.font_text,
                 font_titles: blue.font_titles ?? blue.font_text,
-                font_fallbacks: [],
+                font_fallbacks: detect_font_fallbacks(
+                    items, blue.font_text, custom_font_styles?.[blue.font_text]),
                 font_size: `${blue.font_size}pt`,
                 line_height: blue.line_height,
                 justify: blue.justify,

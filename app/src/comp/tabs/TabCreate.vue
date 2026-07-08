@@ -62,6 +62,7 @@ import {bible_content} from '@/services/content'
 import {typst_generator} from '@/services/typst'
 import {gen_content_name, get_default_blueprint} from '@/services/blueprints'
 import {generate_token} from '@/services/utils'
+import {get_custom_font_styles} from '@/services/custom_fonts'
 
 import type {Creation} from '@/services/types'
 
@@ -88,7 +89,7 @@ const generate = async () => {
 
     // Snapshot the request from the current draft before any further mutation (it's a plain
     // object, so later edits to `blue` won't affect this in-flight creation)
-    const request = await bible_content.resolve(blue)
+    const request = await bible_content.resolve(blue, get_custom_font_styles())
 
     // Record the new creation in state
     const creation:Creation = reactive({

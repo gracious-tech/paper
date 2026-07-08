@@ -1,10 +1,15 @@
 
+import {existsSync} from 'node:fs'
+import {readFile} from 'node:fs/promises'
+import {join} from 'node:path'
+
 import {describe, it, expect} from 'vitest'
-import {PDFDocument} from 'pdf-lib'
+import {PDFDocument, PDFDict, PDFName} from 'pdf-lib'
 
 import {compile_pdf, compile_pdf_spread_preview, generate_typst} from '../src/index.js'
 
 import type {TypstRequest, PageConfig, TypographyConfig} from 'paper-bible-typst'
+import type {CustomFont} from '../src/index.js'
 
 
 // Reusable test configs
@@ -177,6 +182,53 @@ describe('compile_pdf', () => {
         const expected_h = 150 * 2.8346
         expect(width).toBeCloseTo(expected_w, 0)
         expect(height).toBeCloseTo(expected_h, 0)
+    }, 15000)
+})
+
+
+describe('custom_fonts', () => {
+
+    // A real downloaded font, reused as a custom-font fixture (its actual family is "Bevan",
+    // read via typst-fonts' own parse_font_family in the test below) — not checked into git
+    // (see /fonts/ in .gitignore), so these tests skip rather than fail where it's absent
+    // (e.g. a fresh clone before .bin/download_fonts has run)
+    const fixture_path = join(import.meta.dirname, '../../fonts/Bevan/Bevan-Regular.ttf')
+    const has_fixture = existsSync(fixture_path)
+
+    it.skipIf(!has_fixture)('embeds an uploaded font actually used as the body font', async () => {
+        const data = new Uint8Array(await readFile(fixture_path))
+        const custom_fonts:CustomFont[] = [{family: 'Bevan', style: 'serif', files: [data]}]
+        const result = await compile_pdf(make_request({
+            typography: {...TEST_TYPOGRAPHY, font_text: 'Bevan'},
+        }), {custom_fonts})
+        const doc = await PDFDocument.load(result)
+        expect(doc.getPageCount()).toBe(1)
+        // Typst PDFs pack most objects (including font dicts) into compressed object streams,
+        // so a raw-byte search for "Bevan" won't find it — walk pdf-lib's parsed (decompressed)
+        // indirect objects instead and check for a BaseFont matching the uploaded family
+        // (subsetted fonts get a 6-letter tag prefix, e.g. "UESATU+Bevan-Regular")
+        const base_fonts:string[] = []
+        for (const [, obj] of doc.context.enumerateIndirectObjects()) {
+            if (obj instanceof PDFDict) {
+                const base_font = obj.get(PDFName.of('BaseFont'))
+                if (base_font)
+                    base_fonts.push(base_font.toString())
+            }
+        }
+        expect(base_fonts.some(name => name.includes('Bevan'))).toBe(true)
+    }, 15000)
+
+    it('does not break compilation when an unused custom font is supplied', async () => {
+        // A synthetic, non-glyph-bearing "font" the real typst binary can't actually use for
+        // rendering — proves the --font-path plumbing (temp dir write/cleanup, arg construction)
+        // doesn't itself break a compile, independent of whether the bytes are a real font
+        const custom_fonts:CustomFont[] = [{
+            family: 'Not A Real Font', style: 'serif',
+            files: [new Uint8Array([0, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0])],
+        }]
+        const result = await compile_pdf(make_request(), {custom_fonts})
+        const doc = await PDFDocument.load(result)
+        expect(doc.getPageCount()).toBe(1)
     }, 15000)
 })
 

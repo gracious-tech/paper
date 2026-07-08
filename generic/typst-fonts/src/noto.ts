@@ -219,6 +219,19 @@ export function cjk_family(region:CjkVariant, style:FontStyle):string | null {
     return resolve_script_family(MANIFEST.by_script['Han']!, region, style)
 }
 
+// Resolve a non-CJK script's Noto family in the given style (('Hebrew', 'sans') →
+// 'Noto Sans Hebrew'), falling back to the other style if Noto doesn't cover the script in
+// the preferred one; null if the script isn't in the manifest at all. For callers that want a
+// specific script's family without needing matching text on hand to run resolve_fallback_chain
+// (e.g. a family that should always be included regardless of what's detected) — for scripts
+// actually present in some text, resolve_fallback_chain already resolves this per-script.
+export function script_family(script:string, style:FontStyle):string | null {
+    const fonts = MANIFEST.by_script[script]
+    // cjk_variant is irrelevant here — every non-CJK script's entries are plain strings, never
+    // per-region records, so resolve_script_family never reads the second argument for them
+    return fonts ? resolve_script_family(fonts, 'SC', style) : null
+}
+
 // Resolve one script's {sans, serif} entry to a single concrete family: the preferred style
 // when Noto covers the script in it, otherwise the other style (rendering something always
 // beats style purity). CJK scripts (Han/Hiragana/Katakana/Hangul) resolve per-region via

@@ -9,6 +9,9 @@ export {get_fonts, get_bundled_font, base_font, font_style} from './manifest.js'
 
 export type {CjkVariant, FontStyle, NotoFont, NotoManifest, CjkSegment} from './noto.js'
 export {get_noto_font, detect_scripts, detect_cjk_variant, field_cjk_variant,
-    cjk_segments, cjk_family, resolve_fallback_chain} from './noto.js'
+    cjk_segments, cjk_family, script_family, resolve_fallback_chain} from './noto.js'
 
 export {parse_font_family, parse_font_style} from './sfnt.js'
+
+export type {CustomFont} from './custom.js'
+export {process_font_files} from './custom.js'

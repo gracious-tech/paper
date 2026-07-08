@@ -33,6 +33,7 @@ import locales_meta from './locales.json'
 import {blue, state} from '@/services/state'
 import {content, bible_content, load_fonts} from '@/services/content'
 import {typst_generator} from '@/services/typst'
+import {custom_fonts} from '@/services/custom_fonts'
 import {start_watchers} from '@/services/watchers'
 import {clean_blueprint} from '@/services/blueprints'
 import {report_error, vue_error_handler} from '@/services/errors'
@@ -128,6 +129,9 @@ void (async () => {
     const assets_prefix = new URL('/generator_assets/', window.location.href).href
     void init_typst({wasm_url, assets_prefix}).then(generator => {
         typst_generator.value = generator
+        // Same reactive array reference as custom_fonts.ts's store — later uploads (pushed
+        // onto that same array) are visible to the generator without calling this again
+        generator.set_custom_fonts(custom_fonts)
     }).catch((error:unknown) => {
         report_error('banner', error)
     })
