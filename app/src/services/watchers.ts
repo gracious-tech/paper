@@ -2,9 +2,9 @@
 import {watch} from 'vue'
 
 import {blue} from '@/services/state'
-import {content, bible_content} from '@/services/content'
+import {content, bible_content, resolve_passage_examples} from '@/services/content'
 
-import type {ContentPassage} from '@/services/types'
+import type {ContentPassage, ContentTitle} from '@/services/types'
 
 
 // Start watching and responding to state changes
@@ -49,5 +49,24 @@ export function start_watchers(){
                 })
             }
         }
+    }, {deep: true, immediate: true})
+
+    // Auto-refresh the font pickers' example text (title/heading/verse) as content or the
+    // selected translations change
+    watch([() => blue.content, () => blue.bibles], async () => {
+        const title_item = blue.content.find(item => item.type === 'title') as
+            ContentTitle|undefined
+        content.example_text.title = title_item?.title.trim() ?? ''
+
+        const passage_item = blue.content.find(item => item.type === 'passage') as
+            ContentPassage|undefined
+        if (!passage_item || !blue.bibles.length){
+            content.example_text.heading = ''
+            content.example_text.verse = ''
+            return
+        }
+        const {heading, verse} = await resolve_passage_examples(passage_item, blue.bibles)
+        content.example_text.heading = heading
+        content.example_text.verse = verse
     }, {deep: true, immediate: true})
 }

@@ -9,6 +9,10 @@ import {content} from './content'
 export type FontItem = string | {type:'subheader', title:string} | {title:string, value:null}
 
 
+// Shown in a font picker item when no real example text is available yet
+export const DEFAULT_FONT_EXAMPLE = "In the beginning God created the heavens and the earth."
+
+
 // Font picker items, grouped by BundledFont.group with a subheader per group (fonts arrive
 // from content.fonts already grouped contiguously, see font_config.json). Shared by any
 // component offering a font picker (OptionsStyle.vue, EditorTitle.vue)

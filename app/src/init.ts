@@ -27,6 +27,7 @@ import {init as init_typst} from 'paper-bible-typst-web'
 import AppIcon from './comp/global/AppIcon.vue'
 import AppProse from './comp/global/AppProse.vue'
 import AppColor from './comp/global/AppColor.vue'
+import AppFontSelect from './comp/global/AppFontSelect.vue'
 import AppRoot from './comp/AppRoot.vue'
 import locales_meta from './locales.json'
 import {blue, state} from '@/services/state'
@@ -43,6 +44,7 @@ app.config.errorHandler = vue_error_handler
 app.component('AppIcon', AppIcon)
 app.component('AppProse', AppProse)
 app.component('AppColor', AppColor)
+app.component('AppFontSelect', AppFontSelect)
 
 
 // Register i18n

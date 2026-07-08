@@ -1,12 +1,14 @@
 
 import {reactive} from 'vue'
 
+import {PassageReference} from '@gracious.tech/fetch-client'
 import {BibleContent} from 'paper-bible-typst'
 import {get_fonts} from 'typst-fonts'
-import {load_fonts_prefix} from 'typst-fonts/web'
+import {load_fonts_prefix, register_preview_fonts} from 'typst-fonts/web'
 
 import type {BibleCollection, GetResourcesItem, GetLanguagesItem, GetBooksItem} from '@gracious.tech/fetch-client'
 import type {BundledFont} from 'typst-fonts'
+import type {ContentPassage} from './types'
 
 
 const endpoint = import.meta.env.PROD ? 'https://v1.fetch.bible/' : 'http://localhost:8430/'
@@ -35,6 +37,10 @@ export const content = {
     // Curated font manifest for the style picker (see load_fonts() below), grouped by
     // BundledFont.group. Empty until load_fonts() resolves.
     fonts: reactive([]) as BundledFont[],
+    // Example text for the font pickers (title/heading/verse), kept in sync with the current
+    // content by a watcher in watchers.ts. Empty string means "nothing available yet" — the
+    // picker falls back to a default sentence.
+    example_text: reactive({title: '', heading: '', verse: ''}),
 }
 
 
@@ -43,5 +49,51 @@ export const content = {
 // share typst-fonts' module-level state, so whichever runs first wins with no ill effect.
 export async function load_fonts(fonts_prefix:string):Promise<void> {
     await load_fonts_prefix(fonts_prefix)
-    content.fonts.splice(0, content.fonts.length, ...get_fonts())
+    const fonts = get_fonts()
+    content.fonts.splice(0, content.fonts.length, ...fonts)
+    // Register real font files so CSS previews (e.g. the font pickers) can render actual glyphs
+    register_preview_fonts(fonts_prefix, fonts)
+}
+
+
+// Roughly strip Typst markup down to plain text — used only for font-picker example text, where
+// an exact result doesn't matter, just something readable in the chosen font
+function typst_to_plain(markup:string):string {
+    return markup
+        .replace(/^=+\s.*$/gm, '')  // drop heading lines (extracted separately)
+        .replace(/#[a-zA-Z_][\w.]*(\([^)]*\))?\[/g, '')  // function calls opening a body: keep body
+        .replace(/[[\]]/g, '')  // any leftover brackets
+        .replace(/#[a-zA-Z_][\w.]*(\([^)]*\))?/g, '')  // bodyless function calls
+        .replace(/\s+/g, ' ')
+        .trim()
+}
+
+
+// Best-effort extraction of a heading + a verse snippet from a passage's Typst markup, for the
+// font pickers' example text — approximate is fine, this never reaches the actual PDF
+function extract_examples(markup:string):{heading:string, verse:string} {
+    const heading_match = /^=+\s+(.+)$/m.exec(markup)
+    const heading = heading_match ? typst_to_plain(heading_match[1]!) : ''
+    const verse = typst_to_plain(markup).split(/(?<=[.!?])\s/)[0] ?? ''
+    return {heading, verse}
+}
+
+
+// Resolve the example heading/verse text for a passage, trying each selected bible in turn until
+// one yields content (some translations may not have the book)
+export async function resolve_passage_examples(
+    passage:ContentPassage, bibles:string[],
+):Promise<{heading:string, verse:string}> {
+    for (const bible of bibles) {
+        const instance = await bible_content.fetch_book(bible, passage.book)
+        if (!instance) {
+            continue
+        }
+        const markup = instance.get_passage_from_ref(new PassageReference(passage), {attribute: false})
+        const examples = extract_examples(markup)
+        if (examples.heading || examples.verse) {
+            return examples
+        }
+    }
+    return {heading: '', verse: ''}
 }

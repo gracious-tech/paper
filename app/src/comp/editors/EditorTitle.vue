@@ -29,8 +29,8 @@ v-card-text(class='overflow-y-auto')
 
     v-divider(class='my-8')
 
-    v-select(v-model='blue.font_titles' :items='font_items_auto' :label='$t("Font for title pages")'
-        :hint='$t("Applies to all title pages.")')
+    AppFontSelect(v-model='blue.font_titles' :label='$t("Font for title pages")'
+        :hint='$t("Applies to all title pages.")' auto example='title')
 
 
 </template>
@@ -39,17 +39,11 @@ v-card-text(class='overflow-y-auto')
 <script lang='ts' setup>
 
 import {PATTERNS as patterns} from 'paper-bible-typst'
-import {useI18n} from 'vue-i18n'
 
 import IconField from '@/comp/editors/assets/IconField.vue'
 
 import type {ContentTitle} from '@/services/types'
 import {blue, state} from '@/services/state'
-import {font_items_with_auto} from '@/services/fonts'
-
-
-const {t} = useI18n()
-const font_items_auto = font_items_with_auto(t)
 
 
 const props = defineProps<{item:ContentTitle}>()

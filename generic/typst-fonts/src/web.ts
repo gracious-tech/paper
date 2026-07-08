@@ -6,6 +6,8 @@
 
 import {init_fonts, get_bundled_font, get_noto_font} from './index.js'
 
+import type {BundledFont} from './index.js'
+
 // Join a base URL/path with segments, collapsing a trailing slash on the base
 function join_path(base:string, ...segments:string[]):string {
     return [base.replace(/\/+$/, ''), ...segments].join('/')
@@ -45,6 +47,17 @@ export function font_urls_for(fonts_prefix:string, families:string[]):string[] {
     }
     return urls
 }
+
+// Register a FontFace for each curated font's preview (400-weight) file, so CSS elsewhere in the
+// app can render text with `font-family: <family>` and have the browser fetch the file lazily on
+// first use — only when that family actually appears in rendered DOM text, no eager download.
+export function register_preview_fonts(fonts_prefix:string, fonts:BundledFont[]):void {
+    for (const font of fonts) {
+        const url = font_file_url(fonts_prefix, font.family, font.preview_file, false)
+        document.fonts.add(new FontFace(font.family, `url("${url}")`))
+    }
+}
+
 
 // Fetch a single font file's raw bytes
 export async function fetch_font_bytes(url:string):Promise<Uint8Array> {

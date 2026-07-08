@@ -1,10 +1,11 @@
 
 <template lang='pug'>
 
-v-select(v-model='blue.font_text' :items='font_items' :label='$t("Font for text")' class='mb-4')
-
-v-select(v-model='blue.font_headings' :items='font_items_auto' :label='$t("Font for headings")'
+AppFontSelect(v-model='blue.font_text' :label='$t("Font for text")' example='verse'
     class='mb-4')
+
+AppFontSelect(v-model='blue.font_headings' :label='$t("Font for headings")' auto
+    example='heading' class='mb-4')
 
 //- NOTE Allow large font for users with poor eyesight
 v-slider(v-model='blue.font_size' :label='$t("Font size")' :min='6' :max='26' thumb-label
@@ -26,16 +27,8 @@ p(class='text-body-2 text-disabled') {{$t("Auto will not justify when width is t
 <script lang='ts' setup>
 
 import {computed} from 'vue'
-import {useI18n} from 'vue-i18n'
 
 import {blue} from '@/services/state'
-import {font_items, font_items_with_auto} from '@/services/fonts'
-
-
-const {t} = useI18n()
-
-
-const font_items_auto = font_items_with_auto(t)
 
 const justify = computed({
     get: () => String(blue.justify),
