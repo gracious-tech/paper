@@ -107,6 +107,41 @@ watch(
     {deep: true, immediate: true},
 )
 
+// Build a signature of every "discrete choice" field in the blueprint: checkboxes, selects,
+// radios, toggle-buttons and the like. These change in one atomic step (a click), never build up
+// character by character like a text field or drag like a slider, so there's no rapid-fire flurry
+// of updates to debounce -- recompiling instantly feels responsive rather than laggy. Text fields,
+// sliders and colour pickers are deliberately left out here so they fall through to the debounced
+// watcher below instead.
+function discrete_signature():string {
+    const item_sigs = blue.content.map(item => {
+        if (item.type === 'title'){
+            return `title:${item.pattern}:${item.alone}`
+        } else if (item.type === 'passage'){
+            return `passage:${item.title}:${item.new_page}`
+        }
+        return `custom:${item.position}:${item.new_page}`
+    })
+    return JSON.stringify([
+        blue.font_text, blue.font_headings, blue.font_titles,
+        blue.service_id, blue.size_id, blue.binding_type, blue.ink_type, blue.paper_type,
+        blue.custom_unit, blue.booklet, blue.booklet_portrait,
+        blue.bibles_layout, blue.half_blank, blue.justify, blue.columns,
+        blue.show_headings, blue.show_chapters, blue.show_chapters_style, blue.show_verses,
+        blue.show_pages, blue.show_footnotes, blue.show_wj, blue.show_wj_bold,
+        blue.show_wj_italic, blue.show_lines, blue.notes, blue.crossref,
+        blue.margin_unit, blue.public_domain, blue.app_link,
+        item_sigs,
+    ])
+}
+
+// Recompile right away whenever a discrete field changes. Registered after the watcher above so
+// it runs later in the same flush, cancelling whatever debounce that one just queued.
+watch(discrete_signature, () => {
+    compile_debounced.cancel()
+    void compile()
+})
+
 
 // Clean up pending work and the last object URL
 onUnmounted(() => {
