@@ -31,6 +31,11 @@ export function collect_fonts(request:TypstRequest):string[] {
     // Heading font — applies to any heading, regardless of which features use them
     needed.add(request.typography.font_headings)
 
+    // Second-translation body/heading fonts — only rendered inside the multi-bible grid cell
+    // (see content_passage.ts's gen_multi_bible_grid), but still need their font files loaded
+    needed.add(request.typography.font_text2)
+    needed.add(request.typography.font_headings2)
+
     // Title pages use the title font for text (icons are embedded SVG images, not a font)
     if (request.content.some(item => item.type === 'title')){
         needed.add(request.typography.font_titles)

@@ -28,4 +28,17 @@ describe('collect_fonts', () => {
         }))
         expect(result).not.toContain('Not A Real Font')
     })
+
+    it('includes the second translation\'s body and heading fonts when set apart from the '
+        + 'primary fonts', () => {
+        const result = collect_fonts(make_request({
+            typography: {
+                ...TEST_TYPOGRAPHY,
+                font_text2: 'Second Body Font',
+                font_headings2: 'Second Heading Font',
+            },
+        }))
+        expect(result).toContain('Second Body Font')
+        expect(result).toContain('Second Heading Font')
+    })
 })
