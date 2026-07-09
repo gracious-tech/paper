@@ -82,8 +82,6 @@ export class TypstWeb {
     // Build a compile function that turns a single Typst source string into PDF bytes
     private make_compile_fn():CompileFn {
         return async (source:string):Promise<Uint8Array> => {
-            // Log the full Typst document to the console before rendering
-            console.log(source)
             this.compiler.resetShadow()
             this.compiler.addSource('/main.typ', source)
             const result = await this.compiler.compile({
