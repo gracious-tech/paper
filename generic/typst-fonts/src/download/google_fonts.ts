@@ -42,12 +42,14 @@ export async function download_font(fonts_dir:string, family:string):Promise<str
         let ref = refs.find(r => basename(r.filename) === target)
 
         // Some fonts (e.g. Merriweather) use optical-size filenames like Base_24pt-Regular.ttf.
-        // Fall back to the smallest optical-size variant, excluding condensed/semicondensed.
+        // Fall back to the smallest optical-size variant (the one designed for body-text
+        // sizes), excluding condensed/semicondensed.
         if (!ref) {
             const pattern = new RegExp(`^${base}_\\d+pt-${suffix}\\.ttf$`)
             const candidates = refs
                 .filter(r => pattern.test(basename(r.filename)))
-                .sort((a, b) => basename(b.filename).localeCompare(basename(a.filename), undefined, {numeric: true}))
+                .sort((a, b) => basename(a.filename)
+                    .localeCompare(basename(b.filename), undefined, {numeric: true}))
             if (candidates.length > 0) {
                 ref = candidates[0]
             }

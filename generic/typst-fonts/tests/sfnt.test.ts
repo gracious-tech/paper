@@ -15,6 +15,36 @@ describe('parse_font_family', () => {
     it('returns null for a malformed/non-font buffer', () => {
         expect(parse_font_family(new Uint8Array([1, 2, 3]))).toBeNull()
     })
+
+    it('rejects a buffer without a valid sfnt version tag', () => {
+        const font = build_test_font({family: 'Test', version: 0x12345678})
+        expect(parse_font_family(font)).toBeNull()
+    })
+
+    it('prefers the typographic family (nameID 16) over the legacy family (nameID 1)', () => {
+        const font = build_test_font({family: '', name_records: [
+            {platform_id: 3, name_id: 1, value: 'Foo SemiBold'},
+            {platform_id: 3, name_id: 16, value: 'Foo'},
+        ]})
+        expect(parse_font_family(font)).toBe('Foo')
+    })
+
+    it('prefers a Windows-platform record over an earlier Mac one', () => {
+        // Mac records sort first in real fonts' name tables, but their single-byte encoding
+        // garbles non-ASCII names — the Windows UTF-16 record must win regardless of order
+        const font = build_test_font({family: '', name_records: [
+            {platform_id: 1, name_id: 1, value: 'Mac Name'},
+            {platform_id: 3, name_id: 1, value: '思源黑体'},
+        ]})
+        expect(parse_font_family(font)).toBe('思源黑体')
+    })
+
+    it('still reads a Mac-only name table', () => {
+        const font = build_test_font({family: '', name_records: [
+            {platform_id: 1, name_id: 1, value: 'Mac Only'},
+        ]})
+        expect(parse_font_family(font)).toBe('Mac Only')
+    })
 })
 
 

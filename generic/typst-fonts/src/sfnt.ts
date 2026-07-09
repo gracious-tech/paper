@@ -5,8 +5,16 @@
 
 import type {FontStyle} from './noto.js'
 
+// Valid sfnt version tags: TrueType 0x00010000, OpenType CFF 'OTTO', plus the legacy Mac
+// 'true'/'typ1' forms. Anything else isn't a single-font sfnt file (.ttc collections included)
+// — bail out rather than misread arbitrary bytes as a table directory.
+const SFNT_VERSIONS = new Set([0x00010000, 0x4F54544F, 0x74727565, 0x74797031])
+
 // Find a table's byte offset in a TTF/OTF file's table directory, or 0 if absent
 function find_table(view:DataView, wanted:string):number {
+    if (!SFNT_VERSIONS.has(view.getUint32(0))) {
+        return 0
+    }
     // Read number of tables from the offset table, then scan the 16-byte table records
     const num_tables = view.getUint16(4)
     for (let i = 0; i < num_tables; i++) {
@@ -22,7 +30,34 @@ function find_table(view:DataView, wanted:string):number {
     return 0
 }
 
-// Parse the font family name from a TTF/OTF file's name table
+// Name-record preference for the family name, best first: the typographic family (nameID 16,
+// e.g. 'Foo' when the legacy family is style-linked as 'Foo SemiBold') beats the legacy family
+// (nameID 1), and Windows platform 3 (UTF-16, handles non-ASCII names) beats Mac platform 1
+// (single-byte, garbles anything beyond ASCII)
+const NAME_PREFERENCE = [
+    {platform_id: 3, name_id: 16},
+    {platform_id: 1, name_id: 16},
+    {platform_id: 3, name_id: 1},
+    {platform_id: 1, name_id: 1},
+]
+
+// Decode a name record's string: Windows platform is UTF-16BE, Mac platform single-byte
+function decode_name(view:DataView, start:number, length:number, platform_id:number):string {
+    const chars:number[] = []
+    if (platform_id === 3) {
+        for (let j = 0; j < length; j += 2) {
+            chars.push(view.getUint16(start + j))
+        }
+    } else {
+        for (let j = 0; j < length; j++) {
+            chars.push(view.getUint8(start + j))
+        }
+    }
+    return String.fromCharCode(...chars)
+}
+
+// Parse the font family name from a TTF/OTF file's name table (best available record per
+// NAME_PREFERENCE above)
 export function parse_font_family(data:Uint8Array):string | null {
     try {
         const view = new DataView(data.buffer, data.byteOffset, data.byteLength)
@@ -31,41 +66,30 @@ export function parse_font_family(data:Uint8Array):string | null {
         if (!name_offset)
             return null
 
-        // Parse name records
+        // Scan all name records, keeping the best-preference non-empty family name seen
         const count = view.getUint16(name_offset + 2)
         const string_storage = name_offset + view.getUint16(name_offset + 4)
+        let best:string | null = null
+        let best_rank = NAME_PREFERENCE.length
 
         for (let i = 0; i < count; i++) {
             const rec = name_offset + 6 + i * 12
             const platform_id = view.getUint16(rec)
             const name_id = view.getUint16(rec + 6)
-            const length = view.getUint16(rec + 8)
-            const offset = view.getUint16(rec + 10)
-
-            // nameID 1 = Font Family name
-            if (name_id !== 1)
+            const rank = NAME_PREFERENCE.findIndex(
+                p => p.platform_id === platform_id && p.name_id === name_id)
+            if (rank === -1 || rank >= best_rank)
                 continue
 
-            const str_start = string_storage + offset
-
-            // Platform 3 (Windows) — UTF-16BE encoding
-            if (platform_id === 3) {
-                const chars:number[] = []
-                for (let j = 0; j < length; j += 2) {
-                    chars.push(view.getUint16(str_start + j))
-                }
-                return String.fromCharCode(...chars)
-            }
-
-            // Platform 1 (Mac) — ASCII-like encoding
-            if (platform_id === 1) {
-                const chars:number[] = []
-                for (let j = 0; j < length; j++) {
-                    chars.push(view.getUint8(str_start + j))
-                }
-                return String.fromCharCode(...chars)
+            const length = view.getUint16(rec + 8)
+            const offset = view.getUint16(rec + 10)
+            const value = decode_name(view, string_storage + offset, length, platform_id)
+            if (value) {
+                best = value
+                best_rank = rank
             }
         }
+        return best
     } catch {
         // Malformed font file
     }

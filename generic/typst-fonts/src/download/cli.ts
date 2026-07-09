@@ -18,6 +18,15 @@ function read_arg(flag:string):string | undefined {
     return i === -1 ? undefined : process.argv[i + 1]
 }
 
+// Print usage and exit when asked
+if (process.argv.includes('--help') || process.argv.includes('-h')) {
+    console.log('Usage: typst-fonts-download --fonts <dir> [--config <config.json>]\n'
+        + '  --fonts <dir>     Directory to download fonts + write manifest.json into'
+        + ' (default ./fonts)\n'
+        + '  --config <path>   JSON file: {noto_group?, curated?: [{family, group, style}]}')
+    process.exit(0)
+}
+
 const fonts_dir = read_arg('--fonts') ?? './fonts'
 const config_path = read_arg('--config')
 const config:FontsConfig | undefined = config_path

@@ -73,4 +73,12 @@ describe('process_font_files', () => {
         ])
         expect(result).toHaveLength(0)
     })
+
+    it('skips a corrupt zip without failing the other uploads', () => {
+        const result = process_font_files([
+            {name: 'broken.zip', data: new Uint8Array([1, 2, 3])},
+            {name: 'TestFont-Regular.ttf', data: build_test_font({family: 'Test Font'})},
+        ])
+        expect(result.map(f => f.family)).toEqual(['Test Font'])
+    })
 })

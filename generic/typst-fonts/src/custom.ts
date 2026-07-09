@@ -20,40 +20,41 @@ export interface CustomFont {
     files:Uint8Array[]
 }
 
+// Font file extensions accepted
+const FONT_FILE = /\.(ttf|otf)$/i
+
 // Weights excluded as exotic variants a generator doesn't need
 const SKIP_WEIGHTS = /-(Thin|ExtraLight|Light|Medium|SemiBold|ExtraBold|Black|Heavy|UltraLight|DemiBold|UltraBold)/i
 
 // Variable font filename patterns excluded (single static weights are preferred)
 const VARIABLE_FONT = /VariableFont|\[/
 
-// Whether a filename is a font file worth keeping, applying the weight/variable-font filters
-function should_include(name:string):boolean {
-    const base = name.split('/').pop() || ''
-    if (!/\.(ttf|otf)$/i.test(base))
-        return false
-    if (VARIABLE_FONT.test(base))
-        return false
-    if (SKIP_WEIGHTS.test(base))
-        return false
-    return true
+// Whether a font filename passes the weight/variable-font filters
+function preferred_weight(name:string):boolean {
+    return !VARIABLE_FONT.test(name) && !SKIP_WEIGHTS.test(name)
 }
 
-// Extract raw font file entries from a set of uploaded files, expanding any .zip archives.
-// filtered selects whether the weight/variable-font filters above apply
+// Extract every raw font file entry from a set of uploaded files, expanding any .zip archives
+// (a corrupt archive is skipped rather than failing the other uploads)
 function extract_font_files(
-    files:{name:string, data:Uint8Array}[], filtered:boolean,
+    files:{name:string, data:Uint8Array}[],
 ):{name:string, data:Uint8Array}[] {
     const out:{name:string, data:Uint8Array}[] = []
     for (const {name, data} of files) {
         if (name.toLowerCase().endsWith('.zip')) {
-            const entries = unzipSync(data)
+            let entries:Record<string, Uint8Array>
+            try {
+                entries = unzipSync(data)
+            } catch {
+                continue
+            }
             for (const [path, entry_data] of Object.entries(entries)) {
                 const base = path.split('/').pop() || ''
-                if (filtered ? should_include(path) : /\.(ttf|otf)$/i.test(base)) {
+                if (FONT_FILE.test(base)) {
                     out.push({name: base, data: entry_data})
                 }
             }
-        } else if (filtered ? should_include(name) : /\.(ttf|otf)$/i.test(name)) {
+        } else if (FONT_FILE.test(name)) {
             out.push({name, data})
         }
     }
@@ -66,9 +67,10 @@ function extract_font_files(
 // zip containing only Light/Bold weights, no Regular) so an upload never silently produces zero
 // families just because it lacks the "preferred" weight set.
 export function process_font_files(files:{name:string, data:Uint8Array}[]):CustomFont[] {
-    let font_files = extract_font_files(files, true)
+    const all_files = extract_font_files(files)
+    let font_files = all_files.filter(f => preferred_weight(f.name))
     if (font_files.length === 0) {
-        font_files = extract_font_files(files, false)
+        font_files = all_files
     }
 
     // Group by family name parsed from each file's own font metadata

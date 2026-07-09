@@ -29,6 +29,11 @@ let by_family:Map<string, BundledFont> | undefined
 
 // Supply the curated font manifest before using get_fonts/get_bundled_font/base_font/font_style
 export function init_fonts(data:FontsData):void {
+    // Validate the shape early — a malformed manifest.json would otherwise only surface later
+    // as confusing lookup failures far from the load site
+    if (!Array.isArray(data.font_manifest) || data.font_manifest.some(f => !f?.family)) {
+        throw new Error('typst-fonts: init_fonts() expects {font_manifest: BundledFont[]}')
+    }
     font_manifest = data.font_manifest
     by_family = new Map(data.font_manifest.map(f => [f.family, f]))
 }
@@ -54,7 +59,11 @@ export function get_bundled_font(family:string):BundledFont | undefined {
 // The base font family (always first in the manifest — Noto Serif, guaranteed by the
 // download step regardless of an app's curated config)
 export function base_font():string {
-    return require_manifest()[0]!.family
+    const manifest = require_manifest()
+    if (manifest.length === 0) {
+        throw new Error('typst-fonts: the curated font manifest is empty, so there is no base font')
+    }
+    return manifest[0]!.family
 }
 
 // Resolve the serif/sans style of a chosen font: an explicit style (set for custom fonts,

@@ -2,7 +2,9 @@
     "name": "typst-fonts",
     "version": "0.1.0",
     "license": "MIT-0",
+    "description": "Font manifest, Noto script-fallback resolution, and a download CLI for Typst-based apps",
     "type": "module",
+    "sideEffects": false,
     "main": "dist/index.js",
     "types": "dist/index.d.ts",
     "exports": {
@@ -21,7 +23,8 @@
         "./download": {
             "types": "./dist/download/run.d.ts",
             "default": "./dist/download/run.js"
-        }
+        },
+        "./package.json": "./package.json"
     },
     "bin": {
         "typst-fonts-download": "dist/download/cli.js"

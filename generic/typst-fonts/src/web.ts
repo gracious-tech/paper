@@ -16,9 +16,10 @@ function join_path(base:string, ...segments:string[]):string {
 // Fetches manifest.json from fonts_prefix and calls init_fonts. Only the curated manifest is
 // runtime-loaded — Noto's own manifest/fallback data is bundled with the package.
 export async function load_fonts_prefix(fonts_prefix:string):Promise<void> {
-    const resp = await fetch(join_path(fonts_prefix, 'manifest.json'))
+    const url = join_path(fonts_prefix, 'manifest.json')
+    const resp = await fetch(url)
     if (!resp.ok) {
-        throw new Error(`[typst-fonts] Failed to fetch ${join_path(fonts_prefix, 'manifest.json')}: HTTP ${resp.status}`)
+        throw new Error(`[typst-fonts] Failed to fetch ${url}: HTTP ${resp.status}`)
     }
     const font_manifest = await resp.json()
     init_fonts({font_manifest})
