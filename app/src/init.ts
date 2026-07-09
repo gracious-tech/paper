@@ -21,9 +21,6 @@ import RadioChecked from '@material-symbols/svg-400/rounded/radio_button_checked
 import RadioUnchecked from '@material-symbols/svg-400/rounded/radio_button_unchecked.svg'
 import ExpandMore from '@material-symbols/svg-400/rounded/expand_more.svg'
 
-import wasm_url from '@myriaddreamin/typst-ts-web-compiler/pkg/typst_ts_web_compiler_bg.wasm?url'
-import {init as init_typst} from 'paper-bible-typst-web'
-
 import AppIcon from './comp/global/AppIcon.vue'
 import AppProse from './comp/global/AppProse.vue'
 import AppColor from './comp/global/AppColor.vue'
@@ -32,7 +29,7 @@ import AppRoot from './comp/AppRoot.vue'
 import locales_meta from './locales.json'
 import {blue, state} from '@/services/state'
 import {content, bible_content, load_fonts} from '@/services/content'
-import {typst_generator} from '@/services/typst'
+import {typst_generator, TypstWorkerClient} from '@/services/typst'
 import {custom_fonts} from '@/services/custom_fonts'
 import {start_watchers} from '@/services/watchers'
 import {clean_blueprint} from '@/services/blueprints'
@@ -123,15 +120,17 @@ void (async () => {
     content.translations = content.collection.get_resources({object: true})
     content.languages = content.collection.get_languages({object: true})
 
-    // Initialise the in-browser Typst compiler (non-blocking — preview waits on it).
+    // Initialise the in-browser Typst compiler in a Web Worker (non-blocking — preview waits
+    // on it, and compilation runs off the main thread so it never lags the UI).
     // Fonts are served from the top-level fonts/ dir under this assets prefix (see
     // .bin/download_fonts and vite_plugin_fonts.ts for how it's served in dev)
     const assets_prefix = new URL('/generator_assets/', window.location.href).href
-    void init_typst({wasm_url, assets_prefix}).then(generator => {
-        typst_generator.value = generator
-        // Same reactive array reference as custom_fonts.ts's store — later uploads (pushed
-        // onto that same array) are visible to the generator without calling this again
-        generator.set_custom_fonts(custom_fonts)
+    const typst_client = new TypstWorkerClient()
+    void typst_client.init(assets_prefix).then(async () => {
+        typst_generator.value = typst_client
+        // The worker holds a snapshot of uploaded fonts — custom_fonts.ts re-sends after each
+        // upload, and this covers any uploads that happened before the worker was ready
+        await typst_client.set_custom_fonts(custom_fonts)
     }).catch((error:unknown) => {
         report_error('banner', error)
     })

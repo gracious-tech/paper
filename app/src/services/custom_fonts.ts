@@ -8,12 +8,13 @@ import {reactive} from 'vue'
 import {process_font_files} from 'typst-fonts'
 import {register_custom_font_preview} from 'typst-fonts/web'
 
+import {typst_generator} from '@/services/typst'
+
 import type {CustomFont, FontStyle} from 'typst-fonts'
 
 
 // Reactive list of uploaded font families, shared by the font pickers and the PDF generator
-// (see init.ts's generator.set_custom_fonts(custom_fonts) — same array reference, so pushes
-// here are visible there without re-calling the setter)
+// (the generator's worker holds a copy, so every upload re-sends the set — see below)
 export const custom_fonts:CustomFont[] = reactive([])
 
 
@@ -35,6 +36,12 @@ export async function upload_custom_fonts(files:File[]):Promise<string[]> {
         existing.add(font.family)
         added.push(font.family)
         await register_custom_font_preview(font)
+    }
+
+    // Push the updated font set to the generator's worker (it holds a copy, not our array
+    // reference). If the worker isn't ready yet, init.ts sends the set once it is.
+    if (added.length && typst_generator.value){
+        await typst_generator.value.set_custom_fonts(custom_fonts)
     }
     return added
 }
