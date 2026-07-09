@@ -7,8 +7,9 @@ import {make_passage} from './fixtures.js'
 import type {TypstPassage} from '../src/types.js'
 
 
-// Default second-translation font args for tests that don't care about them (most — only the
+// Default font args for tests that don't care about them (most — only the
 // multi-bible grid tests below actually exercise the second-cell font override)
+const FONT_SIZE = '10pt'
 const FONT_TEXT2 = 'Crimson Pro'
 const FONT_HEADINGS2 = 'Crimson Pro'
 const FONT_FALLBACKS:string[] = []
@@ -17,7 +18,7 @@ function call(
     passage:TypstPassage, font_text2 = FONT_TEXT2, font_headings2 = FONT_HEADINGS2,
     font_fallbacks = FONT_FALLBACKS,
 ):string {
-    return gen_passage(passage, font_text2, font_headings2, font_fallbacks)
+    return gen_passage(passage, FONT_SIZE, font_text2, font_headings2, font_fallbacks)
 }
 
 
@@ -143,7 +144,7 @@ describe('gen_passage', () => {
                     {content: 'Bible 2 content'},
                 ],
                 multi_layout: 'columns',
-            }), 'Second Font', 'Second Heading Font', ['Fallback Font'])
+            }), FONT_SIZE, 'Second Font', 'Second Heading Font', ['Fallback Font'])
 
             // First cell stays a bare bracketed block — no font override leaking in
             expect(result).toContain('[Bible 1 content]')

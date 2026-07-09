@@ -6,11 +6,13 @@ import {LARGE_POETRY, LOTS_OF_POETRY, escape_typst} from './helpers.js'
 import type {TypstPassage} from './types.js'
 
 
-// Generate Typst markup for a Bible passage content item. font_text2/font_headings2/
-// font_fallbacks are only used when a second translation is actually rendered side-by-side
-// (grid layout with 2 bibles) — see gen_multi_bible_grid
+// Generate Typst markup for a Bible passage content item. font_size is the document text size
+// (used to anchor heading sizes). font_text2/font_headings2/font_fallbacks are only used when a
+// second translation is actually rendered side-by-side (grid layout with 2 bibles) — see
+// gen_multi_bible_grid
 export function gen_passage(
-    passage:TypstPassage, font_text2:string, font_headings2:string, font_fallbacks:string[],
+    passage:TypstPassage, font_size:string, font_text2:string, font_headings2:string,
+    font_fallbacks:string[],
 ):string {
     const parts:string[] = []
 
@@ -30,7 +32,7 @@ export function gen_passage(
 
     // Build the scoped block with passage-specific function definitions and show rules
     const inner = gen_passage_inner(
-        passage, use_grid, use_columns, font_text2, font_headings2, font_fallbacks)
+        passage, use_grid, use_columns, font_size, font_text2, font_headings2, font_fallbacks)
 
     // Wrap in a scoped block so settings don't leak to other content
     parts.push(`#[
@@ -57,13 +59,13 @@ function resolve_columns(passage:TypstPassage):boolean {
 // Generate the inner content of a passage block (function defs, show rules, content)
 function gen_passage_inner(
     passage:TypstPassage, use_grid:boolean, use_columns:boolean,
-    font_text2:string, font_headings2:string, font_fallbacks:string[],
+    font_size:string, font_text2:string, font_headings2:string, font_fallbacks:string[],
 ):string {
     const lines:string[] = []
 
 
     // Heading show rules
-    lines.push(gen_heading_rules(passage))
+    lines.push(gen_heading_rules(passage, font_size))
 
     // Footnote show rules
     lines.push(gen_footnote_rules(passage))
@@ -89,30 +91,37 @@ function gen_passage_inner(
 
 
 // Generate heading show rules
-function gen_heading_rules(passage:TypstPassage):string {
+function gen_heading_rules(passage:TypstPassage, font_size:string):string {
     if (!passage.show_headings) {
         return '#show heading: none'
     }
 
-    // Style headings to match current CSS
-    // Level 1 (= Title): major heading (ms, mr) — bold, slightly larger
-    // Level 2 (== Section): section heading (s, s1-4, sr) — italic, 0.9em
-    // Level 3 (=== Minor): minor heading (sp, qa, superscriptions) — italic, smaller
+    // User-configurable subheading styling — bold/italic apply to all levels, while size is a
+    // multiplier relative to the body text (1 = same as text). Level 2 (== Section: s, s1-4, sr)
+    // is the reference size, level 1 (= Title: ms, mr) renders slightly larger and level 3
+    // (=== Minor: sp, qa, superscriptions) slightly smaller.
+    const weight = passage.headings_bold ? '"bold"' : '"regular"'
+    const style = passage.headings_italic ? '"italic"' : '"normal"'
+    const size = (mult:number) => `${(passage.headings_size * mult).toFixed(2)}em`
+
+    // Reset the heading base size to the document text size (absolute, so Typst's built-in
+    // per-level em scaling — 1.4em/1.2em/1em — can't compound with the em sizes below).
     // Wrap each heading body in a `block` so it isn't treated as a continuation
     // paragraph — otherwise the document's `first-line-indent` would indent it.
-    return `#show heading.where(level: 1): it => {
+    return `#show heading: set text(size: ${font_size})
+#show heading.where(level: 1): it => {
     v(0.5em)
-    block(text(weight: "bold", size: 1.1em, it.body))
+    block(text(weight: ${weight}, style: ${style}, size: ${size(1.2)}, it.body))
     v(0.25em)
 }
 #show heading.where(level: 2): it => {
     v(0.5em)
-    block(text(weight: "bold", style: "italic", size: 0.9em, it.body))
+    block(text(weight: ${weight}, style: ${style}, size: ${size(1)}, it.body))
     v(0.25em)
 }
 #show heading.where(level: 3): it => {
     v(0.25em)
-    block(text(style: "italic", size: 0.85em, it.body))
+    block(text(weight: ${weight}, style: ${style}, size: ${size(0.9)}, it.body))
     v(0.15em)
 }`
 }

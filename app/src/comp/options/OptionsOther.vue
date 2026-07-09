@@ -1,9 +1,6 @@
 
 <template lang='pug'>
 
-AppColor(v-model='blue.text_color' :label='$t("Color of text")')
-p(class='text-body-2 text-medium-emphasis mt-2') {{$t("It's not recommended to use this setting unless you have eyesight issues that require it.")}}
-
 v-checkbox(v-model='blue.public_domain' class='mt-4'
     :label='$t("Dedicate your own content to the public domain")')
 

@@ -74,6 +74,10 @@ export interface TypstPassage {
     // Per-passage content display toggles (chapter/verse/wj markers are document-wide,
     // see FeatureConfig on TypstRequest)
     show_headings:boolean
+    // Subheading styling (applies when show_headings is on)
+    headings_bold:boolean
+    headings_italic:boolean
+    headings_size:number    // Multiplier relative to text size (1 = same as text)
     show_footnotes:boolean
     // Dotted lines on blank half-pages
     show_lines:boolean
@@ -168,6 +172,9 @@ export interface Blueprint {
 
     // Features
     show_headings:boolean
+    show_headings_bold:boolean
+    show_headings_italic:boolean
+    show_headings_size:number  // Multiplier relative to text size (1 = same as text)
     show_chapters:boolean
     show_chapters_style:'divider'|'float'|'heading'
     show_verses:boolean

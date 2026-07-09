@@ -16,11 +16,14 @@ import EditorPassage from '@/comp/editors/EditorPassage.vue'
 import EditorCustom from '@/comp/editors/EditorCustom.vue'
 import EditorBible from '@/comp/editors/EditorBible.vue'
 import EditorTitle from '@/comp/editors/EditorTitle.vue'
+import EditorAdvancedStyles from '@/comp/editors/EditorAdvancedStyles.vue'
 
 import type {Component} from 'vue'
 
 
-const components:Record<string, Component> = {EditorPassage, EditorCustom, EditorBible, EditorTitle}
+const components:Record<string, Component> = {
+    EditorPassage, EditorCustom, EditorBible, EditorTitle, EditorAdvancedStyles,
+}
 
 const editor = computed(() => {
     return state.editor

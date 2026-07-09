@@ -155,8 +155,9 @@ ${gen_lines({type: 'lines', spacing}, request.page)}`
 function gen_content_item(item:TypstContentItem, request:TypstRequest, page_fill = true):string {
     switch (item.type) {
         case 'passage':
-            return gen_passage(item, request.typography.font_text2,
-                request.typography.font_headings2, request.typography.font_fallbacks)
+            return gen_passage(item, request.typography.font_size,
+                request.typography.font_text2, request.typography.font_headings2,
+                request.typography.font_fallbacks)
         case 'title':
             return gen_title(item, request.page, request.typography.font_titles)
         case 'custom':

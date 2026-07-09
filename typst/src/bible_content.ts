@@ -280,6 +280,9 @@ export class BibleContent {
             multi_layout: blue.bibles_layout,
             half_blank: blue.half_blank,
             show_headings: blue.show_headings,
+            headings_bold: blue.show_headings_bold,
+            headings_italic: blue.show_headings_italic,
+            headings_size: blue.show_headings_size,
             // Regular translator footnotes are disabled while study notes are on
             show_footnotes: blue.notes ? false : blue.show_footnotes,
             show_lines: blue.show_lines,

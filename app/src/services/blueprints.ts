@@ -72,6 +72,9 @@ export function get_default_blueprint():Blueprint{
 
         // Features
         show_headings: true,
+        show_headings_bold: true,
+        show_headings_italic: false,
+        show_headings_size: 0.9,
         show_chapters: true,
         show_chapters_style: 'divider',
         show_verses: true,
