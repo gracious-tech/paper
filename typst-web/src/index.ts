@@ -15,6 +15,11 @@ import type {TypstRequest, CompileFn, ProgressFn} from 'paper-bible-typst'
 // where .bin/download_fonts writes its output
 const FONTS_DIR = 'fonts'
 
+// Compiled-source budget per realm (see TypstWeb.worn). At ~60x permanent growth per unique
+// source byte, 16MB of source keeps the WASM heap around 1GB — well clear of the 4GB 32-bit
+// ceiling while still only recycling after several full-Bible-sized compiles
+const COMPILE_BYTES_BUDGET = 16 * 1024 * 1024
+
 
 // Options for initialising the in-browser Typst compiler
 export interface InitOptions {
@@ -23,6 +28,16 @@ export interface InitOptions {
     // URL prefix under which bundled fonts are served (default '/generator_assets/').
     // Font files are fetched from `${assets_prefix}/fonts/<family>/<file>.ttf`.
     assets_prefix?:string
+}
+
+
+// Simple 32-bit string hash (djb2), fast enough for multi-MB sources (see seen_sources)
+function hash_source(source:string):number {
+    let hash = 5381
+    for (let i = 0; i < source.length; i++) {
+        hash = ((hash * 33) ^ source.charCodeAt(i)) >>> 0
+    }
+    return hash
 }
 
 
@@ -53,6 +68,16 @@ export class TypstWeb {
     // each ensure_fonts() call, so a caller can keep passing the same (mutated) array reference
     // rather than re-calling the setter on every upload
     private custom_fonts:CustomFont[] = []
+    // Cumulative Typst source bytes compiled in this realm. The WASM compiler permanently
+    // accumulates module-global state for every unique source it compiles (measured at roughly
+    // 60x the source size): the wasm-bindgen module is a once-per-realm singleton, so no
+    // reset()/evict or even createTypstCompiler() ever frees it, and the 32-bit WASM heap
+    // never shrinks. Only discarding the whole realm reclaims it — see worn below.
+    private compiled_bytes = 0
+    // Hashes of every unique source compiled in this realm — an exact repeat (e.g. an unchanged
+    // preview recompile) hits the compiler's caches and adds no lasting memory, so only unseen
+    // sources count toward the budget above
+    private seen_sources = new Set<number>()
 
     constructor(wasm_url:string, assets_prefix:string, compiler:TypstCompiler) {
         this.wasm_url = wasm_url
@@ -79,9 +104,21 @@ export class TypstWeb {
         this.compiler = compiler
     }
 
+    // Whether this realm has accumulated enough permanent WASM state (see compiled_bytes) that
+    // the host should recycle it — i.e. terminate and respawn the hosting Web Worker — before
+    // an allocation eventually fails and the compiler aborts ("RuntimeError: unreachable")
+    get worn():boolean {
+        return this.compiled_bytes > COMPILE_BYTES_BUDGET
+    }
+
     // Build a compile function that turns a single Typst source string into PDF bytes
     private make_compile_fn():CompileFn {
         return async (source:string):Promise<Uint8Array> => {
+            const hash = hash_source(source)
+            if (!this.seen_sources.has(hash)) {
+                this.seen_sources.add(hash)
+                this.compiled_bytes += source.length
+            }
             this.compiler.resetShadow()
             this.compiler.addSource('/main.typ', source)
             const result = await this.compiler.compile({
@@ -135,10 +172,14 @@ export class TypstWeb {
         this.active_fonts = cache_key
     }
 
-    // Compile a request to a finished PDF (handles booklet/alternate/half-blank via pdf-lib)
-    async compile_pdf(request:TypstRequest, on_progress?:ProgressFn):Promise<Uint8Array> {
+    // Compile a request to a finished PDF (handles booklet/alternate/half-blank via pdf-lib).
+    // preview relaxes print-only padding (trailing blanks dropped, even page counts only) for
+    // on-screen display — never use it for a document that will be printed.
+    async compile_pdf(
+        request:TypstRequest, on_progress?:ProgressFn, preview = false,
+    ):Promise<Uint8Array> {
         await this.ensure_fonts(request)
-        return generate_pdf(request, this.make_compile_fn(), on_progress)
+        return generate_pdf(request, this.make_compile_fn(), on_progress, preview)
     }
 
     // Compile a request to a preview PDF laid out as facing-page book spreads, as if the

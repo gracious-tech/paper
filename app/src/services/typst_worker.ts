@@ -25,10 +25,14 @@ export type WorkerRequest = WorkerAction & {id:number}
 // number of these may arrive before the matching WorkerResult
 export type WorkerProgress = {id:number, kind:'progress', event:ProgressEvent}
 
-// Final response to a request: PDF bytes for compile actions, null for init/set_custom_fonts
+// Final response to a request: PDF bytes for compile actions, null for init/set_custom_fonts.
+// worn = the WASM compiler has permanently accumulated enough memory that this whole worker
+// should be recycled (see TypstWeb.worn). fatal = the error was a WASM trap (e.g. an
+// out-of-memory abort), which poisons the compiler for good — the worker must be recycled
+// before any further compile can succeed. Both are acted on by TypstWorkerClient in typst.ts.
 export type WorkerResult =
-    | {id:number, kind:'result', ok:true, result:Uint8Array|null}
-    | {id:number, kind:'result', ok:false, error:string}
+    | {id:number, kind:'result', ok:true, result:Uint8Array|null, worn:boolean}
+    | {id:number, kind:'result', ok:false, error:string, fatal:boolean}
 
 export type WorkerResponse = WorkerProgress | WorkerResult
 
@@ -73,12 +77,16 @@ self.addEventListener('message', (event:MessageEvent<WorkerRequest>) => {
                 postMessage({id, kind: 'progress', event: progress_event} satisfies WorkerResponse)
             }
             const result = await handle_action(event.data, on_progress)
-            postMessage({id, kind: 'result', ok: true, result} satisfies WorkerResponse)
+            const response:WorkerResponse = {
+                id, kind: 'result', ok: true, result, worn: generator?.worn ?? false}
+            postMessage(response)
         } catch (error){
             // Log here too since the Error loses its stack when serialised for the main thread
             console.error(error)
             const error_msg = error instanceof Error ? error.message : String(error)
-            postMessage({id, kind: 'result', ok: false, error: error_msg} satisfies WorkerResponse)
+            const response:WorkerResponse = {id, kind: 'result', ok: false, error: error_msg,
+                fatal: error instanceof WebAssembly.RuntimeError}
+            postMessage(response)
         }
     })
 })
