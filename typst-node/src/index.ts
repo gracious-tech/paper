@@ -116,7 +116,7 @@ export type {CustomFont} from 'typst-fonts'
 export type {
     TypstRequest, PageConfig, TypographyConfig, TypstContentItem,
     TypstPassage, BiblePassageData, TypstTitlePage, TypstCustomPage,
-    TypstLinesPage, CompileFn,
+    TypstLinesPage, CompileFn, ProgressFn, ProgressEvent, ProgressStage,
     Blueprint, ContentItem, ContentTitle, ContentPassage, ContentCustom,
 } from 'paper-bible-typst'
 

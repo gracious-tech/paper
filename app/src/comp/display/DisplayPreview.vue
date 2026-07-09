@@ -8,12 +8,19 @@ div.preview
             v-btn(v-if='blue.booklet' value='reading' size='small') {{ $t("Reading") }}
             v-btn(value='print' size='small') {{ $t("Print") }}
 
-    iframe(v-if='pdf_url' :src='pdf_url')
+    div.frame(v-if='pdf_url')
+        iframe(:src='pdf_url')
+        //- Semi-transparent readout of the in-progress recompile, layered over the still-visible
+        //- (and still-scrollable, via pointer-events:none) previous PDF
+        transition(name='fade')
+            div.overlay(v-if='progress_message')
+                div.overlay_box
+                    p {{ progress_message }}
     div.status(v-else-if='error_msg')
         h3(class='mb-4') {{ $t("Couldn't generate preview") }}
         p(class='status-detail') {{ error_msg }}
     div.status(v-else)
-        p {{ $t("Generating preview") + "…" }}
+        p {{ progress_message || $t("Generating preview") + "…" }}
 
 </template>
 
@@ -22,16 +29,26 @@ div.preview
 
 import {ref, watch, onUnmounted} from 'vue'
 import {debounce} from 'lodash-es'
+import {useI18n} from 'vue-i18n'
 
 import {blue} from '@/services/state'
 import {content, bible_content} from '@/services/content'
 import {typst_generator} from '@/services/typst'
 import {get_custom_font_styles} from '@/services/custom_fonts'
 
+import type {ProgressEvent} from 'paper-bible-typst'
+
+
+const {t} = useI18n()
+
 
 // Object URL of the current compiled PDF, and any compile error message
 const pdf_url = ref<string|null>(null)
 const error_msg = ref<string|null>(null)
+
+// Text for the currently active progress stage, or null between compiles (and for stages the
+// user doesn't need to see — see stage_text() below)
+const progress_message = ref<string|null>(null)
 
 // Which layout to render: 'reading' = facing-page book spreads (default),
 // 'print' = the actual final PDF (folded booklet order or sequential pages)
@@ -55,6 +72,27 @@ function set_mode(value:'reading'|'print'){
 let latest_run = 0
 
 
+// Map a coarse progress event to the (translated) text shown in the overlay. Only a handful of
+// stages are meaningful to a user watching a preview regenerate; the rest (e.g. 'arrange', the
+// booklet/spread imposition step) return null so the overlay just keeps showing whatever it
+// last showed rather than flashing an unrelated message
+function stage_text(event:ProgressEvent):string|null {
+    if (event.stage === 'start'){
+        return t("Getting started") + "…"
+    }
+    if (event.stage === 'fetch'){
+        return `${t("Downloading")} ${event.label} (${event.i}/${event.total})`
+    }
+    if (event.stage === 'compile'){
+        return `${t("Writing")} ${event.label} (${event.i}/${event.total})`
+    }
+    if (event.stage === 'finalize'){
+        return t("Final touches") + "…"
+    }
+    return null
+}
+
+
 // Compile the current blueprint to a PDF and display it
 async function compile(){
 
@@ -67,13 +105,25 @@ async function compile(){
     const run = ++latest_run
     error_msg.value = null
 
+    // Forwarded to both the content-fetching and PDF-compiling stages, so the overlay reflects
+    // whichever one is currently running
+    const on_progress = (event:ProgressEvent) => {
+        if (run !== latest_run){
+            return
+        }
+        const text = stage_text(event)
+        if (text !== null){
+            progress_message.value = text
+        }
+    }
+
     try {
         // 'reading' lays out the pages as facing-page book spreads (as if the book were opened);
         // 'print' produces the actual final PDF (booklet fold order, or sequential if not a booklet)
-        const request = await bible_content.resolve(blue, get_custom_font_styles())
+        const request = await bible_content.resolve(blue, get_custom_font_styles(), on_progress)
         const bytes = mode.value === 'print'
-            ? await generator.compile_pdf(request)
-            : await generator.compile_pdf_preview(request)
+            ? await generator.compile_pdf(request, on_progress)
+            : await generator.compile_pdf_preview(request, on_progress)
 
         // Ignore if a newer compile has started since
         if (run !== latest_run){
@@ -93,6 +143,10 @@ async function compile(){
         }
         error_msg.value = error instanceof Error ? error.message : String(error)
         console.error(error)
+    } finally {
+        if (run === latest_run){
+            progress_message.value = null
+        }
     }
 }
 
@@ -171,10 +225,63 @@ onUnmounted(() => {
     padding: 8px
     background-color: rgba(0, 0, 0, 0.2)
 
-iframe
+.frame
+    position: relative
     flex-grow: 1
     width: 100%
+    overflow: hidden
+
+iframe
+    position: absolute
+    inset: 0
+    width: 100%
+    height: 100%
     border: none
+
+.overlay
+    position: absolute
+    inset: 0
+    display: flex
+    align-items: center
+    justify-content: center
+    padding: 24px
+    // Old preview stays scrollable/interactive underneath — this is a readout, not a blocker
+    pointer-events: none
+
+.overlay_box
+    padding: 12px 20px
+    border-radius: 12px
+    color: white
+    text-align: center
+    box-shadow: 0 4px 20px rgba(0, 0, 0, 0.4)
+    // Same animated gradient as the "pending creation" state in DisplayCreation.vue, scoped to
+    // just this small readout rather than the whole panel
+    background: linear-gradient(-45deg, #ee7752, #e73c7e, #23a6d5, #23d5ab)
+    background-size: 400% 400%
+    animation: pending 20s ease infinite
+
+    p
+        margin: 0
+        max-width: 320px
+        font-size: 15px
+
+@keyframes pending
+    0%
+        background-position: 0% 0%
+    25%
+        background-position: 100% 50%
+    50%
+        background-position: 0% 100%
+    75%
+        background-position: 100% 100%
+    100%
+        background-position: 0% 0%
+
+.fade-enter-active, .fade-leave-active
+    transition: opacity 0.2s ease
+
+.fade-enter-from, .fade-leave-to
+    opacity: 0
 
 .status
     flex-grow: 1

@@ -41,6 +41,8 @@ export type {
     TypstLinesPage,
     CompileFn,
     ProgressFn,
+    ProgressStage,
+    ProgressEvent,
     Blueprint,
     ContentItem,
     ContentTitle,

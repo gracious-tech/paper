@@ -2,14 +2,16 @@
 import {shallowRef, toRaw} from 'vue'
 
 import type {CustomFont} from 'typst-fonts'
-import type {TypstRequest} from 'paper-bible-typst'
+import type {TypstRequest, ProgressFn} from 'paper-bible-typst'
 import type {WorkerAction, WorkerResponse} from './typst_worker'
 
 
-// Handlers awaiting a response from the worker, keyed by request id
+// Handlers awaiting a response from the worker, keyed by request id. on_progress is optional
+// since most actions (init, set_custom_fonts) never emit progress
 interface PendingHandlers {
     resolve:(result:Uint8Array|null)=>void
     reject:(error:Error)=>void
+    on_progress?:ProgressFn
 }
 
 
@@ -24,11 +26,16 @@ export class TypstWorkerClient {
     constructor(){
         this.worker = new Worker(new URL('./typst_worker.ts', import.meta.url), {type: 'module'})
 
-        // Resolve/reject the matching call for each response
+        // Resolve/reject the matching call for each result, or forward progress updates without
+        // resolving (any number of these may arrive before the matching result)
         this.worker.onmessage = (event:MessageEvent<WorkerResponse>) => {
             const response = event.data
             const handlers = this.pending.get(response.id)
             if (!handlers){
+                return
+            }
+            if (response.kind === 'progress'){
+                handlers.on_progress?.(response.event)
                 return
             }
             this.pending.delete(response.id)
@@ -50,11 +57,12 @@ export class TypstWorkerClient {
         }
     }
 
-    // Send one request to the worker and await its matching response
-    private send(action:WorkerAction):Promise<Uint8Array|null> {
+    // Send one request to the worker and await its matching result. on_progress, if given, is
+    // called for every progress update the worker reports before the result arrives
+    private send(action:WorkerAction, on_progress?:ProgressFn):Promise<Uint8Array|null> {
         const id = this.next_id++
         return new Promise((resolve, reject) => {
-            this.pending.set(id, {resolve, reject})
+            this.pending.set(id, {resolve, reject, on_progress})
             this.worker.postMessage({...action, id})
         })
     }
@@ -73,15 +81,15 @@ export class TypstWorkerClient {
     }
 
     // Compile a request to a finished PDF (booklet/alternate/half-blank handled in the worker)
-    async compile_pdf(request:TypstRequest):Promise<Uint8Array> {
-        return await this.send({action: 'compile_pdf', request}) as Uint8Array
+    async compile_pdf(request:TypstRequest, on_progress?:ProgressFn):Promise<Uint8Array> {
+        return await this.send({action: 'compile_pdf', request}, on_progress) as Uint8Array
     }
 
     // Compile a request to a preview PDF laid out as facing-page book spreads, as if the book
     // were opened: a blank left page beside page 1 on the right, then 2|3, 4|5, etc. For
     // on-screen preview only.
-    async compile_pdf_preview(request:TypstRequest):Promise<Uint8Array> {
-        return await this.send({action: 'compile_pdf_preview', request}) as Uint8Array
+    async compile_pdf_preview(request:TypstRequest, on_progress?:ProgressFn):Promise<Uint8Array> {
+        return await this.send({action: 'compile_pdf_preview', request}, on_progress) as Uint8Array
     }
 }
 

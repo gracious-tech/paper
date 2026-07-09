@@ -60,6 +60,7 @@ export function make_passage(overrides:Partial<TypstPassage> = {}):TypstPassage 
         column_gap: '5mm',
         book: 'gen',
         passage_title: null,
+        progress_label: 'Genesis 1:1',
         alone: false,
         new_page: true,
         ...overrides,

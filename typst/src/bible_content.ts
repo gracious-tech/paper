@@ -91,17 +91,26 @@ export class BibleContent {
     }
 
     // Fetch (and cache) the Typst content for one book of one translation, or null if the book
-    // is unavailable in that translation
-    async fetch_book(bible:string, book:string):Promise<BibleBookTypst|null> {
+    // is unavailable in that translation. on_fetch, if given, is called (with the book's display
+    // name) instead of the instance's own on_progress, letting resolve() report i/total context
+    // that this method alone doesn't have
+    async fetch_book(
+        bible:string, book:string, on_fetch?:(label:string) => void,
+    ):Promise<BibleBookTypst|null> {
         const key = `${bible}_${book}`
         const cached = this.books_typst.get(key)
         if (cached) {
             return cached
         }
-        if (!this.collection.get_books(bible, {object: true})[book]?.available) {
+        const meta = this.collection.get_books(bible, {object: true})[book]
+        if (!meta?.available) {
             return null
         }
-        this.on_progress?.(`Fetching ${bible} ${book}`)
+        if (on_fetch) {
+            on_fetch(meta.name)
+        } else {
+            this.on_progress?.({stage: 'fetch', label: meta.name})
+        }
         const instance = await this.collection.fetch_book(bible, book, 'typst')
         this.books_typst.set(key, instance)
         return instance
@@ -146,17 +155,40 @@ export class BibleContent {
     // custom_font_styles is a family -> style lookup for the caller's custom (user-uploaded)
     // fonts, which aren't in the curated typst-fonts manifest so their style can't otherwise be
     // detected — only blue.font_text's entry (if any) is actually used, since font_fallbacks
-    // detection is keyed off the body font's style
-    async resolve(blue:Blueprint, custom_font_styles?:Record<string, FontStyle>):Promise<TypstRequest> {
+    // detection is keyed off the body font's style. on_progress overrides the instance's own (set
+    // via the constructor), letting a single shared BibleContent report progress per-call rather
+    // than only for whichever callback it was constructed with
+    async resolve(
+        blue:Blueprint, custom_font_styles?:Record<string, FontStyle>, on_progress?:ProgressFn,
+    ):Promise<TypstRequest> {
+        const progress = on_progress ?? this.on_progress
+        progress?.({stage: 'start'})
 
         // License metadata for the copyright statement (computed once, shared by custom pages)
         const resources = this.collection.get_resources({object: true})
+
+        // Distinct bible+book pairs the content needs that aren't already cached, so fetch
+        // progress can report "downloading N of M" rather than just a bare book name
+        const fetch_keys = new Set<string>()
+        for (const item of blue.content) {
+            if (item.type === 'passage') {
+                for (const bible of blue.bibles) {
+                    fetch_keys.add(`${bible}_${item.book}`)
+                }
+            }
+        }
+        const fetch_total = [...fetch_keys].filter(key => !this.books_typst.has(key)).length
+        let fetch_i = 0
+        const report_fetch = (label:string) => {
+            fetch_i += 1
+            progress?.({stage: 'fetch', i: fetch_i, total: fetch_total, label})
+        }
 
         // Map supported content items (study notes/crossrefs are not yet supported, skipped)
         const items:TypstContentItem[] = []
         for (const item of blue.content) {
             if (item.type === 'passage') {
-                items.push(await this.gen_passage_item(blue, item))
+                items.push(await this.gen_passage_item(blue, item, report_fetch))
             } else if (item.type === 'title') {
                 items.push(await this.gen_title_item(item))
             } else if (item.type === 'custom') {
@@ -243,14 +275,14 @@ export class BibleContent {
 
     // Build the resolved Typst content for each translation of a passage
     private async gen_passage_bibles(
-        blue:Blueprint, passage:ContentPassage,
+        blue:Blueprint, passage:ContentPassage, report_fetch?:(label:string) => void,
     ):Promise<BiblePassageData[]> {
         const ref = new PassageReference(passage)
         const bibles:BiblePassageData[] = []
 
         // Collect content for each selected translation that has this book available
         for (const bible of blue.bibles) {
-            const instance = await this.fetch_book(bible, passage.book)
+            const instance = await this.fetch_book(bible, passage.book, report_fetch)
             if (!instance) {
                 continue
             }
@@ -277,11 +309,14 @@ export class BibleContent {
 
     // Convert a passage content item to its Typst equivalent
     private async gen_passage_item(
-        blue:Blueprint, passage:ContentPassage,
+        blue:Blueprint, passage:ContentPassage, report_fetch?:(label:string) => void,
     ):Promise<TypstPassage> {
+        // Computed once regardless of passage.title, since progress_label always needs it
+        const reference = this.collection.reference_to_string(
+            new PassageReference(passage), blue.bibles[0])
         return {
             type: 'passage',
-            bibles: await this.gen_passage_bibles(blue, passage),
+            bibles: await this.gen_passage_bibles(blue, passage, report_fetch),
             multi_layout: blue.bibles_layout,
             half_blank: blue.half_blank,
             show_headings: blue.show_headings,
@@ -295,9 +330,8 @@ export class BibleContent {
             columns: blue.columns === null ? 'auto' : (blue.columns ? 2 : 1),
             column_gap: `${blue.column_gap}${blue.margin_unit}`,
             book: passage.book,
-            passage_title: passage.title
-                ? this.collection.reference_to_string(new PassageReference(passage), blue.bibles[0])
-                : null,
+            passage_title: passage.title ? reference : null,
+            progress_label: reference,
             alone: false,
             new_page: passage.new_page ?? true,
         }

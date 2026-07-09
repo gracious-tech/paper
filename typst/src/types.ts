@@ -88,6 +88,8 @@ export interface TypstPassage {
     book:string
     // Optional passage reference displayed above content
     passage_title:string|null
+    // Passage reference for progress reporting only (always set, regardless of passage_title)
+    progress_label:string
     // Ensure this starts on its own sheet with blank rear
     alone:boolean
     // Begin on a fresh page (false = merge onto the same page as the section above)
@@ -138,8 +140,23 @@ export interface TypstLinesPage {
 export type CompileFn = (source:string) => Promise<Uint8Array>
 
 
-// Callback for coarse progress reporting (fetching/rendering steps), e.g. "Rendering gen (1/66)"
-export type ProgressFn = (message:string) => void
+// Coarse stages reported during PDF generation. 'fetch' and 'compile' are the only stages that
+// carry i/total (one event per book downloaded / content group rendered); 'start', 'arrange' and
+// 'finalize' are single one-off events. Consumers are free to only surface a subset of these to
+// the user and silently ignore the rest (e.g. 'arrange' is a mid-pipeline bookkeeping step most
+// UIs will fold into a generic "final touches" message rather than showing on its own)
+export type ProgressStage = 'start' | 'fetch' | 'compile' | 'arrange' | 'finalize'
+
+// One coarse progress update; i/total/label are only populated where meaningful for the stage
+export interface ProgressEvent {
+    stage:ProgressStage
+    i?:number
+    total?:number
+    label?:string
+}
+
+// Callback for coarse progress reporting (fetching/rendering steps)
+export type ProgressFn = (event:ProgressEvent) => void
 
 
 // --- Blueprint input model ---------------------------------------------------------------

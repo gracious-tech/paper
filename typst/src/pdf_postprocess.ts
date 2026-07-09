@@ -19,9 +19,11 @@ export async function generate_pdf(
     // then arrange for print
     const {final_doc, blank_doc} = await assemble_pages(request, compile_fn, on_progress)
     if (request.arrangement === 'booklet') {
-        on_progress?.("Arranging booklet pages")
+        on_progress?.({stage: 'arrange', label: 'booklet'})
+        on_progress?.({stage: 'finalize'})
         return await apply_booklet(final_doc, request, blank_doc)
     }
+    on_progress?.({stage: 'finalize'})
     const pdf_bytes = await final_doc.save()
     return apply_metadata(pdf_bytes, request)
 }
@@ -40,7 +42,8 @@ export async function generate_pdf_spread_preview(
     const reading_request:TypstRequest = {...request, arrangement}
 
     const {final_doc: reading_doc} = await assemble_pages(reading_request, compile_fn, on_progress)
-    on_progress?.("Arranging page spreads")
+    on_progress?.({stage: 'arrange', label: 'spreads'})
+    on_progress?.({stage: 'finalize'})
     return await arrange_spreads(reading_doc, reading_request)
 }
 
@@ -144,10 +147,10 @@ async function assemble_pages(
     for (const [group_index, group] of groups.entries()) {
         const head = group[0]!
 
-        // Report each group as it starts (passages by book id, so long documents show
-        // per-book progress)
-        const label = head.type === 'passage' ? head.book : `${head.type} page`
-        on_progress?.(`Rendering ${label} (${group_index + 1}/${groups.length})`)
+        // Report each group as it starts (passages by their reference, so long documents show
+        // per-passage progress)
+        const label = head.type === 'passage' ? head.progress_label : `${head.type} page`
+        on_progress?.({stage: 'compile', i: group_index + 1, total: groups.length, label})
 
         // Alternate-translation passage: two bibles compiled separately and interleaved.
         // Such a passage never merges, so it is always its own single-item group.
