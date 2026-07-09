@@ -15,15 +15,8 @@ export async function generate_pdf(
     request:TypstRequest, compile_fn:CompileFn, on_progress?:ProgressFn,
 ):Promise<Uint8Array> {
 
-    if (!needs_multi_doc(request) && request.arrangement !== 'booklet') {
-        // Simple case: single document, no post-processing needed
-        on_progress?.("Rendering document")
-        const source = generate_typst(request)
-        const pdf_bytes = await compile_fn(source)
-        return apply_metadata(pdf_bytes, request)
-    }
-
-    // Complex case: assemble the printed page sequence, then arrange for print
+    // Assemble the printed page sequence (each section compiled separately, see assemble_pages),
+    // then arrange for print
     const {final_doc, blank_doc} = await assemble_pages(request, compile_fn, on_progress)
     if (request.arrangement === 'booklet') {
         on_progress?.("Arranging booklet pages")
@@ -31,17 +24,6 @@ export async function generate_pdf(
     }
     const pdf_bytes = await final_doc.save()
     return apply_metadata(pdf_bytes, request)
-}
-
-
-// Determine if any passage needs multi-document handling (alternate or half-blank)
-function needs_multi_doc(request:TypstRequest):boolean {
-    return request.content.some(item =>
-        item.type === 'passage' && (
-            (item.bibles.length > 1 && item.multi_layout === 'alternate')
-            || item.half_blank !== null
-        ),
-    )
 }
 
 
@@ -57,28 +39,9 @@ export async function generate_pdf_spread_preview(
     const arrangement = request.arrangement === 'booklet' ? 'book' : request.arrangement
     const reading_request:TypstRequest = {...request, arrangement}
 
-    const reading_doc = await build_reading_doc(reading_request, compile_fn, on_progress)
+    const {final_doc: reading_doc} = await assemble_pages(reading_request, compile_fn, on_progress)
     on_progress?.("Arranging page spreads")
     return await arrange_spreads(reading_doc, reading_request)
-}
-
-
-// Build the printed page sequence (reading order, with blanks) as a single PDFDocument,
-// without booklet imposition. Mirrors generate_pdf's branching but stops before arranging.
-async function build_reading_doc(
-    request:TypstRequest, compile_fn:CompileFn, on_progress?:ProgressFn,
-):Promise<PDFDocument> {
-
-    if (!needs_multi_doc(request)) {
-        // Single document — any book-mode blank pages are baked into the source via pagebreaks
-        on_progress?.("Rendering document")
-        const source = generate_typst(request)
-        const pdf_bytes = await compile_fn(source)
-        return await PDFDocument.load(pdf_bytes)
-    }
-
-    const {final_doc} = await assemble_pages(request, compile_fn, on_progress)
-    return final_doc
 }
 
 
@@ -196,8 +159,21 @@ async function assemble_pages(
             continue
         }
 
-        // Compile the whole group as one continuous document
-        const group_doc = await compile_group(request, group, compile_fn)
+        // Plain group (inline passages/customs, or a single title). Titles never take page
+        // numbers; alone titles get an even-page start and a blank rear.
+        const is_alone_title = head.type === 'title' && head.alone
+        const show_pages = request.show_pages && head.type !== 'title'
+
+        if (is_alone_title && booklike && final_doc.getPageCount() % 2 === 1) {
+            await add_blank()
+        }
+
+        // Compile the whole group as one continuous document. The start page keeps the page
+        // counter continuous with what's already been assembled, since each section/group is
+        // its own Typst compile (its internal counter would otherwise restart at 1)
+        const group_doc = await compile_group(
+            request, group, compile_fn, final_doc.getPageCount() + 1,
+        )
 
         // Half-blank: any passage in the group carries the (global) half_blank direction. Face
         // every page of the compiled group with a blank/lines page — blanks are added here,
@@ -213,15 +189,6 @@ async function assemble_pages(
             continue
         }
 
-        // Plain group (inline passages/customs, or a single title). Titles never take page
-        // numbers; alone titles get an even-page start and a blank rear.
-        const is_alone_title = head.type === 'title' && head.alone
-        const show_pages = request.show_pages && head.type !== 'title'
-
-        if (is_alone_title && booklike && final_doc.getPageCount() % 2 === 1) {
-            await add_blank()
-        }
-
         for (let p = 0; p < group_doc.getPageCount(); p++) {
             await add_page(group_doc, p, show_pages)
         }
@@ -235,11 +202,12 @@ async function assemble_pages(
 }
 
 
-// Compile a content group into a single continuous PDF (no page breaks within the group)
+// Compile a content group into a single continuous PDF (no page breaks within the group).
+// start_page offsets the group's page counter so numbers stay continuous across sections.
 async function compile_group(
-    request:TypstRequest, group:TypstContentItem[], compile_fn:CompileFn,
+    request:TypstRequest, group:TypstContentItem[], compile_fn:CompileFn, start_page:number,
 ):Promise<PDFDocument> {
-    const source = generate_typst(make_group_request(request, group))
+    const source = generate_typst(make_group_request(request, group), start_page)
     const bytes = await compile_fn(source)
     return await PDFDocument.load(bytes)
 }

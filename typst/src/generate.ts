@@ -12,8 +12,15 @@ import type {TypstRequest, TypstContentItem, TypstPassage} from './types.js'
 // This is the "inner" function — produces a compilable .typ file
 // For features that need multi-document compilation (alternate interleaving, half-blank),
 // use generate_pdf() instead which handles the full pipeline
-export function generate_typst(request:TypstRequest):string {
+// start_page offsets the built-in page counter so numbering stays continuous when a book is
+// assembled from several separately-compiled documents (see compile_group in pdf_postprocess.ts)
+export function generate_typst(request:TypstRequest, start_page = 1):string {
     const parts:string[] = []
+
+    // Must precede any page content to take effect on this document's first page
+    if (start_page > 1) {
+        parts.push(`#counter(page).update(${start_page})`)
+    }
 
     // Document preamble (page, fonts, paragraph, footer)
     parts.push(gen_preamble(request))
