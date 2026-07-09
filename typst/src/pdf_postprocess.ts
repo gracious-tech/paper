@@ -189,7 +189,11 @@ async function assemble_pages(
             continue
         }
 
-        for (let p = 0; p < group_doc.getPageCount(); p++) {
+        // A lines page deliberately over-fills (see gen_lines) so it reaches the bottom of any
+        // page size, spilling onto extra physical pages that must be discarded — only the first
+        // is real content (same convention as the facing lines page in process_faced below)
+        const page_limit = head.type === 'lines' ? 1 : group_doc.getPageCount()
+        for (let p = 0; p < page_limit; p++) {
             await add_page(group_doc, p, show_pages)
         }
 

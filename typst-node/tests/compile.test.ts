@@ -101,7 +101,9 @@ describe('compile_pdf', () => {
 
     it('sets PDF producer metadata', async () => {
         const result = await compile_pdf(make_request())
-        const doc = await PDFDocument.load(result)
+        // updateMetadata: false — pdf-lib's own load() otherwise unconditionally resets
+        // Producer to its own default, clobbering the value being asserted on here
+        const doc = await PDFDocument.load(result, {updateMetadata: false})
         expect(doc.getProducer()).toBe('paper.bible')
     }, 15000)
 
