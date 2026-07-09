@@ -43,7 +43,12 @@ export interface PageConfig {
 // Font and paragraph settings
 export interface TypographyConfig {
     font_text:string
+    // Font for the second translation, when 2 bibles are selected (defaults to font_text)
+    font_text2:string
     font_headings:string    // Font for chapter headings (show_chapters_style === 'heading')
+    // Heading font within the second translation's content — font_headings if the user chose
+    // one explicitly (headings stay consistent across both translations), else font_text2
+    font_headings2:string
     font_titles:string      // Font for title-page title/subtitle text
     font_fallbacks:string[]
     font_size:string        // e.g. "10pt"
@@ -179,6 +184,7 @@ export interface Blueprint {
 
     // Style
     font_text:string
+    font_text2:string|null     // null = auto (matches font_text); font for the 2nd translation
     font_headings:string|null  // null = auto (matches font_text)
     font_titles:string|null    // null = auto (matches font_text)
     font_size:number

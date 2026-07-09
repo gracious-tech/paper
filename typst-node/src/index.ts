@@ -4,11 +4,12 @@ import {writeFile, readFile, mkdtemp, rm} from 'node:fs/promises'
 import {tmpdir} from 'node:os'
 import {join} from 'node:path'
 
-import {load_fonts_dir, resolve_font_dirs} from 'typst-fonts/node'
+import {load_fonts_dir, resolve_font_dirs, write_custom_fonts} from 'typst-fonts/node'
 
 import {generate_typst, generate_pdf, generate_pdf_spread_preview, BibleContent, collect_fonts,
     } from 'paper-bible-typst'
 
+import type {CustomFont} from 'typst-fonts'
 import type {TypstRequest, CompileFn, Blueprint} from 'paper-bible-typst'
 
 
@@ -23,6 +24,10 @@ export interface NodeCompileOptions {
     // Additional font directories to pass to the typst CLI, on top of any resolved from
     // fonts_dir
     font_paths?:string[]
+    // User-uploaded fonts (not in the curated manifest) to make available to this compile.
+    // Written to a per-compile temp directory and passed via --font-path; a family here always
+    // takes precedence over a same-named curated font (see resolve_font_paths)
+    custom_fonts?:CustomFont[]
 }
 
 
@@ -62,19 +67,28 @@ export async function compile_pdf_spread_preview(
 export async function compile_pdf_from_blueprint(
     blueprint:Blueprint, options?:BlueprintCompileOptions,
 ):Promise<Uint8Array> {
+    // Load the curated font manifest before resolving, so BibleContent's script-detection can
+    // match Noto fallback style (serif/sans) to the chosen body font (font_style() needs it)
+    if (options?.fonts_dir) {
+        await load_fonts_dir(options.fonts_dir)
+    }
     const content = new BibleContent({
         endpoint: options?.endpoint,
         patterns: options?.patterns,
     })
     await content.init()
-    const request = await content.resolve(blueprint)
+    const custom_font_styles = Object.fromEntries(
+        (options?.custom_fonts ?? []).map(f => [f.family, f.style]))
+    const request = await content.resolve(blueprint, custom_font_styles)
     const font_paths = await resolve_font_paths(request, options)
     return generate_pdf(request, make_compile_fn(options, font_paths))
 }
 
 
 // Resolve the on-disk font directories a request needs: auto-resolved from fonts_dir (if
-// given) plus any caller-supplied extras
+// given) plus any caller-supplied extras. Families matching a custom_fonts entry are excluded
+// here — their bytes are resolved separately per-compile in make_compile_fn, and a same-named
+// custom font always takes precedence over a curated one
 async function resolve_font_paths(
     request:TypstRequest, options?:NodeCompileOptions,
 ):Promise<string[]> {
@@ -83,12 +97,17 @@ async function resolve_font_paths(
         return extra
     }
     await load_fonts_dir(options.fonts_dir)
-    return [...resolve_font_dirs(options.fonts_dir, collect_fonts(request)), ...extra]
+    const custom_families = new Set((options.custom_fonts ?? []).map(f => f.family))
+    const families = collect_fonts(request).filter(f => !custom_families.has(f))
+    return [...resolve_font_dirs(options.fonts_dir, families), ...extra]
 }
 
 
 // Re-export the inner function for generating just the Typst source
 export {generate_typst} from 'paper-bible-typst'
+
+// Re-export the custom (user-uploaded) font type, needed to build NodeCompileOptions.custom_fonts
+export type {CustomFont} from 'typst-fonts'
 
 // Re-export all types
 export type {
@@ -113,9 +132,15 @@ function make_compile_fn(options:NodeCompileOptions | undefined, font_paths:stri
             // Write the Typst source to a temp file
             await writeFile(input_path, source, 'utf-8')
 
+            // Write any custom (user-uploaded) fonts into this same temp dir, reusing its
+            // existing cleanup below rather than a second temp-directory lifecycle
+            const custom_font_paths = options?.custom_fonts?.length
+                ? await write_custom_fonts(join(tmp_dir, 'fonts'), options.custom_fonts)
+                : []
+
             // Build CLI arguments
             const args = ['compile', input_path, output_path]
-            for (const fp of font_paths) {
+            for (const fp of [...font_paths, ...custom_font_paths]) {
                 args.push('--font-path', fp)
             }
 

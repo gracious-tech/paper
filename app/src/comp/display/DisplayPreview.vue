@@ -124,7 +124,7 @@ function discrete_signature():string {
         return `custom:${item.position}:${item.new_page}`
     })
     return JSON.stringify([
-        blue.font_text, blue.font_headings, blue.font_titles,
+        blue.font_text, blue.font_text2, blue.font_headings, blue.font_titles,
         blue.service_id, blue.size_id, blue.binding_type, blue.ink_type, blue.paper_type,
         blue.custom_unit, blue.booklet, blue.booklet_portrait,
         blue.bibles_layout, blue.half_blank, blue.justify, blue.columns,

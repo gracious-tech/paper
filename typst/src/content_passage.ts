@@ -1,11 +1,17 @@
 
+import {escape_typst_str} from 'typst-utils'
+
 import {LARGE_POETRY, LOTS_OF_POETRY, escape_typst} from './helpers.js'
 
 import type {TypstPassage} from './types.js'
 
 
-// Generate Typst markup for a Bible passage content item
-export function gen_passage(passage:TypstPassage):string {
+// Generate Typst markup for a Bible passage content item. font_text2/font_headings2/
+// font_fallbacks are only used when a second translation is actually rendered side-by-side
+// (grid layout with 2 bibles) — see gen_multi_bible_grid
+export function gen_passage(
+    passage:TypstPassage, font_text2:string, font_headings2:string, font_fallbacks:string[],
+):string {
     const parts:string[] = []
 
     // Optional passage title
@@ -23,7 +29,8 @@ export function gen_passage(passage:TypstPassage):string {
     const use_columns = !use_grid && resolve_columns(passage)
 
     // Build the scoped block with passage-specific function definitions and show rules
-    const inner = gen_passage_inner(passage, use_grid, use_columns)
+    const inner = gen_passage_inner(
+        passage, use_grid, use_columns, font_text2, font_headings2, font_fallbacks)
 
     // Wrap in a scoped block so settings don't leak to other content
     parts.push(`#[
@@ -50,6 +57,7 @@ function resolve_columns(passage:TypstPassage):boolean {
 // Generate the inner content of a passage block (function defs, show rules, content)
 function gen_passage_inner(
     passage:TypstPassage, use_grid:boolean, use_columns:boolean,
+    font_text2:string, font_headings2:string, font_fallbacks:string[],
 ):string {
     const lines:string[] = []
 
@@ -67,7 +75,7 @@ function gen_passage_inner(
 
     // Render the content
     if (use_grid) {
-        lines.push(gen_multi_bible_grid(passage))
+        lines.push(gen_multi_bible_grid(passage, font_text2, font_headings2, font_fallbacks))
     } else if (use_columns) {
         lines.push(`#columns(2, gutter: ${passage.column_gap})[`)
         lines.push(passage.bibles[0]!.content)
@@ -137,9 +145,18 @@ function gen_footnote_rules(passage:TypstPassage):string {
 }
 
 
-// Generate multi-bible side-by-side grid layout
-function gen_multi_bible_grid(passage:TypstPassage):string {
-    const cells = passage.bibles.map(bible => `[${bible.content}]`).join(',\n')
+// Generate multi-bible side-by-side grid layout. The second cell (index 1) gets its own font
+// scope (see Blueprint.font_text2) — the document-wide font from the preamble already covers
+// the first/primary translation.
+function gen_multi_bible_grid(
+    passage:TypstPassage, font_text2:string, font_headings2:string, font_fallbacks:string[],
+):string {
+    const fonts2 = [font_text2, ...font_fallbacks].map(f => `"${escape_typst_str(f)}"`).join(', ')
+    const cells = passage.bibles.map((bible, i) => i === 1
+        ? `[#set text(font: (${fonts2}))
+#show heading: set text(font: "${escape_typst_str(font_headings2)}")
+${bible.content}]`
+        : `[${bible.content}]`).join(',\n')
     return `#grid(
     columns: (1fr, 1fr),
     column-gutter: ${passage.column_gap},

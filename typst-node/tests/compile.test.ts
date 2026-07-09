@@ -24,12 +24,14 @@ const TEST_PAGE:PageConfig = {
 
 const TEST_TYPOGRAPHY:TypographyConfig = {
     font_text: 'serif',
+    font_text2: 'serif',
     font_fallbacks: [],
     font_size: '10pt',
     line_height: 1.5,
     justify: true,
     text_color: null,
     font_headings: 'serif',
+    font_headings2: 'serif',
     font_titles: 'serif',
 }
 

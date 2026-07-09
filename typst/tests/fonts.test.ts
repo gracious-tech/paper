@@ -15,11 +15,6 @@ describe('collect_fonts', () => {
             files: ['NotoSans-Regular.ttf'], preview_file: 'NotoSans-Regular.ttf'},
     ]})
 
-    it('always resolves Noto Sans, even for an all-serif document', () => {
-        const result = collect_fonts(make_request())
-        expect(result).toContain('Noto Sans')
-    })
-
     it('keeps a Noto-manifest-only fallback family (not in the curated manifest)', () => {
         const result = collect_fonts(make_request({
             typography: {...TEST_TYPOGRAPHY, font_fallbacks: ['Noto Serif Hebrew']},

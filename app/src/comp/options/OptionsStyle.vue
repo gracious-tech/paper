@@ -4,6 +4,9 @@
 AppFontSelect(v-model='blue.font_text' :label='$t("Font for text")' example='verse'
     class='mb-4')
 
+AppFontSelect(v-if='blue.bibles.length > 1' v-model='blue.font_text2'
+    :label='$t("Font for second translation")' auto example='verse' class='mb-4')
+
 AppFontSelect(v-model='blue.font_headings' :label='$t("Font for headings")' auto
     example='heading' class='mb-4')
 

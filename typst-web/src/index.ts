@@ -2,11 +2,12 @@
 import {createTypstCompiler, CompileFormatEnum} from '@myriaddreamin/typst.ts/compiler'
 import {loadFonts} from '@myriaddreamin/typst.ts'
 
-import {load_fonts_prefix, font_urls_for} from 'typst-fonts/web'
+import {load_fonts_prefix, font_urls_for, fonts_to_blob_urls, revoke_blob_urls} from 'typst-fonts/web'
 
 import {generate_pdf, generate_pdf_spread_preview, collect_fonts} from 'paper-bible-typst'
 
 import type {TypstCompiler} from '@myriaddreamin/typst.ts/compiler'
+import type {CustomFont} from 'typst-fonts'
 import type {TypstRequest, CompileFn} from 'paper-bible-typst'
 
 
@@ -40,16 +41,32 @@ export class TypstWeb {
     private wasm_url:string
     private fonts_prefix:string
     private compiler:TypstCompiler
-    // Comma-joined font families last used to init the compiler ('' = base fonts only)
+    // Comma-joined font families (+ custom font names) last used to init the compiler
+    // ('' = base fonts only)
     private active_fonts = ''
+    // Blob URLs created for the currently-active custom fonts, tracked so they can be revoked
+    // once superseded (see ensure_fonts)
+    private active_blob_urls:string[] = []
     // Resolves once the curated font manifest has been fetched (see typst-fonts/web)
     private fonts_manifest_ready:Promise<void>
+    // User-uploaded fonts, not in the curated manifest — set via set_custom_fonts(). Read fresh
+    // each ensure_fonts() call, so a caller can keep passing the same (mutated) array reference
+    // rather than re-calling the setter on every upload
+    private custom_fonts:CustomFont[] = []
 
     constructor(wasm_url:string, assets_prefix:string, compiler:TypstCompiler) {
         this.wasm_url = wasm_url
         this.fonts_prefix = `${assets_prefix.replace(/\/+$/, '')}/${FONTS_DIR}`
         this.compiler = compiler
         this.fonts_manifest_ready = load_fonts_prefix(this.fonts_prefix)
+    }
+
+    // Register the caller's custom (user-uploaded) fonts, made available to future compiles
+    set_custom_fonts(fonts:CustomFont[]):void {
+        this.custom_fonts = fonts
+        // Force ensure_fonts() to re-evaluate on the next compile, in case this changes what's
+        // needed even though `fonts` may be the same array reference as before (mutated in place)
+        this.active_fonts = ''
     }
 
     // (Re)initialise the compiler so it can shape text with the given font URLs
@@ -84,14 +101,39 @@ export class TypstWeb {
     private async ensure_fonts(request:TypstRequest):Promise<void> {
         await this.fonts_manifest_ready
         const families = collect_fonts(request)
-        const cache_key = families.join(',')
+        const custom_by_family = new Map(this.custom_fonts.map(f => [f.family, f]))
+        const cache_key = families.join(',') + '|' + [...custom_by_family.keys()].join(',')
         if (cache_key === this.active_fonts) {
             return
         }
-        // Build a flat list of font file URLs for every family the request uses (curated
-        // fonts and Noto per-script fallbacks alike)
-        const font_urls = font_urls_for(this.fonts_prefix, families)
-        await this.reinit_compiler(font_urls)
+
+        // Build a flat list of font file URLs for every non-custom family the request uses
+        // (curated fonts and Noto per-script fallbacks alike) — a family matching a custom font
+        // is excluded here, resolved from bytes below instead, so custom always wins on a
+        // same-named collision
+        const bundled_families = families.filter(f => !custom_by_family.has(f))
+        const font_urls = font_urls_for(this.fonts_prefix, bundled_families)
+
+        // Custom fonts have no URL — turn the bytes of whichever ones this request actually
+        // needs into blob URLs instead
+        const needed_custom = families
+            .map(f => custom_by_family.get(f))
+            .filter((f):f is CustomFont => f !== undefined)
+        const new_blob_urls = fonts_to_blob_urls(needed_custom.flatMap(f => f.files))
+
+        try {
+            await this.reinit_compiler([...font_urls, ...new_blob_urls])
+        } catch (err) {
+            // Reinit failed — don't leak this attempt's blob URLs, and leave active_fonts/
+            // active_blob_urls untouched so the next call retries cleanly instead of treating
+            // the failed attempt's URLs as "previous" and never revoking them
+            revoke_blob_urls(new_blob_urls)
+            throw err
+        }
+
+        // Success — now safe to revoke the previous generation's blob URLs
+        revoke_blob_urls(this.active_blob_urls)
+        this.active_blob_urls = new_blob_urls
         this.active_fonts = cache_key
     }
 

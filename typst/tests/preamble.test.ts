@@ -97,6 +97,13 @@ describe('gen_preamble', () => {
         expect(result).toContain('footer: none')
     })
 
+    it('footer text has no font: override, so it inherits font_text + its fallbacks', () => {
+        const result = gen_preamble(make_request({show_pages: true}))
+        const footer_source = result.slice(
+            result.indexOf('footer:'), result.indexOf('footer-descent'))
+        expect(footer_source).not.toContain('font:')
+    })
+
     // --- Chapter marker (#ch) ---
 
     describe('chapter marker', () => {
@@ -107,6 +114,10 @@ describe('gen_preamble', () => {
             }))
             expect(result).toContain('#let ch(n) = if n > 1')
             expect(result).toContain('———')
+            // No font: override — inherits font_text + its fallbacks, same as regular body text
+            const divider_source = result.slice(
+                result.indexOf('#let ch(n)'), result.indexOf('#let vn(n)'))
+            expect(divider_source).not.toContain('font:')
         })
 
         it('generates float chapter style', () => {

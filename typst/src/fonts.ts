@@ -1,5 +1,5 @@
 
-import {get_bundled_font, base_font} from 'typst-fonts'
+import {get_bundled_font, get_noto_font, base_font} from 'typst-fonts'
 
 import type {TypstRequest} from './types.js'
 
@@ -18,10 +18,12 @@ export {get_bundled_font} from 'typst-fonts'
 export function collect_fonts(request:TypstRequest):string[] {
     const needed = new Set<string>()
 
-    // Body font and any fallbacks (only those that are actually bundled)
+    // Body font and any fallbacks — curated (get_bundled_font) or Noto script/region fallback
+    // families (get_noto_font, e.g. "Noto Sans Hebrew") set by BibleContent.resolve()'s script
+    // detection; only families actually resolvable to a font source are kept
     needed.add(request.typography.font_text)
     for (const fallback of request.typography.font_fallbacks){
-        if (get_bundled_font(fallback)){
+        if (get_bundled_font(fallback) || get_noto_font(fallback)){
             needed.add(fallback)
         }
     }

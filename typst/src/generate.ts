@@ -104,8 +104,19 @@ export function generate_typst_passage(
 ):string {
     const parts:string[] = []
 
-    // Same preamble as the main document
-    parts.push(gen_preamble(request))
+    // The second translation (bible_index 1) is compiled as a whole separate document here
+    // (alternate-translation passages compile each bible independently, interleaved by
+    // pdf_postprocess.ts), so overriding the top-level font_text/font_headings covers it
+    // entirely — unlike the side-by-side grid layout in content_passage.ts, which instead
+    // needs a local per-cell font override since both translations share one document there
+    const doc_request = bible_index === 1
+        ? {...request, typography: {...request.typography,
+            font_text: request.typography.font_text2,
+            font_headings: request.typography.font_headings2}}
+        : request
+
+    // Same preamble as the main document (with the font override above, when applicable)
+    parts.push(gen_preamble(doc_request))
 
     // Create a modified passage with only the selected bible
     const single_passage:TypstPassage = {
@@ -114,7 +125,7 @@ export function generate_typst_passage(
         multi_layout: 'columns',  // Single bible, so layout is irrelevant
     }
 
-    parts.push(gen_content_item(single_passage, request))
+    parts.push(gen_content_item(single_passage, doc_request))
 
     return parts.join('\n\n')
 }
@@ -144,7 +155,8 @@ ${gen_lines({type: 'lines', spacing}, request.page)}`
 function gen_content_item(item:TypstContentItem, request:TypstRequest, page_fill = true):string {
     switch (item.type) {
         case 'passage':
-            return gen_passage(item)
+            return gen_passage(item, request.typography.font_text2,
+                request.typography.font_headings2, request.typography.font_fallbacks)
         case 'title':
             return gen_title(item, request.page, request.typography.font_titles)
         case 'custom':

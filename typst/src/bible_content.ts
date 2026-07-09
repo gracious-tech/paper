@@ -159,12 +159,16 @@ export class BibleContent {
             }
         }
 
+        const font_text2 = blue.font_text2 ?? blue.font_text
+
         return {
             title: blue.title,
             page: this.gen_page(blue),
             typography: {
                 font_text: blue.font_text,
+                font_text2,
                 font_headings: blue.font_headings ?? blue.font_text,
+                font_headings2: blue.font_headings ?? font_text2,
                 font_titles: blue.font_titles ?? blue.font_text,
                 font_fallbacks: detect_font_fallbacks(
                     items, blue.font_text, custom_font_styles?.[blue.font_text]),

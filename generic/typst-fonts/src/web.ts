@@ -6,7 +6,7 @@
 
 import {init_fonts, get_bundled_font, get_noto_font} from './index.js'
 
-import type {BundledFont} from './index.js'
+import type {BundledFont, CustomFont} from './index.js'
 
 // Join a base URL/path with segments, collapsing a trailing slash on the base
 function join_path(base:string, ...segments:string[]):string {
@@ -56,6 +56,21 @@ export function register_preview_fonts(fonts_prefix:string, fonts:BundledFont[])
         const url = font_file_url(fonts_prefix, font.family, font.preview_file, false)
         document.fonts.add(new FontFace(font.family, `url("${url}")`))
     }
+}
+
+
+// Register a FontFace for a custom (user-uploaded) font's preview (first file), mirroring
+// register_preview_fonts above but from already-in-memory bytes rather than a fetched URL
+export async function register_custom_font_preview(font:CustomFont):Promise<void> {
+    const data = font.files[0]
+    if (!data)
+        return
+    // .slice() copies out exactly this view's bytes as their own Uint8Array/ArrayBuffer, since
+    // .buffer could be a larger backing buffer (or, per lib.dom's types, a SharedArrayBuffer —
+    // not assignable to FontFace's BufferSource param)
+    const face = new FontFace(font.family, data.slice())
+    await face.load()
+    document.fonts.add(face)
 }
 
 

@@ -88,6 +88,7 @@ export function get_default_blueprint():Blueprint{
 
         // Style
         font_text: "Crimson Pro",
+        font_text2: null,
         font_headings: null,
         font_titles: null,
 

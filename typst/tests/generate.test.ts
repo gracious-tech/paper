@@ -4,7 +4,7 @@ import {describe, it, expect} from 'vitest'
 import {generate_typst, generate_typst_passage, generate_typst_blank,
     generate_typst_lines, group_content} from '../src/generate.js'
 import {make_request, make_passage, make_title, make_custom, make_lines,
-    TEST_PAGE} from './fixtures.js'
+    TEST_PAGE, TEST_TYPOGRAPHY} from './fixtures.js'
 
 
 describe('generate_typst', () => {
@@ -233,6 +233,24 @@ describe('generate_typst_passage', () => {
         const passage = make_passage()
         const result = generate_typst_passage(make_request(), passage, 0)
         expect(result).toContain('#set page(')
+    })
+
+    it('uses font_text/font_headings for the first bible, font_text2/font_headings2 for the second', () => {
+        const passage = make_passage({
+            bibles: [{content: 'NIV content'}, {content: 'ESV content'}],
+        })
+        const request = make_request({typography: {
+            ...TEST_TYPOGRAPHY, font_text: 'First Font', font_headings: 'First Heading Font',
+            font_text2: 'Second Font', font_headings2: 'Second Heading Font',
+        }})
+
+        const first = generate_typst_passage(request, passage, 0)
+        expect(first).toContain('#set text(font: ("First Font"')
+        expect(first).toContain('#show heading: set text(font: "First Heading Font")')
+
+        const second = generate_typst_passage(request, passage, 1)
+        expect(second).toContain('#set text(font: ("Second Font"')
+        expect(second).toContain('#show heading: set text(font: "Second Heading Font")')
     })
 })
 

@@ -33,9 +33,11 @@ export function gen_preamble(request:TypstRequest):string {
     const margin = `(top: ${page.margin_top}, bottom: ${page.margin_bottom}, `
         + `inside: ${page.margin_left}, outside: ${page.margin_right})`
 
-    // Page footer with page numbers (state-based visibility)
+    // Page footer with page numbers (state-based visibility). No font: override — inherits the
+    // document-wide #set text(font: (...)) below (font_text + its regular fallbacks), same as
+    // any other text, rather than a separate fixed style
     const footer = request.show_pages
-        ? `context align(center, text(font: "Noto Sans", size: 7pt,
+        ? `context align(center, text(size: 7pt,
             counter(page).display()))`
         : 'none'
 
@@ -44,10 +46,10 @@ export function gen_preamble(request:TypstRequest):string {
     if (!features.show_chapters) {
         chapter = '#let ch(n) = []'
     } else if (features.show_chapters_style === 'divider') {
-        // Centered divider with dashes, hidden for chapter 1
+        // Centered divider with dashes, hidden for chapter 1. No font: override — see footer
         chapter = `#let ch(n) = if n > 1 {
     v(1em)
-    align(center, text(size: 0.8em, weight: "regular", font: "Noto Sans",
+    align(center, text(size: 0.8em, weight: "regular",
         [——— #str(n) ———]))
     v(1em)
 }`
