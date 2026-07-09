@@ -3,4 +3,4 @@
 set -e
 cd "$(dirname "$(dirname "$0")")/app"
 
-npx vite "$@"
+npx vite --port 5300 "$@"
