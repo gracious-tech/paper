@@ -15,7 +15,7 @@ import type {TypstRequest, ProgressEvent} from 'paper-bible-typst'
 export type WorkerAction =
     | {action:'init', assets_prefix:string}
     | {action:'set_custom_fonts', fonts:CustomFont[]}
-    | {action:'compile_pdf', request:TypstRequest}
+    | {action:'compile_pdf', request:TypstRequest, preview?:boolean}
     | {action:'compile_pdf_preview', request:TypstRequest}
 
 // Every request carries an id, echoed back in the matching response
@@ -58,7 +58,7 @@ async function handle_action(
         return null
     }
     if (message.action === 'compile_pdf'){
-        return generator.compile_pdf(message.request, on_progress)
+        return generator.compile_pdf(message.request, on_progress, message.preview ?? false)
     }
     return generator.compile_pdf_preview(message.request, on_progress)
 }

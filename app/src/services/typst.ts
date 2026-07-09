@@ -80,9 +80,14 @@ export class TypstWorkerClient {
         await this.send({action: 'set_custom_fonts', fonts: toRaw(fonts)})
     }
 
-    // Compile a request to a finished PDF (booklet/alternate/half-blank handled in the worker)
-    async compile_pdf(request:TypstRequest, on_progress?:ProgressFn):Promise<Uint8Array> {
-        return await this.send({action: 'compile_pdf', request}, on_progress) as Uint8Array
+    // Compile a request to a finished PDF (booklet/alternate/half-blank handled in the worker).
+    // preview relaxes print-only padding (trailing blanks dropped, even page counts only) for
+    // on-screen display — never use it for a document that will be printed.
+    async compile_pdf(
+        request:TypstRequest, on_progress?:ProgressFn, preview = false,
+    ):Promise<Uint8Array> {
+        return await this.send(
+            {action: 'compile_pdf', request, preview}, on_progress) as Uint8Array
     }
 
     // Compile a request to a preview PDF laid out as facing-page book spreads, as if the book

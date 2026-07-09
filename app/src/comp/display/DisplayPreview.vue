@@ -7,6 +7,13 @@ div.preview
             density='compact' variant='elevated' color='secondary' divided mandatory)
             v-btn(v-if='blue.booklet' value='reading' size='small') {{ $t("Reading") }}
             v-btn(value='print' size='small') {{ $t("Print") }}
+        //- Which part of a large document to preview — only shown when the document exceeded
+        //- the preview size limit and had to be truncated
+        v-btn-toggle(v-if='truncated' :model-value='section' @update:model-value='set_section'
+            density='compact' variant='elevated' color='secondary' divided mandatory)
+            v-btn(value='start' size='small') {{ $t("Start") }}
+            v-btn(value='middle' size='small') {{ $t("Middle") }}
+            v-btn(value='end' size='small') {{ $t("End") }}
 
     div.frame(v-if='pdf_url')
         iframe(:src='pdf_url')
@@ -37,8 +44,9 @@ import {blue} from '@/services/state'
 import {content, bible_content} from '@/services/content'
 import {typst_generator} from '@/services/typst'
 import {get_custom_font_styles} from '@/services/custom_fonts'
+import {truncate_for_preview} from 'paper-bible-typst'
 
-import type {ProgressEvent} from 'paper-bible-typst'
+import type {ProgressEvent, PreviewSection} from 'paper-bible-typst'
 
 
 const {t} = useI18n()
@@ -77,6 +85,19 @@ watch(() => blue.booklet, booklet => {
 function set_mode(value:'reading'|'print'){
     mode.value = value
     compile()
+}
+
+// Which portion of an over-long document to preview. Documents past the preview size limit
+// are truncated to a fast-compiling window positioned by this (see truncate_for_preview).
+const section = ref<PreviewSection>('start')
+
+// Whether the last compile had to truncate the document (shows the Start|Middle|End toggle)
+const truncated = ref(false)
+
+// Switch the previewed section and immediately recompile (no debounce for an explicit click)
+function set_section(value:PreviewSection){
+    section.value = value
+    void compile()
 }
 
 // Incrementing id so out-of-order async compiles can be discarded
@@ -131,16 +152,26 @@ async function compile(){
 
     try {
         // 'reading' lays out the pages as facing-page book spreads (as if the book were opened);
-        // 'print' produces the actual final PDF (booklet fold order, or sequential if not a booklet)
+        // 'print' produces the final PDF layout (booklet fold order, or sequential if not a
+        // booklet) with print-only blank padding relaxed for the screen (preview flag below)
         const request = await bible_content.resolve(blue, get_custom_font_styles(), on_progress)
+
+        // Large documents are cut down to a fast-compiling ~50 page window (positioned by the
+        // Start|Middle|End toggle), with an "End of preview" page wherever content was cut short
+        const truncation = truncate_for_preview(request, section.value, {
+            title: t("End of preview"),
+            detail: t("Create document to see the rest"),
+        })
+
         const bytes = mode.value === 'print'
-            ? await generator.compile_pdf(request, on_progress)
-            : await generator.compile_pdf_preview(request, on_progress)
+            ? await generator.compile_pdf(truncation.request, on_progress, true)
+            : await generator.compile_pdf_preview(truncation.request, on_progress)
 
         // Ignore if a newer compile has started since
         if (run !== latest_run){
             return
         }
+        truncated.value = truncation.truncated
 
         // Swap in the new PDF and revoke the previous object URL
         const url = URL.createObjectURL(new Blob([bytes], {type: 'application/pdf'}))
@@ -242,6 +273,7 @@ onUnmounted(() => {
     flex-shrink: 0
     display: flex
     justify-content: center
+    gap: 12px
     padding: 8px
     background-color: rgba(0, 0, 0, 0.2)
 

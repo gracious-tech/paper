@@ -11,18 +11,36 @@ import type {TypstRequest, TypstContentItem, TypstPassage, CompileFn, ProgressFn
 
 // Full pipeline: generate Typst source(s), compile via provided function, assemble and
 // post-process the PDF. Handles alternate interleaving, half-blank, booklet imposition.
+// preview relaxes the print-only padding rules: trailing blank pages are dropped and page
+// counts are only kept even (rather than booklet-padded to a multiple of 4), since a screen
+// preview only needs recto/verso parity to read correctly.
 export async function generate_pdf(
-    request:TypstRequest, compile_fn:CompileFn, on_progress?:ProgressFn,
+    request:TypstRequest, compile_fn:CompileFn, on_progress?:ProgressFn, preview = false,
 ):Promise<Uint8Array> {
 
     // Assemble the printed page sequence (each section compiled separately, see assemble_pages),
     // then arrange for print
-    const {final_doc, blank_doc} = await assemble_pages(request, compile_fn, on_progress)
+    const {final_doc, blank_doc, blank_flags} = await assemble_pages(
+        request, compile_fn, on_progress)
+
+    // Previews drop the run of blank pages at the very end — they carry no information on
+    // screen (evenness is restored below where it matters)
+    if (preview) {
+        trim_trailing_blanks(final_doc, blank_flags)
+    }
+
     if (request.arrangement === 'booklet') {
         on_progress?.({stage: 'arrange', label: 'booklet'})
         on_progress?.({stage: 'finalize'})
-        return await apply_booklet(final_doc, request, blank_doc)
+        return await apply_booklet(final_doc, request, blank_doc, preview)
     }
+
+    // Keep a trimmed book preview even so facing-page parity still reads correctly
+    if (preview && request.arrangement === 'book' && final_doc.getPageCount() % 2 === 1) {
+        const [page] = await final_doc.copyPages(blank_doc, [0])
+        final_doc.addPage(page as PDFPage)
+    }
+
     on_progress?.({stage: 'finalize'})
     const pdf_bytes = await final_doc.save()
     return apply_metadata(pdf_bytes, request)
@@ -41,7 +59,13 @@ export async function generate_pdf_spread_preview(
     const arrangement = request.arrangement === 'booklet' ? 'book' : request.arrangement
     const reading_request:TypstRequest = {...request, arrangement}
 
-    const {final_doc: reading_doc} = await assemble_pages(reading_request, compile_fn, on_progress)
+    const {final_doc: reading_doc, blank_flags} = await assemble_pages(
+        reading_request, compile_fn, on_progress)
+
+    // Trailing blank pages carry no information on screen — arrange_spreads pads its slots to
+    // even itself, so they can all go
+    trim_trailing_blanks(reading_doc, blank_flags)
+
     on_progress?.({stage: 'arrange', label: 'spreads'})
     on_progress?.({stage: 'finalize'})
     return await arrange_spreads(reading_doc, reading_request)
@@ -106,7 +130,7 @@ async function arrange_spreads(
 // (reading order, including all blank/note pages) — before any booklet imposition
 async function assemble_pages(
     request:TypstRequest, compile_fn:CompileFn, on_progress?:ProgressFn,
-):Promise<{final_doc:PDFDocument, blank_doc:PDFDocument}> {
+):Promise<{final_doc:PDFDocument, blank_doc:PDFDocument, blank_flags:boolean[]}> {
 
     const booklike = request.arrangement !== 'normal'
 
@@ -118,6 +142,9 @@ async function assemble_pages(
     // Start building the final PDF
     const final_doc = await PDFDocument.create()
     const show_pages_list:boolean[] = []
+    // Whether each assembled page is a padding blank (lines pages count as content), so
+    // preview arrangements can trim meaningless trailing blanks (see trim_trailing_blanks)
+    const blank_flags:boolean[] = []
 
     // Helper: add a page to the final doc
     async function add_page(
@@ -135,6 +162,7 @@ async function assemble_pages(
             final_doc.addPage(page as PDFPage)
         }
         show_pages_list.push(source_doc === null ? false : show_pages)
+        blank_flags.push(source_doc === null)
     }
 
     // Helper: add a blank page
@@ -205,7 +233,19 @@ async function assemble_pages(
         }
     }
 
-    return {final_doc, blank_doc}
+    return {final_doc, blank_doc, blank_flags}
+}
+
+
+// Remove the run of blank pages at the very end of an assembled document. Preview only —
+// printed documents keep every padding page. Callers restore evenness where needed.
+function trim_trailing_blanks(doc:PDFDocument, blank_flags:boolean[]):void {
+    let count = doc.getPageCount()
+    while (count > 1 && blank_flags[count - 1]) {
+        doc.removePage(count - 1)
+        blank_flags.pop()
+        count--
+    }
 }
 
 
@@ -325,12 +365,15 @@ async function process_faced(
 
 // Apply booklet imposition: reorder pages for fold-at-home 2-up printing
 async function apply_booklet(
-    assembled_doc:PDFDocument, request:TypstRequest, blank_doc:PDFDocument,
+    assembled_doc:PDFDocument, request:TypstRequest, blank_doc:PDFDocument, preview = false,
 ):Promise<Uint8Array> {
 
-    // Ensure page count is multiple of 4
+    // Ensure page count is a multiple of 4 (a physical folded sheet holds 4 pages). Previews
+    // aren't printed, so they only pad to even — just enough for the 2-up pairing below.
     const page_count = assembled_doc.getPageCount()
-    const target_count = Math.ceil(page_count / 4) * 4
+    const target_count = preview
+        ? Math.ceil(page_count / 2) * 2
+        : Math.ceil(page_count / 4) * 4
 
     // Pad with compiled blank pages if needed (must have a content stream so they can be
     // embedded below — a bare pdf-lib addPage() has no Contents and fails to embed)

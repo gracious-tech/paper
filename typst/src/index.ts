@@ -10,6 +10,10 @@ export {generate_pdf} from './pdf_postprocess.js'
 // Preview pipeline: lays out the printed pages as facing-page book spreads (preview only)
 export {generate_pdf_spread_preview} from './pdf_postprocess.js'
 
+// Preview truncation: cuts an over-long request down to a fast-compiling window of content
+export {truncate_for_preview, PREVIEW_CHAR_LIMIT} from './preview.js'
+export type {PreviewSection, PreviewMessages, PreviewTruncation} from './preview.js'
+
 // Bundled font manifest helpers (used by the web/node compilers to load fonts). The manifest
 // itself is loaded at runtime by typst-fonts/node or typst-fonts/web — see .bin/download_fonts
 export {get_bundled_font, collect_fonts} from './fonts.js'
