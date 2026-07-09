@@ -19,7 +19,7 @@ import type {BibleCollection, BibleBookTypst, GetResourcesItem,
     } from '@gracious.tech/fetch-client'
 import type {Blueprint, ContentPassage, ContentTitle, ContentCustom, TypstRequest,
     TypstContentItem, TypstPassage, TypstTitlePage, TypstCustomPage, BiblePassageData,
-    PageConfig, TypstNotesFile} from './types.js'
+    PageConfig, TypstNotesFile, ProgressFn} from './types.js'
 
 
 // Default Bible content API endpoint (production fetch.bible)
@@ -35,6 +35,8 @@ export interface BibleContentOptions {
     // Title-page decorative patterns, keyed by pattern name → corner SVG string. Defaults to
     // the bundled PATTERNS, so callers (incl. the server) get decorated titles for free.
     patterns?:Record<string, string>
+    // Coarse progress reporting (which book is being fetched)
+    on_progress?:ProgressFn
 }
 
 
@@ -51,6 +53,7 @@ export class BibleContent {
     private _collection:BibleCollection|null
     private patterns:Record<string, string>
     private endpoint:string
+    private on_progress?:ProgressFn
     // Cache of fetched Typst books, keyed `${bible}_${book}`
     private books_typst = new Map<string, BibleBookTypst>()
     // Cache of fetched study notes files, keyed `${resource}_${book}` (null = none available)
@@ -63,6 +66,7 @@ export class BibleContent {
             ? null
             : new FetchClient({endpoints: [this.endpoint]})
         this.patterns = opts.patterns ?? PATTERNS
+        this.on_progress = opts.on_progress
     }
 
     // Fetch the Bible collection (skipped if one was injected). Must be awaited before use.
@@ -97,6 +101,7 @@ export class BibleContent {
         if (!this.collection.get_books(bible, {object: true})[book]?.available) {
             return null
         }
+        this.on_progress?.(`Fetching ${bible} ${book}`)
         const instance = await this.collection.fetch_book(bible, book, 'typst')
         this.books_typst.set(key, instance)
         return instance

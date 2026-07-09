@@ -40,6 +40,7 @@ export type {
     TypstCustomPage,
     TypstLinesPage,
     CompileFn,
+    ProgressFn,
     Blueprint,
     ContentItem,
     ContentTitle,

@@ -10,7 +10,7 @@ import {generate_typst, generate_pdf, generate_pdf_spread_preview, BibleContent,
     } from 'paper-bible-typst'
 
 import type {CustomFont} from 'typst-fonts'
-import type {TypstRequest, CompileFn, Blueprint} from 'paper-bible-typst'
+import type {TypstRequest, CompileFn, ProgressFn, Blueprint} from 'paper-bible-typst'
 
 
 // Options for the Node.js Typst compiler wrapper
@@ -28,6 +28,8 @@ export interface NodeCompileOptions {
     // Written to a per-compile temp directory and passed via --font-path; a family here always
     // takes precedence over a same-named curated font (see resolve_font_paths)
     custom_fonts?:CustomFont[]
+    // Coarse progress reporting (per-book rendering steps, content fetching)
+    on_progress?:ProgressFn
 }
 
 
@@ -47,7 +49,7 @@ export async function compile_pdf(
 ):Promise<Uint8Array> {
     const font_paths = await resolve_font_paths(request, options)
     const compile_fn = make_compile_fn(options, font_paths)
-    return generate_pdf(request, compile_fn)
+    return generate_pdf(request, compile_fn, options?.on_progress)
 }
 
 
@@ -57,7 +59,7 @@ export async function compile_pdf_spread_preview(
 ):Promise<Uint8Array> {
     const font_paths = await resolve_font_paths(request, options)
     const compile_fn = make_compile_fn(options, font_paths)
-    return generate_pdf_spread_preview(request, compile_fn)
+    return generate_pdf_spread_preview(request, compile_fn, options?.on_progress)
 }
 
 
@@ -75,13 +77,14 @@ export async function compile_pdf_from_blueprint(
     const content = new BibleContent({
         endpoint: options?.endpoint,
         patterns: options?.patterns,
+        on_progress: options?.on_progress,
     })
     await content.init()
     const custom_font_styles = Object.fromEntries(
         (options?.custom_fonts ?? []).map(f => [f.family, f.style]))
     const request = await content.resolve(blueprint, custom_font_styles)
     const font_paths = await resolve_font_paths(request, options)
-    return generate_pdf(request, make_compile_fn(options, font_paths))
+    return generate_pdf(request, make_compile_fn(options, font_paths), options?.on_progress)
 }
 
 

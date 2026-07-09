@@ -4,7 +4,7 @@ import {readFile} from 'node:fs/promises'
 import {join} from 'node:path'
 
 import {describe, it, expect} from 'vitest'
-import {PDFDocument, PDFDict, PDFName} from 'pdf-lib'
+import {PDFDocument, PDFDict, PDFName, PDFRawStream, PDFRef} from 'pdf-lib'
 
 import {compile_pdf, compile_pdf_spread_preview, generate_typst} from '../src/index.js'
 
@@ -190,6 +190,43 @@ describe('compile_pdf', () => {
         const expected_h = 150 * 2.8346
         expect(width).toBeCloseTo(expected_w, 0)
         expect(height).toBeCloseTo(expected_h, 0)
+    }, 15000)
+
+    it('deduplicates font subsets duplicated by multi-compile assembly', async () => {
+        // A booklet compiles each alone-passage separately, then merges and imposes with
+        // pdf-lib — which re-copies each compile's font subsets for every page copy/embed.
+        // Two identical passages produce byte-identical subsets, so after optimize_pdf the
+        // document must hold exactly one font program stream, shared by all descriptors
+        const passage = make_request().content[0]!
+        const result = await compile_pdf(make_request({
+            arrangement: 'booklet',
+            content: [{...passage, alone: true}, {...passage, alone: true}],
+        }))
+        const doc = await PDFDocument.load(result)
+
+        // Collect the font program streams referenced by every font descriptor
+        const refs = new Set<string>()
+        const bytes:string[] = []
+        for (const [, obj] of doc.context.enumerateIndirectObjects()) {
+            if (!(obj instanceof PDFDict)
+                    || obj.get(PDFName.of('Type'))?.toString() !== '/FontDescriptor') {
+                continue
+            }
+            for (const key of ['FontFile', 'FontFile2', 'FontFile3']) {
+                const ref = obj.get(PDFName.of(key))
+                if (!(ref instanceof PDFRef) || refs.has(ref.toString())) {
+                    continue
+                }
+                refs.add(ref.toString())
+                const stream = doc.context.lookup(ref)
+                if (stream instanceof PDFRawStream) {
+                    bytes.push(Buffer.from(stream.getContents()).toString('base64'))
+                }
+            }
+        }
+        expect(bytes.length).toBeGreaterThan(0)
+        // No two remaining font program streams may be byte-identical
+        expect(new Set(bytes).size).toBe(bytes.length)
     }, 15000)
 })
 

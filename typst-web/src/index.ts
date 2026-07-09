@@ -8,7 +8,7 @@ import {generate_pdf, generate_pdf_spread_preview, collect_fonts} from 'paper-bi
 
 import type {TypstCompiler} from '@myriaddreamin/typst.ts/compiler'
 import type {CustomFont} from 'typst-fonts'
-import type {TypstRequest, CompileFn} from 'paper-bible-typst'
+import type {TypstRequest, CompileFn, ProgressFn} from 'paper-bible-typst'
 
 
 // Asset subdirectory name for fonts (under a consumer-provided assets prefix), matching
@@ -136,17 +136,17 @@ export class TypstWeb {
     }
 
     // Compile a request to a finished PDF (handles booklet/alternate/half-blank via pdf-lib)
-    async compile_pdf(request:TypstRequest):Promise<Uint8Array> {
+    async compile_pdf(request:TypstRequest, on_progress?:ProgressFn):Promise<Uint8Array> {
         await this.ensure_fonts(request)
-        return generate_pdf(request, this.make_compile_fn())
+        return generate_pdf(request, this.make_compile_fn(), on_progress)
     }
 
     // Compile a request to a preview PDF laid out as facing-page book spreads, as if the
     // book were opened: a blank left page beside page 1 on the right, then 2|3, 4|5, etc.,
     // including every blank/note page exactly as printed. For on-screen preview only.
-    async compile_pdf_preview(request:TypstRequest):Promise<Uint8Array> {
+    async compile_pdf_preview(request:TypstRequest, on_progress?:ProgressFn):Promise<Uint8Array> {
         await this.ensure_fonts(request)
-        return generate_pdf_spread_preview(request, this.make_compile_fn())
+        return generate_pdf_spread_preview(request, this.make_compile_fn(), on_progress)
     }
 }
 

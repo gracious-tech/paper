@@ -3,26 +3,30 @@ import {PDFDocument, PDFPage, degrees, rgb} from 'pdf-lib'
 
 import {generate_typst, generate_typst_passage, generate_typst_blank,
     generate_typst_lines, group_content, passage_is_alternate} from './generate.js'
+import {optimize_pdf} from './pdf_optimize.js'
 
-import type {TypstRequest, TypstContentItem, TypstPassage, CompileFn} from './types.js'
+import type {TypstRequest, TypstContentItem, TypstPassage, CompileFn, ProgressFn,
+    } from './types.js'
 
 
 // Full pipeline: generate Typst source(s), compile via provided function, assemble and
 // post-process the PDF. Handles alternate interleaving, half-blank, booklet imposition.
 export async function generate_pdf(
-    request:TypstRequest, compile_fn:CompileFn,
+    request:TypstRequest, compile_fn:CompileFn, on_progress?:ProgressFn,
 ):Promise<Uint8Array> {
 
     if (!needs_multi_doc(request) && request.arrangement !== 'booklet') {
         // Simple case: single document, no post-processing needed
+        on_progress?.("Rendering document")
         const source = generate_typst(request)
         const pdf_bytes = await compile_fn(source)
         return apply_metadata(pdf_bytes, request)
     }
 
     // Complex case: assemble the printed page sequence, then arrange for print
-    const {final_doc, blank_doc} = await assemble_pages(request, compile_fn)
+    const {final_doc, blank_doc} = await assemble_pages(request, compile_fn, on_progress)
     if (request.arrangement === 'booklet') {
+        on_progress?.("Arranging booklet pages")
         return await apply_booklet(final_doc, request, blank_doc)
     }
     const pdf_bytes = await final_doc.save()
@@ -45,7 +49,7 @@ function needs_multi_doc(request:TypstRequest):boolean {
 // were opened — a blank left page beside page 1 on the right, then 2|3, 4|5, etc. Includes
 // every blank/note page exactly as printed. For on-screen preview only, never for printing.
 export async function generate_pdf_spread_preview(
-    request:TypstRequest, compile_fn:CompileFn,
+    request:TypstRequest, compile_fn:CompileFn, on_progress?:ProgressFn,
 ):Promise<Uint8Array> {
 
     // A folded booklet reads in the same sequential order as a book, so assemble either as a
@@ -53,7 +57,8 @@ export async function generate_pdf_spread_preview(
     const arrangement = request.arrangement === 'booklet' ? 'book' : request.arrangement
     const reading_request:TypstRequest = {...request, arrangement}
 
-    const reading_doc = await build_reading_doc(reading_request, compile_fn)
+    const reading_doc = await build_reading_doc(reading_request, compile_fn, on_progress)
+    on_progress?.("Arranging page spreads")
     return await arrange_spreads(reading_doc, reading_request)
 }
 
@@ -61,17 +66,18 @@ export async function generate_pdf_spread_preview(
 // Build the printed page sequence (reading order, with blanks) as a single PDFDocument,
 // without booklet imposition. Mirrors generate_pdf's branching but stops before arranging.
 async function build_reading_doc(
-    request:TypstRequest, compile_fn:CompileFn,
+    request:TypstRequest, compile_fn:CompileFn, on_progress?:ProgressFn,
 ):Promise<PDFDocument> {
 
     if (!needs_multi_doc(request)) {
         // Single document — any book-mode blank pages are baked into the source via pagebreaks
+        on_progress?.("Rendering document")
         const source = generate_typst(request)
         const pdf_bytes = await compile_fn(source)
         return await PDFDocument.load(pdf_bytes)
     }
 
-    const {final_doc} = await assemble_pages(request, compile_fn)
+    const {final_doc} = await assemble_pages(request, compile_fn, on_progress)
     return final_doc
 }
 
@@ -133,7 +139,7 @@ async function arrange_spreads(
 // Build subjobs from content items, compile each, and assemble the printed page sequence
 // (reading order, including all blank/note pages) — before any booklet imposition
 async function assemble_pages(
-    request:TypstRequest, compile_fn:CompileFn,
+    request:TypstRequest, compile_fn:CompileFn, on_progress?:ProgressFn,
 ):Promise<{final_doc:PDFDocument, blank_doc:PDFDocument}> {
 
     const booklike = request.arrangement !== 'normal'
@@ -172,8 +178,13 @@ async function assemble_pages(
 
     // Process each content group (a group merges new_page=false items onto one page)
     const groups = group_content(request.content)
-    for (const group of groups) {
+    for (const [group_index, group] of groups.entries()) {
         const head = group[0]!
+
+        // Report each group as it starts (passages by book id, so long documents show
+        // per-book progress)
+        const label = head.type === 'passage' ? head.book : `${head.type} page`
+        on_progress?.(`Rendering ${label} (${group_index + 1}/${groups.length})`)
 
         // Alternate-translation passage: two bibles compiled separately and interleaved.
         // Such a passage never merges, so it is always its own single-item group.
@@ -411,11 +422,15 @@ async function apply_booklet(
 }
 
 
-// Apply PDF metadata to compiled bytes
+// Apply PDF metadata to compiled bytes, shrinking merge/imposition bloat along the way
 async function apply_metadata(
     pdf_bytes:Uint8Array, request:TypstRequest,
 ):Promise<Uint8Array> {
     const doc = await PDFDocument.load(pdf_bytes)
+
+    // Sweep orphans, compress raw streams, and dedup the font subsets that pdf-lib's
+    // page copying/embedding duplicates (see pdf_optimize.ts)
+    await optimize_pdf(doc)
 
     doc.setTitle(request.title)
     doc.setProducer('paper.bible')

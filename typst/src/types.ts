@@ -138,6 +138,10 @@ export interface TypstLinesPage {
 export type CompileFn = (source:string) => Promise<Uint8Array>
 
 
+// Callback for coarse progress reporting (fetching/rendering steps), e.g. "Rendering gen (1/66)"
+export type ProgressFn = (message:string) => void
+
+
 // --- Blueprint input model ---------------------------------------------------------------
 // The user-facing options structure selected in the app. BibleContent.resolve() turns a
 // Blueprint into a (fully resolved) TypstRequest, so the same options can drive both the
