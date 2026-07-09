@@ -13,9 +13,11 @@ div.preview
         //- Semi-transparent readout of the in-progress recompile, layered over the still-visible
         //- (and still-scrollable, via pointer-events:none) previous PDF
         transition(name='fade')
-            div.overlay(v-if='progress_message')
-                div.overlay_box
-                    p {{ progress_message }}
+            div.overlay(v-if='progress_message || overlay_error')
+                div.overlay_box(:class='{error: overlay_error}')
+                    p(v-if='overlay_error' class='overlay_title')
+                        strong {{ overlay_error_title }}
+                    p {{ overlay_error || progress_message }}
     div.status(v-else-if='error_msg')
         h3(class='mb-4') {{ $t("Couldn't generate preview") }}
         p(class='status-detail') {{ error_msg }}
@@ -27,7 +29,7 @@ div.preview
 
 <script lang='ts' setup>
 
-import {ref, watch, onUnmounted} from 'vue'
+import {ref, computed, watch, onUnmounted} from 'vue'
 import {debounce} from 'lodash-es'
 import {useI18n} from 'vue-i18n'
 
@@ -49,6 +51,15 @@ const error_msg = ref<string|null>(null)
 // Text for the currently active progress stage, or null between compiles (and for stages the
 // user doesn't need to see — see stage_text() below)
 const progress_message = ref<string|null>(null)
+
+// Set instead of progress_message when a recompile fails while an old preview is still showing
+// underneath — the overlay stays up (rather than vanishing back to the stale PDF unexplained)
+// and turns red to surface the failure
+const overlay_error = ref<string|null>(null)
+
+// Title shown above overlay_error — kept out of the template since the pug-to-TS bridge
+// mishandles the unbalanced parenthesis in the smiley within an inline mustache expression
+const overlay_error_title = computed(() => t("Something went wrong :("))
 
 // Which layout to render: 'reading' = facing-page book spreads (default),
 // 'print' = the actual final PDF (folded booklet order or sequential pages)
@@ -104,6 +115,7 @@ async function compile(){
 
     const run = ++latest_run
     error_msg.value = null
+    overlay_error.value = null
 
     // Forwarded to both the content-fetching and PDF-compiling stages, so the overlay reflects
     // whichever one is currently running
@@ -141,8 +153,16 @@ async function compile(){
         if (run !== latest_run){
             return
         }
-        error_msg.value = error instanceof Error ? error.message : String(error)
+        const message = error instanceof Error ? error.message : String(error)
         console.error(error)
+
+        // An old preview is still showing underneath — keep the overlay up and turn it red to
+        // explain the failure, rather than silently reverting to the (now stale) PDF
+        if (pdf_url.value){
+            overlay_error.value = message
+        } else {
+            error_msg.value = message
+        }
     } finally {
         if (run === latest_run){
             progress_message.value = null
@@ -264,6 +284,16 @@ iframe
         margin: 0
         max-width: 320px
         font-size: 15px
+
+    &.error
+        background: #b3261e
+        animation: none
+
+        p
+            font-family: monospace
+            font-size: 12px
+            white-space: pre-wrap
+            max-width: 420px
 
 @keyframes pending
     0%
