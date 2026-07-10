@@ -13,7 +13,8 @@ export function gen_custom(custom:TypstCustomPage):string {
     // Middle/bottom: measure the content against the page. If it fits, pin it to the page with a
     // full-height block so it centres/sits at the bottom. If it's taller than the page, render it
     // in normal flow instead so it breaks across pages (top-aligned) rather than overflowing a
-    // fixed-height block and getting clipped at the bottom.
+    // fixed-height block and getting clipped at the bottom. The block must be full-width (auto
+    // shrinks to content), otherwise horizontal alignment within the body has no room to act.
     const alignment = custom.position === 'middle' ? 'horizon' : 'bottom'
     return `#layout(size => context {
     let body = [
@@ -21,7 +22,7 @@ ${custom.content}
     ]
     let content_height = measure(box(width: size.width, body)).height
     if content_height <= size.height {
-        block(height: size.height, align(${alignment}, body))
+        block(width: 100%, height: size.height, align(${alignment}, body))
     } else {
         body
     }
