@@ -8,7 +8,11 @@ import type {TypstPassage, TypstCustomPage} from '../src/types.js'
 
 
 // Messages passed in place of the app's translated strings
-const MESSAGES = {title: 'End of preview', detail: 'Create document to see the rest'}
+const MESSAGES = {
+    start_title: 'Start of preview',
+    end_title: 'End of preview',
+    detail: 'Create document to see the rest',
+}
 
 
 // Build a passage whose content is `paragraphs` numbered paragraph blocks separated by blank
@@ -31,7 +35,7 @@ describe('truncate_for_preview', () => {
         expect(result.request).toBe(request)
     })
 
-    it('truncates a large document and appends an end-of-preview page', () => {
+    it('truncates a large document and provides an end-of-preview page', () => {
         // ~100 chars per paragraph, so 3x the limit worth of paragraphs
         const paragraphs = Math.ceil(PREVIEW_CHAR_LIMIT * 3 / 100)
         const request = make_request({content: [make_long_passage(paragraphs)]})
@@ -44,29 +48,37 @@ describe('truncate_for_preview', () => {
         expect(content.length).toBeLessThan(PREVIEW_CHAR_LIMIT * 1.1)
         expect(content.startsWith('para-0 ')).toBe(true)
 
-        // End-of-preview page appended as the final item
-        const last = result.request.content.at(-1) as TypstCustomPage
-        expect(last.type).toBe('custom')
-        expect(last.content).toContain('End of preview')
-        expect(last.content).toContain('Create document to see the rest')
+        // Notice pages set separately (the pipeline places them after page arrangement, so
+        // booklet imposition can't fold them into the sheets), never mixed into content.
+        // The start section begins at the document's start, so only the rear notice is set.
+        expect(result.request.content.every(item => item.type === 'passage')).toBe(true)
+        expect(result.request.preview_front).toBeUndefined()
+        const rear = result.request.preview_rear as TypstCustomPage
+        expect(rear.type).toBe('custom')
+        expect(rear.content).toContain('End of preview')
+        expect(rear.content).toContain('Create document to see the rest')
     })
 
     it('shows the requested section of the document', () => {
         const paragraphs = Math.ceil(PREVIEW_CHAR_LIMIT * 3 / 100)
         const request = make_request({content: [make_long_passage(paragraphs)]})
 
-        // Middle: neither the first nor the last paragraph, and still cut short at the end
+        // Middle: neither the first nor the last paragraph, cut short on both sides
         const middle = truncate_for_preview(request, 'middle', MESSAGES)
         const middle_content = (middle.request.content[0] as TypstPassage).bibles[0]!.content
         expect(middle_content).not.toContain('para-0 ')
         expect(middle_content).not.toContain(`para-${paragraphs - 1} `)
-        expect((middle.request.content.at(-1) as TypstCustomPage).type).toBe('custom')
+        expect((middle.request.preview_front as TypstCustomPage).content)
+            .toContain('Start of preview')
+        expect((middle.request.preview_rear as TypstCustomPage).content)
+            .toContain('End of preview')
 
-        // End: reaches the document's last paragraph, so no end-of-preview page
+        // End: reaches the document's last paragraph, so only cut short at the start
         const end = truncate_for_preview(request, 'end', MESSAGES)
         const end_content = (end.request.content[0] as TypstPassage).bibles[0]!.content
         expect(end_content).toContain(`para-${paragraphs - 1} `)
-        expect(end.request.content.at(-1)!.type).toBe('passage')
+        expect(end.request.preview_front).toBeDefined()
+        expect(end.request.preview_rear).toBeUndefined()
     })
 
     it('drops whole items outside the window', () => {

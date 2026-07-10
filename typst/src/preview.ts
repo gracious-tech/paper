@@ -20,10 +20,11 @@ export const PREVIEW_CHAR_LIMIT = ROUGH_PAGE_CHARS * 50
 export type PreviewSection = 'start'|'middle'|'end'
 
 
-// Text for the trailing "End of preview" page, provided by the caller so it can be translated
+// Text for the truncation notice pages, provided by the caller so it can be translated
 export interface PreviewMessages {
-    title:string
-    detail:string
+    start_title:string  // Title of the leading page when content before the window was cut
+    end_title:string    // Title of the trailing page when content after the window was cut
+    detail:string       // Explanatory line shown on both pages
 }
 
 
@@ -67,13 +68,13 @@ function cut_markup(content:string, start:number, end:number):string {
 }
 
 
-// A simple centred page telling the user the preview stops here and the full document will
-// have the rest
-function gen_end_page(messages:PreviewMessages):TypstCustomPage {
+// A simple centred page telling the user the preview was cut short here and the full document
+// will have the rest
+function gen_notice_page(title:string, detail:string):TypstCustomPage {
     const content = `#align(center)[
-#text(size: 1.5em)[*${escape_typst(messages.title)}*]
+#text(size: 1.5em)[*${escape_typst(title)}*]
 
-${escape_typst(messages.detail)}
+${escape_typst(detail)}
 ]`
     return {type: 'custom', content, position: 'middle', new_page: true}
 }
@@ -81,8 +82,9 @@ ${escape_typst(messages.detail)}
 
 // Reduce a request to a preview-sized window of its content. Small documents pass through
 // untouched; large ones keep only the items (and partial passages, cut at paragraph
-// boundaries) that fall within a PREVIEW_CHAR_LIMIT window positioned by `section`, with an
-// "End of preview" page appended whenever content after the window was dropped.
+// boundaries) that fall within a PREVIEW_CHAR_LIMIT window positioned by `section`, with a
+// notice page for each side of the window where content was dropped (set as
+// request.preview_front/preview_rear, placed by the PDF pipeline after page arrangement).
 export function truncate_for_preview(
     request:TypstRequest, section:PreviewSection, messages:PreviewMessages,
 ):PreviewTruncation {
@@ -133,10 +135,16 @@ export function truncate_for_preview(
         }
     }
 
-    // Tell the user the preview was cut short (unless the window reaches the document's end)
+    // Tell the user the preview was cut short, on whichever sides of the window content was
+    // dropped. Set as preview_front/preview_rear rather than joining content, so booklet
+    // imposition doesn't fold them into the sheets — the pipeline places them after arrangement
+    const truncated_request:TypstRequest = {...request, content: kept}
+    if (offset > 0) {
+        truncated_request.preview_front = gen_notice_page(messages.start_title, messages.detail)
+    }
     if (window_end < total) {
-        kept.push(gen_end_page(messages))
+        truncated_request.preview_rear = gen_notice_page(messages.end_title, messages.detail)
     }
 
-    return {request: {...request, content: kept}, truncated: true}
+    return {request: truncated_request, truncated: true}
 }

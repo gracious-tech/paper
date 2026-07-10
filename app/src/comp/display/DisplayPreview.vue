@@ -157,9 +157,10 @@ async function compile(){
         const request = await bible_content.resolve(blue, get_custom_font_styles(), on_progress)
 
         // Large documents are cut down to a fast-compiling ~50 page window (positioned by the
-        // Start|Middle|End toggle), with an "End of preview" page wherever content was cut short
+        // Start|Middle|End toggle), with a notice page wherever content was cut short
         const truncation = truncate_for_preview(request, section.value, {
-            title: t("End of preview"),
+            start_title: t("Start of preview"),
+            end_title: t("End of preview"),
             detail: t("Create document to see the rest"),
         })
 

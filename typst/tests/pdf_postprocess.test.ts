@@ -3,7 +3,7 @@ import {describe, it, expect} from 'vitest'
 import {PDFDocument} from 'pdf-lib'
 
 import {generate_pdf, generate_pdf_spread_preview} from '../src/pdf_postprocess.js'
-import {make_request, make_passage, make_title} from './fixtures.js'
+import {make_request, make_passage, make_title, make_custom} from './fixtures.js'
 
 
 // Fake compiler: every source becomes a one-page PDF (with a content stream, since bare empty
@@ -39,6 +39,31 @@ describe('generate_pdf', () => {
         expect(await page_count(bytes)).toBe(1)
     })
 
+    it('places preview notice pages around booklet imposition, not inside it', async () => {
+        // One content page pads to 2 (preview), giving a single two-up sheet; the notices sit
+        // before/after it as natural (single) size pages rather than folding into the pairing
+        const request = make_request({
+            arrangement: 'booklet', content: [make_passage()],
+            preview_front: make_custom(), preview_rear: make_custom(),
+        })
+        const bytes = await generate_pdf(request, fake_compile, undefined, true)
+        const doc = await PDFDocument.load(bytes)
+        expect(doc.getPageCount()).toBe(3)
+        expect(doc.getPage(0).getSize().width).toBe(100)
+        expect(doc.getPage(1).getSize().width).toBe(200)
+        expect(doc.getPage(2).getSize().width).toBe(100)
+    })
+
+    it('adds preview notice pages sequentially for non-booklet arrangements', async () => {
+        // Book arrangement reads in order, so the rear notice just becomes the last content
+        // page (1 content + 1 notice = 2 pages, already even)
+        const request = make_request({
+            arrangement: 'book', content: [make_passage()], preview_rear: make_custom(),
+        })
+        const bytes = await generate_pdf(request, fake_compile, undefined, true)
+        expect(await page_count(bytes)).toBe(2)
+    })
+
     it('trims trailing blanks from book previews but keeps the count even', async () => {
         // An alone title gets a blank rear: kept for print, but a preview trims it and then
         // restores evenness — so both end up at 2 pages, while content stays 1 page
@@ -59,6 +84,17 @@ describe('generate_pdf_spread_preview', () => {
         const request = make_request({arrangement: 'booklet', content: [make_title()]})
         const bytes = await generate_pdf_spread_preview(request, fake_compile)
         expect(await page_count(bytes)).toBe(1)
+    })
+
+    it('places preview notice pages as the first and last spread pages', async () => {
+        // Front notice + passage + rear notice read sequentially: leading blank slot + 3
+        // pages = 2 spreads
+        const request = make_request({
+            arrangement: 'booklet', content: [make_passage()],
+            preview_front: make_custom(), preview_rear: make_custom(),
+        })
+        const bytes = await generate_pdf_spread_preview(request, fake_compile)
+        expect(await page_count(bytes)).toBe(2)
     })
 
 })

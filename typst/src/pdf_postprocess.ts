@@ -18,6 +18,13 @@ export async function generate_pdf(
     request:TypstRequest, compile_fn:CompileFn, on_progress?:ProgressFn, preview = false,
 ):Promise<Uint8Array> {
 
+    // Preview notice pages read sequentially in non-booklet arrangements, so they simply join
+    // the content as the first/last items; booklets handle them after imposition below (fold
+    // order would otherwise pair the document's last page with page 1 on the first sheet)
+    if (request.arrangement !== 'booklet') {
+        request = {...request, content: content_with_notices(request)}
+    }
+
     // Assemble the printed page sequence (each section compiled separately, see assemble_pages),
     // then arrange for print
     const {final_doc, blank_doc, blank_flags} = await assemble_pages(
@@ -30,9 +37,14 @@ export async function generate_pdf(
     }
 
     if (request.arrangement === 'booklet') {
+        // Notice pages stay out of the fold order — compile each on its own (no page number,
+        // they sit outside the printed sequence) so apply_booklet can place them around the
+        // imposed sheets
+        const front_doc = await compile_notice(request, request.preview_front, compile_fn)
+        const rear_doc = await compile_notice(request, request.preview_rear, compile_fn)
         on_progress?.({stage: 'arrange', label: 'booklet'})
         on_progress?.({stage: 'finalize'})
-        return await apply_booklet(final_doc, request, blank_doc, preview)
+        return await apply_booklet(final_doc, request, blank_doc, preview, front_doc, rear_doc)
     }
 
     // Keep a trimmed book preview even so facing-page parity still reads correctly
@@ -55,9 +67,11 @@ export async function generate_pdf_spread_preview(
 ):Promise<Uint8Array> {
 
     // A folded booklet reads in the same sequential order as a book, so assemble either as a
-    // book (normal stays normal — it has no blank pages by design)
+    // book (normal stays normal — it has no blank pages by design). Preview notice pages also
+    // read sequentially here, so they simply join the content as the first/last items
     const arrangement = request.arrangement === 'booklet' ? 'book' : request.arrangement
-    const reading_request:TypstRequest = {...request, arrangement}
+    const reading_request:TypstRequest = {
+        ...request, arrangement, content: content_with_notices(request)}
 
     const {final_doc: reading_doc, blank_flags} = await assemble_pages(
         reading_request, compile_fn, on_progress)
@@ -69,6 +83,32 @@ export async function generate_pdf_spread_preview(
     on_progress?.({stage: 'arrange', label: 'spreads'})
     on_progress?.({stage: 'finalize'})
     return await arrange_spreads(reading_doc, reading_request)
+}
+
+
+// Splice the preview-only notice pages (if any) into the content list, for arrangements that
+// read sequentially — the notices just become the first/last pages
+function content_with_notices(request:TypstRequest):TypstContentItem[] {
+    const content = [...request.content]
+    if (request.preview_front) {
+        content.unshift(request.preview_front)
+    }
+    if (request.preview_rear) {
+        content.push(request.preview_rear)
+    }
+    return content
+}
+
+
+// Compile a preview notice page on its own, without a page number (it sits outside the
+// printed page sequence). Returns null when the page isn't set.
+async function compile_notice(
+    request:TypstRequest, notice:TypstContentItem|undefined, compile_fn:CompileFn,
+):Promise<PDFDocument|null> {
+    if (!notice) {
+        return null
+    }
+    return await compile_group({...request, show_pages: false}, [notice], compile_fn, 1)
 }
 
 
@@ -363,9 +403,12 @@ async function process_faced(
 }
 
 
-// Apply booklet imposition: reorder pages for fold-at-home 2-up printing
+// Apply booklet imposition: reorder pages for fold-at-home 2-up printing. front_doc/rear_doc
+// are the pre-compiled preview notice pages (if any), placed before/after the imposed sheets
+// so they don't get folded into the sheet pairing.
 async function apply_booklet(
     assembled_doc:PDFDocument, request:TypstRequest, blank_doc:PDFDocument, preview = false,
+    front_doc:PDFDocument|null = null, rear_doc:PDFDocument|null = null,
 ):Promise<Uint8Array> {
 
     // Ensure page count is a multiple of 4 (a physical folded sheet holds 4 pages). Previews
@@ -434,6 +477,17 @@ async function apply_booklet(
         Duplex: request.booklet_portrait ? '/DuplexFlipLongEdge' : '/DuplexFlipShortEdge',
     })
     catalog.set(context.obj('ViewerPreferences') as any, prefs)
+
+    // Place the preview notice pages around the imposed sheets as standalone pages at their
+    // natural trim size — informational only, so they stay out of the fold order above
+    if (front_doc) {
+        const [page] = await booklet_doc.copyPages(front_doc, [0])
+        booklet_doc.insertPage(0, page as PDFPage)
+    }
+    if (rear_doc) {
+        const [page] = await booklet_doc.copyPages(rear_doc, [0])
+        booklet_doc.addPage(page as PDFPage)
+    }
 
     const pdf_bytes = await booklet_doc.save()
     return apply_metadata(pdf_bytes, request)

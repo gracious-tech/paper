@@ -12,6 +12,12 @@ export interface TypstRequest {
     arrangement:'normal'|'book'|'booklet'
     show_pages:boolean
     booklet_portrait:boolean
+    // Preview-only notice pages placed before/after the arranged document ("Start of preview"
+    // when content before the window was cut, "End of preview" when content after was), kept
+    // out of content so booklet imposition doesn't fold them into the sheet pairing — the
+    // pipeline places them around the arranged pages instead (see truncate_for_preview)
+    preview_front?:TypstCustomPage
+    preview_rear?:TypstCustomPage
 }
 
 
