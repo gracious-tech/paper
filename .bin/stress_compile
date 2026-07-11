@@ -1,0 +1,11 @@
+#!/usr/bin/env bash
+
+# Stress the compile pipeline in both the browser (WASM worker, via Playwright) and the server
+# (Typst CLI pipeline, run directly) with ever-larger documents — see e2e/tiers.ts. Results
+# land in e2e/results/ (wasm.json, server.json, plus every generated PDF).
+
+set -euo pipefail
+cd "$(dirname "$0")/.."
+
+.bin/test_e2e stress_wasm.test.ts
+node e2e/stress_server.ts
