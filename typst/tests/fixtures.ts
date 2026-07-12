@@ -49,6 +49,7 @@ export function make_passage(overrides:Partial<TypstPassage> = {}):TypstPassage 
         type: 'passage',
         bibles: [{content: '#vn(1)In the beginning God created the heavens and the earth.'}],
         multi_layout: 'columns',
+        multi_align: 'paragraph',
         half_blank: null,
         show_headings: true,
         headings_bold: true,
@@ -62,7 +63,6 @@ export function make_passage(overrides:Partial<TypstPassage> = {}):TypstPassage 
         passage_title: null,
         progress_label: 'Genesis 1:1',
         alone: false,
-        new_page: true,
         ...overrides,
     }
 }
@@ -91,7 +91,6 @@ export function make_custom(overrides:Partial<TypstCustomPage> = {}):TypstCustom
         type: 'custom',
         content: 'Copyright 2024. All rights reserved.',
         position: 'bottom',
-        new_page: true,
         ...overrides,
     }
 }

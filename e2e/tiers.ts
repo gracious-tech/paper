@@ -95,6 +95,7 @@ export function build_blueprint(tier:Tier, overrides:Partial<Blueprint> = {}):Bl
         content,
         bibles: [STRESS_BIBLE],
         bibles_layout: 'columns',
+        bibles_align: 'paragraph',
 
         // Features (the app defaults)
         show_headings: true,

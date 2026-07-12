@@ -54,8 +54,8 @@ export const MATRIX:StressConfig[] = [
     {id: 'jhn_notes', books: ['jhn'], overrides: {notes: 'eng_tyndale'},
         note: 'prose with Tyndale study notes'},
 
-    // Two translations — 'columns' renders one whole-book two-cell #grid, 'alternate'
-    // compiles each translation as a separate document and interleaves pages afterwards
+    // Two translations — 'columns' renders aligned per-row #grids side by side, 'alternate'
+    // compiles a double-width facing-pages document that is split in post-processing
     {id: 'psa_bi_grid', books: ['psa'], overrides: {bibles: ['eng_bsb', 'eng_webp']},
         note: 'poetry bilingual side-by-side grid'},
     {id: 'psa_bi_alt', books: ['psa'],

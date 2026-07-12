@@ -1,7 +1,7 @@
 
 import {describe, it, expect} from 'vitest'
 
-import {gen_passage} from '../src/content_passage.js'
+import {gen_passage, passage_columns} from '../src/content_passage.js'
 import {make_passage} from './fixtures.js'
 
 import type {TypstPassage} from '../src/types.js'
@@ -78,29 +78,33 @@ describe('gen_passage', () => {
 
     describe('columns', () => {
 
-        it('forces 2-column layout when columns is 2', () => {
+        // Columns are set at page level by generate_typst (see gen_page_columns there) —
+        // gen_passage itself must never emit a #columns block (a book-length block region
+        // made footnote layout explode in memory)
+
+        it('never emits a #columns block', () => {
             const result = call(make_passage({columns: 2}))
-            expect(result).toContain('#columns(2')
-        })
-
-        it('forces single-column layout when columns is 1', () => {
-            const result = call(make_passage({columns: 1, book: 'psa'}))
             expect(result).not.toContain('#columns(')
         })
 
-        it('auto-detects columns for large poetry books', () => {
-            const result = call(make_passage({columns: 'auto', book: 'psa'}))
-            expect(result).toContain('#columns(2')
+        it('passage_columns honors a forced column count', () => {
+            expect(passage_columns(make_passage({columns: 2, book: 'gen'}))).toBe(2)
+            expect(passage_columns(make_passage({columns: 1, book: 'psa'}))).toBe(1)
         })
 
-        it('auto-detects single column for non-poetry books', () => {
-            const result = call(make_passage({columns: 'auto', book: 'gen'}))
-            expect(result).not.toContain('#columns(')
+        it('passage_columns auto-detects by book', () => {
+            expect(passage_columns(make_passage({columns: 'auto', book: 'psa'}))).toBe(2)
+            expect(passage_columns(make_passage({columns: 'auto', book: 'gen'}))).toBe(1)
         })
 
-        it('uses column_gap value', () => {
-            const result = call(make_passage({columns: 2, column_gap: '8mm'}))
-            expect(result).toContain('gutter: 8mm')
+        it('passage_columns never combines with a multi-translation layout', () => {
+            for (const multi_layout of ['columns', 'alternate'] as const) {
+                expect(passage_columns(make_passage({
+                    columns: 2,
+                    bibles: [{content: 'a'}, {content: 'b'}],
+                    multi_layout,
+                }))).toBe(1)
+            }
         })
     })
 
@@ -119,43 +123,85 @@ describe('gen_passage', () => {
         })
     })
 
-    // --- Multi-bible grid ---
+    // --- Multi-bible aligned grids ---
 
-    describe('multi-bible grid', () => {
+    describe('multi-bible aligned grids', () => {
 
-        it('renders grid for 2 bibles with columns layout', () => {
+        it('renders a grid for 2 bibles with columns layout', () => {
             const result = call(make_passage({
                 bibles: [
-                    {content: 'Bible 1 content'},
-                    {content: 'Bible 2 content'},
+                    {content: '#vn(1)Bible 1 content'},
+                    {content: '#vn(1)Bible 2 content'},
                 ],
                 multi_layout: 'columns',
             }))
             expect(result).toContain('#grid(')
             expect(result).toContain('columns: (1fr, 1fr)')
-            expect(result).toContain('[Bible 1 content]')
-            expect(result).toContain('Bible 2 content]')
+            expect(result).toContain('Bible 1 content')
+            expect(result).toContain('Bible 2 content')
+        })
+
+        it('emits one separate grid per alignment row, never one passage-length grid', () => {
+            // Two chapters of two paragraphs each — paragraph alignment must yield 4 grids
+            // (a single many-row grid is one layout container and reintroduces the footnote
+            // memory blowup)
+            const content = (name:string) => `#ch(1)\n\n#vn(1)${name} one one.\n\n`
+                + `#vn(2)${name} one two.\n\n#ch(2)\n\n#vn(1)${name} two one.\n\n`
+                + `#vn(2)${name} two two.`
+            const result = call(make_passage({
+                bibles: [{content: content('A')}, {content: content('B')}],
+                multi_layout: 'columns',
+                multi_align: 'paragraph',
+            }))
+            expect((result.match(/#grid\(/g) ?? []).length).toBe(4)
+        })
+
+        it('chapter alignment yields one grid per chapter', () => {
+            const content = (name:string) => `#ch(1)\n\n#vn(1)${name} one one.\n\n`
+                + `#vn(2)${name} one two.\n\n#ch(2)\n\n#vn(1)${name} two one.`
+            const result = call(make_passage({
+                bibles: [{content: content('A')}, {content: content('B')}],
+                multi_layout: 'columns',
+                multi_align: 'chapter',
+            }))
+            expect((result.match(/#grid\(/g) ?? []).length).toBe(2)
         })
 
         it('scopes the second cell to font_text2/font_headings2, leaving the first untouched', () => {
             const result = gen_passage(make_passage({
                 bibles: [
-                    {content: 'Bible 1 content'},
-                    {content: 'Bible 2 content'},
+                    {content: '#vn(1)Bible 1 content'},
+                    {content: '#vn(1)Bible 2 content'},
                 ],
                 multi_layout: 'columns',
             }), FONT_SIZE, 'Second Font', 'Second Heading Font', ['Fallback Font'])
 
-            // First cell stays a bare bracketed block — no font override leaking in
-            expect(result).toContain('[Bible 1 content]')
-
-            // Second cell carries its own font/heading-font override just ahead of its content
+            // First cell carries no font override — the override sits ahead of the second only
             const second_cell_start = result.indexOf('#set text(font: ("Second Font"')
             expect(second_cell_start).toBeGreaterThan(-1)
+            expect(result.slice(0, second_cell_start)).toContain('Bible 1 content')
             const second_cell = result.slice(second_cell_start)
             expect(second_cell).toContain('#set text(font: ("Second Font", "Fallback Font"))')
             expect(second_cell).toContain('#show heading: set text(font: "Second Heading Font")')
             expect(second_cell).toContain('Bible 2 content')
+        })
+
+        it('suppresses footnotes in the second translation only', () => {
+            const result = call(make_passage({
+                bibles: [
+                    {content: '#vn(1)Bible 1 content'},
+                    {content: '#vn(1)Bible 2 content'},
+                ],
+                multi_layout: 'columns',
+                show_footnotes: true,
+            }))
+            // The primary still shows notes (entry rule present), while the second cell
+            // shadows #footnote so its notes never register
+            expect(result).toContain('#show footnote.entry')
+            const shadow = result.indexOf('#let footnote(..args) = none')
+            expect(shadow).toBeGreaterThan(-1)
+            expect(result.slice(shadow)).toContain('Bible 2 content')
+            expect(result.slice(shadow)).not.toContain('Bible 1 content')
         })
 
         it('does not use grid for single bible', () => {

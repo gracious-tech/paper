@@ -1,8 +1,8 @@
 
 import {describe, it, expect} from 'vitest'
 
-import {generate_typst, generate_typst_passage, generate_typst_blank,
-    generate_typst_lines, group_content} from '../src/generate.js'
+import {generate_typst, generate_typst_facing, generate_typst_blank,
+    generate_typst_lines} from '../src/generate.js'
 import {make_request, make_passage, make_title, make_custom, make_lines,
     TEST_PAGE, TEST_TYPOGRAPHY} from './fixtures.js'
 
@@ -107,90 +107,66 @@ describe('page arrangement', () => {
 })
 
 
-describe('group_content', () => {
+describe('page-level columns', () => {
 
-    it('puts each new_page item in its own group', () => {
-        const groups = group_content([make_passage(), make_passage(), make_custom()])
-        expect(groups.map(g => g.length)).toEqual([1, 1, 1])
+    it('sets 2 page columns for a forced 2-column passage (no #columns block)', () => {
+        const result = generate_typst(make_request({
+            content: [make_passage({columns: 2})],
+        }))
+        expect(result).toContain('#set page(columns: 2)')
+        expect(result).toContain('#set columns(gutter: 5mm)')
+        expect(result).not.toContain('#columns(')
     })
 
-    it('merges a new_page=false item into the group above', () => {
-        const groups = group_content([
-            make_passage(),
-            make_custom({new_page: false}),
-        ])
-        expect(groups).toHaveLength(1)
-        expect(groups[0]).toHaveLength(2)
+    it('sets 1 page column for a single-column passage', () => {
+        const result = generate_typst(make_request({
+            content: [make_passage({columns: 1})],
+        }))
+        expect(result).toContain('#set page(columns: 1)')
+        expect(result).not.toContain('#set page(columns: 2)')
     })
 
-    it('does not merge into a title (title is not a mergeable head)', () => {
-        const groups = group_content([
-            make_title(),
-            make_custom({new_page: false}),
-        ])
-        expect(groups).toHaveLength(2)
+    it('auto columns uses 2 for large poetry books and 1 for prose', () => {
+        const poetry = generate_typst(make_request({
+            content: [make_passage({columns: 'auto', book: 'psa'})],
+        }))
+        expect(poetry).toContain('#set page(columns: 2)')
+
+        const prose = generate_typst(make_request({
+            content: [make_passage({columns: 'auto', book: 'jhn'})],
+        }))
+        expect(prose).not.toContain('#set page(columns: 2)')
     })
 
-    it('does not merge into an alternate-translation passage', () => {
-        const groups = group_content([
-            make_passage({bibles: [{content: 'a'}, {content: 'b'}], multi_layout: 'alternate'}),
-            make_custom({new_page: false}),
-        ])
-        expect(groups).toHaveLength(2)
-    })
-
-    it('forces an alternate-translation passage onto its own page even when merged', () => {
-        const groups = group_content([
-            make_custom(),
-            make_passage({
+    it('never combines page columns with the multi-bible grid', () => {
+        const result = generate_typst(make_request({
+            content: [make_passage({
+                columns: 2,
                 bibles: [{content: 'a'}, {content: 'b'}],
-                multi_layout: 'alternate',
-                new_page: false,
-            }),
-        ])
-        expect(groups).toHaveLength(2)
+                multi_layout: 'columns',
+            })],
+        }))
+        expect(result).toContain('#grid(')
+        expect(result).not.toContain('#set page(columns: 2)')
     })
 
-    it('still merges into a half-blank passage (blanks added after render)', () => {
-        const groups = group_content([
-            make_passage({half_blank: 'right'}),
-            make_custom({new_page: false}),
-        ])
-        expect(groups).toHaveLength(1)
-        expect(groups[0]).toHaveLength(2)
+    it('floats the passage title to page scope on 2-column pages', () => {
+        const two_col = generate_typst(make_request({
+            content: [make_passage({columns: 2, passage_title: 'Psalms'})],
+        }))
+        expect(two_col).toContain('#place(top + center, scope: "parent", float: true,')
+
+        const one_col = generate_typst(make_request({
+            content: [make_passage({columns: 1, passage_title: 'Psalms'})],
+        }))
+        expect(one_col).toContain('#align(center,')
+        expect(one_col).not.toContain('scope: "parent"')
     })
+
 })
 
 
-describe('merged content page breaks', () => {
-
-    it('omits the page break between merged items', () => {
-        const merged = generate_typst(make_request({
-            content: [make_passage(), make_custom({new_page: false})],
-        }))
-        // A single group means no page break at all (only preamble + the two items)
-        expect(merged).not.toContain('#pagebreak()')
-    })
-
-    it('keeps the page break when the item starts on a new page', () => {
-        const split = generate_typst(make_request({
-            content: [make_passage(), make_custom({new_page: true})],
-        }))
-        expect(split).toContain('#pagebreak()')
-    })
-
-    it('does not position a custom when items are merged below it', () => {
-        // A bottom-positioned custom followed by a merged passage must flow inline, otherwise the
-        // positioning block would push the passage onto the next page
-        const merged = generate_typst(make_request({
-            content: [
-                make_custom({position: 'bottom', content: 'INTRO'}),
-                make_passage({new_page: false}),
-            ],
-        }))
-        expect(merged).not.toContain('align(bottom, body)')
-        expect(merged).not.toContain('#pagebreak()')
-    })
+describe('custom page positioning', () => {
 
     it('positions a custom alone on its page, falling back to flow when it overflows', () => {
         const alone = generate_typst(make_request({
@@ -203,54 +179,69 @@ describe('merged content page breaks', () => {
 })
 
 
-describe('generate_typst_passage', () => {
+describe('generate_typst_facing', () => {
 
-    it('generates a document for a single bible from a multi-bible passage', () => {
-        const passage = make_passage({
-            bibles: [
-                {content: 'NIV content'},
-                {content: 'ESV content'},
-            ],
-        })
-        const result = generate_typst_passage(make_request(), passage, 0)
+    // Distinct margins so the geometry assertions can tell inner (left) from outer (right)
+    const facing_request = () => make_request({
+        page: {...TEST_PAGE, margin_left: '10mm', margin_right: '20mm'},
+    })
+    const facing_passage = () => make_passage({
+        bibles: [{content: '#vn(1)NIV content'}, {content: '#vn(1)ESV content'}],
+        multi_layout: 'alternate',
+    })
+
+    it('doubles the page width and fixes both margins to the outer value', () => {
+        const result = generate_typst_facing(facing_request(), facing_passage())
+        expect(result).toContain('width: 2 * 148mm')
+        expect(result).toContain('left: 20mm, right: 20mm')
+        expect(result).not.toContain('inside:')
+    })
+
+    it('renders both translations as aligned rows with the centre gutter', () => {
+        const result = generate_typst_facing(facing_request(), facing_passage())
         expect(result).toContain('NIV content')
-        expect(result).not.toContain('ESV content')
-    })
-
-    it('generates for the second bible', () => {
-        const passage = make_passage({
-            bibles: [
-                {content: 'NIV content'},
-                {content: 'ESV content'},
-            ],
-        })
-        const result = generate_typst_passage(make_request(), passage, 1)
         expect(result).toContain('ESV content')
-        expect(result).not.toContain('NIV content')
+        expect(result).toContain('#grid(')
+        expect(result).toContain('column-gutter: 2 * 10mm')
     })
 
-    it('includes preamble', () => {
-        const passage = make_passage()
-        const result = generate_typst_passage(make_request(), passage, 0)
-        expect(result).toContain('#set page(')
+    it('prints a computed page number per half, offset by start_page', () => {
+        const result = generate_typst_facing(facing_request(), facing_passage(), 7)
+        expect(result).toContain('str(7 + 2 * (n - 1))')
+        expect(result).toContain('str(7 + 2 * n - 1)')
     })
 
-    it('uses font_text/font_headings for the first bible, font_text2/font_headings2 for the second', () => {
-        const passage = make_passage({
-            bibles: [{content: 'NIV content'}, {content: 'ESV content'}],
-        })
+    it('omits page numbers when show_pages is off', () => {
+        const request = {...facing_request(), show_pages: false}
+        const result = generate_typst_facing(request, facing_passage())
+        expect(result).toContain('footer: none')
+    })
+
+    it('confines footnote entries to the left half', () => {
+        const result = generate_typst_facing(facing_request(), facing_passage())
+        expect(result).toContain('box(width: 148mm - 10mm - 20mm,')
+    })
+
+    it('never uses page-level text columns', () => {
+        const result = generate_typst_facing(
+            facing_request(), {...facing_passage(), columns: 2})
+        expect(result).not.toContain('#set page(columns: 2)')
+    })
+
+    it('repeats the passage title on both halves', () => {
+        const result = generate_typst_facing(
+            facing_request(), {...facing_passage(), passage_title: 'Psalms'})
+        expect((result.match(/Psalms/g) ?? []).length).toBe(2)
+    })
+
+    it('gives the second cell its own fonts', () => {
         const request = make_request({typography: {
             ...TEST_TYPOGRAPHY, font_text: 'First Font', font_headings: 'First Heading Font',
             font_text2: 'Second Font', font_headings2: 'Second Heading Font',
         }})
-
-        const first = generate_typst_passage(request, passage, 0)
-        expect(first).toContain('#set text(font: ("First Font"')
-        expect(first).toContain('#show heading: set text(font: "First Heading Font")')
-
-        const second = generate_typst_passage(request, passage, 1)
-        expect(second).toContain('#set text(font: ("Second Font"')
-        expect(second).toContain('#show heading: set text(font: "Second Heading Font")')
+        const result = generate_typst_facing(request, facing_passage())
+        expect(result).toContain('#set text(font: ("Second Font"')
+        expect(result).toContain('#show heading: set text(font: "Second Heading Font")')
     })
 })
 
