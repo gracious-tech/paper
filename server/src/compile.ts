@@ -12,7 +12,7 @@ import type {Blueprint, CustomFont} from 'paper-bible-typst-node'
 
 
 // How long generated PDFs are kept before the bucket's lifecycle rule deletes them
-// WARN Must match the age in storage_lifecycle.json
+// WARN Must match the age in firebase_storage_lifecycle.json
 const PDF_LIFETIME_MS = 365 * 24 * 60 * 60 * 1000
 
 

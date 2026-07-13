@@ -2,15 +2,12 @@
 import {Hono} from 'hono'
 import {serve} from '@hono/node-server'
 
-import {Readable} from 'node:stream'
-
 import {config} from './config.ts'
 import {verify_uid} from './auth.ts'
 import {save_error, generate_error_id, get_client_ip, report_allowed,
     handle_report_error} from './errors.ts'
 import {handle_compile} from './compile.ts'
-import {handle_redeem_draft, get_shared_creation, get_shared_creation_pdf,
-    handle_copy_creation} from './share.ts'
+import {handle_redeem_draft, handle_copy_creation} from './share.ts'
 import {handle_merge} from './merge.ts'
 
 
@@ -78,36 +75,19 @@ if (config.roles.includes('light')){
         return context.json(result.body, result.status as 200)
     })
 
-    // Shared creation metadata + PDF — the secret token is the capability, so no auth required
-    // (recipients open these from a bare link, possibly before ever visiting the app)
-    app.get('/api/shared_creation/:id/:token', async context => {
-        const result = await get_shared_creation(
-            context.req.param('id'), context.req.param('token'))
-        return context.json(result.body, result.status as 200)
-    })
-
-    app.get('/api/shared_creation/:id/:token/pdf', async context => {
-        const result = await get_shared_creation_pdf(
-            context.req.param('id'), context.req.param('token'))
-        if (result instanceof Readable){
-            context.header('Content-Type', 'application/pdf')
-            return context.body(Readable.toWeb(result) as ReadableStream)
-        }
-        return context.json(result.body, result.status as 200)
-    })
-
-    // "Keep own copy" of a shared creation
+    // "Keep own copy" of a shared creation (metadata + PDF are otherwise read directly from
+    // Firestore/Storage by the client — see firestore.rules/firebase_storage.rules — since creations are
+    // publicly readable by id; only the copy itself needs server-side Admin SDK access)
     app.post('/api/copy_creation', async context => {
         const uid = await verify_uid(context.req.header('Authorization'))
         if (!uid){
             return context.json({error: 'unauthenticated'}, 401)
         }
-        const body = await context.req.json().catch(() => null) as
-            {creation_id?:unknown, token?:unknown}|null
-        if (typeof body?.creation_id !== 'string' || typeof body?.token !== 'string'){
+        const body = await context.req.json().catch(() => null) as {creation_id?:unknown}|null
+        if (typeof body?.creation_id !== 'string'){
             return context.json({error: 'bad_request'}, 400)
         }
-        const result = await handle_copy_creation(uid, body.creation_id, body.token)
+        const result = await handle_copy_creation(uid, body.creation_id)
         return context.json(result.body, result.status as 200)
     })
 
