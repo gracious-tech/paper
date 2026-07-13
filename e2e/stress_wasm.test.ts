@@ -52,7 +52,7 @@ interface TierResult {
 
 // Renderer processes of the project-local browser install (the worker that runs the WASM
 // compiler lives inside the page's renderer process)
-const RENDERER = /\.playwright-browsers.*--type=renderer/
+const RENDERER = /e2e\/browsers.*--type=renderer/
 
 
 test('wasm compile stress tiers', async ({browser}) => {

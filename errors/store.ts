@@ -5,10 +5,11 @@ import {join} from 'node:path'
 import type {ErrorRecord} from '../server/src/errors.ts'
 
 
-// Local mirror of the bucket's error records plus triage state, all under gitignored .errors/
+// Local mirror of the bucket's error records plus triage state, all under gitignored
+// errors/records/
 
 
-export const ERRORS_DIR = '.errors'
+export const ERRORS_DIR = join('errors', 'records')
 export const RECORDS_DIR = join(ERRORS_DIR, 'records')
 export const PROMPTS_DIR = join(ERRORS_DIR, 'prompts')
 const ISSUES_PATH = join(ERRORS_DIR, 'issues.json')
@@ -46,7 +47,7 @@ export interface IssueView {
 
 
 export function ensure_dirs():void{
-    // Make sure the .errors/ tree exists
+    // Make sure the errors/records/ tree exists
     for (const dir of [ERRORS_DIR, RECORDS_DIR, PROMPTS_DIR]){
         mkdirSync(dir, {recursive: true})
     }
@@ -74,7 +75,7 @@ function load_json<T>(path:string, fallback:T):T{
 
 
 export function local_object_names():Set<string>{
-    // Object names (errors/{fp}/{id}.json) already downloaded into .errors/records/
+    // Object names (errors/{fp}/{id}.json) already downloaded into errors/records/records/
     const names = new Set<string>()
     for (const fp of list_dir(RECORDS_DIR)){
         for (const file of list_dir(join(RECORDS_DIR, fp))){
