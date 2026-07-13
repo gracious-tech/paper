@@ -1,0 +1,24 @@
+#!/usr/bin/env bash
+
+# Stage a minimal build context for server/Dockerfile at server/deploy/ (gitignored) — just
+# the paths the Dockerfile COPYs, so local-only dirs (fonts/, .private/, branding/,
+# node_modules) can never leak into a Cloud Build upload by accident, no matter what else is
+# in the tree. Used by .bin/deploy_server; also runnable standalone to inspect the context or
+# for a manual `docker build -f server/deploy/Dockerfile server/deploy`.
+# Requires .bin/typst (setup_typst) to exist locally.
+
+set -euo pipefail
+cd "$(dirname "$0")/.."
+
+# Stage exactly what the Dockerfile COPYs — nothing else ever leaves this machine
+CONTEXT="server/deploy"
+rm -rf "$CONTEXT"
+mkdir -p "$CONTEXT/server" "$CONTEXT/.bin"
+cp server/Dockerfile package.json package-lock.json "$CONTEXT/"
+cp server/package.json "$CONTEXT/server/"
+cp -r server/src "$CONTEXT/server/src"
+cp -r generic typst typst-node "$CONTEXT/"
+cp .bin/typst "$CONTEXT/.bin/typst"
+find "$CONTEXT" -type d \( -name node_modules -o -name dist \) -prune -exec rm -rf {} +
+
+echo "Staged build context at $CONTEXT"

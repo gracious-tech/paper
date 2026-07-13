@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 
-# Deploy the API server to Cloud Run as two services sharing one image (see Dockerfile):
+# Deploy the API server to Cloud Run as two services sharing one image (see server/Dockerfile):
 #   paper-bible-compile — /api/compile only; big instance, fonts bucket mounted via GCS FUSE
 #   paper-bible-api     — the lightweight share/merge routes; tiny instance
 # Pass the GCP project id, e.g. `deploy_server paper-bible [fonts-bucket]`.
@@ -12,12 +12,16 @@ cd "$(dirname "$0")/.."
 PROJECT="${1:?Usage: deploy_server <gcp-project-id> [fonts-bucket]}"
 FONTS_BUCKET="${2:-fonts.paper.bible}"
 
+CONTEXT="server/deploy"
+.bin/build_server
+trap 'rm -rf "$CONTEXT"' EXIT
+
 # Build once (Cloud Build) and deploy the compile service, mounting the public fonts bucket
 # (deploy_fonts puts objects under a fonts/ prefix, hence the nested FONTS_DIR)
 gcloud run deploy paper-bible-compile \
     --project "$PROJECT" \
     --region us-west1 \
-    --source . \
+    --source "$CONTEXT" \
     --memory 2Gi \
     --cpu 2 \
     --timeout 600 \
