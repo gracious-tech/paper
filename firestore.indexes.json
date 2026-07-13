@@ -1,0 +1,21 @@
+{
+    "indexes": [
+        {
+            "collectionGroup": "drafts",
+            "queryScope": "COLLECTION",
+            "fields": [
+                {"fieldPath": "editor_uids", "arrayConfig": "CONTAINS"},
+                {"fieldPath": "modified", "order": "DESCENDING"}
+            ]
+        },
+        {
+            "collectionGroup": "creations",
+            "queryScope": "COLLECTION",
+            "fields": [
+                {"fieldPath": "owner", "order": "ASCENDING"},
+                {"fieldPath": "created", "order": "DESCENDING"}
+            ]
+        }
+    ],
+    "fieldOverrides": []
+}

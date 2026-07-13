@@ -2,6 +2,7 @@
     "private": true,
     "workspaces": [
         "app",
+        "server",
         "typst",
         "typst-web",
         "typst-node",
@@ -11,5 +12,9 @@
     ],
     "dependencies": {
         "typescript": "^6.0.3"
+    },
+    "devDependencies": {
+        "@playwright/test": "^1.61.1",
+        "firebase-tools": "^15.23.0"
     }
 }

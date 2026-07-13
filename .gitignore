@@ -2,11 +2,15 @@
 dist/
 node_modules/
 
+/ui-debug.log
+/firebase-debug.log
+/firestore-debug.log
+
 /.bin/typst
-/fonts/
-
+/.emulator_data/
 /app/.env.*.local
-
-/generator/.venv/
-/generator/.aws-sam/
-/generator/config.yaml
+/e2e/browsers/
+/e2e/results/
+/errors/records/
+/fonts/
+/server/deploy/

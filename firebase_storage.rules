@@ -1,0 +1,53 @@
+rules_version = '2';
+
+
+// NOTE All paths are publicly readable — ids are unguessable url64, and letting PDFs/fonts
+//      be shared by link without an auth check keeps sharing simple
+// NOTE Cross-service firestore.get() requires a one-time IAM grant for the Rules service
+//      account (prompted on first deploy)
+
+service firebase.storage {
+    match /b/{bucket}/o {
+
+        // Creation PDFs — create-once by owner (in-browser compile path), no overwrite/delete
+        // by clients (re-creation is allowed again after lifecycle deletion since the object
+        // no longer exists)
+        match /creations/{creation_id}/doc.pdf {
+
+            function creation() {
+                return firestore.get(
+                    /databases/(default)/documents/creations/$(creation_id));
+            }
+
+            allow read: if true;
+
+            allow create: if request.auth != null
+                && resource == null
+                && creation().data.owner == request.auth.uid
+                && request.resource.contentType == 'application/pdf'
+                && request.resource.size < 200 * 1024 * 1024;
+        }
+
+        // Per-creation snapshots of custom font bytes (immutable alongside the creation, and
+        // nested under creations/ so the lifecycle rule sweeps them together with the PDF)
+        match /creations/{creation_id}/fonts/{file} {
+            allow read: if true;
+
+            allow create: if request.auth != null
+                && firestore.get(
+                    /databases/(default)/documents/creations/$(creation_id))
+                    .data.owner == request.auth.uid
+                && request.resource.size < 20 * 1024 * 1024;
+        }
+
+        // Per-user reusable custom font library
+        match /user_fonts/{uid}/{path=**} {
+            allow read: if true;
+
+            allow delete: if request.auth != null && request.auth.uid == uid;
+
+            allow create, update: if request.auth != null && request.auth.uid == uid
+                && request.resource.size < 20 * 1024 * 1024;
+        }
+    }
+}

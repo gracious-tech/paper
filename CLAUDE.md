@@ -4,432 +4,243 @@
 Web application for creating customized, printable Bible documents in professional
 book/booklet format. Users select Bible passages from 800+ languages, customize
 styling (fonts, margins, columns), add decorative title pages and custom content,
-then generate print-ready PDFs via a serverless backend.
+then generate print-ready PDFs — compiled in the browser via Typst (WASM), with a
+server fallback for low-memory devices.
 
 Live at [paper.bible](https://paper.bible). MIT No Attribution license.
 
 
 ## Architecture & Data Flow
 
-**Frontend:** Vue 3 SPA (Vite + Vuetify 3 + TypeScript)
-**Backend:** AWS Lambda (Python) triggered by S3 uploads, renders HTML to PDF with
-WeasyPrint
+**Frontend:** Vue 3 SPA (Vite + Vuetify 3 + TypeScript), hosted on Firebase Hosting
+**Data:** Firebase Auth (anonymous by default) + Firestore (drafts, creation metadata)
+  + Cloud Storage (PDFs, custom fonts)
+**PDF engine:** Typst — in the browser via a WASM worker, and on a Cloud Run container
+  (Typst CLI) as fallback/regeneration path
+**API:** one server codebase deployed as two Cloud Run services (`SERVER_ROLES` env picks
+  routes): `paper-bible-api` (light: share/redeem/copy/merge, 256Mi) and
+  `paper-bible-compile` (`/api/compile` only, 2Gi/2cpu, fonts bucket mounted via GCS FUSE)
+**Fonts:** curated font set served from a dedicated public bucket at
+  `https://fonts.paper.bible/` (dev: served by a Vite middleware from `fonts/`); the compile
+  service reads the same bucket as a mounted volume instead of baking fonts into the image
 
 ### Data flow: user input to PDF
 
-1. User configures a `Blueprint` (passages, translations, styling, layout) in the
-   Create tab
-2. Reactive watchers auto-save the draft to IndexedDB and pre-fetch Bible content
-3. On "Create", the app generates HTML/CSS for each content item via the render
-   services, producing an array of `Subjob` tuples
-4. The full `PaperRequest` JSON is uploaded to S3 `requests/` folder via
-   unauthenticated `@aws-sdk/client-s3`
-5. S3 ObjectCreated event triggers the Lambda function
-6. Lambda renders each subjob's HTML to PDF via WeasyPrint, arranges pages
-   (booklet folding, page numbers, duplex metadata), compresses, and uploads to
-   S3 `creations/`
-7. The app polls `creations/{id}.result.json` every 2 seconds (up to 600s timeout)
-8. When available, the PDF is displayed in an iframe; user can download, edit as
-   new, or delete
+1. Every visitor is signed in anonymously (`ensure_signed_in()` in `auth.ts`); sign-in
+   with Google/email-link upgrades the account in place (work retained)
+2. The user edits a draft `Blueprint` — the reactive `blue` singleton mirrors the
+   currently open Firestore draft doc (`drafts.ts` syncs both directions, debounced
+   field-level writes so co-editors don't clobber each other)
+3. `DisplayPreview.vue` compiles a truncated preview in the browser as they edit
+4. On "Create", the draft is frozen into an immutable `creations/{id}` doc (blueprint +
+   custom-font snapshot), then compiled in the browser and uploaded to Storage
+   (`creations.ts: compile_and_upload`)
+5. If the in-browser (WASM) compile fails, the client calls `POST /api/compile` and the
+   Cloud Run server compiles the same frozen blueprint with the Typst CLI
+6. PDFs live in Storage for 1 year (GCS lifecycle rule); metadata stays forever and the
+   PDF can be regenerated (same hybrid path) after expiry
+7. Drafts can be shared via a secret invite link (adds the recipient as an editor); creations
+   are public by id alone — sharing them is just sharing the URL, no token involved
 
 ### Key architectural patterns
 
-- **No authentication:** S3 bucket has public read for `creations/` and `requests/`.
-  The creation_id (derived from request_id + S3 etag) serves as an unguessable token
-- **Serverless:** No servers to manage; Lambda handles all PDF generation
-- **Offline-capable state:** IndexedDB persists drafts and creation history across
-  sessions, with graceful fallback for private tabs
-- **Reactive pre-fetching:** Watchers on `blue.bibles` and `blue.content` eagerly
-  fetch book metadata and HTML content as the user makes selections
+- **Anonymous-first auth:** everyone is a real Firebase Auth user; linking keeps the
+  uid, credential conflicts trigger a server-side account merge (`/api/merge_account`)
+- **Immutable creations:** Firestore rules forbid changing `blueprint`/`owner`/
+  `created`/`copied_from`/`custom_fonts`; only lifecycle fields (status/pages/expiry) may
+  change. "Keep own copy" duplicates doc + PDF under the recipient (server-mediated, Admin SDK,
+  since it writes under a different owner)
+- **Draft co-editing:** drafts store `content_items` (map keyed by item id) +
+  `content_order` (array) so concurrent edits to different items/fields merge cleanly;
+  same-field conflicts are last-write-wins (see converters in `drafts.ts`)
+- **Draft invite links vs. public creations:** draft ids are not enough on their own — editing
+  is a permission grant, so invite links carry a separate `share_token` that a server route
+  (`/api/redeem_draft`) validates before adding the caller to `editor_uids`. Creations are read-
+  only and already keyed by an unguessable url64 id (`generate_token()`), so the id itself is
+  the whole capability — Firestore/Storage rules allow public read directly, no server hop or
+  token needed to view metadata or download the PDF
+- **Same-origin API:** Hosting rewrites `/api/compile` to the compile service and `/api/**`
+  to the light service (Vite proxies everything to `localhost:8788` in dev) — no CORS anywhere
+- **Static-content skew:** Bible translations (1000+ in prod) and Noto fallback fonts (192
+  families) are barely-changing content with heavily skewed popularity — the compile service
+  fetches both on demand (fonts via the bucket mount, books via fetch.bible) and keeps books
+  warm in a per-instance LRU (`server/src/content.ts`) rather than baking anything in
 
 
-## Tech Stack
-
-| Dependency | Purpose |
-|---|---|
-| Vue 3.3 | UI framework (Composition API, reactivity) |
-| Vuetify 3.7 | Material Design 3 component library |
-| Vite 4 | Build tool and dev server |
-| TypeScript | Type safety (strict mode) |
-| Pug 3 | HTML templating for index page |
-| Sass | CSS preprocessing |
-| `@gracious.tech/fetch-client` | Bible content API client (fetches translations, books, HTML) |
-| `@gracious.tech/bible-references` | Passage reference parsing |
-| `@aws-sdk/client-s3` | Uploads PDF requests to S3 (unauthenticated) |
-| `idb` | IndexedDB wrapper for persistent local state |
-| `vue-i18n` 11 | Internationalization (English default, Vietnamese supported) |
-| `vuedraggable` | Drag-and-drop content item reordering |
-| `@tinymce/tinymce-vue` | WYSIWYG HTML editor for custom content pages |
-| `core-js` | Polyfills (Array.at, Object.hasOwn for Vuetify) |
-| `lodash-es` | Utilities (cloneDeep, debounce) |
-| `vite-svg-loader` | Import SVGs as Vue components |
-| `vite-plugin-vuetify` | Vuetify tree-shaking and auto-import |
-| `@volar/vue-language-plugin-pug` | Pug support in Vue SFCs via Volar |
-
-**Backend (Python Lambda):**
-
-| Dependency | Purpose |
-|---|---|
-| WeasyPrint | HTML/CSS to PDF rendering engine |
-| pypdf | PDF manipulation (merge, booklet reorder, compress, metadata) |
-| reportlab | Generates page number overlay PDFs |
-| boto3 | AWS S3 access |
-
-
-## File Structure & Entry Points
+## Monorepo layout (npm workspaces)
 
 ```
-paper_bible2/
-  .bin/                     # Shell scripts for dev/deploy
-    serve_app               # Dev server (vite)
-    serve_app_prod          # Build + preview (vite build && vite preview)
-    setup                   # Install deps (python venv + npm install)
-    deploy_generator        # Deploy Lambda via SAM CLI
-    debug_generator         # Docker debug for Lambda
-    detect_i18n_strings     # Extract i18n keys from Vue files
-  app/
-    package.json            # Dependencies (no scripts, use .bin/ instead)
-    vite.config.ts          # Vite config with custom pug plugin, SVG, Vuetify
-    vite_plugin_index.ts    # Custom Vite plugin: renders index.pug as HTML
-    tsconfig.json           # Strict TS, path alias @/ -> src/
+paper_bible/
+  firebase.json            # Hosting (app/dist, /api rewrite), Firestore/Storage rules refs
+  .firebaserc              # Project aliases (default/dev/prod)
+  firestore.rules          # Drafts/creations/users access rules
+  firestore.indexes.json   # drafts editor_uids+modified, creations owner+created
+  firebase_storage.rules            # PDFs create-once-by-owner, font paths (cross-service get())
+  firebase_storage_lifecycle.json   # Deletion of creations/ (365d) + errors/ (90d) (applied via gcloud)
+  .bin/                    # All dev/deploy commands (package.json has no scripts)
+    setup                  # npm install
+    setup_typst            # Download the Typst CLI binary into .bin/
+    setup_firebase         # One-time per-project GCP setup (lifecycle, fonts bucket, CORS)
+    download_fonts         # Download curated fonts into fonts/ (gitignored)
+    build_typst            # Build all local TS packages in dependency order
+    serve_app              # Vite dev server (port 5300)
+    serve_emulators        # Firebase emulator suite (auth 9099, firestore 8080, storage 9199)
+    serve_server           # Local API server against the emulators (port 8788)
+    deploy_app             # vite build + firebase deploy (hosting, rules)
+    deploy_fonts           # rsync fonts/ to the public fonts bucket
+    build_server           # Stage server/deploy/ (allowlisted Docker build context)
+    deploy_server          # Runs build_server, gcloud run deploy of both services from one build
+    detect_i18n_strings    # Extract i18n keys from .vue files into en.json
+    test_e2e               # Playwright e2e tests (needs the dev stack running; see e2e/)
+    audit_stress         # Compile stress ladder, browser (WASM) + server (see e2e/tiers.ts)
+    errors                 # Download + triage error reports (TUI; claude groups them)
+  app/                     # The Vue SPA (workspace)
     src/
-      init.ts               # ** APP ENTRY POINT ** - bootstraps everything
-      styles.sass            # Global styles
-      locales.json           # Supported locale list: ["vi"]
-      locales/               # i18n JSON files (en.json has empty values)
-      comp/
-        AppRoot.vue          # Root component (3-tab layout + display panel)
-        global/
-          AppIcon.vue        # SVG icon system (Material Symbols + custom)
-          AppHtml.vue        # TinyMCE editor wrapper
-        tabs/
-          TabCreate.vue      # Main creation form + generate button
-          TabEditor.vue      # Dynamic editor popup mount point
-          TabHistory.vue     # Creation history list
-          TabHelp.vue        # User guide
-          assets/
-            TabHistoryItem.vue  # Single history row
-        editors/
-          EditorPassage.vue  # Book/passage selector
-          EditorTitle.vue    # Title page editor (icon, pattern, colors)
-          EditorCustom.vue   # HTML editor (TinyMCE)
-          EditorBible.vue    # Translation picker
-        options/
-          OptionsContent.vue # Draggable content list
-          OptionsBibles.vue  # Primary/secondary translation selectors
-          OptionsPaper.vue   # Paper size (A4/Letter/custom)
-          OptionsPreset.vue  # Quick presets
-          OptionsFeatures.vue # Toggle headings/chapters/verses/footnotes/wj
-          OptionsStudy.vue   # Study notes and cross-references
-          OptionsStyle.vue   # Font, size, line-height, justify, columns
-          OptionsLayout.vue  # Margins, binding swap, column gap
-          OptionsPrint.vue   # Booklet/page numbers/blank pages
-          OptionsOther.vue   # License and attribution
-        display/
-          DisplayPreview.vue    # Live preview in iframe (first page)
-          DisplayCreation.vue   # PDF result display (pending/available/failed)
-          DisplaySplash.vue     # First-visit welcome screen
-          DisplayHelp.vue       # Help/tutorial content
-        reuseable/
-          AnimatedBook.vue      # Animated book during generation
+      init.ts              # ** APP ENTRY POINT ** auth → content → share links → drafts
+      comp/                # Components: Tab*/Editor*/Options*/Display*/Dialog*/App*
+        dialogs/           # DialogAccount, DialogShare, DialogSharedCreation
       services/
-        types.ts             # Core data models (Blueprint, Creation, ContentItem)
-        state.ts             # Global reactive state + computed properties
-        db.ts                # IndexedDB persistence (config + creations stores)
-        content.ts           # Bible data service (fetch-client wrapper)
-        blueprints.ts        # Default blueprint factory + validation/sanitization
-        watchers.ts          # Reactive auto-save, auto-fetch, expiration detection
-        backend.ts           # S3 client (put_request, delete_creation, gen_url)
-        create.ts            # PDF generation monitor (polls S3 for result)
-        patterns.ts          # 16 decorative SVG patterns for title pages
-        emoji.ts             # Biblical-themed emoji catalog
-        errors.ts            # Global error handling + Rollbar reporting
-        utils.ts             # Helpers (base64, tokens, compress, escape, debounce)
-        render/
-          render.ts          # Orchestrator: gen_subjobs() + gen_combined_css()
-          render_base.ts     # @page rules, body fonts, paragraph spacing
-          render_passage.ts  # Bible passage HTML (1-2 translations, notes, columns)
-          render_title.ts    # Decorative title page with SVG corner patterns
-          render_custom.ts   # User HTML + AUTO-COPYRIGHT placeholder replacement
-          render_lines.ts    # Ruled paper for note-taking pages
-  generator/
-    template.yaml            # AWS SAM CloudFormation (Lambda + S3 bucket)
-    src/
-      main.py                # Lambda handler (HTML->PDF via WeasyPrint, booklet)
-  branding/
-    icon.svg                 # App icon
-    social.svg               # Social media image
-    splash/                  # Splash screen assets
+        firebase.ts        # Firebase init (config committed; emulators in dev)
+        auth.ts            # Anonymous auth, Google/email-link upgrade, merge trigger
+        api.ts             # fetch wrapper for /api/* with ID token
+        state.ts           # Reactive `blue` (open draft), `creations`, `state`
+        drafts.ts          # Multi-draft sync: converters, debounced diff writes, sharing
+        creations.ts       # Creation lifecycle: freeze, compile+upload, regen, sharing
+        custom_fonts.ts    # Uploaded fonts: reactive set + online library + snapshots
+        content.ts         # Bible data service (fetch-client via paper-bible-typst)
+        blueprints.ts      # Default blueprint + clean_blueprint() validation
+        typst.ts           # TypstWorkerClient (WASM worker mgmt, worn-worker recycle)
+        typst_worker.ts    # The worker: WASM compiler via paper-bible-typst-web
+        watchers.ts        # Auto-fetch book content as the draft changes
+  server/                  # Cloud Run API server (workspace; run directly by node)
+    Dockerfile             # Cloud Run image: node + workspaces + typst CLI (no fonts baked)
+    deploy/                # Staged build context (gitignored; written by .bin/build_server)
+    src/index.ts           # Hono routes, gated by SERVER_ROLES: compile | light (share/merge)
+    src/compile.ts         # compile_pdf_from_blueprint + upload + doc update
+    src/content.ts         # Shared BibleContent: collection TTL + LRU book cache
+    src/share.ts           # Share-token redemption, shared views, keep-own-copy
+    src/merge.ts           # Guest→existing account data merge
+    src/errors.ts          # ErrorRecord + save_error() → errors/{fingerprint}/{id}.json
+  errors/             # .bin/errors internals: bucket sync, claude clustering, triage TUI
+  typst/                   # paper-bible-typst: core (Blueprint→TypstRequest, typst gen)
+  typst-web/               # paper-bible-typst-web: WASM wrapper (browser)
+  typst-node/              # paper-bible-typst-node: Typst CLI wrapper (server)
+  generic/                 # Reusable packages: pm-to-typst, typst-utils, typst-fonts
+  fonts/                   # Curated fonts (gitignored; download_fonts / deploy_fonts)
 ```
 
-### Where to start reading
 
-- **App bootstrap:** `app/src/init.ts` - loads DB, fetches collection, mounts Vue
-- **Data model:** `app/src/services/types.ts` - `Blueprint`, `Creation`, `ContentItem`
-- **State:** `app/src/services/state.ts` - reactive `blue` (draft), `creations`
-- **PDF generation trigger:** `app/src/comp/tabs/TabCreate.vue` - `generate()` method
-- **Render pipeline:** `app/src/services/render/render.ts` -> individual renderers
-- **Backend PDF creation:** `generator/src/main.py` - Lambda entry + booklet logic
+## Firestore data model
+
+```
+users/{uid}/fonts/{font_id}   {family, style, files:[storage paths]}   # font library
+
+drafts/{draft_id}             # editable, multi-user
+    owner, editor_uids (includes owner), editors:{uid:{joined}}, share_token|null  # edit invite
+    name, created, modified
+    blueprint:{...options}    # Blueprint minus content
+    content_items:{id:item}, content_order:[id]
+
+creations/{creation_id}       # immutable once created, publicly readable by id (no share_token)
+    owner, created, title, status: pending|available|failed
+    blueprint (frozen), pages, pdf_path, pdf_expires, error
+    copied_from|null
+    custom_fonts:[{family, style, files:[creations/{id}/fonts/... paths]}]
+```
+
+Storage: `creations/{id}/doc.pdf` + `creations/{id}/fonts/*` (both swept by the same 365-day
+lifecycle rule, since fonts are nested under the creation), `user_fonts/{uid}/{font_id}/*`.
+All publicly readable by path (ids are unguessable url64 tokens); Storage rules resolve
+ownership for writes via `firestore.get()`.
 
 
-## Development Setup & Commands
-
-### Prerequisites
-
-- Node.js (for the app)
-- Python 3 (for the generator)
-- AWS credentials (for deploying the generator)
-
-### Initial setup
+## Development
 
 ```bash
-.bin/setup    # Creates Python venv, installs SAM CLI, runs npm install
+.bin/setup && .bin/setup_typst && .bin/download_fonts   # once
+.bin/serve_emulators    # terminal 1: Firebase emulators (persists to .emulator_data/)
+.bin/serve_server       # terminal 2: API server on :8788 (against emulators)
+.bin/serve_app          # terminal 3: app on :5300 (auth/firestore/storage → emulators)
 ```
 
-### Config files needed
+- The app connects to emulators automatically when `import.meta.env.DEV`
+- Bible content comes from `http://localhost:8430/` in dev, `https://v1.fetch.bible/`
+  in prod (`app/src/services/content.ts`; server via `FETCH_ENDPOINT` env)
+- The server workspace has no build step — node runs `server/src/*.ts` directly
+  (erasable-syntax TS; typecheck with `npx tsc -p server/tsconfig.json`)
+- **No unit-test framework in the app.** `typst-node`/`typst` have vitest suites. Emulator
+  integration is tested manually; `vite build` catches compile errors
+- **Playwright e2e/stress** lives in `e2e/` (run via `.bin/test_e2e`, needs the dev stack
+  running). Browsers install into `e2e/browsers/` (gitignored) — keep them inside the
+  repo, apt/system state doesn't persist across dev-container rebuilds. The compile stress
+  harness (`.bin/audit_stress`, results in `e2e/results/`) compiles the same size tiers in
+  the browser (WASM worker) and the server pipeline; `STRESS_BOOKS="psa,pro"` probes a custom
+  book set. A layout-option matrix (`e2e/matrix.ts`) isolates which blueprint options drive
+  Typst memory — run `node e2e/stress_matrix.ts` (server) or `.bin/test_e2e
+  stress_matrix.test.ts` (browser), filtered via `STRESS_CONFIGS="psa_col1,full_col1"`
 
-Copy and rename these templates (values discovered while setting up backend):
-- `app/.env.development.local.template` -> `app/.env.development.local`
-- `generator/config.yaml.template` -> `generator/config.yaml`
+### Deployment (per project alias: dev/prod)
 
-### Development commands
-
-```bash
-.bin/serve_app          # Dev server (Vite, hot reload)
-.bin/serve_app_prod     # Build + preview production bundle
-.bin/deploy_generator   # Deploy Lambda (pass AWS creds as env vars)
-.bin/deploy_generator prod  # Deploy to production
-.bin/debug_generator    # Docker shell for debugging Lambda
-.bin/detect_i18n_strings    # Extract i18n keys from .vue files
-```
-
-**Note:** `package.json` has no `scripts` section. All commands go through `.bin/`.
-Vite and other tools are invoked via `node_modules/.bin/` within the shell scripts.
-
-### Dev endpoints
-
-- App dev server hits `http://localhost:8430/` for Bible content (fetch-bible API)
-- Error reports go to `http://localhost:7777/` in dev (instead of Rollbar)
-
-### Backend limitations
-
-The backend cannot be run locally due to S3 API access and request size limits.
-Deploy a dev version with `.bin/deploy_generator` for testing PDF generation.
+1. Firebase console: create project, Blaze plan, enable Auth (Anonymous/Google/Email
+   link), Firestore, Storage; copy the web config into `app/src/services/firebase.ts`
+2. `.bin/setup_firebase <project-id>` — lifecycle rule, fonts bucket + CORS + volume IAM
+3. `.bin/deploy_fonts`, `.bin/deploy_server <project-id>`, `.bin/deploy_app [alias]`
+   (deploy fonts before the server — the compile service reads them from the bucket)
+4. Point `fonts.paper.bible` at the fonts bucket (LB backend-bucket or CDN proxy)
 
 
 ## Code Style & Conventions
 
-### TypeScript / Vue
-
-- **No semicolons** to end lines
-- **snake_case** for variables and functions, **CamelCase** for classes
-- **4-space indentation**
-- **Single quotes** for strings, **double quotes** for UI-displayed text
-- **No space** between colon and type: `name:string`, not `name: string`
-- **Import spacing:** `import {a, b} from 'x'`
-- **No inline if statements:** always put return/continue on a new line
-- **Line length:** 100 characters (may exceed in HTML/Markdown)
-- **Empty line** at the start and end of each file
+- **No semicolons**, **snake_case** functions/variables, **CamelCase** classes
+- **4-space indent**, 100-char lines (may exceed in Pug/markup)
+- **Single quotes**; **double quotes** for UI-displayed text (always via `$t("...")`)
+- **No space** before types: `name:string`; imports like `import {a, b} from 'x'`
 - **Comment** every function/class and before every chunk of code
-- Vue SFCs use Pug for templates and Sass for styles
-- `@/` path alias maps to `app/src/`
-
-### Component naming
-
-- `Tab*` - top-level tab views
-- `Editor*` - popup editors for content items
-- `Options*` - settings sections within TabCreate
-- `Display*` - right-side display panels
-- `App*` - globally registered components (AppIcon, AppHtml)
-
-### State management pattern
-
-- Global reactive state in `state.ts` (no Vuex/Pinia)
-- `blue` is the reactive draft blueprint, auto-saved via watcher
-- `content` holds cached Bible data (collection, translations, books, HTML)
-- Computed properties for derived state (page dimensions, copyright checks)
-- Watchers in `watchers.ts` handle side effects (save, fetch, expire)
-
-### Render pipeline pattern
-
-Each content type has its own render module exporting `gen_*_html()` and
-`gen_*_css()`. The orchestrator in `render.ts` combines them into subjobs and
-merged CSS. The HTML is self-contained (inline styles, embedded CSS) for
-WeasyPrint rendering.
+- Vue SFCs: Pug templates, Sass styles, template → script → style order
+- `@/` alias → `app/src/`. Components: `Tab*`, `Editor*`, `Options*`, `Display*`,
+  `Dialog*`, `App*` (global)
+- State: module-level Vue reactives in services (no Pinia); `blue` is the open draft
 
 
-## Common Tasks & Examples
+## Gotchas
 
-### Add a new content type
-
-1. Add interface to `types.ts` (e.g., `ContentNewType`)
-2. Add to `ContentItem` union type
-3. Create `render/render_newtype.ts` with `gen_newtype_html()` and `gen_newtype_css()`
-4. Add case in `render.ts` `gen_subjobs()` switch
-5. Add CSS to `gen_combined_css()` call chain
-6. Create `editors/EditorNewType.vue` for the editor UI
-7. Add to `TabEditor.vue` component mapping
-8. Add "add" button in `OptionsContent.vue`
-9. Handle in `gen_content_name()` in `blueprints.ts`
-
-### Add a new blueprint option
-
-1. Add property to `Blueprint` interface in `types.ts`
-2. Set default in `get_default_blueprint()` in `blueprints.ts`
-3. Add UI control in appropriate `Options*.vue` component
-4. Use the value in the relevant render module
-5. If it needs DB migration, bump `DATABASE_VERSION` in `db.ts` and add migration
-
-### Add a new Options section
-
-1. Create `options/OptionsNewSection.vue`
-2. Import and place in `TabCreate.vue` (inside the advanced block if appropriate)
-
-### Add a new locale
-
-1. Create `app/src/locales/{code}.json` with translated strings
-2. Add the locale code to `app/src/locales.json` `supported` array
-3. Run `.bin/detect_i18n_strings` to find missing keys
-
-
-## Testing & Quality
-
-- **No test framework configured.** The project has no automated tests.
-- **TypeScript strict mode** catches type errors at build time
-  (`noUnusedLocals`, `noImplicitReturns`, `exactOptionalPropertyTypes`)
-- **Error monitoring:** Rollbar in production for runtime errors
-  (env var `VITE_ROLLBAR_TOKEN`)
-- **Linting:** No ESLint config found (the `eslint-disable` comments in `db.ts`
-  suggest it was used at some point)
-- **Build validation:** `vite build` will catch compilation errors
-- **i18n validation:** `.bin/detect_i18n_strings` checks for missing translation keys
+- **`blue` is replaced wholesale** when switching drafts — watch sources must be
+  functions (`() => blue`) to survive replacement (see `watchers.ts`, `drafts.ts`)
+- **Firestore field paths with item ids** need `FieldPath` (ids are url64 and contain
+  `-_~`), not dotted strings — see `gen_updates()` in `drafts.ts`
+- **Snapshot echoes:** draft sync skips `metadata.hasPendingWrites` snapshots and
+  advances its `synced` base optimistically on flush — read `drafts.ts` before touching
+- **Storage create-once:** clients can never overwrite/delete `creations/*/doc.pdf`;
+  regen works because the lifecycle rule deleted the object (create passes again)
+- **Deleting a creation doc orphans its PDF** intentionally — it becomes unreachable
+  instantly and the lifecycle rule collects it within the year
+- **PDF_LIFETIME_MS** (client `creations.ts`, server `compile.ts`/`share.ts`) must match
+  `firebase_storage_lifecycle.json` (365 days)
+- **Lambda-era leftovers** live under `.private/generator/` — dead code, ignore
+- **WASM memory:** the Typst worker leaks per unique source; `TypstWorkerClient`
+  recycles worn workers automatically (see `typst.ts`)
+- **clean_blueprint()** (`blueprints.ts`) validates untrusted blueprints (Firestore
+  docs from co-editors) — nested content-item validation is still TODO
+- **Error reporting is self-hosted:** browser errors POST to `/api/report_error`
+  (unauthenticated OK, uid attached when known, IP recorded server-side) and everything
+  lands in the bucket as `errors/{fingerprint}/{id}.json` (90-day lifecycle). The
+  fingerprint only dedupes identical messages — semantic grouping happens in `.bin/errors`
+  (claude clusters fingerprints into issues; triage state in gitignored `errors/records/`).
+  Critical failures show the report id in a gracious.tech/contact link
+- **SERVER_ROLES gates routes, Hosting gates traffic** — both must agree: `/api/compile`
+  is rewritten to `paper-bible-compile` (role `compile`), everything else to
+  `paper-bible-api` (role `light`); dev defaults to both roles on one port
+- **Compile fonts come from the bucket mount** (`FONTS_DIR=/mnt/fonts/fonts` via GCS FUSE,
+  set in `deploy_server`) — new fonts need `.bin/deploy_fonts`, not a server redeploy;
+  locally `serve_server` points at the `fonts/` dir
+- **Server caches are per-instance best-effort** (like the per-uid compile throttle):
+  `server/src/content.ts` keeps the fetch.bible collection (1h TTL) and an LRU of fetched
+  books warm across compiles, but a fresh instance starts cold — never rely on them
 
 
-## Troubleshooting & Known Issues
+## i18n
 
-### IndexedDB unavailability
-
-Some private tabs, webviews, and Safari contexts don't support IndexedDB. The app
-falls back to a no-op fake database (see `db.ts` catch handler). Drafts and history
-won't persist in these contexts.
-
-### Safari connection termination
-
-Safari may close IndexedDB connections after inactivity. The `terminated` callback
-in `db.ts` automatically reconnects.
-
-### Blueprint validation
-
-`clean_blueprint()` in `blueprints.ts` has a `TODO` noting that nested content items
-are not fully validated. Only top-level keys are checked against defaults.
-
-### PDF generation timeout
-
-Lambda timeout is 600 seconds (10 minutes). The app's polling timeout matches at
-610 seconds. If Lambda's timeout changes, update both `generator/template.yaml` and
-`app/src/services/create.ts`.
-
-### WeasyPrint rendering vs screen preview
-
-The preview in `DisplayPreview.vue` is a browser-rendered approximation. Fonts,
-line breaks, and spacing may differ in the WeasyPrint-generated PDF. Users should
-print a test page.
-
-### Content item icon null
-
-`ContentTitle.icon` may be null for some users due to a historical bug. The type
-definition and renderers handle this gracefully.
-
-### DB migrations
-
-The `upgrade_database()` function in `db.ts` handles schema migrations. A bug in
-DBv2 forgot to update draft passage properties, which is patched in the DBv3
-migration.
-
-### S3 file expiration
-
-- Requests expire after 90 days
-- Creations (PDFs) expire after 365 days
-- The app detects expiration via HEAD requests (403/404) and updates status
-
-
-## Notable Dependencies
-
-### @gracious.tech/fetch-client (Bible data)
-
-- Provides `BibleClient` and `BibleCollection` for accessing Bible translations
-- In dev, it connects to `localhost:8430`; in prod, `https://v1.fetch.bible/`
-- The collection provides book metadata, translation info, license restrictions, and
-  rendered HTML for Bible passages
-
-### WeasyPrint (PDF generation)
-
-- CSS-based HTML-to-PDF engine used in the Lambda function
-- Requires significant memory (Lambda configured with 2048MB)
-- Network access is explicitly blocked via a custom `url_fetcher` for security
-- All fonts and styles must be embedded in the HTML; no external resource loading
-- Output can be very large before compression (115MB -> 14MB observed)
-
-### pypdf (PDF manipulation)
-
-- Handles page merging, booklet page reordering, compression, and metadata
-- Each blank page must be a new `PageObject` to avoid printer confusion
-- Booklet mode reorders pages for correct folding (multiples of 4)
-
-### vuedraggable
-
-- Version 4.1 used (compatible with Vue 3)
-- Provides drag-and-drop reordering for the content item list
-
-### TinyMCE (via @tinymce/tinymce-vue)
-
-- WYSIWYG HTML editor for custom content pages
-- Loaded via CDN (not bundled)
-- Limited toolbar: bold, italic, tables, lists, subscript, page breaks
-
-
-## Performance & Debugging
-
-### Frontend performance
-
-- **Debounced watchers** prevent excessive IndexedDB writes and API calls
-- **Lazy locale loading:** Non-English locale files imported dynamically
-- **Pre-caching:** Bible book HTML is fetched as soon as passages are added, before
-  the user hits "Create"
-- **Reactive computed properties** minimize recalculation
-
-### Backend performance
-
-- **Lambda memory:** 2048MB required for WeasyPrint rendering
-- **PDF compression:** `compress_content_streams()` reduces output by ~87%
-- **Timeout:** 600 seconds; large documents (many books) may approach this limit
-
-### Debugging
-
-- **Dev error reports** go to `localhost:7777` (inspect with a local HTTP server)
-- **`report_error`** is exposed on `self` for console testing
-- **Generator debugging:** `.bin/debug_generator` opens a Docker shell in the
-  Lambda container image
-- **Browser DevTools:** Vue reactivity state is fully inspectable; `blue` object
-  in `state.ts` drives the entire UI
-
-
-## Future Improvements
-
-### Known TODOs in code
-
-- `blueprints.ts`: Nested content item validation in `clean_blueprint()` is incomplete
-- `state.ts`: Parse study note license restrictions from collection data (currently
-  assumes all require attribution)
-- `main.py`: Remove backward-compat defaults for `booklike` and `show_pages` args
-  once app is updated
-- `main.py`: Refactor `*show_pages` unpacking once confident 4th arg is always present
-
-### Potential improvements
-
-- Add automated tests (unit tests for render pipeline, integration tests for
-  blueprint validation)
-- Run the generator locally (currently blocked by S3 API access requirements)
-- Full nested validation in `clean_blueprint()`
-- Add more supported locales beyond Vietnamese
-- ESLint/Prettier configuration for consistent code formatting
+- Keys are the English strings; `en.json` maps them to `""` (test locale), `vi.json`
+  holds Vietnamese; missing keys fall back to the key text
+- After adding UI strings run `.bin/detect_i18n_strings` (watch for its escaped-quote
+  duplicates — remove any `\\'` keys it adds)
