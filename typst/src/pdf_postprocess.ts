@@ -1,8 +1,8 @@
 
 import {PDFDocument, PDFPage, degrees, rgb} from 'pdf-lib'
 
-import {generate_typst, generate_typst_passage, generate_typst_blank,
-    generate_typst_lines, group_content, passage_is_alternate} from './generate.js'
+import {generate_typst, generate_typst_facing, generate_typst_blank,
+    generate_typst_lines, passage_is_alternate} from './generate.js'
 import {optimize_pdf} from './pdf_optimize.js'
 
 import type {TypstRequest, TypstContentItem, TypstPassage, CompileFn, ProgressFn,
@@ -108,7 +108,7 @@ async function compile_notice(
     if (!notice) {
         return null
     }
-    return await compile_group({...request, show_pages: false}, [notice], compile_fn, 1)
+    return await compile_item({...request, show_pages: false}, notice, compile_fn, 1)
 }
 
 
@@ -210,51 +210,42 @@ async function assemble_pages(
         await add_page(null, 0, false)
     }
 
-    // Process each content group (a group merges new_page=false items onto one page)
-    const groups = group_content(request.content)
-    for (const [group_index, group] of groups.entries()) {
-        const head = group[0]!
+    // Process each content item (each compiles as its own document)
+    for (const [index, item] of request.content.entries()) {
 
-        // Report each group as it starts (passages by their reference, so long documents show
+        // Report each item as it starts (passages by their reference, so long documents show
         // per-passage progress)
-        const label = head.type === 'passage' ? head.progress_label : `${head.type} page`
-        on_progress?.({stage: 'compile', i: group_index + 1, total: groups.length, label})
+        const label = item.type === 'passage' ? item.progress_label : `${item.type} page`
+        on_progress?.({stage: 'compile', i: index + 1, total: request.content.length, label})
 
-        // Alternate-translation passage: two bibles compiled separately and interleaved.
-        // Such a passage never merges, so it is always its own single-item group.
-        if (group.length === 1 && passage_is_alternate(head)) {
-            await process_alternate(
-                head as TypstPassage, request, compile_fn, final_doc,
-                show_pages_list, booklike, add_page, add_blank,
+        // Facing-pages passage: both translations compiled together double-width, then split
+        if (passage_is_alternate(item)) {
+            await process_facing(
+                item as TypstPassage, request, compile_fn, final_doc,
+                booklike, add_page, add_blank,
             )
             continue
         }
 
-        // Plain group (inline passages/customs, or a single title). Titles never take page
-        // numbers; alone titles get an even-page start and a blank rear.
-        const is_alone_title = head.type === 'title' && head.alone
-        const show_pages = request.show_pages && head.type !== 'title'
+        // Titles never take page numbers; alone titles get an even-page start and a blank rear
+        const is_alone_title = item.type === 'title' && item.alone
+        const show_pages = request.show_pages && item.type !== 'title'
 
         if (is_alone_title && booklike && final_doc.getPageCount() % 2 === 1) {
             await add_blank()
         }
 
-        // Compile the whole group as one continuous document. The start page keeps the page
-        // counter continuous with what's already been assembled, since each section/group is
-        // its own Typst compile (its internal counter would otherwise restart at 1)
-        const group_doc = await compile_group(
-            request, group, compile_fn, final_doc.getPageCount() + 1,
+        // Compile the item as its own document. The start page keeps the page counter
+        // continuous with what's already been assembled, since each section is its own Typst
+        // compile (its internal counter would otherwise restart at 1)
+        const item_doc = await compile_item(
+            request, item, compile_fn, final_doc.getPageCount() + 1,
         )
 
-        // Half-blank: any passage in the group carries the (global) half_blank direction. Face
-        // every page of the compiled group with a blank/lines page — blanks are added here,
-        // after the content document is rendered, so merged items just extend that content.
-        const hb_passage = group.find(
-            (it):it is TypstPassage => it.type === 'passage' && it.half_blank !== null,
-        )
-        if (hb_passage) {
+        // Half-blank: face every page of the compiled passage with a blank/lines page
+        if (item.type === 'passage' && item.half_blank !== null) {
             await process_faced(
-                group_doc, hb_passage, request, compile_fn, final_doc,
+                item_doc, item, request, compile_fn, final_doc,
                 show_pages_list, booklike, add_page, add_blank,
             )
             continue
@@ -263,12 +254,12 @@ async function assemble_pages(
         // A lines page deliberately over-fills (see gen_lines) so it reaches the bottom of any
         // page size, spilling onto extra physical pages that must be discarded — only the first
         // is real content (same convention as the facing lines page in process_faced below)
-        const page_limit = head.type === 'lines' ? 1 : group_doc.getPageCount()
+        const page_limit = item.type === 'lines' ? 1 : item_doc.getPageCount()
         for (let p = 0; p < page_limit; p++) {
-            await add_page(group_doc, p, show_pages)
+            await add_page(item_doc, p, show_pages)
         }
 
-        if (is_alone_title && booklike && group_doc.getPageCount() % 2 !== 0) {
+        if (is_alone_title && booklike && item_doc.getPageCount() % 2 !== 0) {
             await add_blank()
         }
     }
@@ -289,66 +280,64 @@ function trim_trailing_blanks(doc:PDFDocument, blank_flags:boolean[]):void {
 }
 
 
-// Compile a content group into a single continuous PDF (no page breaks within the group).
-// start_page offsets the group's page counter so numbers stay continuous across sections.
-async function compile_group(
-    request:TypstRequest, group:TypstContentItem[], compile_fn:CompileFn, start_page:number,
+// Compile a single content item into its own PDF document.
+// start_page offsets the item's page counter so numbers stay continuous across sections.
+async function compile_item(
+    request:TypstRequest, item:TypstContentItem, compile_fn:CompileFn, start_page:number,
 ):Promise<PDFDocument> {
-    const source = generate_typst(make_group_request(request, group), start_page)
+    const source = generate_typst(make_item_request(request, item), start_page)
     const bytes = await compile_fn(source)
     return await PDFDocument.load(bytes)
 }
 
 
-// Process an alternate-translation passage — interleave the two bibles page by page
-async function process_alternate(
+// Process a facing-pages passage: both translations lay out together as aligned rows on
+// double-width pages (compiled once, so they can never drift apart), then every page splits
+// down the centre cut — the primary translation lands on the verso and the second on the
+// facing recto, each at the target trim size with full-width lines.
+async function process_facing(
     passage:TypstPassage,
     request:TypstRequest,
     compile_fn:CompileFn,
     final_doc:PDFDocument,
-    show_pages_list:boolean[],
     booklike:boolean,
     add_page:(doc:PDFDocument|null, idx:number, show:boolean) => Promise<void>,
     add_blank:() => Promise<void>,
 ):Promise<void> {
 
-    const show_pages = request.show_pages
-
-    // LHS is the primary bible; RHS is the secondary bible
-    const lhs_source = generate_typst_passage(request, passage, 0)
-    const lhs_doc = await PDFDocument.load(await compile_fn(lhs_source))
-    const rhs_source = generate_typst_passage(request, passage, 1)
-    const rhs_doc:PDFDocument|null = await PDFDocument.load(await compile_fn(rhs_source))
-
-    const lhs_count = lhs_doc.getPageCount()
-    const rhs_count = rhs_doc.getPageCount()
-    const max_pages = Math.max(lhs_count, rhs_count)
-
-    // Ensure the pair starts on the correct pages for book-like arrangement
+    // Start on a verso so each split pair reads as one open spread
     if (booklike && final_doc.getPageCount() % 2 !== 1) {
         await add_blank()
     }
 
-    // Which bible sits on the left (half_blank direction can flip the pair, rare with alternate)
-    const content_is_left = passage.half_blank !== 'left'
-    const left_doc = content_is_left ? lhs_doc : rhs_doc
-    const left_count = content_is_left ? lhs_count : rhs_count
-    const right_doc = content_is_left ? rhs_doc : lhs_doc
-    const right_count = content_is_left ? rhs_count : lhs_count
+    // The double-width footer prints each half's own final page number, so it needs the
+    // starting page rather than a counter offset (the counter advances once per double page)
+    const source = generate_typst_facing(request, passage, final_doc.getPageCount() + 1)
+    const wide_doc = await PDFDocument.load(await compile_fn(source))
+    const split_doc = await split_facing(wide_doc)
 
-    // Interleave the two bibles page by page (padding with blanks if lengths differ)
-    for (let p = 0; p < max_pages; p++) {
-        if (p < left_count) {
-            await add_page(left_doc, p, show_pages)
-        } else {
-            await add_blank()
-        }
-        if (p < right_count) {
-            await add_page(right_doc, p, show_pages)
-        } else {
-            await add_blank()
-        }
+    for (let p = 0; p < split_doc.getPageCount(); p++) {
+        await add_page(split_doc, p, request.show_pages)
     }
+}
+
+
+// Split every double-width page into two pages of half the width. embedPage's bounding box
+// clips (form XObject BBox) and is normalised back to the origin by the XObject matrix, so
+// both halves draw at (0, 0) and nothing bleeds across the cut.
+async function split_facing(wide_doc:PDFDocument):Promise<PDFDocument> {
+    const out = await PDFDocument.create()
+    for (const page of wide_doc.getPages()) {
+        const {width, height} = page.getSize()
+        const half = width / 2
+        const left = await out.embedPage(page,
+            {left: 0, bottom: 0, right: half, top: height})
+        const right = await out.embedPage(page,
+            {left: half, bottom: 0, right: width, top: height})
+        out.addPage([half, height]).drawPage(left, {x: 0, y: 0})
+        out.addPage([half, height]).drawPage(right, {x: 0, y: 0})
+    }
+    return out
 }
 
 
@@ -513,15 +502,12 @@ async function apply_metadata(
 }
 
 
-// Create a modified request holding only a content group (for isolated compilation). The group
-// is compiled as one continuous document so its merged items share pages; the outer assemble
-// pass handles page arrangement, so it is forced to 'normal' here.
-function make_group_request(
-    request:TypstRequest, group:TypstContentItem[],
-):TypstRequest {
+// Create a modified request holding only one content item (for isolated compilation). The
+// outer assemble pass handles page arrangement, so it is forced to 'normal' here.
+function make_item_request(request:TypstRequest, item:TypstContentItem):TypstRequest {
     return {
         ...request,
-        content: group,
+        content: [item],
         arrangement: 'normal',
     }
 }

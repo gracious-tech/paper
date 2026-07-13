@@ -6,9 +6,18 @@ import {parse_unit} from './helpers.js'
 import type {TypstRequest} from './types.js'
 
 
+// Optional page-geometry overrides for special documents — facing-pages compiles double the
+// width with fixed margins and a per-half page-number footer (see generate_typst_facing)
+export interface PreambleOverrides {
+    width?:string
+    margin?:string
+    footer?:string
+}
+
+
 // Generate the document preamble: page setup, fonts, paragraph settings, footer, and the
 // consumer-function definitions emitted by the USX→Typst converter
-export function gen_preamble(request:TypstRequest):string {
+export function gen_preamble(request:TypstRequest, overrides:PreambleOverrides = {}):string {
     const {page, typography, features} = request
 
     // Calculate leading from line_height (Typst leading = gap between lines, not multiplier)
@@ -30,16 +39,18 @@ export function gen_preamble(request:TypstRequest):string {
     }
 
     // Build margin specification (inside/outside so Typst swaps on alternating pages)
-    const margin = `(top: ${page.margin_top}, bottom: ${page.margin_bottom}, `
+    const margin = overrides.margin
+        ?? `(top: ${page.margin_top}, bottom: ${page.margin_bottom}, `
         + `inside: ${page.margin_left}, outside: ${page.margin_right})`
 
     // Page footer with page numbers (state-based visibility). No font: override — inherits the
     // document-wide #set text(font: (...)) below (font_text + its regular fallbacks), same as
     // any other text, rather than a separate fixed style
-    const footer = request.show_pages
-        ? `context align(center, text(size: 7pt,
+    const footer = overrides.footer
+        ?? (request.show_pages
+            ? `context align(center, text(size: 7pt,
             counter(page).display()))`
-        : 'none'
+            : 'none')
 
     // Chapter marker (#ch) — style depends on the chosen option
     let chapter:string
@@ -97,7 +108,7 @@ export function gen_preamble(request:TypstRequest):string {
 // Document setup
 #set document(title: "${escape_typst_str(request.title)}")
 #set page(
-    width: ${page.width},
+    width: ${overrides.width ?? page.width},
     height: ${page.height},
     margin: ${margin},
     header: context counter(footnote).update(0),

@@ -1,6 +1,6 @@
 
 import {gen_preamble} from './preamble.js'
-import {gen_passage} from './content_passage.js'
+import {gen_passage, gen_passage_facing, passage_columns} from './content_passage.js'
 import {gen_title} from './content_title.js'
 import {gen_custom} from './content_custom.js'
 import {gen_lines} from './content_lines.js'
@@ -25,34 +25,28 @@ export function generate_typst(request:TypstRequest, start_page = 1):string {
     // Document preamble (page, fonts, paragraph, footer)
     parts.push(gen_preamble(request))
 
-    // Group items so that merged sections (new_page === false) share a page with the
-    // section above — page breaks are inserted between groups only, never within a group
+    // Render each content item on its own page(s)
     const booklike = request.arrangement !== 'normal'
-    const groups = group_content(request.content)
 
-    for (let gi = 0; gi < groups.length; gi++) {
-        const group = groups[gi]!
-        const head = group[0]!
+    for (let i = 0; i < request.content.length; i++) {
+        const item = request.content[i]!
 
         // Page arrangement: ensure alone items start on an even page (recto)
-        if (booklike && is_alone(head) && gi > 0) {
+        if (booklike && is_alone(item) && i > 0) {
             parts.push('#pagebreak(to: "even")')
-        } else if (gi > 0) {
-            // Standard page break between groups
+        } else if (i > 0) {
+            // Standard page break between items
             parts.push('#pagebreak()')
         }
 
-        // Render every item in the group with no page break between them (they flow together).
-        // A custom page may only fill the page (middle/bottom positioning) when it is alone on
-        // its page; when it shares the group it must flow inline so following items aren't pushed
-        // onto the next page.
-        const page_fill = group.length === 1
-        for (const item of group) {
-            parts.push(gen_content_item(item, request, page_fill))
-        }
+        // Set the item's column count on the page itself (a set page rule on the fresh empty
+        // page reconfigures it without inserting another break)
+        parts.push(gen_page_columns(item))
 
-        // For alone items in book mode, ensure the next group starts on a new sheet
-        if (booklike && is_alone(head)) {
+        parts.push(gen_content_item(item, request))
+
+        // For alone items in book mode, ensure the next item starts on a new sheet
+        if (booklike && is_alone(item)) {
             parts.push('#pagebreak(to: "even")')
         }
     }
@@ -61,79 +55,58 @@ export function generate_typst(request:TypstRequest, start_page = 1):string {
 }
 
 
-// Whether a passage is rendered as two separately-compiled, interleaved translations. Such
-// passages aren't a single continuous document, so nothing can merge into or out of them.
+// Emit the page-level column setting for an item. Columns live on the page rather than in a
+// #columns block so each page is its own layout region — footnotes inside a book-length
+// #columns block forced Typst to re-lay the whole book per footnote (gigabytes of memory for
+// footnote-heavy 2-column books), while page-sized regions keep the same layout cheap.
+function gen_page_columns(item:TypstContentItem):string {
+    if (item.type === 'passage' && passage_columns(item) === 2) {
+        return `#set columns(gutter: ${item.column_gap})\n#set page(columns: 2)`
+    }
+    return '#set page(columns: 1)'
+}
+
+
+// Whether a passage renders as facing pages (the 'alternate' layout: translations end up on
+// alternating pages, each pair reading as one open spread). Such passages compile as their
+// own double-width document that post-processing splits down the centre — see process_facing
+// in pdf_postprocess.ts — so nothing can merge into or out of them.
 export function passage_is_alternate(item:TypstContentItem):boolean {
     return item.type === 'passage' && item.bibles.length > 1 && item.multi_layout === 'alternate'
 }
 
 
-// Whether an item can flow inline (be merged with the section above or accept merged followers)
-function is_inline(item:TypstContentItem):boolean {
-    if (item.type === 'custom') {
-        return true
-    }
-    if (item.type === 'passage') {
-        return !passage_is_alternate(item)
-    }
-    return false
-}
-
-
-// Partition content into groups. A group is a leading item plus any following items with
-// new_page === false that are allowed to merge into it (see is_inline). Titles, lines
-// pages and alternate-translation passages are never mergeable heads or followers.
-export function group_content(content:TypstContentItem[]):TypstContentItem[][] {
-    const groups:TypstContentItem[][] = []
-
-    for (const item of content) {
-        const current = groups[groups.length - 1]
-        const is_follower = (item.type === 'passage' || item.type === 'custom')
-            && item.new_page === false
-        const can_merge = is_follower && current !== undefined
-            && is_inline(current[0]!) && is_inline(item)
-
-        if (can_merge) {
-            current!.push(item)
-        } else {
-            groups.push([item])
-        }
-    }
-
-    return groups
-}
-
-
-// Generate a Typst document for a single passage with a single bible
-// Used by generate_pdf() when compiling alternate translations separately
-export function generate_typst_passage(
-    request:TypstRequest, passage:TypstPassage, bible_index:number,
+// Generate the double-width document for a facing-pages passage. Every double page is one
+// full spread (verso | recto): outer margins sit on both outside edges and the two inner
+// margins meet at the centre cut (the grid gutter), so no margin mirroring is needed and each
+// half ends up with exactly the target page's text block. start_page is the final (post-split)
+// page number of the first half — each half prints its own computed number, since the built-in
+// counter only advances once per double page.
+export function generate_typst_facing(
+    request:TypstRequest, passage:TypstPassage, start_page = 1,
 ):string {
+    const {page, typography} = request
+
+    // Fixed left/right margins (no inside/outside alternation across double pages)
+    const margin = `(top: ${page.margin_top}, bottom: ${page.margin_bottom}, `
+        + `left: ${page.margin_right}, right: ${page.margin_right})`
+
+    // One centred page number per half: left half = start + 2(n-1), right half = one more
+    const footer = request.show_pages
+        ? `context {
+        let n = counter(page).get().first()
+        grid(columns: (1fr, 1fr), column-gutter: 2 * ${page.margin_left},
+            align(center, text(size: 7pt, str(${start_page} + 2 * (n - 1)))),
+            align(center, text(size: 7pt, str(${start_page} + 2 * n - 1))))
+    }`
+        : 'none'
+
     const parts:string[] = []
-
-    // The second translation (bible_index 1) is compiled as a whole separate document here
-    // (alternate-translation passages compile each bible independently, interleaved by
-    // pdf_postprocess.ts), so overriding the top-level font_text/font_headings covers it
-    // entirely — unlike the side-by-side grid layout in content_passage.ts, which instead
-    // needs a local per-cell font override since both translations share one document there
-    const doc_request = bible_index === 1
-        ? {...request, typography: {...request.typography,
-            font_text: request.typography.font_text2,
-            font_headings: request.typography.font_headings2}}
-        : request
-
-    // Same preamble as the main document (with the font override above, when applicable)
-    parts.push(gen_preamble(doc_request))
-
-    // Create a modified passage with only the selected bible
-    const single_passage:TypstPassage = {
-        ...passage,
-        bibles: [passage.bibles[bible_index]!],
-        multi_layout: 'columns',  // Single bible, so layout is irrelevant
-    }
-
-    parts.push(gen_content_item(single_passage, doc_request))
-
+    parts.push(gen_preamble(request, {width: `2 * ${page.width}`, margin, footer}))
+    parts.push(gen_passage_facing(passage, typography.font_size, typography.font_text2,
+        typography.font_headings2, typography.font_fallbacks,
+        `2 * ${page.margin_left}`,
+        `${page.width} - ${page.margin_left} - ${page.margin_right}`))
     return parts.join('\n\n')
 }
 
@@ -157,9 +130,8 @@ ${gen_lines({type: 'lines', spacing}, request.page)}`
 }
 
 
-// Render a single content item to Typst. page_fill=false forces a custom page to flow inline
-// (position 'top') rather than filling the page, so items merged below it aren't pushed off.
-function gen_content_item(item:TypstContentItem, request:TypstRequest, page_fill = true):string {
+// Render a single content item to Typst
+function gen_content_item(item:TypstContentItem, request:TypstRequest):string {
     switch (item.type) {
         case 'passage':
             return gen_passage(item, request.typography.font_size,
@@ -168,7 +140,7 @@ function gen_content_item(item:TypstContentItem, request:TypstRequest, page_fill
         case 'title':
             return gen_title(item, request.page, request.typography.font_titles)
         case 'custom':
-            return gen_custom(page_fill ? item : {...item, position: 'top'})
+            return gen_custom(item)
         case 'lines':
             return gen_lines(item, request.page)
     }

@@ -2,6 +2,7 @@
 import {escape_typst_str} from 'typst-utils'
 
 import {LARGE_POETRY, LOTS_OF_POETRY, escape_typst} from './helpers.js'
+import {build_aligned_rows} from './bilingual.js'
 
 import type {TypstPassage} from './types.js'
 
@@ -9,30 +10,32 @@ import type {TypstPassage} from './types.js'
 // Generate Typst markup for a Bible passage content item. font_size is the document text size
 // (used to anchor heading sizes). font_text2/font_headings2/font_fallbacks are only used when a
 // second translation is actually rendered side-by-side (grid layout with 2 bibles) — see
-// gen_multi_bible_grid
+// gen_multi_bible_grids
 export function gen_passage(
     passage:TypstPassage, font_size:string, font_text2:string, font_headings2:string,
     font_fallbacks:string[],
 ):string {
     const parts:string[] = []
 
-    // Optional passage title
+    // Optional passage title. On a 2-column page it floats at the parent (page) scope so it
+    // spans the full width above both columns — a plain block would sit inside the first column
     if (passage.passage_title) {
-        parts.push(`#align(center, text(weight: "bold", size: 1.2em,
-            [${escape_typst(passage.passage_title)}]))`)
+        const title = `text(weight: "bold", size: 1.2em,
+            [${escape_typst(passage.passage_title)}])`
+        if (passage_columns(passage) === 2) {
+            parts.push(`#place(top + center, scope: "parent", float: true, ${title})`)
+        } else {
+            parts.push(`#align(center, ${title})`)
+        }
         parts.push('')
     }
 
     // Determine if we use multi-bible side-by-side grid (columns layout with 2+ bibles)
     const use_grid = passage.bibles.length > 1 && passage.multi_layout === 'columns'
 
-    // Determine column count for single-bible layout
-    // When using grid, don't also use text columns (would be confusing)
-    const use_columns = !use_grid && resolve_columns(passage)
-
     // Build the scoped block with passage-specific function definitions and show rules
-    const inner = gen_passage_inner(
-        passage, use_grid, use_columns, font_size, font_text2, font_headings2, font_fallbacks)
+    const inner = gen_passage_inner(passage, use_grid, font_size, font_text2, font_headings2,
+        font_fallbacks, passage.column_gap, null)
 
     // Wrap in a scoped block so settings don't leak to other content
     parts.push(`#[
@@ -43,23 +46,65 @@ ${inner}
 }
 
 
-// Resolve whether to use 2-column text layout
-function resolve_columns(passage:TypstPassage):boolean {
-    if (passage.columns === 1) {
-        return false
+// Generate a passage for a double-width facing-pages document (see generate_typst_facing):
+// the aligned rows' two columns become the two facing pages once post-processing splits each
+// page down the centre. gutter is the centre gap (2x the inner margin, so each half keeps the
+// target page's text width) and entry_width confines footnote entries to the left half so a
+// long note can't straddle the cut.
+export function gen_passage_facing(
+    passage:TypstPassage, font_size:string, font_text2:string, font_headings2:string,
+    font_fallbacks:string[], gutter:string, entry_width:string,
+):string {
+    const parts:string[] = []
+
+    // The passage title repeats on both halves, since each becomes its own physical page
+    if (passage.passage_title) {
+        const title = `align(center, text(weight: "bold", size: 1.2em,
+            [${escape_typst(passage.passage_title)}]))`
+        parts.push(`#grid(columns: (1fr, 1fr), column-gutter: ${gutter},
+    ${title},
+    ${title})`)
+        parts.push('')
     }
-    if (passage.columns === 2) {
-        return true
-    }
-    // Auto: use columns for large poetry books
-    return LARGE_POETRY.includes(passage.book)
+
+    // Same scoped block as gen_passage, with the facing gutter and footnote width constraint
+    const inner = gen_passage_inner(passage, true, font_size, font_text2, font_headings2,
+        font_fallbacks, gutter, entry_width)
+    parts.push(`#[
+${inner}
+]`)
+
+    return parts.join('\n')
 }
 
 
-// Generate the inner content of a passage block (function defs, show rules, content)
+// Column count for a passage's pages. Columns are set at page level by the caller (see
+// generate_typst) rather than wrapping content in a #columns block — footnote layout cost
+// scales with the enclosing region, and a book-length block made large books explode in
+// memory, while a page-sized region stays cheap. Multi-translation passages already split
+// the page (side-by-side grid or facing halves), so they never combine with text columns.
+export function passage_columns(passage:TypstPassage):1|2 {
+    if (passage.bibles.length > 1) {
+        return 1
+    }
+    if (passage.columns === 1) {
+        return 1
+    }
+    if (passage.columns === 2) {
+        return 2
+    }
+    // Auto: use columns for large poetry books
+    return LARGE_POETRY.includes(passage.book) ? 2 : 1
+}
+
+
+// Generate the inner content of a passage block (function defs, show rules, content).
+// gutter is the grid column gap when a multi-bible grid renders; entry_width (facing pages
+// only) confines footnote entries to the left half of the double page.
 function gen_passage_inner(
-    passage:TypstPassage, use_grid:boolean, use_columns:boolean,
+    passage:TypstPassage, use_grid:boolean,
     font_size:string, font_text2:string, font_headings2:string, font_fallbacks:string[],
+    gutter:string, entry_width:string|null,
 ):string {
     const lines:string[] = []
 
@@ -68,20 +113,17 @@ function gen_passage_inner(
     lines.push(gen_heading_rules(passage, font_size))
 
     // Footnote show rules
-    lines.push(gen_footnote_rules(passage))
+    lines.push(gen_footnote_rules(passage, entry_width))
 
     // Disable first-line-indent for poetry-heavy books
     if (LOTS_OF_POETRY.includes(passage.book)) {
         lines.push('#set par(first-line-indent: 0em)')
     }
 
-    // Render the content
+    // Render the content (any 2-column layout comes from the page setting, not a block)
     if (use_grid) {
-        lines.push(gen_multi_bible_grid(passage, font_text2, font_headings2, font_fallbacks))
-    } else if (use_columns) {
-        lines.push(`#columns(2, gutter: ${passage.column_gap})[`)
-        lines.push(passage.bibles[0]!.content)
-        lines.push(']')
+        lines.push(gen_multi_bible_grids(
+            passage, gutter, font_text2, font_headings2, font_fallbacks))
     } else {
         lines.push(passage.bibles[0]!.content)
     }
@@ -127,13 +169,22 @@ function gen_heading_rules(passage:TypstPassage, font_size:string):string {
 }
 
 
-// Generate footnote show rules
-function gen_footnote_rules(passage:TypstPassage):string {
+// Generate footnote show rules. entry_width (facing pages only) wraps each entry in a
+// width-capped box so it stays within the left half of the double page — the constraint must
+// live inside whichever entry show rule is active, since a later-defined rule on the same
+// element replaces an earlier one rather than composing with it.
+function gen_footnote_rules(passage:TypstPassage, entry_width:string|null):string {
     if (!passage.show_footnotes) {
         // Shadow the footnote function so notes are never registered. A `#show footnote: none`
         // rule only hides the in-text call — the entry and separator still render at page bottom
         // (and entry show rules can't reach the page footnote area from this scoped block).
-        return '#let footnote(..args) = none'
+        const lines = ['#let footnote(..args) = none']
+        // Study notes call the preamble-captured footnote (see gen_preamble), so their entries
+        // still render — keep them within the left half on facing pages
+        if (entry_width !== null) {
+            lines.push(`#show footnote.entry: it => box(width: ${entry_width}, it)`)
+        }
+        return lines.join('\n')
     }
 
     const lines:string[] = []
@@ -144,32 +195,50 @@ function gen_footnote_rules(passage:TypstPassage):string {
 
     // Footnote entry styling (the content at page bottom), prefixed with its matching mark so
     // readers can pair each note with its superscript call in the text
-    lines.push(`#show footnote.entry: it => {
+    const entry = `{
     super(numbering("a", ..counter(footnote).at(it.note.location())))
     h(1pt)
     it.note.body
-}`)
+}`
+    lines.push(entry_width === null
+        ? `#show footnote.entry: it => ${entry}`
+        : `#show footnote.entry: it => box(width: ${entry_width}, ${entry})`)
 
     return lines.join('\n')
 }
 
 
-// Generate multi-bible side-by-side grid layout. The second cell (index 1) gets its own font
-// scope (see Blueprint.font_text2) — the document-wide font from the preamble already covers
-// the first/primary translation.
-function gen_multi_bible_grid(
-    passage:TypstPassage, font_text2:string, font_headings2:string, font_fallbacks:string[],
+// Generate the aligned two-translation layout: one #grid per alignment row (verse/paragraph/
+// chapter — the primary translation's boundaries drive both sides, see bilingual.ts). Each
+// grid is its own layout container, which is what keeps footnote layout affordable: a single
+// passage-length grid forces Typst to re-lay the whole passage per footnote (gigabytes of
+// memory for a footnote-heavy book), while row-sized containers stay page-cheap. The second
+// cell gets its own font scope (see Blueprint.font_text2) and shadows #footnote — notes
+// render once, from the primary translation only.
+function gen_multi_bible_grids(
+    passage:TypstPassage, gutter:string,
+    font_text2:string, font_headings2:string, font_fallbacks:string[],
 ):string {
     const fonts2 = [font_text2, ...font_fallbacks].map(f => `"${escape_typst_str(f)}"`).join(', ')
-    const cells = passage.bibles.map((bible, i) => i === 1
-        ? `[#set text(font: (${fonts2}))
-#show heading: set text(font: "${escape_typst_str(font_headings2)}")
-${bible.content}]`
-        : `[${bible.content}]`).join(',\n')
-    return `#grid(
+
+    // set/let bindings scope to their own content block, so every second cell repeats this
+    // prelude (shadowing #footnote in an outer scope wouldn't reach markup evaluated here)
+    const prelude2 = `#let footnote(..args) = none
+#set text(font: (${fonts2}))
+#show heading: set text(font: "${escape_typst_str(font_headings2)}")`
+
+    const rows = build_aligned_rows(
+        passage.bibles[0]!.content, passage.bibles[1]?.content ?? '', passage.multi_align)
+    return rows.map(([a, b]) => `#grid(
     columns: (1fr, 1fr),
-    column-gutter: ${passage.column_gap},
+    column-gutter: ${gutter},
     align: top,
-    ${cells}
-)`
+[
+${a}
+],
+[
+${prelude2}
+${b}
+],
+)`).join('\n\n')
 }

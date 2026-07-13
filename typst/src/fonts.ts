@@ -32,7 +32,7 @@ export function collect_fonts(request:TypstRequest):string[] {
     needed.add(request.typography.font_headings)
 
     // Second-translation body/heading fonts — only rendered inside the multi-bible grid cell
-    // (see content_passage.ts's gen_multi_bible_grid), but still need their font files loaded
+    // (see content_passage.ts's gen_multi_bible_grids), but still need their font files loaded
     needed.add(request.typography.font_text2)
     needed.add(request.typography.font_headings2)
 

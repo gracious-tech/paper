@@ -39,6 +39,10 @@ export interface BlueprintCompileOptions extends NodeCompileOptions {
     endpoint?:string
     // Title-page decorative patterns, keyed by pattern name → corner SVG string
     patterns?:Record<string, string>
+    // Reuse a long-lived BibleContent so its collection + book caches persist across compiles
+    // (endpoint/patterns above are ignored when set — they belong to the instance). init() is
+    // still awaited each compile, which is a no-op unless the instance's TTL has lapsed
+    content?:BibleContent
 }
 
 
@@ -74,15 +78,16 @@ export async function compile_pdf_from_blueprint(
     if (options?.fonts_dir) {
         await load_fonts_dir(options.fonts_dir)
     }
-    const content = new BibleContent({
+    const content = options?.content ?? new BibleContent({
         endpoint: options?.endpoint,
         patterns: options?.patterns,
-        on_progress: options?.on_progress,
     })
     await content.init()
     const custom_font_styles = Object.fromEntries(
         (options?.custom_fonts ?? []).map(f => [f.family, f.style]))
-    const request = await content.resolve(blueprint, custom_font_styles)
+    // on_progress passed per-call (not via the constructor) so a shared instance reports to
+    // whichever compile is running
+    const request = await content.resolve(blueprint, custom_font_styles, options?.on_progress)
     const font_paths = await resolve_font_paths(request, options)
     return generate_pdf(request, make_compile_fn(options, font_paths), options?.on_progress)
 }
@@ -108,6 +113,10 @@ async function resolve_font_paths(
 
 // Re-export the inner function for generating just the Typst source
 export {generate_typst} from 'paper-bible-typst'
+
+// Re-export the Bible-content layer so servers can hold a shared instance across compiles
+export {BibleContent} from 'paper-bible-typst'
+export type {BibleContentOptions} from 'paper-bible-typst'
 
 // Re-export the custom (user-uploaded) font type, needed to build NodeCompileOptions.custom_fonts
 export type {CustomFont} from 'typst-fonts'

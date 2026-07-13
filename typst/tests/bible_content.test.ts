@@ -47,7 +47,7 @@ describe('BibleContent.init collection TTL', () => {
     it('re-fetches once the TTL has lapsed', async () => {
         const content = new BibleContent({
             endpoint: 'http://example.invalid/',
-            collection_ttl_ms: 60 * 60 * 1000,
+            manifest_ttl_ms: 60 * 60 * 1000,
         })
         await content.init()
         // Still fresh — no refetch
@@ -66,7 +66,7 @@ describe('BibleContent.init collection TTL', () => {
     it('never fetches when a collection was injected', async () => {
         const content = new BibleContent({
             collection: {fake: true} as unknown as BibleCollection,
-            collection_ttl_ms: 1,
+            manifest_ttl_ms: 1,
         })
         vi.advanceTimersByTime(1000)
         await content.init()

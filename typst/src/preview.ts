@@ -76,7 +76,7 @@ function gen_notice_page(title:string, detail:string):TypstCustomPage {
 
 ${escape_typst(detail)}
 ]`
-    return {type: 'custom', content, position: 'middle', new_page: true}
+    return {type: 'custom', content, position: 'middle'}
 }
 
 

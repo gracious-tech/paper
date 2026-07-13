@@ -7,6 +7,7 @@
 import {FetchClient, PassageReference} from '@gracious.tech/fetch-client'
 import {get_common_sizes, get_service} from 'printing-services'
 
+import {LruCache, estimate_bytes} from './helpers.js'
 import {prose_to_typst, replace_copyright_marker} from './prose.js'
 import {gen_copyright_typst} from './copyright.js'
 import {resolve_icon} from './icon_cache.js'
@@ -37,6 +38,17 @@ export interface BibleContentOptions {
     patterns?:Record<string, string>
     // Coarse progress reporting (which book is being fetched)
     on_progress?:ProgressFn
+    // Byte cap for the fetched books/notes caches (LRU eviction); omitted = unbounded, which
+    // suits the browser (one session, few translations) — long-lived servers should set a cap
+    cache_max_bytes?:number
+    // Re-fetch a book/notes file when its cache entry is older than this many ms; omitted = keep
+    // until LRU-evicted. Book content is effectively static, so this mainly bounds how long a
+    // long-lived server can serve a book after it's corrected/removed upstream
+    cache_ttl_ms?:number
+    // Re-fetch the collection manifest (list of available translations) when older than this many
+    // ms; omitted = fetch once, keep forever. Ignored when a collection was injected via
+    // `collection`
+    manifest_ttl_ms?:number
 }
 
 
@@ -54,25 +66,46 @@ export class BibleContent {
     private patterns:Record<string, string>
     private endpoint:string
     private on_progress?:ProgressFn
-    // Cache of fetched Typst books, keyed `${bible}_${book}`
-    private books_typst = new Map<string, BibleBookTypst>()
+    private manifest_ttl_ms:number|null
+    // When the collection was last fetched (0 = never), for manifest_ttl_ms staleness checks
+    private manifest_fetched = 0
+    // Cache of fetched Typst books, keyed `${bible}_${book}` (LRU, shared budget with notes —
+    // notes files are small in practice so books dominate the cap)
+    private books_typst:LruCache<BibleBookTypst>
     // Cache of fetched study notes files, keyed `${resource}_${book}` (null = none available)
-    private notes_cache = new Map<string, TypstNotesFile|null>()
+    private notes_cache:LruCache<TypstNotesFile|null>
 
     constructor(opts:BibleContentOptions = {}) {
         this._collection = opts.collection ?? null
         this.endpoint = opts.endpoint ?? DEFAULT_ENDPOINT
+        // remember_fetches disabled — books_typst/notes_cache already cache (and bound) the
+        // parsed content, so fetch-client's own raw-text cache would just grow unbounded on
+        // top of it for no benefit while entries are live, and defeat cache_max_bytes once
+        // they're evicted
         this.client = this._collection
             ? null
-            : new FetchClient({endpoints: [this.endpoint]})
+            : new FetchClient({endpoints: [this.endpoint], remember_fetches: false})
         this.patterns = opts.patterns ?? PATTERNS
         this.on_progress = opts.on_progress
+        this.manifest_ttl_ms = opts.manifest_ttl_ms ?? null
+        const cache_ttl_ms = opts.cache_ttl_ms ?? null
+        this.books_typst = new LruCache(opts.cache_max_bytes ?? null, cache_ttl_ms)
+        this.notes_cache = new LruCache(opts.cache_max_bytes ?? null, cache_ttl_ms)
     }
 
-    // Fetch the Bible collection (skipped if one was injected). Must be awaited before use.
+    // Fetch the Bible collection. Must be awaited before use, and is cheap to re-await: it
+    // no-ops unless the collection is missing or older than manifest_ttl_ms (long-lived
+    // servers re-init per compile to pick up newly published translations eventually)
     async init():Promise<void> {
-        if (!this._collection) {
-            this._collection = (await this.client!.fetch_collection()).bibles
+        if (!this.client) {
+            // Collection was injected by the caller — nothing to fetch or refresh
+            return
+        }
+        const stale = this.manifest_ttl_ms !== null
+            && Date.now() - this.manifest_fetched > this.manifest_ttl_ms
+        if (!this._collection || stale) {
+            this._collection = (await this.client.fetch_collection()).bibles
+            this.manifest_fetched = Date.now()
         }
     }
 
@@ -112,7 +145,7 @@ export class BibleContent {
             this.on_progress?.({stage: 'fetch', label: meta.name})
         }
         const instance = await this.collection.fetch_book(bible, book, 'typst')
-        this.books_typst.set(key, instance)
+        this.books_typst.set(key, instance, estimate_bytes(instance))
         return instance
     }
 
@@ -131,9 +164,11 @@ export class BibleContent {
                 result = await res.json() as TypstNotesFile
             }
         } catch {
-            // Network/parse failure — degrade gracefully, no notes for this book
+            // Network/parse failure — degrade gracefully (no notes) but don't cache the miss,
+            // so a later resolve on a long-lived instance can retry
+            return null
         }
-        this.notes_cache.set(key, result)
+        this.notes_cache.set(key, result, estimate_bytes(result))
         return result
     }
 
@@ -318,6 +353,7 @@ export class BibleContent {
             type: 'passage',
             bibles: await this.gen_passage_bibles(blue, passage, report_fetch),
             multi_layout: blue.bibles_layout,
+            multi_align: blue.bibles_align,
             half_blank: blue.half_blank,
             show_headings: blue.show_headings,
             headings_bold: blue.show_headings_bold,
@@ -333,7 +369,6 @@ export class BibleContent {
             passage_title: passage.title ? reference : null,
             progress_label: reference,
             alone: false,
-            new_page: passage.new_page ?? true,
         }
     }
 
@@ -375,13 +410,11 @@ export class BibleContent {
         // Replace the AUTO-COPYRIGHT marker with the generated copyright block
         markup = replace_copyright_marker(markup, gen_copyright_typst(blue, resources))
 
-        // Position is applied by the renderer, which only lets a custom fill the page when it is
-        // alone on it (a merged custom flows inline regardless of this setting)
+        // Position is applied by the renderer (top/middle/bottom of the page)
         return {
             type: 'custom',
             content: markup,
             position: custom.position,
-            new_page: custom.new_page ?? true,
         }
     }
 }
