@@ -1,0 +1,14 @@
+{
+    "name": "paper-bible-server",
+    "version": "0.1.0",
+    "private": true,
+    "type": "module",
+    "dependencies": {
+        "@hono/node-server": "^2.0.8",
+        "firebase-admin": "^14.1.0",
+        "hono": "^4.12.28",
+        "paper-bible-typst": "*",
+        "paper-bible-typst-node": "*",
+        "pdf-lib": "^1.17.1"
+    }
+}
