@@ -1,0 +1,12 @@
+#!/usr/bin/env bash
+
+# Build the app and deploy it (plus Firestore/Storage rules) to Firebase Hosting.
+# Pass a project alias to target it, e.g. `deploy_app prod` (defaults to dev).
+
+set -euo pipefail
+cd "$(dirname "$0")/.."
+
+PROJECT="${1:-dev}"
+
+(cd app && npx vite build)
+npx firebase deploy --project "$PROJECT" --only hosting,firestore,storage

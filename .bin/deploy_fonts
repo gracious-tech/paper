@@ -1,0 +1,20 @@
+#!/usr/bin/env bash
+
+# Sync the local fonts/ dir (see download_fonts) to the public fonts bucket served at
+# https://fonts.paper.bible/ — fonts live under a fonts/ object prefix so URLs keep the same
+# `${assets_prefix}fonts/<family>/<file>` shape the app uses in dev.
+
+set -euo pipefail
+cd "$(dirname "$0")/.."
+
+BUCKET="${1:-fonts.paper.bible}"
+
+# Sync font files (delete removed ones so the bucket mirrors the local dir)
+gcloud storage rsync fonts "gs://$BUCKET/fonts" --recursive --delete-unmatched-destination-objects
+
+# Font binaries are immutable per filename, so cache aggressively (manifest.json changes in
+# place though, so give it a short TTL)
+gcloud storage objects update "gs://$BUCKET/fonts/**" \
+    --cache-control='public, max-age=31536000, immutable'
+gcloud storage objects update "gs://$BUCKET/fonts/manifest.json" \
+    --cache-control='public, max-age=300'

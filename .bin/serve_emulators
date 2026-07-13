@@ -1,0 +1,9 @@
+#!/usr/bin/env bash
+
+# Run the Firebase emulator suite (auth, firestore, storage) for local development.
+# State persists across restarts via import/export into the gitignored .emulator_data/ dir.
+
+set -euo pipefail
+cd "$(dirname "$0")/.."
+
+npx firebase emulators:start --import .emulator_data --export-on-exit "$@"

@@ -1,0 +1,46 @@
+#!/usr/bin/env bash
+
+# Deploy the API server to Cloud Run as two services sharing one image (see Dockerfile):
+#   paper-bible-compile — /api/compile only; big instance, fonts bucket mounted via GCS FUSE
+#   paper-bible-api     — the lightweight share/merge routes; tiny instance
+# Pass the GCP project id, e.g. `deploy_server paper-bible [fonts-bucket]`.
+# Requires .bin/typst (setup_typst) to exist locally.
+
+set -euo pipefail
+cd "$(dirname "$0")/.."
+
+PROJECT="${1:?Usage: deploy_server <gcp-project-id> [fonts-bucket]}"
+FONTS_BUCKET="${2:-fonts.paper.bible}"
+
+# Build once (Cloud Build) and deploy the compile service, mounting the public fonts bucket
+# (deploy_fonts puts objects under a fonts/ prefix, hence the nested FONTS_DIR)
+gcloud run deploy paper-bible-compile \
+    --project "$PROJECT" \
+    --region us-west1 \
+    --source . \
+    --memory 2Gi \
+    --cpu 2 \
+    --timeout 600 \
+    --concurrency 4 \
+    --min-instances 0 \
+    --allow-unauthenticated \
+    --execution-environment gen2 \
+    --add-volume "name=fonts,type=cloud-storage,bucket=$FONTS_BUCKET,readonly=true" \
+    --add-volume-mount volume=fonts,mount-path=/mnt/fonts \
+    --set-env-vars "GCLOUD_PROJECT=$PROJECT,SERVER_ROLES=compile,FONTS_DIR=/mnt/fonts/fonts"
+
+# Reuse the image just built for the lightweight service (no second build)
+IMAGE="$(gcloud run services describe paper-bible-compile --project "$PROJECT" \
+    --region us-west1 --format 'value(spec.template.spec.containers[0].image)')"
+gcloud run deploy paper-bible-api \
+    --project "$PROJECT" \
+    --region us-west1 \
+    --image "$IMAGE" \
+    --memory 256Mi \
+    --cpu 1 \
+    --timeout 60 \
+    --concurrency 80 \
+    --min-instances 0 \
+    --allow-unauthenticated \
+    --execution-environment gen2 \
+    --set-env-vars "GCLOUD_PROJECT=$PROJECT,SERVER_ROLES=light"
