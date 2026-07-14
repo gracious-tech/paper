@@ -2,8 +2,11 @@
 
 # Run the Firebase emulator suite (auth, firestore, storage) for local development.
 # State persists across restarts via import/export into the gitignored .emulator_data/ dir.
+# Downloaded emulator binaries are cached in the gitignored .emulators/ dir (instead of
+# ~/.cache/firebase) so they survive Docker rebuilds that only persist the project dir.
 
 set -euo pipefail
 cd "$(dirname "$0")/.."
 
+export FIREBASE_EMULATORS_PATH="$PWD/.emulator_cache"
 npx firebase emulators:start --import .emulator_data --export-on-exit "$@"

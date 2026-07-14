@@ -26,6 +26,7 @@
         "@tiptap/starter-kit": "^3.27.1",
         "@tiptap/vue-3": "^3.27.1",
         "core-js": "^3.40.0",
+        "firebase": "^12.16.0",
         "lodash-es": "^4.17.21",
         "paper-bible-typst": "file:../typst",
         "paper-bible-typst-web": "file:../typst-web",

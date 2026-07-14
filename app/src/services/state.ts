@@ -13,8 +13,18 @@ export const state = reactive({
     splash: false,  // TODO true before launch
     tab: 'create' as 'create'|'history'|'help',
     advanced: false,
-    editor: null as null|{component:string, props:Record<string, unknown>}
+    editor: null as null|{component:string, props:Record<string, unknown>},
+    // A shared-creation link the user arrived on (shows the landing dialog until cleared)
+    shared_creation: null as null|{id:string},
+    // Message for a brief snackbar toast (e.g. link copied confirmation), null when hidden
+    toast: null as string|null,
 })
+
+
+// Show a brief snackbar toast with the given message (auto-dismissed by AppRoot's v-snackbar)
+export function show_toast(message:string):void{
+    state.toast = message
+}
 
 
 // Draft blueprint
@@ -57,9 +67,9 @@ export const translations_have_passages = computed(() => {
 })
 
 
-// History
+// History (mirrored from Firestore by creations.ts)
 export const creations = reactive([] as Creation[])
 export const selected_id = ref(null as string|null)
 export const selected_creation = computed(() => {
-    return creations.find(item => item.request_id === selected_id.value)
+    return creations.find(item => item.id === selected_id.value)
 })

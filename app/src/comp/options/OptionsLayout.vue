@@ -5,6 +5,12 @@ v-radio-group(v-model='blue.bibles_layout' inline :label='$t("Layout for multipl
     v-radio(value='columns' :label='$t("Separate columns")')
     v-radio(value='alternate' :label='$t("Separate pages")')
 
+v-radio-group(v-model='blue.bibles_align' inline :label='$t("Align translations by")'
+        :disabled='blue.bibles.length < 2' class='my-6')
+    v-radio(value='verse' :label='$t("Verse")')
+    v-radio(value='paragraph' :label='$t("Paragraph")')
+    v-radio(value='chapter' :label='$t("Chapter")')
+
 v-radio-group(v-model='columns' inline :label='$t("Columns")' class='my-4'
         :disabled='blue.bibles_layout === "columns" && blue.bibles.length > 1')
     v-radio(value='null' :label='$t("Auto")')

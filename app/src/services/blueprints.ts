@@ -54,7 +54,6 @@ export function get_default_blueprint():Blueprint{
                 end_chapter: null,
                 end_verse: null,
                 title: false,
-                new_page: true,
             },
             {
                 type: 'custom',
@@ -64,11 +63,11 @@ export function get_default_blueprint():Blueprint{
                     {type: 'paragraph', content: [{type: 'text', text: 'AUTO-COPYRIGHT'}]},
                 ]},
                 position: 'bottom',
-                new_page: true,
             },
         ],
         bibles: [content.collection.get_preferred_resource().id],
         bibles_layout: 'columns',
+        bibles_align: 'paragraph',
 
         // Features
         show_headings: true,

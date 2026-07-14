@@ -1,7 +1,8 @@
 /* GENERIC ERROR REPORTING
 
-With support for Vue 3 and Rollbar
-Version 1.0 (21 Feb 2025)
+Reports are POSTed to the app's own /api/report_error endpoint, which records the caller's IP
+and stores them in the Storage bucket as errors/{fingerprint}/{id}.json (see server/src/errors.ts;
+triage them with .bin/errors)
 
 How to integrate:
     1. Import whole module and styles before anything else to trigger listeners
@@ -10,7 +11,8 @@ How to integrate:
     2. Import handler for Vue separate to above
         import {vue_error_handler} from '@/services/errors'
         app.config.errorHandler = vue_error_handler
-    3. Set VITE_ROLLBAR_TOKEN in production env file (not required for dev)
+    3. Once auth is ready, provide a token getter so reports include the user's uid
+        set_error_auth(async () => await firebase_auth.currentUser?.getIdToken() ?? null)
 */
 
 
@@ -38,59 +40,44 @@ let last_error_report = 0  // i.e. 1970
 // Track whether showing error, to avoid showing multiple
 let fail_displayed:null|'banner'|'splash' = null
 
+// Getter for the current user's ID token, set via `set_error_auth()` once firebase is ready
+// (this module must stay import-first and dependency-free, so it can't import auth itself)
+let auth_token_getter:(() => Promise<string|null>)|null = null
+
 
 // UTILS
 
 
-function rollbar(message:string):string{
-    // Send an error report to Rollbar
-    // NOTE Not using Rollbar's own SDK as it is too large and unnecessary
+function save_error(message:string, severity:'critical'|'error',
+        context?:Record<string, string|number>):string{
+    // Send an error report to the server (which stores it in the bucket with the caller's IP)
+    // NOTE Fire-and-forget — the report's id is returned immediately for use in support links
 
-    // Generate URL-safe base64 uuid for report (15 bytes = 20 chars)
-    const uuid = btoa(String.fromCharCode(...crypto.getRandomValues(new Uint8Array(15))))
+    // Generate URL-safe base64 id for report (15 bytes = 20 chars)
+    const id = btoa(String.fromCharCode(...crypto.getRandomValues(new Uint8Array(15))))
         .replaceAll('+', '-').replaceAll('/', '_').replaceAll('=', '~')
 
-    // Send to localhost during dev so can inspect the request but not actually do anything
-    const url = import.meta.env.PROD
-        ? 'https://api.rollbar.com/api/1/item/' : 'http://localhost:7777/'
-
-    // Consider critical if happens on first load
-    const now_ms = new Date().getTime()
-    const ms_since_load = now_ms - start_ms
-    const critical = ms_since_load < (3 * 1000)
-
-    void fetch(url, {
-        method: 'POST',
-        body: JSON.stringify({
-            access_token: import.meta.env['VITE_ROLLBAR_TOKEN'],
-            data: {
-                environment: import.meta.env.MODE,
-                platform: 'browser',
-                language: 'javascript',
-                level: critical ? 'critical' : 'error',
-                uuid: uuid,
-                timestamp: Math.round(now_ms / 1000),  // In secs
-                request: {
-                    url: location.href,
-                    user_ip: '$remote_ip',  // Rollbar will set from requests' IP
-                },
-                client: {
-                    runtime_ms: ms_since_load,
-                    javascript: {
-                        browser: navigator.userAgent,
-                        language: navigator.language,
-                    },
-                },
-                body: {
-                    message: {
-                        body: message,
-                    },
-                },
+    void (async () => {
+        const token = await auth_token_getter?.().catch(() => null) ?? null
+        await fetch('/api/report_error', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                ...(token ? {'Authorization': `Bearer ${token}`} : {}),
             },
-        }),
-    }).catch(() => undefined)  // WARN Prevent recursive errors due to failed report
+            body: JSON.stringify({
+                id,
+                severity,
+                message,
+                url: location.href,
+                language: navigator.language,
+                runtime_ms: new Date().getTime() - start_ms,
+                context,
+            }),
+        })
+    })().catch(() => undefined)  // WARN Prevent recursive errors due to failed report
 
-    return uuid
+    return id
 }
 
 
@@ -127,40 +114,55 @@ function show_unsupported():void{
 
 // EXPORTED
 
-export function report_error(type:'silent'|'banner'|'splash', error:unknown, force=false):void{
-    // Report an error
+
+export function set_error_auth(getter:() => Promise<string|null>):void{
+    // Provide a token getter so error reports carry the user's uid (set once auth initialised)
+    auth_token_getter = getter
+}
+
+
+export function report_error(type:'silent'|'banner'|'splash', error:unknown,
+        options:{force?:boolean, critical?:boolean, context?:Record<string, string|number>} = {})
+        :string{
+    // Report an error, returning the report's id ('' if not reported)
 
     // Convert to a string if not already
     const error_str = error_to_string(error)
 
     // Ignore certain errors
     for (const code of ignore_errors){
-        if (error_str.includes(code) && !force){
-            return
+        if (error_str.includes(code) && !options.force){
+            return ''
         }
     }
 
     // Don't report if browser not supported, as not actionable
     if (!browser_supported){
         show_unsupported()
-        return
+        return ''
     }
+
+    // Visible failures mean the app is broken for the user, so they (and anything explicitly
+    // flagged, like a document that couldn't be generated) are critical
+    const severity = type !== 'silent' || options.critical ? 'critical' : 'error'
 
     // Send report (throttled)
     const now = new Date().getTime()
-    let uuid = ''
-    if ((now - last_error_report) > 3000 || force){
-        uuid = rollbar(error_str)
+    let error_id = ''
+    if ((now - last_error_report) > 3000 || options.force){
+        error_id = save_error(error_str, severity, options.context)
         last_error_report = now
     }
 
-    // Optionally show visual warning
-    const error_id = self.location.hostname + ' ' + uuid
+    // Optionally show visual warning (debug string ends up in the support contact link)
+    const debug = `${self.location.hostname} error:${error_id}\n${error_str.slice(0, 300)}`
     if (type === 'banner' && !fail_displayed){
-        show_error_msg('banner', error_id)
+        show_error_msg('banner', debug)
     } else if (type === 'splash' && fail_displayed !== 'splash'){
-        show_error_msg('splash', error_id)
+        show_error_msg('splash', debug)
     }
+
+    return error_id
 }
 
 

@@ -2,7 +2,7 @@
 # Download, analyse (via claude), and triage the app's error reports from the Storage bucket
 # Usage: errors [gcp-project-id]  (defaults to .firebaserc's default project)
 # Requires `gcloud auth login` creds; set STORAGE_EMULATOR_HOST=localhost:9199 to target the
-# local emulator instead. Triage state lives in gitignored .errors/
+# local emulator instead. Triage state lives in gitignored errors/records/
 set -euo pipefail
 cd "$(dirname "$0")/.."
 

@@ -2,13 +2,13 @@
 
 # Run Playwright e2e tests. The dev stack must already be running (.bin/serve_emulators,
 # .bin/serve_server, .bin/serve_app, plus the dev content server on :8430).
-# Browsers are kept inside the repo (.playwright-browsers/) so they survive container
+# Browsers are kept inside the repo (e2e/browsers/) so they survive container
 # rebuilds — install them once with:
-#   PLAYWRIGHT_BROWSERS_PATH="$PWD/.playwright-browsers" npx playwright install chromium
+#   PLAYWRIGHT_BROWSERS_PATH="$PWD/e2e/browsers" npx playwright install chromium
 
 set -euo pipefail
 cd "$(dirname "$0")/.."
 
-export PLAYWRIGHT_BROWSERS_PATH="$PWD/.playwright-browsers"
+export PLAYWRIGHT_BROWSERS_PATH="$PWD/e2e/browsers"
 
 npx playwright test --config e2e/playwright.config.ts "$@"

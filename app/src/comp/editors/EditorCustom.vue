@@ -13,11 +13,9 @@ v-card-text(class='flex-grow-1 d-flex flex-column')
     div(class='mb-4')
         v-text-field(v-model='item.name' :placeholder='$t("Label") + "..."')
     app-prose(v-model='item.doc' class='flex-grow-1')
-    div(class='mt-4')
-        v-checkbox(v-model='item.new_page' :label='$t("Start on new page")')
-    div(class='mb-4')
+    div(class='mt-4 mb-4')
         p(class='text-caption') {{$t("Vertical position on page") + ":"}}
-        v-radio-group(v-model='item.position' inline :disabled='!item.new_page')
+        v-radio-group(v-model='item.position' inline)
             v-radio(value='top' :label='$t("Top")')
             v-radio(value='middle' :label='$t("Middle")')
             v-radio(value='bottom' :label='$t("Bottom")')
@@ -51,7 +49,6 @@ if (!item){
         name: '',
         doc: {type: 'doc', content: [{type: 'paragraph'}]},
         position: 'top',
-        new_page: true,
     } as ContentCustom)
     blue.content.push(item)
 }

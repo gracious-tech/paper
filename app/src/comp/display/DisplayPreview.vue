@@ -44,6 +44,7 @@ import {blue} from '@/services/state'
 import {content, bible_content} from '@/services/content'
 import {typst_generator} from '@/services/typst'
 import {get_custom_font_styles} from '@/services/custom_fonts'
+import {report_error} from '@/services/errors'
 import {truncate_for_preview} from 'paper-bible-typst'
 
 import type {ProgressEvent, PreviewSection} from 'paper-bible-typst'
@@ -188,6 +189,10 @@ async function compile(){
         const message = error instanceof Error ? error.message : String(error)
         console.error(error)
 
+        // Preview failures are transient while editing, so record without any support prompt
+        // (the throttle in errors.ts stops this spamming reports per keystroke)
+        report_error('silent', error, {context: {stage: 'preview'}})
+
         // An old preview is still showing underneath — keep the overlay up and turn it red to
         // explain the failure, rather than silently reverting to the (now stale) PDF
         if (pdf_url.value){
@@ -225,15 +230,15 @@ function discrete_signature():string {
         if (item.type === 'title'){
             return `title:${item.pattern}:${item.alone}`
         } else if (item.type === 'passage'){
-            return `passage:${item.title}:${item.new_page}`
+            return `passage:${item.title}`
         }
-        return `custom:${item.position}:${item.new_page}`
+        return `custom:${item.position}`
     })
     return JSON.stringify([
         blue.font_text, blue.font_text2, blue.font_headings, blue.font_titles,
         blue.service_id, blue.size_id, blue.binding_type, blue.ink_type, blue.paper_type,
         blue.custom_unit, blue.booklet, blue.booklet_portrait,
-        blue.bibles_layout, blue.half_blank, blue.justify, blue.columns,
+        blue.bibles_layout, blue.bibles_align, blue.half_blank, blue.justify, blue.columns,
         blue.show_headings, blue.show_headings_bold, blue.show_headings_italic,
         blue.show_chapters, blue.show_chapters_style, blue.show_verses,
         blue.show_pages, blue.show_footnotes, blue.show_wj, blue.show_wj_bold,

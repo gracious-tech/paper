@@ -20,7 +20,7 @@ FONTS_BUCKET="${2:-fonts.paper.bible}"
 
 # Apply the 1-year lifecycle rule for creation PDFs to the default Storage bucket
 gcloud storage buckets update "gs://$PROJECT.firebasestorage.app" \
-    --project "$PROJECT" --lifecycle-file=storage_lifecycle.json
+    --project "$PROJECT" --lifecycle-file=firebase_storage_lifecycle.json
 
 # Create the public fonts bucket (domain-named buckets require site verification in GCP)
 gcloud storage buckets create "gs://$FONTS_BUCKET" --project "$PROJECT" \

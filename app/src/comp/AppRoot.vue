@@ -10,6 +10,9 @@ v-app.app(v-else)
                 BrandIcon.brand
                 span Paper Bible
                 v-spacer
+                VBtn.account(@click='show_account = true' color='' icon variant='text'
+                        v-tooltip:left='$t("Account")')
+                    AppIcon(name='account_circle')
                 VBtn.donate(href='https://gracious.tech/donate' target='_blank' color='' icon
                         variant='text' v-tooltip:left='"Donate"')
                     AppIcon(name='donate')
@@ -36,6 +39,12 @@ div.display(v-if='!state.splash')
     DisplayCreation(v-else-if='state.tab === "history"')
     DisplayHelp(v-else-if='state.tab === "help"')
 
+DialogSharedCreation
+DialogAccount(v-model='show_account')
+
+v-snackbar(:model-value='!!state.toast' @update:model-value='state.toast = null' timeout='2500')
+    | {{ state.toast }}
+
 </template>
 
 
@@ -45,12 +54,20 @@ import TabCreate from '@/comp/tabs/TabCreate.vue'
 import TabHelp from '@/comp/tabs/TabHelp.vue'
 import TabHistory from '@/comp/tabs/TabHistory.vue'
 import TabEditor from '@/comp/tabs/TabEditor.vue'
+import {ref} from 'vue'
+
+import DialogSharedCreation from '@/comp/dialogs/DialogSharedCreation.vue'
+import DialogAccount from '@/comp/dialogs/DialogAccount.vue'
 import DisplaySplash from '@/comp/display/DisplaySplash.vue'
 import DisplayPreview from '@/comp/display/DisplayPreview.vue'
 import DisplayCreation from '@/comp/display/DisplayCreation.vue'
 import DisplayHelp from '@/comp/display/DisplayHelp.vue'
 import BrandIcon from '@/assets/icon.svg?component'
 import {state} from '@/services/state'
+
+
+// Whether the account dialog is open
+const show_account = ref(false)
 
 </script>
 

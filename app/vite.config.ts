@@ -36,6 +36,11 @@ export default defineConfig(({mode}) => {
             fs: {
                 strict: true,
             },
+            // Same-origin path to the local API server (mirrors Hosting's /api/** rewrite to
+            // Cloud Run in production — see .bin/serve_server)
+            proxy: {
+                '/api': 'http://localhost:8788',
+            },
         },
         build: {
             target: 'es2018',  // Currently supporting browsers ES2015+
