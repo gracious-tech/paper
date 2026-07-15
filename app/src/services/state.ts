@@ -1,23 +1,43 @@
 
-import {reactive, computed, ref} from 'vue'
+import {reactive, computed} from 'vue'
 
 import {doc_has_copyright} from 'paper-bible-typst'
 
 import {content} from '@/services/content'
 
-import type {Blueprint, ContentPassage, Creation} from '@/services/types'
+import type {Blueprint, ContentPassage} from '@/services/types'
 
 
 // General state
 export const state = reactive({
-    splash: false,  // TODO true before launch
-    tab: 'create' as 'create'|'history'|'help',
+    // Shows the welcome splash instead of the app — set true by init_designs() for brand new
+    // users (no designs yet), cleared by DisplaySplash.vue's "Get Started" button
+    splash: false,
     advanced: false,
     editor: null as null|{component:string, props:Record<string, unknown>},
-    // A shared-creation link the user arrived on (shows the landing dialog until cleared)
-    shared_creation: null as null|{id:string},
+    // A version link the user arrived on for a design they can't edit (shows the read-only
+    // "Someone shared this document with you" prompt until confirmed) — set by ViewDesign.vue
+    // when a deep-linked design id isn't in the local `designs` list
+    viewed_version: null as null|{design_id:string, version_id:string},
+    // Whether the user confirmed past the viewed_version prompt (DialogViewedDesign's "View"
+    // button) — reveals the regular (read-only) version view; reset whenever viewed_version
+    // changes (see DialogViewedDesign.vue)
+    viewed_confirmed: false,
+    // An edit invite the user followed a link for, awaiting Accept/Ignore before becoming an
+    // editor (DialogAcceptInvite handles the prompt) — set by ViewDesignInvite.vue, cleared once
+    // resolved either way
+    design_invite: null as null|{design_id:string, token:string},
+    // Set when the user explicitly chose to keep editing a design that already matches its
+    // latest rendered version (the "Edit" button/action) — read by both ViewDesign.vue (which
+    // component to show) and AppRoot.vue (which sidebar preview to show), reset whenever the
+    // open design changes
+    forced_editor: false,
     // Message for a brief snackbar toast (e.g. link copied confirmation), null when hidden
     toast: null as string|null,
+    // Pending confirm-dialog request, rendered by DialogConfirm — null hides it (see confirm_dialog())
+    confirm: null as null|{message:string, resolve:(confirmed:boolean) => void},
+    // Pending prompt-dialog request, rendered by DialogPrompt — null hides it (see prompt_dialog())
+    prompt: null as null|{message:string, value:string, resolve:(value:string|null) => void},
 })
 
 
@@ -27,7 +47,23 @@ export function show_toast(message:string):void{
 }
 
 
-// Draft blueprint
+// Ask the user to confirm an action via a Vuetify dialog (replaces the browser's native confirm())
+export function confirm_dialog(message:string):Promise<boolean>{
+    return new Promise(resolve => {
+        state.confirm = {message, resolve}
+    })
+}
+
+
+// Ask the user for text input via a Vuetify dialog (replaces the browser's native prompt())
+export function prompt_dialog(message:string, initial=''):Promise<string|null>{
+    return new Promise(resolve => {
+        state.prompt = {message, value: initial, resolve}
+    })
+}
+
+
+// Open design's blueprint
 // NOTE This will actually get init'd once content.collection is available
 export const blue = reactive({} as unknown as Blueprint)
 
@@ -64,12 +100,4 @@ export const translations_have_passages = computed(() => {
             return content.books[bible]?.[book]?.available
         })
     })
-})
-
-
-// History (mirrored from Firestore by creations.ts)
-export const creations = reactive([] as Creation[])
-export const selected_id = ref(null as string|null)
-export const selected_creation = computed(() => {
-    return creations.find(item => item.id === selected_id.value)
 })

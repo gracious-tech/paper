@@ -23,6 +23,8 @@ import BrandIcon from '@/assets/icon.svg?component'
 import {state} from '@/services/state'
 
 
+// Dismiss the splash, revealing whatever route the app already booted into (e.g. a shared
+// design/invite link the user arrived with) rather than redirecting away from it
 const start = () => {
     state.splash = false
 }

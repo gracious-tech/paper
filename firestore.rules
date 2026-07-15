@@ -2,8 +2,8 @@ rules_version = '2';
 
 
 // NOTE Anonymous users are real auth users, so `signed_in()` covers guests too
-// NOTE Draft-invite redemption and account merging happen via the server (Admin SDK bypasses
-//      these rules), so no token-comparison patterns are needed here. Creations need no such
+// NOTE Design-invite redemption and account merging happen via the server (Admin SDK bypasses
+//      these rules), so no token-comparison patterns are needed here. Versions need no such
 //      redemption step — they're publicly readable by id directly (see below)
 
 service cloud.firestore {
@@ -14,17 +14,22 @@ service cloud.firestore {
             return request.auth != null;
         }
 
-        // User profiles and their custom font library (owner only)
+        // User profiles, their custom font library, and their viewed-designs history (all
+        // owner only)
         match /users/{uid} {
             allow read, write: if signed_in() && request.auth.uid == uid;
 
             match /fonts/{font_id} {
                 allow read, write: if signed_in() && request.auth.uid == uid;
             }
+
+            match /viewed/{design_id} {
+                allow read, write: if signed_in() && request.auth.uid == uid;
+            }
         }
 
-        // Drafts (editable blueprints, owner + invited editors)
-        match /drafts/{draft_id} {
+        // Designs (editable blueprints, owner + invited editors)
+        match /designs/{design_id} {
 
             // Owner must create with themselves in the editors array
             allow create: if signed_in()
@@ -45,8 +50,8 @@ service cloud.firestore {
             allow delete: if signed_in() && request.auth.uid == resource.data.owner;
         }
 
-        // Creations (immutable generated documents)
-        match /creations/{creation_id} {
+        // Versions (immutable rendered snapshots, nested under the design they came from)
+        match /versions/{version_id} {
 
             allow create: if signed_in()
                 && request.resource.data.owner == request.auth.uid;
@@ -59,7 +64,8 @@ service cloud.firestore {
             // compiles via WASM)
             allow update: if signed_in() && request.auth.uid == resource.data.owner
                 && !request.resource.data.diff(resource.data).affectedKeys()
-                    .hasAny(['blueprint', 'owner', 'created', 'copied_from', 'custom_fonts']);
+                    .hasAny(['blueprint', 'owner', 'created', 'design_id', 'copied_from',
+                        'custom_fonts', 'save_token']);
 
             allow delete: if signed_in() && request.auth.uid == resource.data.owner;
         }

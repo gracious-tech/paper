@@ -9,33 +9,33 @@ rules_version = '2';
 service firebase.storage {
     match /b/{bucket}/o {
 
-        // Creation PDFs — create-once by owner (in-browser compile path), no overwrite/delete
+        // Version PDFs — create-once by owner (in-browser compile path), no overwrite/delete
         // by clients (re-creation is allowed again after lifecycle deletion since the object
         // no longer exists)
-        match /creations/{creation_id}/doc.pdf {
+        match /versions/{version_id}/doc.pdf {
 
-            function creation() {
+            function version() {
                 return firestore.get(
-                    /databases/(default)/documents/creations/$(creation_id));
+                    /databases/(default)/documents/versions/$(version_id));
             }
 
             allow read: if true;
 
             allow create: if request.auth != null
                 && resource == null
-                && creation().data.owner == request.auth.uid
+                && version().data.owner == request.auth.uid
                 && request.resource.contentType == 'application/pdf'
                 && request.resource.size < 200 * 1024 * 1024;
         }
 
-        // Per-creation snapshots of custom font bytes (immutable alongside the creation, and
-        // nested under creations/ so the lifecycle rule sweeps them together with the PDF)
-        match /creations/{creation_id}/fonts/{file} {
+        // Per-version snapshots of custom font bytes (immutable alongside the version, and
+        // nested under versions/ so the lifecycle rule sweeps them together with the PDF)
+        match /versions/{version_id}/fonts/{file} {
             allow read: if true;
 
             allow create: if request.auth != null
                 && firestore.get(
-                    /databases/(default)/documents/creations/$(creation_id))
+                    /databases/(default)/documents/versions/$(version_id))
                     .data.owner == request.auth.uid
                 && request.resource.size < 20 * 1024 * 1024;
         }

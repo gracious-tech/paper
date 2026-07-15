@@ -20,6 +20,8 @@ import download from '@material-symbols/svg-400/outlined/download.svg?component'
 import upload from '@material-symbols/svg-400/outlined/upload.svg?component'
 import error from '@material-symbols/svg-400/outlined/error.svg?component'
 import more_vert from '@material-symbols/svg-400/outlined/more_vert.svg?component'
+import more_horiz from '@material-symbols/svg-400/outlined/more_horiz.svg?component'
+import lists from '@material-symbols/svg-400/outlined/lists.svg?component'
 import history_toggle_off from '@material-symbols/svg-400/outlined/history_toggle_off.svg?component'
 import add from '@material-symbols/svg-400/outlined/add.svg?component'
 import content_copy from '@material-symbols/svg-400/outlined/content_copy.svg?component'
@@ -27,6 +29,11 @@ import delete_icon from '@material-symbols/svg-400/outlined/delete.svg?component
 import group from '@material-symbols/svg-400/outlined/group.svg?component'
 import share from '@material-symbols/svg-400/outlined/share.svg?component'
 import account_circle from '@material-symbols/svg-400/outlined/account_circle.svg?component'
+import straighten from '@material-symbols/svg-400/outlined/straighten.svg?component'
+import menu_book from '@material-symbols/svg-400/outlined/menu_book.svg?component'
+import description from '@material-symbols/svg-400/outlined/description.svg?component'
+import print from '@material-symbols/svg-400/outlined/print.svg?component'
+import warning from '@material-symbols/svg-400/outlined/warning.svg?component'
 
 import planner_banner from '@/assets/planner_banner.svg?component'
 import donate from '@/assets/icons/donate.svg?component'
@@ -42,8 +49,9 @@ defineProps({
 
 const icons = {
     drag_indicator, close, arrow_back, expand_more, planner_banner, copyright, auto_stories,
-    subject, download, upload, error, more_vert, history_toggle_off, donate,
-    add, content_copy, 'delete': delete_icon, group, share, account_circle,
+    subject, download, upload, error, more_vert, more_horiz, lists, history_toggle_off, donate,
+    add, content_copy, 'delete': delete_icon, group, share, account_circle, straighten,
+    menu_book, description, print, warning,
 } as Record<string, FunctionalComponent>
 
 

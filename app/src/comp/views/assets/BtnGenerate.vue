@@ -1,0 +1,83 @@
+
+<template lang='pug'>
+
+v-btn-group(rounded='pill' divided color='secondary-darken-1' variant='elevated')
+    v-btn(@click='generate' :disabled='!blue.content.length || !typst_generator'
+        :loading='generating') {{$t("Create")}}
+    v-btn(v-if='latest_version' @click='view_versions' icon
+            v-tooltip:top='$t("Versions")')
+        app-icon(name='history_toggle_off')
+
+</template>
+
+
+<script lang='ts' setup>
+
+import {ref} from 'vue'
+import {useRouter} from 'vue-router'
+
+import {blue} from '@/services/state'
+import {current_design_id, flush_changes} from '@/services/designs'
+import {create_pending_version, compile_and_upload, selected_version_id, latest_version,
+    } from '@/services/versions'
+import {typst_generator} from '@/services/typst'
+import {gen_content_name} from '@/services/blueprints'
+
+
+const router = useRouter()
+
+
+// Whether a PDF is currently being compiled (disables the Create button)
+const generating = ref(false)
+
+
+const view_versions = async () => {
+    // Jump to the latest rendered version (leaves the editor without discarding any changes)
+    if (current_design_id.value && latest_version.value){
+        await router.push({name: 'design',
+            params: {id: current_design_id.value, version: latest_version.value.id}})
+    }
+}
+
+const generate = async () => {
+
+    // Compiler must be ready (the button is disabled until it is, but guard anyway)
+    if (!typst_generator.value || !current_design_id.value){
+        return
+    }
+
+    // Auto-set title if none yet
+    if (!blue.title.trim()){
+        blue.title = gen_content_name(blue.content[0]!)
+    }
+
+    // Force-flush any pending autosave so the design's persisted save_token always matches what
+    // gets frozen below (the debounced autosave alone can't guarantee this at click-time)
+    await flush_changes()
+
+    // Freeze the current design into an immutable pending version (a deep clone, so later
+    // edits to `blue` won't affect this in-flight version)
+    const design_id = current_design_id.value
+    const blueprint = {...blue, content: [...blue.content]}
+    const version_id = await create_pending_version(design_id, blueprint)
+
+    // Switch to the version view
+    selected_version_id.value = version_id
+    await router.push({name: 'design', params: {id: design_id, version: version_id}})
+
+    // Compile the final PDF in-browser via Typst and upload it (status updates arrive via the
+    // versions Firestore sync)
+    generating.value = true
+    try {
+        await compile_and_upload(version_id, blueprint)
+    } finally {
+        generating.value = false
+    }
+}
+
+</script>
+
+
+<style lang='sass' scoped>
+
+</style>

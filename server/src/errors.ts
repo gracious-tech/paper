@@ -22,7 +22,7 @@ export interface ErrorRecord {
     user_agent:string|null
     language:string|null  // navigator.language (browser only)
     runtime_ms:number|null  // Time since app load (browser only)
-    context:Record<string, string|number>|null  // e.g. {creation_id: '...'}
+    context:Record<string, string|number>|null  // e.g. {version_id: '...'}
 }
 
 

@@ -85,6 +85,7 @@ import {list_services, get_service, get_common_sizes} from 'printing-services'
 import type {ServicePublic, SizeId, BindingTypeId, InkTypeId} from 'printing-services'
 
 import {blue} from '@/services/state'
+import {format_dims} from '@/services/blueprints'
 
 
 const {t} = useI18n()
@@ -115,14 +116,6 @@ const service = computed<ServicePublic|null>(() =>
     (is_home.value || is_custom.value)
         ? null
         : get_service(blue.service_id as Parameters<typeof get_service>[0]))
-
-
-// Format a size's dimensions for display, e.g. "152 × 229 mm" or "6 × 9 in"
-function format_dims(width:number, height:number, unit:string):string{
-    const u = unit === 'mm' ? 'mm' : 'in'
-    const fmt = (v:number) => u === 'mm' ? String(Math.round(v)) : String(v)
-    return `${fmt(width)} × ${fmt(height)} ${u}`
-}
 
 
 // Available named sizes: the service's sizes, or the common list in the service-less modes

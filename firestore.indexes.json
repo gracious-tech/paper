@@ -1,7 +1,7 @@
 {
     "indexes": [
         {
-            "collectionGroup": "drafts",
+            "collectionGroup": "designs",
             "queryScope": "COLLECTION",
             "fields": [
                 {"fieldPath": "editor_uids", "arrayConfig": "CONTAINS"},
@@ -9,10 +9,10 @@
             ]
         },
         {
-            "collectionGroup": "creations",
+            "collectionGroup": "versions",
             "queryScope": "COLLECTION",
             "fields": [
-                {"fieldPath": "owner", "order": "ASCENDING"},
+                {"fieldPath": "design_id", "order": "ASCENDING"},
                 {"fieldPath": "created", "order": "DESCENDING"}
             ]
         }

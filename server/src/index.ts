@@ -7,7 +7,8 @@ import {verify_uid} from './auth.ts'
 import {save_error, generate_error_id, get_client_ip, report_allowed,
     handle_report_error} from './errors.ts'
 import {handle_compile} from './compile.ts'
-import {handle_redeem_draft, handle_copy_creation} from './share.ts'
+import {handle_design_invite_preview, handle_redeem_design_invite, handle_design_editors,
+    handle_copy_version} from './share.ts'
 import {handle_merge} from './merge.ts'
 
 
@@ -24,7 +25,7 @@ app.get('/api/health', context => {
 })
 
 
-// Compile a pending creation server-side (in-browser compile fallback + regeneration)
+// Compile a pending version server-side (in-browser compile fallback + regeneration)
 // Only served by the 'compile' role — the one route needing typst, fonts, and Bible fetching
 if (config.roles.includes('compile')){
     app.post('/api/compile', async context => {
@@ -32,11 +33,11 @@ if (config.roles.includes('compile')){
         if (!uid){
             return context.json({error: 'unauthenticated'}, 401)
         }
-        const body = await context.req.json().catch(() => null) as {creation_id?:unknown}|null
-        if (typeof body?.creation_id !== 'string'){
+        const body = await context.req.json().catch(() => null) as {version_id?:unknown}|null
+        if (typeof body?.version_id !== 'string'){
             return context.json({error: 'bad_request'}, 400)
         }
-        const result = await handle_compile(uid, body.creation_id, get_client_ip(context))
+        const result = await handle_compile(uid, body.version_id, get_client_ip(context))
         return context.json(result.body, result.status as 200)
     })
 }
@@ -60,34 +61,65 @@ if (config.roles.includes('light')){
         return context.json(result.body, result.status as 200)
     })
 
-    // Redeem a draft share link (adds the caller as an editor)
-    app.post('/api/redeem_draft', async context => {
+    // Preview a design invite link's target (name only, no membership change) — lets the client
+    // show what's being shared before the user decides whether to accept it
+    app.post('/api/design_invite_preview', async context => {
         const uid = await verify_uid(context.req.header('Authorization'))
         if (!uid){
             return context.json({error: 'unauthenticated'}, 401)
         }
         const body = await context.req.json().catch(() => null) as
-            {draft_id?:unknown, token?:unknown}|null
-        if (typeof body?.draft_id !== 'string' || typeof body?.token !== 'string'){
+            {design_id?:unknown, token?:unknown}|null
+        if (typeof body?.design_id !== 'string' || typeof body?.token !== 'string'){
             return context.json({error: 'bad_request'}, 400)
         }
-        const result = await handle_redeem_draft(uid, body.draft_id, body.token)
+        const result = await handle_design_invite_preview(body.design_id, body.token)
         return context.json(result.body, result.status as 200)
     })
 
-    // "Keep own copy" of a shared creation (metadata + PDF are otherwise read directly from
-    // Firestore/Storage by the client — see firestore.rules/firebase_storage.rules — since creations are
-    // publicly readable by id; only the copy itself needs server-side Admin SDK access)
-    app.post('/api/copy_creation', async context => {
+    // Redeem a design invite link (adds the caller as an editor)
+    app.post('/api/redeem_design_invite', async context => {
         const uid = await verify_uid(context.req.header('Authorization'))
         if (!uid){
             return context.json({error: 'unauthenticated'}, 401)
         }
-        const body = await context.req.json().catch(() => null) as {creation_id?:unknown}|null
-        if (typeof body?.creation_id !== 'string'){
+        const body = await context.req.json().catch(() => null) as
+            {design_id?:unknown, token?:unknown}|null
+        if (typeof body?.design_id !== 'string' || typeof body?.token !== 'string'){
             return context.json({error: 'bad_request'}, 400)
         }
-        const result = await handle_copy_creation(uid, body.creation_id)
+        const result = await handle_redeem_design_invite(uid, body.design_id, body.token)
+        return context.json(result.body, result.status as 200)
+    })
+
+    // List a design's owner + editors with display name/email, for the share dialog
+    app.post('/api/design_editors', async context => {
+        const uid = await verify_uid(context.req.header('Authorization'))
+        if (!uid){
+            return context.json({error: 'unauthenticated'}, 401)
+        }
+        const body = await context.req.json().catch(() => null) as {design_id?:unknown}|null
+        if (typeof body?.design_id !== 'string'){
+            return context.json({error: 'bad_request'}, 400)
+        }
+        const result = await handle_design_editors(uid, body.design_id)
+        return context.json(result.body, result.status as 200)
+    })
+
+    // "Keep own copy" of a shared version (metadata + PDF are otherwise read directly from
+    // Firestore/Storage by the client — see firestore.rules/firebase_storage.rules — since
+    // versions are publicly readable by id; only the copy itself needs server-side Admin SDK
+    // access)
+    app.post('/api/copy_version', async context => {
+        const uid = await verify_uid(context.req.header('Authorization'))
+        if (!uid){
+            return context.json({error: 'unauthenticated'}, 401)
+        }
+        const body = await context.req.json().catch(() => null) as {version_id?:unknown}|null
+        if (typeof body?.version_id !== 'string'){
+            return context.json({error: 'bad_request'}, 400)
+        }
+        const result = await handle_copy_version(uid, body.version_id)
         return context.json(result.body, result.status as 200)
     })
 

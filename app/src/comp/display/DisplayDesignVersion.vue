@@ -10,14 +10,20 @@ div.explain(v-else :class='{pending: status === "pending"}')
         h1(class='my-10 text-h1') {{ time_since_request }}
         div(class='mb-10')
             | {{$t("Most docs")}} &nbsp;&nbsp;&nbsp;&nbsp; &lt; 1 {{$t("minute")}}&nbsp;&nbsp;&nbsp;&nbsp;<br>
-            | {{$t("Large docs")}}  &nbsp;&nbsp;&nbsp;&nbsp; &lt; {{ MAX_MINUTES }} {{$t("minutes")}}
     template(v-else-if='status === "failed"')
         h3(class='mb-6') {{$t("An error occurred")}}
+        div(class='mb-6')
+            v-btn(@click='regen' color='secondary') {{$t("Try again")}}
         div
-            v-btn(:href='contact_url' target='_blank' color='secondary') {{$t("Contact Us")}}
+            v-btn(:href='contact_url' target='_blank' variant='text') {{$t("Contact Us")}}
         p(class='mt-12 mb-3') {{$t("Please include this code in your email:")}}
         p
             strong {{ debug }}
+    template(v-else-if='expired')
+        h3(class='mb-6') {{$t("This document's PDF has expired")}}
+        p(class='mb-6') {{$t("Its settings are still saved, so it can be generated again.")}}
+        div
+            v-btn(@click='regen' color='secondary') {{$t("Regenerate")}}
 
 </template>
 
@@ -26,8 +32,8 @@ div.explain(v-else :class='{pending: status === "pending"}')
 
 import {computed, ref, watch, onUnmounted} from 'vue'
 
-import {selected_creation} from '@/services/state'
-import {MAX_MINUTES} from '@/services/create'
+import {selected_version, get_pdf_url, regenerate_version, version_expired,
+    } from '@/services/versions'
 import AnimatedBook from '../reuseable/AnimatedBook.vue'
 
 
@@ -36,15 +42,36 @@ let timer_interval:number|null = null
 
 
 const status = computed(() => {
-    return selected_creation.value?.status
+    return selected_version.value?.status
 })
 
 
-const iframe_src = computed(() => {
-    return selected_creation.value?.status === 'available'
-        ? selected_creation.value.pdf_url
-        : null
+// Whether the selected version's PDF has passed its Storage lifetime
+const expired = computed(() => {
+    return selected_version.value ? version_expired(selected_version.value) : false
 })
+
+
+// Download URL of the stored PDF (resolved async whenever the selected version changes)
+const iframe_src = ref(null as string|null)
+let resolve_count = 0
+watch([selected_version, status], async () => {
+    const version = selected_version.value
+    const this_resolve = ++resolve_count
+    const url = version ? await get_pdf_url(version) : null
+    // Ignore stale resolutions if the selection changed while awaiting
+    if (this_resolve === resolve_count){
+        iframe_src.value = url
+    }
+}, {immediate: true})
+
+
+// Recompile the failed/expired PDF from the version's frozen blueprint
+const regen = () => {
+    if (selected_version.value){
+        void regenerate_version(selected_version.value)
+    }
+}
 
 
 const contact_url = computed(() => {
@@ -53,12 +80,15 @@ const contact_url = computed(() => {
 
 
 const debug = computed(() => {
-    return 'request:' + selected_creation.value!.request_id
+    // Include the saved error report's id when the failure was recorded (client or server side)
+    const version = selected_version.value
+    const error_part = version?.error_id ? ` error:${version.error_id}` : ''
+    return 'version:' + (version?.id ?? '') + error_part
 })
 
 
-watch(selected_creation, creation => {
-    // Constantly update time since request for selected creation
+watch(selected_version, version => {
+    // Constantly update time since request for selected version
 
     // Clear any previous interval
     if (timer_interval){
@@ -66,17 +96,17 @@ watch(selected_creation, creation => {
     }
 
     // Only needed if request is pending
-    if (creation?.status === 'pending'){
+    if (version?.status === 'pending'){
         timer_interval = setInterval(() => {
 
             // If request is no longer pending then can stop updating
-            if (creation.status !== 'pending'){
+            if (version.status !== 'pending'){
                 clearInterval(timer_interval!)
                 return
             }
 
             // Get difference in seconds
-            const diff = (new Date().getTime() - creation.created.getTime()) / 1000
+            const diff = (new Date().getTime() - version.created.getTime()) / 1000
             const minutes = Math.floor(diff / 60).toString()
             const seconds = Math.floor(diff % 60).toString().padStart(2, '0')
             time_since_request.value = `${minutes}:${seconds}`

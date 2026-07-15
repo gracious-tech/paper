@@ -2,7 +2,7 @@
     "rule": [
         {
             "action": {"type": "Delete"},
-            "condition": {"age": 365, "matchesPrefix": ["creations/"]}
+            "condition": {"age": 365, "matchesPrefix": ["versions/"]}
         },
         {
             "action": {"type": "Delete"},

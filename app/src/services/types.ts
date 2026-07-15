@@ -8,23 +8,24 @@ export type {Blueprint, ContentItem, ContentTitle, ContentPassage, ContentCustom
 import type {Blueprint} from 'paper-bible-typst'
 
 
-// Summary of a draft for the drafts list (the open draft's content lives in `blue`)
-export interface DraftMeta {
+// Summary of a design for the designs list (the open design's content lives in `blue`)
+export interface DesignMeta {
     id:string
     name:string
     owner:string
     shared:boolean
     editor_count:number
     share_token:string|null
+    save_token:string
     created:Date
     modified:Date
 }
 
 
-// An immutable generated document — metadata lives in Firestore forever, the PDF in Storage
-// for 1 year (regenerable from the frozen blueprint after expiry)
-export interface Creation {
+// An immutable rendered snapshot, nested under the design it came from
+export interface Version {
     id:string
+    design_id:string
     owner:string
     created:Date
     title:string
@@ -33,8 +34,28 @@ export interface Creation {
     pages:number|null
     pdf_path:string
     pdf_expires:Date|null  // null until first generated
-    copied_from:string|null  // Source creation id if this is a kept copy
+    copied_from:string|null  // Source version id if this is a kept copy
     custom_fonts:{family:string, style:'serif'|'sans', files:string[]}[]  // Snapshot paths
+    save_token:string  // Copied from the parent design's save_token at freeze time
     error:string|null
     error_id:string|null  // Id of the saved error report (for support links)
+}
+
+
+// A design the user viewed via a public version link but can't edit ("Read access" on /designs)
+export interface ViewedDesign {
+    design_id:string
+    title:string
+    last_version_id:string
+    last_viewed:Date
+}
+
+
+// An owner/editor entry in a design's share dialog (resolved server-side via Admin Auth, since
+// other users' auth profiles aren't client-readable)
+export interface DesignEditorInfo {
+    uid:string
+    owner:boolean
+    name:string|null
+    email:string|null
 }

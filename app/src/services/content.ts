@@ -15,7 +15,7 @@ const endpoint = import.meta.env.PROD ? 'https://v1.fetch.bible/' : 'http://loca
 
 
 // Single shared Bible-content layer: owns the fetch-client, collection, and Typst book cache,
-// and resolves the draft blueprint into a TypstRequest. The same instance backs both the UI
+// and resolves the open design's blueprint into a TypstRequest. The same instance backs both the UI
 // (which reads `.collection`) and the renderer. Title-page patterns are bundled in the typst
 // package, so none need to be injected here.
 export const bible_content = new BibleContent({endpoint})

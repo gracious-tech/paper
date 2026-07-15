@@ -39,8 +39,7 @@ v-dialog(:model-value='modelValue' @update:model-value='close' max-width='440')
 import {ref} from 'vue'
 
 import {user, is_anonymous, link_google, send_email_link, sign_out} from '@/services/auth'
-import {init_drafts} from '@/services/drafts'
-import {start_creations_sync} from '@/services/creations'
+import {init_designs, start_viewed_sync} from '@/services/designs'
 import {restore_custom_fonts} from '@/services/custom_fonts'
 import {report_error} from '@/services/errors'
 
@@ -54,12 +53,13 @@ const email_sent = ref(false)
 const busy = ref(false)
 
 
-// Reload drafts/creations after the account (uid) changed — merging into an existing account
+// Reload designs/versions after the account (uid) changed — merging into an existing account
 // or signing out both switch to a different uid's data
-// NOTE The draft auto-save watcher from boot persists (it follows whatever draft is open)
+// NOTE The design auto-save watcher from boot persists (it follows whatever design is open);
+// ViewDesign.vue's own watcher restarts the scoped versions sync once current_design_id settles
 const reload_user_data = async () => {
-    await init_drafts()
-    start_creations_sync()
+    await init_designs()
+    start_viewed_sync()
     await restore_custom_fonts()
 }
 

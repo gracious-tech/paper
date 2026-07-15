@@ -27,17 +27,14 @@ import AppColor from './comp/global/AppColor.vue'
 import AppFontSelect from './comp/global/AppFontSelect.vue'
 import AppRoot from './comp/AppRoot.vue'
 import locales_meta from './locales.json'
-import {state, selected_id, creations, show_toast} from '@/services/state'
+import {router} from '@/services/router'
 import {ensure_signed_in, complete_email_link} from '@/services/auth'
-import {init_drafts, start_draft_sync, redeem_draft_share, current_draft_id}
-    from '@/services/drafts'
-import {start_creations_sync, creations_loaded} from '@/services/creations'
+import {init_designs, start_design_sync, start_viewed_sync} from '@/services/designs'
 import {content, bible_content, load_fonts} from '@/services/content'
 import {typst_generator, TypstWorkerClient} from '@/services/typst'
 import {custom_fonts, restore_custom_fonts} from '@/services/custom_fonts'
 import {start_watchers} from '@/services/watchers'
 import {report_error, vue_error_handler} from '@/services/errors'
-import {parse_boot_url, init_router, set_translator} from '@/services/router'
 
 
 // Create app
@@ -154,52 +151,16 @@ void (async () => {
             report_error('banner', error)
         })
 
-    // Handle the URL the app was loaded with (one of the clean paths router.ts maintains:
-    // /draft/{id}, /draft/{id}/invite/{token}, /creation/{id}, /creation, /help)
-    const boot_url = parse_boot_url()
-    let shared_draft_id:string|null = null
-    let pending_creation_id:string|undefined
-    if (boot_url?.kind === 'draft_invite'){
-        // Become an editor now so the draft can simply be opened below, then strip the secret
-        // token from the URL immediately — it must never persist in history
-        try {
-            await redeem_draft_share(boot_url.id, boot_url.token)
-            shared_draft_id = boot_url.id
-        } catch (error){
-            report_error('banner', error)
-        }
-        history.replaceState(null, '', `/draft/${boot_url.id}`)
-    } else if (boot_url?.kind === 'draft'){
-        shared_draft_id = boot_url.id
-    } else if (boot_url?.kind === 'creation'){
-        // Owned vs shared can't be known until the creations list has loaded — resolve without
-        // blocking mount on it (see init_router below for how the URL stays put meanwhile)
-        pending_creation_id = boot_url.id
-        const creation_id = boot_url.id
-        void creations_loaded.then(() => {
-            if (creations.some(item => item.id === creation_id)){
-                state.tab = 'history'
-                selected_id.value = creation_id
-            } else {
-                // Show the shared-creation landing dialog once mounted (see AppRoot.vue)
-                state.shared_creation = {id: creation_id}
-                state.splash = false
-            }
-        })
-    } else if (boot_url?.kind === 'tab'){
-        state.tab = boot_url.tab
-    }
+    // Load the user's designs and open whichever one the boot URL names (if any and if
+    // accessible), else the most recent one, else create their first. A bare regex match is
+    // enough here — it's just a hint to avoid opening then immediately re-opening a different
+    // design; ViewDesign.vue independently opens whatever the resolved route names once mounted
+    const boot_match = location.pathname.match(/^\/designs\/([^/]+)/)
+    await init_designs(boot_match ? boot_match[1]! : null)
+    start_design_sync()
 
-    // Load the user's drafts and open the shared/most recent one (creating their first if
-    // none), then start auto-saving edits back to Firestore
-    await init_drafts(shared_draft_id)
-    if (shared_draft_id && current_draft_id.value !== shared_draft_id){
-        show_toast(i18n.global.t("Couldn't open that design — you may not have access"))
-    }
-    start_draft_sync()
-
-    // Keep the creation history mirrored from Firestore
-    start_creations_sync()
+    // Keep the version-viewing history mirrored from Firestore ("Read access" on /designs)
+    start_viewed_sync()
 
     // Restore the user's uploaded fonts from their online library (non-blocking; pushes to
     // the compiler worker itself once loaded)
@@ -207,16 +168,10 @@ void (async () => {
         report_error('banner', error)
     })
 
-    // Start on guide tab if first time
-    if (state.splash){
-        state.tab = 'help'
-    }
-
     // Start watchers (don't start earlier or will trigger during initially loading some things)
     start_watchers()
 
-    // Start syncing the URL with app state, then mount
-    set_translator(i18n.global.t)
-    init_router(pending_creation_id)
+    // Start the router (resolves the current location automatically), then mount
+    app.use(router)
     app.mount('#app')
 })()

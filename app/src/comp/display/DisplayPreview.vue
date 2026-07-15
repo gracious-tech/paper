@@ -4,16 +4,20 @@
 div.preview
     div.toolbar
         v-btn-toggle(:model-value='mode' @update:model-value='set_mode'
-            density='compact' variant='elevated' color='secondary' divided mandatory)
+            density='compact' variant='elevated' color='primary' divided mandatory)
             v-btn(v-if='blue.booklet' value='reading' size='small') {{ $t("Reading") }}
             v-btn(value='print' size='small') {{ $t("Print") }}
         //- Which part of a large document to preview — only shown when the document exceeded
         //- the preview size limit and had to be truncated
         v-btn-toggle(v-if='truncated' :model-value='section' @update:model-value='set_section'
-            density='compact' variant='elevated' color='secondary' divided mandatory)
+            density='compact' variant='elevated' color='primary' divided mandatory)
             v-btn(value='start' size='small') {{ $t("Start") }}
             v-btn(value='middle' size='small') {{ $t("Middle") }}
             v-btn(value='end' size='small') {{ $t("End") }}
+        //- Pushed to the right end of the toolbar via margin-left:auto (see style below); the
+        //- mobile floating equivalent lives in ViewDesignEditor.vue since this toolbar is hidden
+        //- on mobile (parent .display has display:none, see AppRoot.vue)
+        BtnGenerate.create
 
     div.frame(v-if='pdf_url')
         iframe(:src='pdf_url')
@@ -40,6 +44,7 @@ import {ref, computed, watch, onUnmounted} from 'vue'
 import {debounce} from 'lodash-es'
 import {useI18n} from 'vue-i18n'
 
+import BtnGenerate from '@/comp/views/assets/BtnGenerate.vue'
 import {blue} from '@/services/state'
 import {content, bible_content} from '@/services/content'
 import {typst_generator} from '@/services/typst'
@@ -187,7 +192,6 @@ async function compile(){
             return
         }
         const message = error instanceof Error ? error.message : String(error)
-        console.error(error)
 
         // Preview failures are transient while editing, so record without any support prompt
         // (the throttle in errors.ts stops this spamming reports per keystroke)
@@ -283,6 +287,9 @@ onUnmounted(() => {
     padding: 8px
     background-color: rgba(0, 0, 0, 0.2)
 
+    .create
+        margin-left: auto
+
 .frame
     position: relative
     flex-grow: 1
@@ -312,7 +319,7 @@ iframe
     color: white
     text-align: center
     box-shadow: 0 4px 20px rgba(0, 0, 0, 0.4)
-    // Same animated gradient as the "pending creation" state in DisplayCreation.vue, scoped to
+    // Same animated gradient as the "pending" state in DisplayDesignVersion.vue, scoped to
     // just this small readout rather than the whole panel
     background: linear-gradient(-45deg, #ee7752, #e73c7e, #23a6d5, #23d5ab)
     background-size: 400% 400%

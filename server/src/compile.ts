@@ -20,17 +20,17 @@ const PDF_LIFETIME_MS = 365 * 24 * 60 * 60 * 1000
 const active_uids = new Set<string>()
 
 
-export async function handle_compile(uid:string, creation_id:string, client_ip:string|null)
+export async function handle_compile(uid:string, version_id:string, client_ip:string|null)
         :Promise<{status:number, body:Record<string, unknown>}>{
-    // Compile a pending creation's PDF server-side (fallback for devices whose in-browser
+    // Compile a pending version's PDF server-side (fallback for devices whose in-browser
     // compile failed, and regeneration of expired PDFs)
 
-    // Validate the creation and the caller's right to it
-    const doc_ref = admin_db.doc(`creations/${creation_id}`)
+    // Validate the version and the caller's right to it
+    const doc_ref = admin_db.doc(`versions/${version_id}`)
     const snap = await doc_ref.get()
     const data = snap.data()
     if (!snap.exists || data === undefined){
-        return {status: 404, body: {error: 'unknown_creation'}}
+        return {status: 404, body: {error: 'unknown_version'}}
     }
     if (data['owner'] !== uid){
         return {status: 403, body: {error: 'not_owner'}}
@@ -46,7 +46,7 @@ export async function handle_compile(uid:string, creation_id:string, client_ip:s
     active_uids.add(uid)
 
     try {
-        // Download the creation's snapshotted custom fonts (usually none)
+        // Download the version's snapshotted custom fonts (usually none)
         const custom_fonts:CustomFont[] = await Promise.all(
             ((data['custom_fonts'] ?? []) as
                     {family:string, style:'serif'|'sans', files:string[]}[]).map(
@@ -68,7 +68,7 @@ export async function handle_compile(uid:string, creation_id:string, client_ip:s
         })
         const pages = (await PDFDocument.load(bytes)).getPageCount()
 
-        // Publish the PDF and mark the creation available
+        // Publish the PDF and mark the version available
         await admin_bucket.file(data['pdf_path'] as string).save(Buffer.from(bytes), {
             contentType: 'application/pdf',
         })
@@ -97,7 +97,7 @@ export async function handle_compile(uid:string, creation_id:string, client_ip:s
             user_agent: null,
             language: null,
             runtime_ms: null,
-            context: {creation_id},
+            context: {version_id},
         })
         await doc_ref.update({status: 'failed', error: message, error_id})
             .catch(() => undefined)

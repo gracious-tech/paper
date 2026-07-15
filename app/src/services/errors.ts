@@ -129,6 +129,10 @@ export function report_error(type:'silent'|'banner'|'splash', error:unknown,
     // Convert to a string if not already
     const error_str = error_to_string(error)
 
+    // Always log to console, regardless of whether actually reported below (so devtools/CLI
+    // output never silently drops an error just because it was throttled/ignored/silent-type)
+    console.error(error_str)
+
     // Ignore certain errors
     for (const code of ignore_errors){
         if (error_str.includes(code) && !options.force){
@@ -172,8 +176,7 @@ export function vue_error_handler(error:unknown, instance:unknown, info:string){
     // NOTE Vue's info arg says what part of Vue the error occured in (e.g. render/hook/etc)
     const details = `${error_to_string(error)}\n\n(Error in Vue ${info})`
 
-    // Log and show banner
-    console.error(details)
+    // Show banner (also logs to console)
     report_error('banner', details)
 }
 
@@ -217,7 +220,6 @@ export function error_to_string(error:unknown):string{
 addEventListener('error', (event:ErrorEvent):void => {
     // Handle uncaught errors
     const error:unknown = event.error ?? event.message ?? 'unknown'
-    console.error(error)
     report_error('banner', error)
 })
 
@@ -231,7 +233,6 @@ addEventListener('unhandledrejection', event => {
 addEventListener('securitypolicyviolation', event => {
     // Report CSP issues
     const msg = `CSP error: ${event.blockedURI} violated ${event.violatedDirective}`
-    console.error(event)
     report_error('silent', msg)
 })
 

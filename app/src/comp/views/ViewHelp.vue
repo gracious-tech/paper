@@ -53,13 +53,13 @@ div.cont(class='text-body-2')
 
         h3(class='text-h6') App Usage
 
-        h4(class='text-subtitle-2') The app is taking a long time to finish a creation
-        p If it is still going after {{ MAX_MINUTES }} minutes then something is wrong and you should contact us. If it fails to complete then the creation was too large or complex. This is more likely to happen when there is a combination of large books, multiple translations, and study notes enabled. Try breaking the content into separate documents.
+        h4(class='text-subtitle-2') The app is taking a long time to finish a version
+        p If it is still going after several minutes then something is wrong and you should contact us. If it fails to complete then the design was too large or complex. This is more likely to happen when there is a combination of large books, multiple translations, and study notes enabled. Try breaking the content into separate documents.
 
         h4(class='text-subtitle-2') How do I print the whole Bible?
         p This app is best used for printing portions of Scripture or individual books. While you can technically add all books into one document, it would need to be professionally printed and even then might exceed the limits of some services.
 
-        h4(class='text-subtitle-2') What does the number next to my creation mean?
+        h4(class='text-subtitle-2') What does the number next to my version mean?
         p The number is how many sheets of paper you'll need to print the document. When printing in booklet format, each sheet will have 4 pages on it, and it will show a color for how easy the booklet will be to fold. Green numbers (<span class='text-green'>1-15</span>) are easy to fold, orange numbers (<span class='text-orange'>16-20</span>) are harder to fold, and red numbers (<span class='text-red'>20+</span>) will likely be too difficult to fold.
 
         div(class='mb-16')
@@ -70,7 +70,6 @@ div.cont(class='text-body-2')
 <script lang='ts' setup>
 
 import DisplayHelp from '@/comp/display/DisplayHelp.vue'
-import {MAX_MINUTES} from '@/services/create'
 
 </script>
 

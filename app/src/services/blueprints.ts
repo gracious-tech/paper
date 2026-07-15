@@ -1,12 +1,13 @@
 
 import {PassageReference} from '@gracious.tech/fetch-client'
 import {cloneDeep} from 'lodash-es'
+import {get_service, get_common_sizes} from 'printing-services'
 
 import {content} from '@/services/content'
 import {blue} from '@/services/state'
 import {generate_token} from '@/services/utils'
 
-import type {Blueprint, ContentItem} from '@/services/types'
+import type {Blueprint, ContentItem, ContentPassage} from '@/services/types'
 
 
 // Default blueprint for 1st use, reset, and base for saved old blueprint versions
@@ -150,4 +151,38 @@ export function gen_content_name(item:ContentItem):string{
         return item.title
     }
     return "Nameless"
+}
+
+
+// Format a size's dimensions for display, e.g. "152 × 229 mm" or "6 × 9 in"
+export function format_dims(width:number, height:number, unit:string):string{
+    const u = unit === 'mm' ? 'mm' : 'in'
+    const fmt = (v:number) => u === 'mm' ? String(Math.round(v)) : String(v)
+    return `${fmt(width)} × ${fmt(height)} ${u}`
+}
+
+
+// Resolve a blueprint's trim size (named or custom) to a display label, e.g. "A4 (210 × 297 mm)"
+export function format_paper_size(blueprint:Blueprint):string{
+    if (blueprint.size_id === ''){
+        return format_dims(blueprint.custom_trim_width, blueprint.custom_trim_height,
+            blueprint.custom_unit)
+    }
+    const use_common = blueprint.service_id === 'custom' || blueprint.service_id === 'home'
+    const sizes = use_common
+        ? get_common_sizes({numbers: 'number'})
+        : get_service(blueprint.service_id as Parameters<typeof get_service>[0])
+            .get_sizes({numbers: 'number', all: true})
+    const size = sizes.find(s => s.id === blueprint.size_id)
+    if (!size){
+        return format_dims(blueprint.custom_trim_width, blueprint.custom_trim_height,
+            blueprint.custom_unit)
+    }
+    return `${size.name} (${format_dims(size.width, size.height, size.unit)})`
+}
+
+
+// The passage content items in a blueprint, for summarising what's included
+export function get_passages(blueprint:Blueprint):ContentPassage[]{
+    return blueprint.content.filter((item):item is ContentPassage => item.type === 'passage')
 }

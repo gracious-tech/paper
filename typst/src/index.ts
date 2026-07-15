@@ -23,6 +23,10 @@ export type {BundledFont} from './fonts.js'
 export {BibleContent} from './bible_content.js'
 export type {BibleContentOptions} from './bible_content.js'
 
+// Blueprint <-> Firestore doc-shape splitting (shared so client and server never diverge)
+export {split_blueprint_doc, join_blueprint_doc} from './blueprint_doc.js'
+export type {BlueprintDocFields} from './blueprint_doc.js'
+
 // Bundled title-page decorative pattern SVGs (name → corner SVG), used by the resolver and the
 // app's title-page editor
 export {PATTERNS} from './generated/patterns.js'

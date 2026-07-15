@@ -31,10 +31,10 @@ export async function handle_merge(new_uid:string, anon_token:string)
 
     const batch = admin_db.batch()
 
-    // Drafts the guest could edit (owned + shared with them): swap the uid everywhere
-    const drafts = await admin_db.collection('drafts')
+    // Designs the guest could edit (owned + shared with them): swap the uid everywhere
+    const designs = await admin_db.collection('designs')
         .where('editor_uids', 'array-contains', anon_uid).get()
-    for (const snap of drafts.docs){
+    for (const snap of designs.docs){
         const data = snap.data()
         const editor_uids = [...new Set((data['editor_uids'] as string[])
             .map(uid => uid === anon_uid ? new_uid : uid))]
@@ -50,10 +50,10 @@ export async function handle_merge(new_uid:string, anon_token:string)
         }
     }
 
-    // Creations the guest owns
-    const creations = await admin_db.collection('creations')
+    // Versions the guest owns
+    const versions = await admin_db.collection('versions')
         .where('owner', '==', anon_uid).get()
-    for (const snap of creations.docs){
+    for (const snap of versions.docs){
         batch.update(snap.ref, {owner: new_uid})
     }
 
@@ -69,6 +69,13 @@ export async function handle_merge(new_uid:string, anon_token:string)
         const files = ((data['files'] ?? []) as string[]).map(
             path => path.replace(`user_fonts/${anon_uid}/`, `user_fonts/${new_uid}/`))
         batch.set(admin_db.doc(`users/${new_uid}/fonts/${snap.id}`), {...data, files})
+        batch.delete(snap.ref)
+    }
+
+    // Read-access "viewed" history
+    const viewed = await admin_db.collection(`users/${anon_uid}/viewed`).get()
+    for (const snap of viewed.docs){
+        batch.set(admin_db.doc(`users/${new_uid}/viewed/${snap.id}`), snap.data())
         batch.delete(snap.ref)
     }
 

@@ -34,6 +34,7 @@
         "printing-services": "^1.5.1",
         "typst-fonts": "file:../generic/typst-fonts",
         "vue-i18n": "^11.1.12",
+        "vue-router": "^5.1.0",
         "vuedraggable": "^4.1.0",
         "vuetify": "^3.7.17"
     }
