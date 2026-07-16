@@ -1,8 +1,9 @@
 rules_version = '2';
 
 
-// NOTE All paths are publicly readable — ids are unguessable url64, and letting PDFs/fonts
-//      be shared by link without an auth check keeps sharing simple
+// NOTE All paths are publicly gettable (not listable) — ids are unguessable url64, and letting
+//      PDFs/fonts be shared by link without an auth check keeps sharing simple; denying list
+//      keeps the exact path as the whole capability (no enumerating user_fonts/{uid}/ etc)
 // NOTE Cross-service firestore.get() requires a one-time IAM grant for the Rules service
 //      account (prompted on first deploy)
 
@@ -19,7 +20,7 @@ service firebase.storage {
                     /databases/(default)/documents/versions/$(version_id));
             }
 
-            allow read: if true;
+            allow get: if true;
 
             allow create: if request.auth != null
                 && resource == null
@@ -31,7 +32,7 @@ service firebase.storage {
         // Per-version snapshots of custom font bytes (immutable alongside the version, and
         // nested under versions/ so the lifecycle rule sweeps them together with the PDF)
         match /versions/{version_id}/fonts/{file} {
-            allow read: if true;
+            allow get: if true;
 
             allow create: if request.auth != null
                 && firestore.get(
@@ -42,7 +43,7 @@ service firebase.storage {
 
         // Per-user reusable custom font library
         match /user_fonts/{uid}/{path=**} {
-            allow read: if true;
+            allow get: if true;
 
             allow delete: if request.auth != null && request.auth.uid == uid;
 

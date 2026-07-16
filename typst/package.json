@@ -21,7 +21,8 @@
         "pm-to-typst": "*",
         "printing-services": "^1.5.1",
         "typst-fonts": "*",
-        "typst-utils": "*"
+        "typst-utils": "*",
+        "zod": "^4.4.3"
     },
     "devDependencies": {
         "vitest": "^4.1.2"

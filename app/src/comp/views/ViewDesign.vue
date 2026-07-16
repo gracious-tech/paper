@@ -34,7 +34,8 @@ import {useI18n} from 'vue-i18n'
 import TabEditor from './TabEditor.vue'
 import ViewDesignEditor from './ViewDesignEditor.vue'
 import DesignVersionsList from './assets/DesignVersionsList.vue'
-import {state} from '@/services/state'
+import {state, show_toast} from '@/services/state'
+import {ApiError} from '@/services/api'
 import {designs, designs_loaded, current_design_id, open_design} from '@/services/designs'
 import {start_versions_sync, selected_version_id, latest_version, design_needs_editor,
     fetch_latest_version_id, copy_version_to_new_design} from '@/services/versions'
@@ -162,7 +163,12 @@ const keep_copy = async () => {
         const {design_id, version_id} = await copy_version_to_new_design(latest_version.value.id)
         await router.push({name: 'design', params: {id: design_id, version: version_id}})
     } catch (error){
-        report_error('banner', error)
+        // A copy attempted while the version is still compiling is an expected case
+        if (error instanceof ApiError && error.code === 'still_pending'){
+            show_toast(t("This document is still being generated — try again in a moment"))
+        } else {
+            report_error('banner', error)
+        }
     } finally {
         keeping.value = false
     }

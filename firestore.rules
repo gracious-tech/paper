@@ -53,19 +53,33 @@ service cloud.firestore {
         // Versions (immutable rendered snapshots, nested under the design they came from)
         match /versions/{version_id} {
 
+            // Only editors of the parent design may attach versions to it, and lifecycle fields
+            // can't be forged at create (status/created/pdf_path are pinned — the server trusts
+            // pdf_path-by-convention and viewers trust created-ordering for "latest version")
             allow create: if signed_in()
-                && request.resource.data.owner == request.auth.uid;
+                && request.resource.data.owner == request.auth.uid
+                && request.auth.uid in get(/databases/$(database)/documents/designs/$(request.resource.data.design_id)).data.editor_uids
+                && request.resource.data.status == 'pending'
+                && request.resource.data.created == request.time
+                && request.resource.data.pdf_path == 'versions/' + version_id + '/doc.pdf'
+                && request.resource.data.blueprint is map
+                && request.resource.data.save_token is string;
 
-            // Publicly readable by id — like firebase_storage.rules, the id itself (an unguessable
+            // Publicly gettable by id — like firebase_storage.rules, the id itself (an unguessable
             // url64 token) is the whole capability, so sharing is just the URL
-            allow read: if true;
+            allow get: if true;
+
+            // Queries must pin design_id with an equality filter (the only way this condition is
+            // statically provable) — keeps the collection non-enumerable (no bare dumps, no
+            // owner-based queries) while allowing per-design version lists
+            allow list: if resource.data.design_id is string;
 
             // Immutable except lifecycle fields (client updates status/pages/expiry when it
             // compiles via WASM)
             allow update: if signed_in() && request.auth.uid == resource.data.owner
                 && !request.resource.data.diff(resource.data).affectedKeys()
                     .hasAny(['blueprint', 'owner', 'created', 'design_id', 'copied_from',
-                        'custom_fonts', 'save_token']);
+                        'custom_fonts', 'save_token', 'pdf_path', 'title']);
 
             allow delete: if signed_in() && request.auth.uid == resource.data.owner;
         }

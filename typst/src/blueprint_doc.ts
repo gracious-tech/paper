@@ -17,11 +17,16 @@ export interface BlueprintDocFields {
 // against untrusted co-editor data via clean_blueprint(); the server copies already-validated
 // data verbatim)
 export function split_blueprint_doc(blueprint:Blueprint):BlueprintDocFields{
+    // `content` defaults to [] — callers pass frozen version blueprints straight from Firestore
+    // (e.g. handle_copy_version), which the security rules only require to be a map, not a
+    // fully-shaped Blueprint, so a missing/malformed content array must degrade gracefully
+    // rather than throw
     const {content, ...options} = blueprint
+    const content_list = Array.isArray(content) ? content : []
     return {
         blueprint: options,
-        content_items: Object.fromEntries(content.map(item => [item.id, item])),
-        content_order: content.map(item => item.id),
+        content_items: Object.fromEntries(content_list.map(item => [item.id, item])),
+        content_order: content_list.map(item => item.id),
     }
 }
 

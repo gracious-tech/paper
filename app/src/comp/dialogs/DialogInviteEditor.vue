@@ -31,6 +31,8 @@ v-dialog(:model-value='modelValue' @update:model-value='close' max-width='520')
                     template(#append)
                         v-btn(v-if='is_owner && !person.owner' @click='kick_editor(person.uid)'
                                 icon='mdi-close' variant='text' size='small' color='error')
+            p(v-if='is_owner' class='text-caption mt-1')
+                | {{$t("Removing someone also resets the invite link so they can't use it to rejoin.")}}
         v-card-actions
             v-spacer
             v-btn(@click='close') {{$t("Close")}}

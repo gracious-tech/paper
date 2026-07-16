@@ -1,6 +1,7 @@
 
 import {PassageReference} from '@gracious.tech/fetch-client'
 import {cloneDeep} from 'lodash-es'
+import {make_blueprint_schema} from 'paper-bible-typst'
 import {get_service, get_common_sizes} from 'printing-services'
 
 import {content} from '@/services/content'
@@ -118,18 +119,12 @@ export function get_default_blueprint():Blueprint{
 }
 
 
-// Take untrusted input and ensure a valid blueprint is returned
+// Take untrusted input (e.g. Firestore doc data written by co-editors) and ensure a valid
+// blueprint is returned — invalid/missing fields fall back to defaults, invalid content items
+// are dropped (see the shared schema in paper-bible-typst). Cloned so the result never shares
+// references with the input (ProseMirror docs pass through the schema by reference)
 export function clean_blueprint(blueprint:unknown):Blueprint{
-    // TODO Ensure nested items also valid
-    const valid = get_default_blueprint()
-    if (typeof blueprint !== 'object' || blueprint === null){
-        return valid
-    }
-    for (const [key, val] of Object.entries(blueprint)){
-        if (key in valid){
-            valid[key] = cloneDeep(val)
-        }
-    }
+    const valid = cloneDeep(make_blueprint_schema(get_default_blueprint()).parse(blueprint))
 
     // Ensure bibles still exist
     valid.bibles = valid.bibles.filter(b => b in content.translations) as [string, ...string[]]

@@ -34,6 +34,7 @@ import {useRouter} from 'vue-router'
 import {useI18n} from 'vue-i18n'
 
 import {state, show_toast} from '@/services/state'
+import {ApiError} from '@/services/api'
 import {fetch_design_invite_preview, redeem_design_share} from '@/services/designs'
 import {report_error} from '@/services/errors'
 
@@ -76,8 +77,14 @@ const accept = async () => {
         state.design_invite = null
         await router.push({name: 'design', params: {id: invite.design_id}})
     } catch (error){
-        show_toast(t("Couldn't accept the invite — try the link again"))
-        report_error('banner', error)
+        // A dead invite (link rotated/design deleted since the preview) is an expected case,
+        // shown via the dialog's failed state rather than reported as an app error
+        if (error instanceof ApiError && error.code === 'unknown_share'){
+            failed.value = true
+        } else {
+            show_toast(t("Couldn't accept the invite — try the link again"))
+            report_error('banner', error)
+        }
     } finally {
         accepting.value = false
     }

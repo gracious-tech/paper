@@ -1,6 +1,7 @@
 
 import {Timestamp} from 'firebase-admin/firestore'
 import {PDFDocument} from 'pdf-lib'
+import {PDF_LIFETIME_MS} from 'paper-bible-typst'
 import {compile_pdf_from_blueprint} from 'paper-bible-typst-node'
 
 import {admin_db, admin_bucket} from './firebase.ts'
@@ -11,13 +12,30 @@ import {save_error, generate_error_id} from './errors.ts'
 import type {Blueprint, CustomFont} from 'paper-bible-typst-node'
 
 
-// How long generated PDFs are kept before the bucket's lifecycle rule deletes them
-// WARN Must match the age in firebase_storage_lifecycle.json
-const PDF_LIFETIME_MS = 365 * 24 * 60 * 60 * 1000
-
-
 // One compile at a time per user (heavy CPU/memory work; anonymous users can trigger this)
 const active_uids = new Set<string>()
+
+
+// Per-uid daily compile cap — deters cost abuse via minted anonymous accounts. Tracked in
+// Firestore (compile_quota/{uid}) so it holds across instances, unlike the Set above; the
+// path matches no security rule, so clients can't read or reset it
+const DAILY_COMPILE_LIMIT = 50
+
+
+async function compile_quota_allows(uid:string):Promise<boolean>{
+    // Count an attempted compile against the caller's daily quota, refusing once over it
+    const day = new Date().toISOString().slice(0, 10)
+    return await admin_db.runTransaction(async txn => {
+        const doc_ref = admin_db.doc(`compile_quota/${uid}`)
+        const data = (await txn.get(doc_ref)).data()
+        const count = (data?.['day'] === day ? data['count'] as number : 0) + 1
+        if (count > DAILY_COMPILE_LIMIT){
+            return false
+        }
+        txn.set(doc_ref, {day, count})
+        return true
+    })
+}
 
 
 export async function handle_compile(uid:string, version_id:string, client_ip:string|null)
@@ -39,17 +57,30 @@ export async function handle_compile(uid:string, version_id:string, client_ip:st
         return {status: 409, body: {error: 'not_pending'}}
     }
 
+    // Storage paths are always derived from the version id, never read from the doc — doc
+    // fields are client-written, and trusting them would let a crafted doc make the Admin SDK
+    // read/overwrite arbitrary bucket objects
+    const pdf_path = `versions/${version_id}/doc.pdf`
+    const fonts_prefix = `versions/${version_id}/fonts/`
+    const fonts_meta = (data['custom_fonts'] ?? []) as
+        {family:string, style:'serif'|'sans', files:string[]}[]
+    if (fonts_meta.some(meta => meta.files.some(path => !path.startsWith(fonts_prefix)))){
+        return {status: 400, body: {error: 'bad_font_path'}}
+    }
+
     // Throttle
     if (active_uids.has(uid)){
         return {status: 429, body: {error: 'compile_in_progress'}}
+    }
+    if (!await compile_quota_allows(uid)){
+        return {status: 429, body: {error: 'quota_exceeded'}}
     }
     active_uids.add(uid)
 
     try {
         // Download the version's snapshotted custom fonts (usually none)
         const custom_fonts:CustomFont[] = await Promise.all(
-            ((data['custom_fonts'] ?? []) as
-                    {family:string, style:'serif'|'sans', files:string[]}[]).map(
+            fonts_meta.map(
                 async meta => ({
                     family: meta.family,
                     style: meta.style,
@@ -69,7 +100,7 @@ export async function handle_compile(uid:string, version_id:string, client_ip:st
         const pages = (await PDFDocument.load(bytes)).getPageCount()
 
         // Publish the PDF and mark the version available
-        await admin_bucket.file(data['pdf_path'] as string).save(Buffer.from(bytes), {
+        await admin_bucket.file(pdf_path).save(Buffer.from(bytes), {
             contentType: 'application/pdf',
         })
         await doc_ref.update({

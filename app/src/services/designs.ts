@@ -4,7 +4,7 @@ import {cloneDeep, isEqual, debounce} from 'lodash-es'
 import {collection, doc, query, where, orderBy, onSnapshot, getDoc, getDocs, setDoc, updateDoc,
     deleteDoc, deleteField, arrayRemove, serverTimestamp, FieldPath, Timestamp} from 'firebase/firestore'
 import type {DocumentData, Unsubscribe} from 'firebase/firestore'
-import {split_blueprint_doc, join_blueprint_doc} from 'paper-bible-typst'
+import {split_blueprint_doc, join_blueprint_doc, SCHEMA_VERSION} from 'paper-bible-typst'
 
 import {firestore} from '@/services/firebase'
 import {api} from '@/services/api'
@@ -269,6 +269,7 @@ export async function create_design(from?:Blueprint):Promise<string>{
     const id = generate_token()
     const blueprint = clean_blueprint(from ? cloneDeep(from) : undefined)
     await setDoc(doc(firestore, 'designs', id), {
+        schema: SCHEMA_VERSION,
         owner: uid,
         editor_uids: [uid],
         editors: {},
@@ -359,9 +360,12 @@ export async function reset_design_share_token(id:string):Promise<void>{
 
 export async function remove_design_editor(id:string, uid:string):Promise<void>{
     // Remove a single editor from a design (owner only, per rules); uid may contain url64
-    // chars so the editors map key needs a FieldPath rather than a dotted string
+    // chars so the editors map key needs a FieldPath rather than a dotted string.
+    // The invite token is rotated in the same write — the removed editor joined via the invite
+    // link, so leaving it valid would let them immediately rejoin
     await updateDoc(doc(firestore, 'designs', id),
-        'editor_uids', arrayRemove(uid), new FieldPath('editors', uid), deleteField())
+        'editor_uids', arrayRemove(uid), new FieldPath('editors', uid), deleteField(),
+        'share_token', generate_token())
 }
 
 

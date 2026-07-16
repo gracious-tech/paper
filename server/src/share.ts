@@ -1,16 +1,11 @@
 import {randomBytes} from 'node:crypto'
 
 import {FieldValue, Timestamp} from 'firebase-admin/firestore'
-import {split_blueprint_doc} from 'paper-bible-typst'
+import {split_blueprint_doc, SCHEMA_VERSION, PDF_LIFETIME_MS} from 'paper-bible-typst'
 
 import {admin_db, admin_bucket, admin_auth} from './firebase.ts'
 
 import type {Blueprint} from 'paper-bible-typst'
-
-
-// How long copied PDFs live (fresh copy = fresh object = fresh lifecycle year)
-// WARN Must match the age in firebase_storage_lifecycle.json
-const PDF_LIFETIME_MS = 365 * 24 * 60 * 60 * 1000
 
 
 interface HandlerResult {
@@ -115,26 +110,34 @@ export async function handle_copy_version(uid:string, version_id:string)
     const new_design_id = randomBytes(15).toString('base64url')
     const new_version_id = randomBytes(15).toString('base64url')
 
-    // Copy the PDF object if it still exists (a fresh object restarts the lifecycle year)
+    // Copy the PDF object if it still exists (a fresh object restarts the lifecycle year).
+    // Both paths are derived from the version ids, never read from the doc — doc fields are
+    // client-written, and trusting them would let a crafted doc exfiltrate arbitrary bucket
+    // objects into a publicly-gettable copy
     const new_pdf_path = `versions/${new_version_id}/doc.pdf`
-    const src_pdf = admin_bucket.file(data['pdf_path'] as string)
+    const src_pdf = admin_bucket.file(`versions/${version_id}/doc.pdf`)
     const pdf_copied = (await src_pdf.exists())[0]
     if (pdf_copied){
         await src_pdf.copy(admin_bucket.file(new_pdf_path))
     }
 
-    // Copy any custom font snapshots so the recipient can regenerate independently
-    const [font_files] = await admin_bucket.getFiles(
-        {prefix: `versions/${version_id}/fonts/`})
+    // Copy any custom font snapshots so the recipient can regenerate independently, dropping
+    // (rather than rewriting) any metadata entry that points outside the version's own font
+    // prefix — same trust reasoning as the PDF path above
+    const src_fonts_prefix = `versions/${version_id}/fonts/`
+    const new_fonts_prefix = `versions/${new_version_id}/fonts/`
+    const [font_files] = await admin_bucket.getFiles({prefix: src_fonts_prefix})
     const new_fonts = []
     for (const font of (data['custom_fonts'] ?? []) as
             {family:string, style:string, files:string[]}[]){
-        new_fonts.push({...font, files: font.files.map(path => path.replace(
-            `versions/${version_id}/fonts/`, `versions/${new_version_id}/fonts/`))})
+        if (font.files.every(path => path.startsWith(src_fonts_prefix))){
+            new_fonts.push({...font, files: font.files.map(
+                path => path.replace(src_fonts_prefix, new_fonts_prefix))})
+        }
     }
     for (const file of font_files){
-        await file.copy(admin_bucket.file(file.name.replace(
-            `versions/${version_id}/fonts/`, `versions/${new_version_id}/fonts/`)))
+        await file.copy(admin_bucket.file(
+            file.name.replace(src_fonts_prefix, new_fonts_prefix)))
     }
 
     // The copy's design and version share the same freshly-generated save_token — matching the
@@ -145,6 +148,7 @@ export async function handle_copy_version(uid:string, version_id:string)
     const blueprint = data['blueprint'] as Blueprint
 
     await admin_db.doc(`designs/${new_design_id}`).set({
+        schema: SCHEMA_VERSION,
         owner: uid,
         editor_uids: [uid],
         editors: {},
@@ -157,6 +161,7 @@ export async function handle_copy_version(uid:string, version_id:string)
     })
 
     await admin_db.doc(`versions/${new_version_id}`).set({
+        schema: SCHEMA_VERSION,
         design_id: new_design_id,
         owner: uid,
         created: Timestamp.now(),

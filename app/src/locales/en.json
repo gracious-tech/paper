@@ -272,5 +272,11 @@
   "People with access:": "",
   "Guest": "",
   "Owner": "",
-  "Anyone with this link can view the document and keep their own copy.": ""
+  "Anyone with this link can view the document and keep their own copy.": "",
+  "You've been granted edit access to this document.": "",
+  "Reset link": "",
+  "Disables the previous link so it can no longer be used to become an editor.": "",
+  "Removing someone also resets the invite link so they can't use it to rejoin.": "",
+  "Copy as new design": "",
+  "This document is still being generated — try again in a moment": ""
 }

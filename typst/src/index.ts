@@ -27,6 +27,12 @@ export type {BibleContentOptions} from './bible_content.js'
 export {split_blueprint_doc, join_blueprint_doc} from './blueprint_doc.js'
 export type {BlueprintDocFields} from './blueprint_doc.js'
 
+// Constants shared between the app and the server
+export {SCHEMA_VERSION, PDF_LIFETIME_MS} from './consts.js'
+
+// Blueprint shape validation (schema factory — callers supply the defaults to fall back to)
+export {make_blueprint_schema, clean_content_items} from './blueprint_schema.js'
+
 // Bundled title-page decorative pattern SVGs (name → corner SVG), used by the resolver and the
 // app's title-page editor
 export {PATTERNS} from './generated/patterns.js'

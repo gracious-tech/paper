@@ -6,6 +6,7 @@ import {collection, doc, query, where, orderBy, limit, onSnapshot, getDoc, getDo
 import type {DocumentData, Unsubscribe} from 'firebase/firestore'
 import {ref as storage_ref, uploadBytes, getDownloadURL} from 'firebase/storage'
 import {PDFDocument} from 'pdf-lib'
+import {SCHEMA_VERSION, PDF_LIFETIME_MS} from 'paper-bible-typst'
 
 import {firestore, firebase_storage} from '@/services/firebase'
 import {api} from '@/services/api'
@@ -20,11 +21,6 @@ import {report_error, error_to_string} from '@/services/errors'
 
 import type {CustomFont} from 'typst-fonts'
 import type {Blueprint, Version} from '@/services/types'
-
-
-// How long generated PDFs are kept in Storage before the bucket's lifecycle rule deletes them
-// WARN Must match the age in firebase_storage_lifecycle.json
-const PDF_LIFETIME_MS = 365 * 24 * 60 * 60 * 1000
 
 
 let unsub_list:Unsubscribe|null = null
@@ -124,6 +120,7 @@ export async function create_pending_version(design_id:string, blueprint:Bluepri
     const save_token = design_snap.data()?.['save_token'] as string
     const fonts = plan_version_fonts(id, blueprint)
     await setDoc(doc(firestore, 'versions', id), {
+        schema: SCHEMA_VERSION,
         design_id,
         owner: user.value!.uid,
         created: serverTimestamp(),
