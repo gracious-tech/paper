@@ -4,7 +4,7 @@
 // records wall time plus peak typst/node memory. Writes e2e/results/matrix_server.json
 // (+ each config's PDF).
 //
-// Run with `node e2e/stress_matrix.ts` (dev content server on :8430, typst CLI, fonts/ needed).
+// Run with `node e2e/stress_matrix.ts` (dev content server on :8430, typst CLI, assets/fonts/ needed).
 // STRESS_CONFIGS="psa_col1,jhn_col2" runs a subset (results still merge into the same file).
 
 import {mkdirSync, writeFileSync, readFileSync, existsSync} from 'node:fs'

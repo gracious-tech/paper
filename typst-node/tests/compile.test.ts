@@ -237,9 +237,9 @@ describe('custom_fonts', () => {
 
     // A real downloaded font, reused as a custom-font fixture (its actual family is "Bevan",
     // read via typst-fonts' own parse_font_family in the test below) — not checked into git
-    // (see /fonts/ in .gitignore), so these tests skip rather than fail where it's absent
+    // (see /assets/fonts/ in .gitignore), so these tests skip rather than fail where it's absent
     // (e.g. a fresh clone before .bin/download_fonts has run)
-    const fixture_path = join(import.meta.dirname, '../../fonts/Bevan/Bevan-Regular.ttf')
+    const fixture_path = join(import.meta.dirname, '../../assets/fonts/Bevan/Bevan-Regular.ttf')
     const has_fixture = existsSync(fixture_path)
 
     it.skipIf(!has_fixture)('embeds an uploaded font actually used as the body font', async () => {

@@ -130,11 +130,11 @@ void (async () => {
 
     // Initialise the in-browser Typst compiler in a Web Worker (non-blocking — preview waits
     // on it, and compilation runs off the main thread so it never lags the UI).
-    // Fonts live under `${assets_prefix}fonts/` — served by vite_plugin_fonts.ts in dev, and
+    // Fonts live under `${assets_prefix}fonts/` — served by vite_plugin_assets.ts in dev, and
     // from a dedicated CORS-enabled bucket in production (see .bin/deploy_fonts)
     const assets_prefix = import.meta.env.DEV
         ? new URL('/generator_assets/', window.location.href).href
-        : 'https://fonts.paper.bible/'
+        : 'https://assets.paper.bible/'
     const typst_client = new TypstWorkerClient()
     void typst_client.init(assets_prefix).then(async () => {
         typst_generator.value = typst_client

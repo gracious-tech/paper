@@ -44,7 +44,7 @@ const CJK_SCRIPTS = ['Han', 'Hiragana', 'Katakana', 'Hangul']
 // Families to exclude (non-text: monospace, display, math, color emoji, UI variants)
 const EXCLUDE = / UI$|Mono|Display|Math|Color/
 
-// Families already published at the top level of an app's fonts/ dir by the per-app download
+// Families already published at the top level of an app's assets/fonts/ dir by the per-app download
 // step (with all four weights including italics) — not listed here so they don't exist twice.
 // by_script still names them (Latin/Greek/Cyrillic winners): the generator resolves curated
 // families before Noto fallbacks, so those scripts land on the top-level copies.

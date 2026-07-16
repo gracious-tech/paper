@@ -13,5 +13,5 @@ node_modules/
 /e2e/browsers/
 /e2e/results/
 /errors/records/
-/fonts/
+/assets/
 /server/deploy/

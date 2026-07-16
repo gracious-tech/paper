@@ -1,22 +1,22 @@
 #!/usr/bin/env bash
 
 # Deploy the API server to Cloud Run as two services sharing one image (see server/Dockerfile):
-#   paper-bible-compile — /api/compile only; big instance, fonts bucket mounted via GCS FUSE
+#   paper-bible-compile — /api/compile only; big instance, assets bucket mounted via GCS FUSE
 #   paper-bible-api     — the lightweight share/merge routes; tiny instance
-# Pass the GCP project id, e.g. `deploy_server paper-bible [fonts-bucket]`.
+# Pass the GCP project id, e.g. `deploy_server paper-bible [assets-bucket]`.
 # Requires .bin/typst (setup_typst) to exist locally.
 
 set -euo pipefail
 cd "$(dirname "$0")/.."
 
-PROJECT="${1:?Usage: deploy_server <gcp-project-id> [fonts-bucket]}"
-FONTS_BUCKET="${2:-fonts.paper.bible}"
+PROJECT="${1:?Usage: deploy_server <gcp-project-id> [assets-bucket]}"
+ASSETS_BUCKET="${2:-assets.paper.bible}"
 
 CONTEXT="server/deploy"
 .bin/build_server
 trap 'rm -rf "$CONTEXT"' EXIT
 
-# Build once (Cloud Build) and deploy the compile service, mounting the public fonts bucket
+# Build once (Cloud Build) and deploy the compile service, mounting the public assets bucket
 # (deploy_fonts puts objects under a fonts/ prefix, hence the nested FONTS_DIR)
 gcloud run deploy paper-bible-compile \
     --project "$PROJECT" \
@@ -29,7 +29,7 @@ gcloud run deploy paper-bible-compile \
     --min-instances 0 \
     --allow-unauthenticated \
     --execution-environment gen2 \
-    --add-volume "name=fonts,type=cloud-storage,bucket=$FONTS_BUCKET,readonly=true" \
+    --add-volume "name=fonts,type=cloud-storage,bucket=$ASSETS_BUCKET,readonly=true" \
     --add-volume-mount volume=fonts,mount-path=/mnt/fonts \
     --set-env-vars "GCLOUD_PROJECT=$PROJECT,SERVER_ROLES=compile,FONTS_DIR=/mnt/fonts/fonts"
 

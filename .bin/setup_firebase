@@ -9,36 +9,38 @@
 #   2. Upgrade to Blaze plan
 #   3. Enable Auth providers: Anonymous, Google, Email link
 #   4. Enable Firestore (native mode) + default Storage bucket
-#   5. Point the fonts subdomain (e.g. fonts.paper.bible) at the fonts bucket via a load
+#   5. Point the assets subdomain (e.g. assets.paper.bible) at the assets bucket via a load
 #      balancer backend-bucket + managed cert, or a CDN/DNS proxy such as Cloudflare
 
 set -euo pipefail
 cd "$(dirname "$0")/.."
 
-PROJECT="${1:?Usage: setup_firebase <gcp-project-id> [fonts-bucket]}"
-FONTS_BUCKET="${2:-fonts.paper.bible}"
+PROJECT="${1:?Usage: setup_firebase <gcp-project-id> [assets-bucket]}"
+ASSETS_BUCKET="${2:-assets.paper.bible}"
 
 # Apply the 1-year lifecycle rule for creation PDFs to the default Storage bucket
 gcloud storage buckets update "gs://$PROJECT.firebasestorage.app" \
     --project "$PROJECT" --lifecycle-file=firebase_storage_lifecycle.json
 
-# Create the public fonts bucket (domain-named buckets require site verification in GCP)
-gcloud storage buckets create "gs://$FONTS_BUCKET" --project "$PROJECT" \
+# Create the public assets bucket, holding fonts + typst wasm (domain-named buckets require
+# site verification in GCP)
+gcloud storage buckets create "gs://$ASSETS_BUCKET" --project "$PROJECT" \
     --location=us-west1 --uniform-bucket-level-access || true
-gcloud storage buckets add-iam-policy-binding "gs://$FONTS_BUCKET" \
+gcloud storage buckets add-iam-policy-binding "gs://$ASSETS_BUCKET" \
     --member=allUsers --role=roles/storage.objectViewer
 
-# Let Cloud Run's runtime service account read the fonts bucket — the compile service mounts
+# Let Cloud Run's runtime service account read the assets bucket — the compile service mounts
 # it as a GCS volume (see deploy_server), and volume mounts authenticate as the service
 # account regardless of the bucket being publicly readable
 PROJECT_NUMBER="$(gcloud projects describe "$PROJECT" --format 'value(projectNumber)')"
-gcloud storage buckets add-iam-policy-binding "gs://$FONTS_BUCKET" \
+gcloud storage buckets add-iam-policy-binding "gs://$ASSETS_BUCKET" \
     --member="serviceAccount:$PROJECT_NUMBER-compute@developer.gserviceaccount.com" \
     --role=roles/storage.objectViewer
 
-# Fonts are fetched cross-origin by the app, so the bucket needs CORS. Objects are already
-# public (allUsers viewer above), so there's no security benefit to restricting origins here —
-# allow any origin to keep this working for any deployment/mirror without edits
+# Assets are fetched cross-origin by the app and consumer apps, so the bucket needs CORS.
+# Objects are already public (allUsers viewer above), so there's no security benefit to
+# restricting origins here — allow any origin to keep this working for any deployment/mirror
+# without edits
 tmp_cors="$(mktemp)"
 cat > "$tmp_cors" <<'EOF'
 [
@@ -50,7 +52,7 @@ cat > "$tmp_cors" <<'EOF'
     }
 ]
 EOF
-gcloud storage buckets update "gs://$FONTS_BUCKET" --cors-file="$tmp_cors"
+gcloud storage buckets update "gs://$ASSETS_BUCKET" --cors-file="$tmp_cors"
 rm "$tmp_cors"
 
 echo "Done. Now run .bin/deploy_fonts and .bin/deploy_app"

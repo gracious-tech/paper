@@ -19,10 +19,15 @@ Live at [paper.bible](https://paper.bible). MIT No Attribution license.
   (Typst CLI) as fallback/regeneration path
 **API:** one server codebase deployed as two Cloud Run services (`SERVER_ROLES` env picks
   routes): `paper-bible-api` (light: share/redeem/copy/merge, 256Mi) and
-  `paper-bible-compile` (`/api/compile` only, 2Gi/2cpu, fonts bucket mounted via GCS FUSE)
-**Fonts:** curated font set served from a dedicated public bucket at
-  `https://fonts.paper.bible/` (dev: served by a Vite middleware from `fonts/`); the compile
-  service reads the same bucket as a mounted volume instead of baking fonts into the image
+  `paper-bible-compile` (`/api/compile` only, 2Gi/2cpu, assets bucket mounted via GCS FUSE)
+**Fonts:** curated font set served from the public assets bucket at
+  `https://assets.paper.bible/fonts/` (dev: served by a Vite middleware from `assets/fonts/`); the
+  compile service reads the same bucket as a mounted volume instead of baking fonts into the
+  image
+**Shared assets for other apps:** the assets bucket also hosts vendored typst.ts WASM
+  binaries under `typst/<npm version>/` (from `assets/typst/`, see `.bin/add_typst_version`)
+  for paper_cover and related apps — version dirs are write-once (consumers pin them with
+  immutable caching), so never modify or delete a published one
 
 ### Data flow: user input to PDF
 
@@ -92,14 +97,16 @@ paper_bible/
   .bin/                    # All dev/deploy commands (package.json has no scripts)
     setup                  # npm install
     setup_typst            # Download the Typst CLI binary into .bin/
-    setup_firebase         # One-time per-project GCP setup (lifecycle, fonts bucket, CORS)
-    download_fonts         # Download curated fonts into fonts/ (gitignored)
+    setup_firebase         # One-time per-project GCP setup (lifecycle, assets bucket, CORS)
+    download_fonts         # Download curated fonts into assets/fonts/ (gitignored)
     build_typst            # Build all local TS packages in dependency order
     serve_app              # Vite dev server (port 5300)
     serve_emulators        # Firebase emulator suite (auth 9099, firestore 8080, storage 9199)
     serve_server           # Local API server against the emulators (port 8788)
     deploy_app             # vite build + firebase deploy (hosting, rules)
-    deploy_fonts           # rsync fonts/ to the public fonts bucket
+    deploy_fonts           # rsync assets/fonts/ to the assets bucket's fonts/ prefix
+    add_typst_version      # Vendor typst.ts WASM binaries for an npm version into assets/typst/
+    deploy_typst           # rsync assets/typst/ to the bucket's typst/ prefix (write-once)
     build_server           # Stage server/deploy/ (allowlisted Docker build context)
     deploy_server          # Runs build_server, gcloud run deploy of both services from one build
     detect_i18n_strings    # Extract i18n keys from .vue files into en.json
@@ -146,7 +153,9 @@ paper_bible/
   typst-web/               # paper-bible-typst-web: WASM wrapper (browser)
   typst-node/              # paper-bible-typst-node: Typst CLI wrapper (server)
   generic/                 # Reusable packages: pm-to-typst, typst-utils, typst-fonts
-  fonts/                   # Curated fonts (gitignored; download_fonts / deploy_fonts)
+  assets/fonts/                   # Curated fonts (gitignored; download_fonts / deploy_fonts)
+  assets/typst/              # Vendored typst.ts WASM per npm version (committed, write-once;
+                            #   published as typst/ — add_typst_version / deploy_typst)
 ```
 
 
@@ -211,10 +220,10 @@ ownership for writes via `firestore.get()`.
 
 1. Firebase console: create project, Blaze plan, enable Auth (Anonymous/Google/Email
    link), Firestore, Storage; copy the web config into `app/src/services/firebase.ts`
-2. `.bin/setup_firebase <project-id>` — lifecycle rule, fonts bucket + CORS + volume IAM
+2. `.bin/setup_firebase <project-id>` — lifecycle rule, assets bucket + CORS + volume IAM
 3. `.bin/deploy_fonts`, `.bin/deploy_server <project-id>`, `.bin/deploy_app [alias]`
    (deploy fonts before the server — the compile service reads them from the bucket)
-4. Point `fonts.paper.bible` at the fonts bucket (LB backend-bucket or CDN proxy)
+4. Point `assets.paper.bible` at the assets bucket (LB backend-bucket or CDN proxy)
 
 
 ## Code Style & Conventions
@@ -265,7 +274,7 @@ ownership for writes via `firestore.get()`.
   `paper-bible-api` (role `light`); dev defaults to both roles on one port
 - **Compile fonts come from the bucket mount** (`FONTS_DIR=/mnt/fonts/fonts` via GCS FUSE,
   set in `deploy_server`) — new fonts need `.bin/deploy_fonts`, not a server redeploy;
-  locally `serve_server` points at the `fonts/` dir
+  locally `serve_server` points at the `assets/fonts/` dir
 - **Server caches are per-instance best-effort** (like the per-uid compile throttle):
   `server/src/content.ts` keeps the fetch.bible collection (1h TTL) and an LRU of fetched
   books warm across compiles, but a fresh instance starts cold — never rely on them

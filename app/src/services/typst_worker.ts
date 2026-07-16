@@ -3,7 +3,7 @@
 // large documents) runs off the main thread and never lags the UI. Driven by TypstWorkerClient
 // in typst.ts via simple id-tagged request/response messages.
 
-import wasm_url from '@myriaddreamin/typst-ts-web-compiler/pkg/typst_ts_web_compiler_bg.wasm?url'
+import {version as compiler_version} from '@myriaddreamin/typst-ts-web-compiler/package.json'
 import {init as init_typst} from 'paper-bible-typst-web'
 
 import type {TypstWeb} from 'paper-bible-typst-web'
@@ -51,6 +51,11 @@ async function handle_action(
     message:WorkerRequest, on_progress:(event:ProgressEvent) => void,
 ):Promise<Uint8Array|null> {
     if (message.action === 'init'){
+        // The compiler WASM comes from the shared assets tree (assets/typst/, published under
+        // typst/ — see .bin/add_typst_version), keyed by the installed npm version, so
+        // upgrading the package also requires vendoring + deploying the new version dir
+        const wasm_url = `${message.assets_prefix.replace(/\/+$/, '')}` +
+            `/typst/${compiler_version}/typst_ts_web_compiler_bg.wasm`
         generator = await init_typst({wasm_url, assets_prefix: message.assets_prefix})
         return null
     }

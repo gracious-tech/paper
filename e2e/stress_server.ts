@@ -5,7 +5,7 @@
 // 2Gi limit. Writes e2e/results/server.json (+ each tier's PDF).
 //
 // Run with `node e2e/stress_server.ts` (needs the dev content server on :8430, the typst CLI
-// from .bin/setup_typst, and fonts/ from .bin/download_fonts).
+// from .bin/setup_typst, and assets/fonts/ from .bin/download_fonts).
 
 import {mkdirSync, writeFileSync} from 'node:fs'
 import {join, dirname} from 'node:path'

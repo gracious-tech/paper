@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 
 # Stage a minimal build context for server/Dockerfile at server/deploy/ (gitignored) — just
-# the paths the Dockerfile COPYs, so local-only dirs (fonts/, .private/, branding/,
+# the paths the Dockerfile COPYs, so local-only dirs (assets/fonts/, .private/, branding/,
 # node_modules) can never leak into a Cloud Build upload by accident, no matter what else is
 # in the tree. Used by .bin/deploy_server; also runnable standalone to inspect the context or
 # for a manual `docker build -f server/deploy/Dockerfile server/deploy`.
