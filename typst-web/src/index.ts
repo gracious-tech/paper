@@ -99,7 +99,7 @@ export class TypstWeb {
         const compiler = createTypstCompiler()
         await compiler.init({
             getModule: () => ({module_or_path: this.wasm_url}),
-            beforeBuild: [loadFonts(font_urls)],
+            beforeBuild: [loadFonts(font_urls, {assets: false})],
         })
         this.compiler = compiler
     }
@@ -200,7 +200,7 @@ export async function init(options:InitOptions):Promise<TypstWeb> {
     const compiler = createTypstCompiler()
     await compiler.init({
         getModule: () => ({module_or_path: options.wasm_url}),
-        beforeBuild: [loadFonts([])],
+        beforeBuild: [loadFonts([], {assets: false})],
     })
 
     return new TypstWeb(options.wasm_url, assets_prefix, compiler)
