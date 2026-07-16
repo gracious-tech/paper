@@ -13,15 +13,40 @@ function join_path(base:string, ...segments:string[]):string {
     return [base.replace(/\/+$/, ''), ...segments].join('/')
 }
 
+// Thrown when the manifest URL answers with something other than the manifest JSON — e.g. in
+// dev the fonts repo's server isn't running and another server on port 5300 returns an HTML page
+export class FontsServerError extends Error {
+    override name = 'FontsServerError'
+}
+
 // Fetches manifest.json from fonts_prefix and calls init_fonts. Only the curated manifest is
-// runtime-loaded — Noto's own manifest/fallback data is bundled with the package.
+// runtime-loaded — Noto's own manifest/fallback data is bundled with the package. Fails loudly
+// when the fonts server isn't actually serving it, rather than failing later with a cryptic
+// JSON parse error when handed an HTML body (e.g. an SPA fallback page).
 export async function load_fonts_prefix(fonts_prefix:string):Promise<void> {
     const url = join_path(fonts_prefix, 'manifest.json')
-    const resp = await fetch(url)
-    if (!resp.ok) {
-        throw new Error(`[typst-fonts] Failed to fetch ${url}: HTTP ${resp.status}`)
+    let resp:Response
+    try {
+        resp = await fetch(url)
+    } catch (err) {
+        throw new FontsServerError(`No response from fonts server for ${url} (${String(err)})`)
     }
-    const font_manifest = await resp.json()
+    if (!resp.ok) {
+        throw new FontsServerError(`Fonts server responded ${resp.status} for ${url}`)
+    }
+    const text = await resp.text()
+    // An HTML body means some other server answered rather than the fonts server itself
+    const is_html = (resp.headers.get('content-type') ?? '').includes('html')
+        || text.trimStart().startsWith('<')
+    if (is_html) {
+        throw new FontsServerError(`Fonts server returned HTML instead of the manifest for ${url}`)
+    }
+    let font_manifest:BundledFont[]
+    try {
+        font_manifest = JSON.parse(text) as BundledFont[]
+    } catch {
+        throw new FontsServerError(`Fonts server returned invalid JSON for ${url}`)
+    }
     init_fonts({font_manifest})
 }
 
