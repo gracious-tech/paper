@@ -17,7 +17,7 @@ export default defineConfig(({mode}) => {
         plugins: [
             plugin_index(path.join(__dirname, 'src/index.pug')),
             plugin_assets({
-                fonts: path.join(__dirname, '../fonts'),
+                fonts: path.join(__dirname, '../assets/fonts'),
                 typst: path.join(__dirname, '../assets/typst'),
             }),
             plugin_vue(),
