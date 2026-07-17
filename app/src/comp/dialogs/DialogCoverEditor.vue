@@ -8,7 +8,7 @@ div.cover_editor(v-if='state.cover_editor')
     iframe(ref='frame' :src='COVER_EDITOR_URL' :title='$t("Cover editor")')
     //- Escape hatch for a wedged/failed iframe only — normal exits are the widget's own
     //- Finished/Cancel buttons
-    v-btn.close(v-if='!loaded' @click='state.cover_editor = false' icon variant='elevated'
+    v-btn.close(v-if='!loaded' @click='state.cover_editor = false' icon variant='text' color='white'
             size='small' v-tooltip:left='$t("Close")')
         AppIcon(name='close')
 
@@ -157,15 +157,31 @@ watch(() => state.cover_editor, open => {
     inset: 0
     z-index: 3000
     background-color: #fff
+    box-sizing: border-box
+
+    // On desktop leave a gap around the iframe and blur the app behind it, so opening the
+    // widget reads as a panel over the app rather than a full navigation away from it (mobile
+    // has no room to spare so stays edge-to-edge)
+    @media (min-width: 901px)
+        padding: 24px
+        background-color: rgba(0, 0, 0, 0.4)
+        backdrop-filter: blur(6px)
 
     iframe
+        display: block
         width: 100%
         height: 100%
         border: none
+        @media (min-width: 901px)
+            border-radius: 8px
+            box-shadow: 0 8px 32px rgba(0, 0, 0, 0.3)
 
     .close
         position: absolute
         top: 12px
         right: 12px
+        @media (min-width: 901px)
+            top: 36px
+            right: 36px
 
 </style>
