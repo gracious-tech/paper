@@ -91,11 +91,11 @@ const show_account = ref(false)
     --app-bg: hsl(325, 15%, 90%)
     background-color: var(--app-bg)
     min-width: 500px
+    max-width: 500px
     @media (max-width: 900px)
         min-width: auto
         max-width: none
         width: 100%
-    max-width: 500px
 
     .v-main
         display: flex
