@@ -6,6 +6,14 @@ import type {TypstRequest, ProgressFn} from 'paper-bible-typst'
 import type {WorkerAction, WorkerResponse} from './typst_worker'
 
 
+// The shared static assets tree (fonts/, typst/ WASM, and bookcover's docs/frames/backgrounds)
+// — published to assets.paper.bible by the bookcover repo, whose dev server serves the same
+// tree at /generator_assets/ during development
+export const ASSETS_PREFIX = import.meta.env.DEV
+    ? 'http://localhost:5301/generator_assets/'
+    : 'https://assets.paper.bible/'
+
+
 // Handlers awaiting a response from the worker, keyed by request id. on_progress is undefined
 // for actions that never emit progress (init, set_custom_fonts)
 interface PendingHandlers {

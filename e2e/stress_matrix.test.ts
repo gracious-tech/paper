@@ -83,7 +83,7 @@ test('wasm compile stress matrix', async ({browser}) => {
     mkdirSync(results_dir, {recursive: true})
     const results_file = join(results_dir, 'matrix_wasm.json')
     const harness = readFileSync(join(e2e_dir, 'page_harness.js'), 'utf-8')
-    const assets_prefix = 'http://localhost:5300/generator_assets/'
+    const assets_prefix = 'http://localhost:5301/generator_assets/'
 
     // Run every config even after a failure — how each one fails is exactly the data wanted
     for (const config of get_configs()){

@@ -17,7 +17,7 @@ CONTEXT="server/deploy"
 trap 'rm -rf "$CONTEXT"' EXIT
 
 # Build once (Cloud Build) and deploy the compile service, mounting the public assets bucket
-# (deploy_fonts puts objects under a fonts/ prefix, hence the nested FONTS_DIR)
+# (published by the bookcover repo: fonts/, docs/, frames/, backgrounds/, typst/)
 gcloud run deploy paper-bible-compile \
     --project "$PROJECT" \
     --region us-west1 \
@@ -29,9 +29,9 @@ gcloud run deploy paper-bible-compile \
     --min-instances 0 \
     --allow-unauthenticated \
     --execution-environment gen2 \
-    --add-volume "name=fonts,type=cloud-storage,bucket=$ASSETS_BUCKET,readonly=true" \
-    --add-volume-mount volume=fonts,mount-path=/mnt/fonts \
-    --set-env-vars "GCLOUD_PROJECT=$PROJECT,SERVER_ROLES=compile,FONTS_DIR=/mnt/fonts/fonts"
+    --add-volume "name=assets,type=cloud-storage,bucket=$ASSETS_BUCKET,readonly=true" \
+    --add-volume-mount volume=assets,mount-path=/mnt/assets \
+    --set-env-vars "GCLOUD_PROJECT=$PROJECT,SERVER_ROLES=compile,ASSETS_DIR=/mnt/assets"
 
 # Reuse the image just built for the lightweight service (no second build)
 IMAGE="$(gcloud run services describe paper-bible-compile --project "$PROJECT" \

@@ -12,7 +12,7 @@ import type {TypstRequest, CompileFn, ProgressFn} from 'paper-bible-typst'
 
 
 // Asset subdirectory name for fonts (under a consumer-provided assets prefix), matching
-// where .bin/download_fonts writes its output
+// the assets tree published by the bookcover repo
 const FONTS_DIR = 'fonts'
 
 // Compiled-source budget per realm (see TypstWeb.worn). At ~60x permanent growth per unique

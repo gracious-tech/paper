@@ -23,6 +23,10 @@ div.cont(v-if='!trigger_rerender')
 
     v-divider(class='my-8')
 
+    h2 {{$t("Cover")}}
+    OptionsCover
+    v-divider(class='my-8')
+
     h2 {{$t("Features")}}
     OptionsFeatures
     v-divider(class='my-8')
@@ -51,6 +55,7 @@ import {ref} from 'vue'
 
 import BtnGenerate from './assets/BtnGenerate.vue'
 import OptionsContent from '@/comp/options/OptionsContent.vue'
+import OptionsCover from '@/comp/options/OptionsCover.vue'
 import OptionsFeatures from '@/comp/options/OptionsFeatures.vue'
 import OptionsStyle from '@/comp/options/OptionsStyle.vue'
 import OptionsOther from '@/comp/options/OptionsOther.vue'

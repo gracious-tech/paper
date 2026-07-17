@@ -172,11 +172,33 @@ export type ProgressFn = (event:ProgressEvent) => void
 // in-browser and server (Node) pipelines.
 
 
+// Optional book cover, created via the embedded cover.paper.bible editor. `form` is the
+// widget's pure-JSON EmbedFormState (kept opaque so this package gains no bookcover
+// dependency) — the renderable schema is derived from it at render time via bookcover's
+// build_schema. Binaries (bg image bytes, font bytes) live in Cloud Storage / the user's
+// font library, never here
+export interface CoverConfig {
+    // Widget form snapshot (EmbedFormState, no binaries inside) — restores the editor and
+    // feeds build_schema; its size fields are overridden from the blueprint's own printing
+    // fields at render time (see cover_form_for_render)
+    form:Record<string, unknown>
+    // Storage path of the uploaded background image bytes, null when none
+    bg_image_path:string|null
+    // SHA-256 hex of the bg image bytes — render cache key + upload dedup
+    bg_image_hash:string|null
+    // Custom font families the cover references (resolved from the user's font library)
+    font_families:string[]
+}
+
+
 // A complete set of user-selected options for generating a document
 export interface Blueprint {
 
     // Title used in PDF meta and download file name
     title:string
+
+    // Optional book cover (null = no cover)
+    cover:CoverConfig|null
 
     // Printing
     service_id:string  // printing service id, or 'custom' for manual bleed/spine

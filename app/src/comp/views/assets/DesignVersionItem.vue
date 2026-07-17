@@ -20,6 +20,9 @@ v-list-item(@click='select' :active='version.id === selected_version_id' color='
                 v-list-item(@click='download'
                         :disabled='version.status !== "available" || expired')
                     v-list-item-title {{$t("Open")}}
+                v-list-item(v-if='version.blueprint.cover' @click='download_cover'
+                        :disabled='version.status !== "available" || expired')
+                    v-list-item-title {{$t("Open cover")}}
                 template(v-if='editable')
                     v-list-item(v-if='expired || version.status === "failed"' @click='regen')
                         v-list-item-title {{$t("Regenerate")}}
@@ -46,8 +49,8 @@ import {useRouter} from 'vue-router'
 import DialogShareVersion from '@/comp/dialogs/DialogShareVersion.vue'
 import {show_toast, confirm_dialog} from '@/services/state'
 import {create_design, restore_version_into_design} from '@/services/designs'
-import {get_pdf_url, delete_version, regenerate_version, version_expired, share_version,
-    selected_version_id} from '@/services/versions'
+import {get_pdf_url, get_cover_pdf_url, delete_version, regenerate_version, version_expired,
+    share_version, selected_version_id} from '@/services/versions'
 
 import type {Version} from '@/services/types'
 
@@ -77,6 +80,17 @@ const download = async () => {
     // NOTE Window opened before the async URL resolution so popup blockers see a user gesture
     const win = self.open('', '_blank')
     const url = await get_pdf_url(props.version)
+    if (url && win){
+        win.location.href = url
+    } else {
+        win?.close()
+    }
+}
+
+const download_cover = async () => {
+    // Open the version's separate cover PDF in a new tab (same popup-safe pattern as above)
+    const win = self.open('', '_blank')
+    const url = await get_cover_pdf_url(props.version)
     if (url && win){
         win.location.href = url
     } else {

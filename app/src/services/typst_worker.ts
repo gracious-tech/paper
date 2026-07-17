@@ -51,9 +51,9 @@ async function handle_action(
     message:WorkerRequest, on_progress:(event:ProgressEvent) => void,
 ):Promise<Uint8Array|null> {
     if (message.action === 'init'){
-        // The compiler WASM comes from the shared assets tree (assets/typst/, published under
-        // typst/ — see .bin/add_typst_version), keyed by the installed npm version, so
-        // upgrading the package also requires vendoring + deploying the new version dir
+        // The compiler WASM comes from the shared assets tree's typst/ dir (vendored per npm
+        // version by the bookcover repo), keyed by the installed npm version, so upgrading
+        // the package also requires the bookcover repo publishing the new version dir
         const wasm_url = `${message.assets_prefix.replace(/\/+$/, '')}` +
             `/typst/${compiler_version}/typst_ts_web_compiler_bg.wasm`
         generator = await init_typst({wasm_url, assets_prefix: message.assets_prefix})

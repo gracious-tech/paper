@@ -236,9 +236,9 @@ describe('compile_pdf', () => {
 describe('custom_fonts', () => {
 
     // A real downloaded font, reused as a custom-font fixture (its actual family is "Bevan",
-    // read via typst-fonts' own parse_font_family in the test below) — not checked into git
-    // (see /assets/fonts/ in .gitignore), so these tests skip rather than fail where it's absent
-    // (e.g. a fresh clone before .bin/download_fonts has run)
+    // read via typst-fonts' own parse_font_family in the test below) — the untracked assets/
+    // tree comes from the bookcover repo, so these tests skip rather than fail where it's
+    // absent (e.g. a fresh clone before assets/ has been linked in)
     const fixture_path = join(import.meta.dirname, '../../assets/fonts/Bevan/Bevan-Regular.ttf')
     const has_fixture = existsSync(fixture_path)
 

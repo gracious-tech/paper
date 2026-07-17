@@ -4,7 +4,7 @@
 // records wall time plus peak typst/node memory. Writes e2e/results/matrix_server.json
 // (+ each config's PDF).
 //
-// Run with `node e2e/stress_matrix.ts` (dev content server on :8430, typst CLI, assets/fonts/ needed).
+// Run with `node e2e/stress_matrix.ts` (dev content server on :8430, typst CLI, and the assets/ tree from the bookcover repo).
 // STRESS_CONFIGS="psa_col1,jhn_col2" runs a subset (results still merge into the same file).
 
 import {mkdirSync, writeFileSync, readFileSync, existsSync} from 'node:fs'
@@ -42,7 +42,7 @@ const results_file = join(results_dir, 'matrix_server.json')
 // Same setup .bin/serve_server gives the local API server (which mirrors Cloud Run)
 const compile_options = {
     typst_path: join(root, '.bin', 'typst'),
-    fonts_dir: join(root, 'fonts'),
+    fonts_dir: join(root, 'assets/fonts'),
     endpoint: 'http://localhost:8430/',
 }
 

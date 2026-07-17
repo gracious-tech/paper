@@ -63,7 +63,7 @@ test('wasm compile stress tiers', async ({browser}) => {
     const results_dir = join(e2e_dir, 'results')
     mkdirSync(results_dir, {recursive: true})
     const harness = readFileSync(join(e2e_dir, 'page_harness.js'), 'utf-8')
-    const assets_prefix = 'http://localhost:5300/generator_assets/'
+    const assets_prefix = 'http://localhost:5301/generator_assets/'
 
     // Run every tier even after a failure — how each size fails is exactly the data wanted
     const results:TierResult[] = []

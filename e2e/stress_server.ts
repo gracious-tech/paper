@@ -5,7 +5,7 @@
 // 2Gi limit. Writes e2e/results/server.json (+ each tier's PDF).
 //
 // Run with `node e2e/stress_server.ts` (needs the dev content server on :8430, the typst CLI
-// from .bin/setup_typst, and assets/fonts/ from .bin/download_fonts).
+// from .bin/setup_typst, and the assets/ tree from the bookcover repo).
 
 import {mkdirSync, writeFileSync} from 'node:fs'
 import {join, dirname} from 'node:path'
@@ -43,7 +43,7 @@ const results_dir = join(e2e_dir, 'results')
 // Same setup .bin/serve_server gives the local API server (which mirrors Cloud Run)
 const compile_options = {
     typst_path: join(root, '.bin', 'typst'),
-    fonts_dir: join(root, 'fonts'),
+    fonts_dir: join(root, 'assets/fonts'),
     endpoint: 'http://localhost:8430/',
 }
 

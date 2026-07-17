@@ -278,5 +278,14 @@
   "Disables the previous link so it can no longer be used to become an editor.": "",
   "Removing someone also resets the invite link so they can't use it to rejoin.": "",
   "Copy as new design": "",
-  "This document is still being generated — try again in a moment": ""
+  "This document is still being generated — try again in a moment": "",
+  "Cover editor": "",
+  "This book has a cover design": "",
+  "Edit cover": "",
+  "Remove cover": "",
+  "Optionally design a wraparound cover (front, spine and rear) for your book": "",
+  "Add cover": "",
+  "Remove this cover design?": "",
+  "Open cover": "",
+  "Cover": ""
 }

@@ -44,7 +44,7 @@ export const content = {
 }
 
 
-// Fetch the curated font manifest (see .bin/download_fonts) and populate content.fonts.
+// Fetch the curated font manifest (from the bookcover repo's assets tree) and populate content.fonts.
 // paper-bible-typst-web independently loads the same manifest for the compiler itself — both
 // share typst-fonts' module-level state, so whichever runs first wins with no ill effect.
 export async function load_fonts(fonts_prefix:string):Promise<void> {

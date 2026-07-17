@@ -49,6 +49,8 @@ import {blue} from '@/services/state'
 import {content, bible_content} from '@/services/content'
 import {typst_generator} from '@/services/typst'
 import {get_custom_font_styles} from '@/services/custom_fonts'
+import {render_cover_pdf, render_cover_pages, prepend_cover_page, wrap_cover_reading_pages}
+    from '@/services/cover'
 import {report_error} from '@/services/errors'
 import {truncate_for_preview} from 'paper-bible-typst'
 
@@ -170,7 +172,7 @@ async function compile(){
             detail: t("Create document to see the rest"),
         })
 
-        const bytes = mode.value === 'print'
+        let bytes = mode.value === 'print'
             ? await generator.compile_pdf(truncation.request, on_progress, true)
             : await generator.compile_pdf_preview(truncation.request, on_progress)
 
@@ -179,6 +181,38 @@ async function compile(){
             return
         }
         truncated.value = truncation.truncated
+
+        // Merge the rendered cover into the preview (cached in cover.ts — book-only edits reuse
+        // the previous render). Print mode shows the full wraparound cover as page 1, matching
+        // the actual print file; Reading mode simulates opening the book, so it shows only the
+        // front (page 1) and back (last page) panels, ignoring the spine. A cover failure is
+        // surfaced the same way a book compile failure is, rather than silently showing a
+        // preview that's missing its cover
+        if (blue.cover){
+            try {
+                if (mode.value === 'print'){
+                    bytes = await prepend_cover_page(await render_cover_pdf(blue), bytes)
+                } else {
+                    const {front, back} = await render_cover_pages(blue)
+                    bytes = await wrap_cover_reading_pages(front, back, bytes)
+                }
+            } catch (error){
+                if (run !== latest_run){
+                    return
+                }
+                const message = error instanceof Error ? error.message : String(error)
+                report_error('silent', error, {context: {stage: 'preview_cover'}})
+                if (pdf_url.value){
+                    overlay_error.value = message
+                } else {
+                    error_msg.value = message
+                }
+                return
+            }
+            if (run !== latest_run){
+                return
+            }
+        }
 
         // Swap in the new PDF and revoke the previous object URL
         const url = URL.createObjectURL(new Blob([bytes], {type: 'application/pdf'}))
@@ -248,6 +282,8 @@ function discrete_signature():string {
         blue.show_pages, blue.show_footnotes, blue.show_wj, blue.show_wj_bold,
         blue.show_wj_italic, blue.show_lines, blue.notes, blue.crossref,
         blue.margin_unit, blue.public_domain, blue.app_link,
+        // The whole cover config — it only ever changes atomically (editor Finished / Remove)
+        blue.cover,
         item_sigs,
     ])
 }

@@ -2,7 +2,7 @@
 import {z} from 'zod'
 
 import type {PmDoc} from 'pm-to-typst'
-import type {Blueprint, ContentItem} from './types.js'
+import type {Blueprint, ContentItem, CoverConfig} from './types.js'
 
 
 // Zod validation for untrusted Blueprint data (Firestore docs written by co-editors). The TS
@@ -58,6 +58,17 @@ const content_custom_schema = z.object({
 }) satisfies z.ZodType<ContentItem>
 
 
+// Cover config — the widget form is only validated shallowly; the cover renderer re-parses
+// the derived schema with bookcover's own zod schema, so a bad co-editor value can only
+// break its own cover render (never the book compile)
+const cover_config_schema = z.object({
+    form: z.record(z.string(), z.unknown()),
+    bg_image_path: z.string().nullable(),
+    bg_image_hash: z.string().nullable(),
+    font_families: z.array(z.string()),
+}) satisfies z.ZodType<CoverConfig>
+
+
 // Any single content item
 const content_item_schema = z.discriminatedUnion('type',
     [content_title_schema, content_passage_schema, content_custom_schema])
@@ -86,6 +97,9 @@ export function make_blueprint_schema(defaults:Blueprint):z.ZodType<Blueprint>{
     return z.object({
 
         title: z.string().catch(defaults.title),
+
+        // Cover
+        cover: cover_config_schema.nullable().catch(defaults.cover),
 
         // Printing
         service_id: z.string().catch(defaults.service_id),

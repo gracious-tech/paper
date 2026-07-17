@@ -16,6 +16,7 @@ import {bible_content} from '@/services/content'
 import {typst_generator} from '@/services/typst'
 import {custom_fonts, get_custom_font_styles, plan_version_fonts, upload_version_fonts,
     load_font_from_meta} from '@/services/custom_fonts'
+import {plan_version_cover, render_cover_pdf} from '@/services/cover'
 import {generate_token} from '@/services/utils'
 import {report_error, error_to_string} from '@/services/errors'
 
@@ -119,13 +120,16 @@ export async function create_pending_version(design_id:string, blueprint:Bluepri
     const design_snap = await getDoc(doc(firestore, 'designs', design_id))
     const save_token = design_snap.data()?.['save_token'] as string
     const fonts = plan_version_fonts(id, blueprint)
+    // The cover's bg image is likewise snapshotted under the version's own Storage prefix
+    // (the frozen blueprint's cover points at the snapshot path, not the mutable library)
+    const cover = await plan_version_cover(id, blueprint)
     await setDoc(doc(firestore, 'versions', id), {
         schema: SCHEMA_VERSION,
         design_id,
         owner: user.value!.uid,
         created: serverTimestamp(),
         title: blueprint.title,
-        blueprint: cloneDeep(blueprint),
+        blueprint: {...cloneDeep(blueprint), cover: cover.frozen},
         status: 'pending',
         pages: null,
         pdf_path: `versions/${id}/doc.pdf`,
@@ -136,8 +140,13 @@ export async function create_pending_version(design_id:string, blueprint:Bluepri
         error: null,
         error_id: null,
     })
-    // Font bytes may only be uploaded once the doc exists (Storage rules resolve the owner)
+    // Font/image bytes may only be uploaded once the doc exists (Storage rules resolve the
+    // owner via the doc)
     await upload_version_fonts(fonts.uploads)
+    for (const [path, bytes, content_type] of cover.uploads){
+        await uploadBytes(storage_ref(firebase_storage, path), bytes,
+            {contentType: content_type})
+    }
     return id
 }
 
@@ -179,9 +188,21 @@ export async function compile_and_upload(id:string, blueprint:Blueprint,
             }
             const pages = (await PDFDocument.load(bytes)).getPageCount()
 
-            // Publish the PDF, then mark the version available
+            // Publish the PDF, then mark the version available (contentDisposition: 'inline' so
+            // the iframe preview displays it rather than triggering a download — the Storage
+            // emulator defaults to 'attachment' when it's left unset, unlike production)
             await uploadBytes(storage_ref(firebase_storage, `versions/${id}/doc.pdf`),
-                bytes, {contentType: 'application/pdf'})
+                bytes, {contentType: 'application/pdf', contentDisposition: 'inline'})
+
+            // Render + publish the cover as its own separate PDF (a wraparound cover is a
+            // different page size and print services take it as its own file). A failure
+            // throws into the server fallback below, which compiles both
+            if (blueprint.cover){
+                const cover_bytes = await render_cover_pdf(blueprint, fonts)
+                await uploadBytes(storage_ref(firebase_storage, `versions/${id}/cover.pdf`),
+                    cover_bytes, {contentType: 'application/pdf', contentDisposition: 'inline'})
+            }
+
             await updateDoc(doc_ref, {
                 status: 'available',
                 pages,
@@ -241,6 +262,26 @@ export async function get_pdf_url(version:Version):Promise<string|null>{
         return await getDownloadURL(storage_ref(firebase_storage, version.pdf_path))
     } catch (error){
         // Object already lifecycle-deleted despite pdf_expires (clock skew/manual deletion)
+        if ((error as {code?:string}).code === 'storage/object-not-found'){
+            return null
+        }
+        throw error
+    }
+}
+
+
+export async function get_cover_pdf_url(version:Version):Promise<string|null>{
+    // Resolve a download URL for the version's separate cover PDF (path derived from the id,
+    // never read from the doc — same rule as the server's pdf_path convention). Null when the
+    // version has no cover, isn't available, or the PDF expired (covers share doc.pdf's
+    // lifecycle since both live under the same versions/ prefix)
+    if (!version.blueprint.cover || version.status !== 'available' || version_expired(version)){
+        return null
+    }
+    try {
+        return await getDownloadURL(
+            storage_ref(firebase_storage, `versions/${version.id}/cover.pdf`))
+    } catch (error){
         if ((error as {code?:string}).code === 'storage/object-not-found'){
             return null
         }

@@ -1,14 +1,20 @@
 
+import path from 'node:path'
+import {tmpdir} from 'node:os'
+import {mkdtemp, writeFile, readFile, rm} from 'node:fs/promises'
+
 import {Timestamp} from 'firebase-admin/firestore'
 import {PDFDocument} from 'pdf-lib'
-import {PDF_LIFETIME_MS} from 'paper-bible-typst'
+import {PDF_LIFETIME_MS, cover_form_for_render} from 'paper-bible-typst'
 import {compile_pdf_from_blueprint} from 'paper-bible-typst-node'
+import {generate as generate_cover, build_schema} from 'bookcover-node'
 
 import {admin_db, admin_bucket} from './firebase.ts'
 import {config} from './config.ts'
 import {shared_content} from './content.ts'
 import {save_error, generate_error_id} from './errors.ts'
 
+import type {EmbedFormState} from 'bookcover-node'
 import type {Blueprint, CustomFont} from 'paper-bible-typst-node'
 
 
@@ -35,6 +41,45 @@ async function compile_quota_allows(uid:string):Promise<boolean>{
         txn.set(doc_ref, {day, count})
         return true
     })
+}
+
+
+async function render_cover(blueprint:Blueprint, custom_fonts:CustomFont[])
+        :Promise<Uint8Array>{
+    // Render a frozen blueprint's cover to PDF bytes via the bookcover-node package (Typst
+    // CLI + the same mounted fonts tree the book compile uses). The renderable schema is
+    // derived from the stored widget form with the blueprint's own size fields overlaid —
+    // identical logic to the in-browser path (see cover.ts / cover_worker.ts in the app)
+    const cover = blueprint.cover!
+    const cover_fonts = custom_fonts.filter(font => cover.font_families.includes(font.family))
+    const schema = build_schema(
+        cover_form_for_render(cover, blueprint) as unknown as EmbedFormState,
+        cover_fonts.map(font => ({family: font.family, style: font.style})))
+
+    // bookcover-node works on disk: it discovers background.<ext> in the input dir and writes
+    // the output file (the temp dir is always cleaned up, even on failure)
+    const tmp_dir = await mkdtemp(path.join(tmpdir(), 'cover_'))
+    try {
+        if (cover.bg_image_path){
+            const ext = cover.bg_image_path.slice(cover.bg_image_path.lastIndexOf('.'))
+            const [bg_bytes] = await admin_bucket.file(cover.bg_image_path).download()
+            await writeFile(path.join(tmp_dir, `background${ext}`), bg_bytes)
+        }
+        const output_path = path.join(tmp_dir, 'cover.pdf')
+        await generate_cover({
+            schema,
+            input_path: tmp_dir,
+            output_path,
+            format: 'pdf',
+            assets_dir: config.assets_dir,
+            fonts_dir: config.fonts_dir,
+            typst_path: config.typst_path,
+            custom_fonts: cover_fonts,
+        })
+        return new Uint8Array(await readFile(output_path))
+    } finally {
+        await rm(tmp_dir, {recursive: true, force: true})
+    }
 }
 
 
@@ -68,6 +113,16 @@ export async function handle_compile(uid:string, version_id:string, client_ip:st
         return {status: 400, body: {error: 'bad_font_path'}}
     }
 
+    // The cover's snapshotted bg image must sit under the version's own prefix too (its path
+    // lives inside the client-written blueprint, so it gets the same distrust as font paths —
+    // including its type, since nothing validates the doc's shape server-side)
+    const blueprint = data['blueprint'] as Blueprint
+    const cover_bg_path = (blueprint.cover?.bg_image_path ?? null) as unknown
+    if (cover_bg_path !== null && (typeof cover_bg_path !== 'string'
+            || !cover_bg_path.startsWith(`versions/${version_id}/cover/`))){
+        return {status: 400, body: {error: 'bad_cover_path'}}
+    }
+
     // Throttle
     if (active_uids.has(uid)){
         return {status: 429, body: {error: 'compile_in_progress'}}
@@ -91,7 +146,7 @@ export async function handle_compile(uid:string, version_id:string, client_ip:st
 
         // Compile straight from the frozen blueprint (Bible content comes via the instance-wide
         // shared cache — see content.ts)
-        const bytes = await compile_pdf_from_blueprint(data['blueprint'] as Blueprint, {
+        const bytes = await compile_pdf_from_blueprint(blueprint, {
             typst_path: config.typst_path,
             fonts_dir: config.fonts_dir,
             content: shared_content,
@@ -99,10 +154,24 @@ export async function handle_compile(uid:string, version_id:string, client_ip:st
         })
         const pages = (await PDFDocument.load(bytes)).getPageCount()
 
-        // Publish the PDF and mark the version available
+        // Publish the PDF and mark the version available (contentDisposition: 'inline' so the
+        // iframe preview displays it rather than triggering a download — the Storage emulator
+        // defaults to 'attachment' when it's left unset, unlike production)
         await admin_bucket.file(pdf_path).save(Buffer.from(bytes), {
             contentType: 'application/pdf',
+            metadata: {contentDisposition: 'inline'},
         })
+
+        // Render + publish the cover as its own separate PDF when the version has one (a
+        // wraparound cover is a different page size and print services take it as its own
+        // file). A cover failure fails the whole compile — same error surface as the book
+        if (blueprint.cover){
+            const cover_bytes = await render_cover(blueprint, custom_fonts)
+            await admin_bucket.file(`versions/${version_id}/cover.pdf`).save(
+                Buffer.from(cover_bytes),
+                {contentType: 'application/pdf', metadata: {contentDisposition: 'inline'}})
+        }
+
         await doc_ref.update({
             status: 'available',
             pages,

@@ -5,10 +5,7 @@
         "server",
         "typst",
         "typst-web",
-        "typst-node",
-        "generic/pm-to-typst",
-        "generic/typst-utils",
-        "generic/typst-fonts"
+        "typst-node"
     ],
     "dependencies": {
         "typescript": "^6.0.3"

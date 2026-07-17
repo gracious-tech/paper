@@ -7,7 +7,6 @@ import plugin_svg_loader from 'vite-svg-loader'
 import {defineConfig} from 'vite'
 
 import plugin_index from './vite_plugin_index'
-import plugin_assets from './vite_plugin_assets'
 
 
 export default defineConfig(({mode}) => {
@@ -16,10 +15,6 @@ export default defineConfig(({mode}) => {
         clearScreen: false,
         plugins: [
             plugin_index(path.join(__dirname, 'src/index.pug')),
-            plugin_assets({
-                fonts: path.join(__dirname, '../assets/fonts'),
-                typst: path.join(__dirname, '../assets/typst'),
-            }),
             plugin_vue(),
             plugin_vuetify({autoImport: true}),
             plugin_svg_loader(),

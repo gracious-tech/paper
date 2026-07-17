@@ -31,7 +31,7 @@ import {router} from '@/services/router'
 import {ensure_signed_in, complete_email_link} from '@/services/auth'
 import {init_designs, start_design_sync, start_viewed_sync} from '@/services/designs'
 import {content, bible_content, load_fonts} from '@/services/content'
-import {typst_generator, TypstWorkerClient} from '@/services/typst'
+import {typst_generator, TypstWorkerClient, ASSETS_PREFIX} from '@/services/typst'
 import {custom_fonts, restore_custom_fonts} from '@/services/custom_fonts'
 import {start_watchers} from '@/services/watchers'
 import {report_error, vue_error_handler} from '@/services/errors'
@@ -130,13 +130,10 @@ void (async () => {
 
     // Initialise the in-browser Typst compiler in a Web Worker (non-blocking — preview waits
     // on it, and compilation runs off the main thread so it never lags the UI).
-    // Fonts live under `${assets_prefix}fonts/` — served by vite_plugin_assets.ts in dev, and
-    // from a dedicated CORS-enabled bucket in production (see .bin/deploy_fonts)
-    const assets_prefix = import.meta.env.DEV
-        ? new URL('/generator_assets/', window.location.href).href
-        : 'https://assets.paper.bible/'
+    // Fonts live under `${ASSETS_PREFIX}fonts/` — the shared assets tree published by the
+    // bookcover repo (its dev server in dev, the CORS-enabled bucket in production)
     const typst_client = new TypstWorkerClient()
-    void typst_client.init(assets_prefix).then(async () => {
+    void typst_client.init(ASSETS_PREFIX).then(async () => {
         typst_generator.value = typst_client
         // The worker holds a snapshot of uploaded fonts — custom_fonts.ts re-sends after each
         // upload, and this covers any uploads that happened before the worker was ready
@@ -146,7 +143,7 @@ void (async () => {
     })
 
     // Load the curated font manifest for the style picker (see OptionsStyle.vue)
-    void load_fonts(`${assets_prefix}fonts/`)
+    void load_fonts(`${ASSETS_PREFIX}fonts/`)
         .catch((error:unknown) => {
             report_error('banner', error)
         })

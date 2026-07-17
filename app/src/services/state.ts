@@ -32,6 +32,9 @@ export const state = reactive({
     // component to show) and AppRoot.vue (which sidebar preview to show), reset whenever the
     // open design changes
     forced_editor: false,
+    // Whether the embedded cover editor (cover.paper.bible iframe) is open as a full-window
+    // overlay — set by OptionsCover, rendered by DialogCoverEditor (mounted in AppRoot)
+    cover_editor: false,
     // Message for a brief snackbar toast (e.g. link copied confirmation), null when hidden
     toast: null as string|null,
     // Pending confirm-dialog request, rendered by DialogConfirm — null hides it (see confirm_dialog())

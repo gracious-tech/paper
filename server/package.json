@@ -5,6 +5,7 @@
     "type": "module",
     "dependencies": {
         "@hono/node-server": "^2.0.8",
+        "bookcover-node": "^0.4.0",
         "firebase-admin": "^14.1.0",
         "hono": "^4.12.28",
         "paper-bible-typst": "*",

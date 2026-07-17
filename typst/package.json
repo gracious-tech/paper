@@ -18,10 +18,10 @@
     "dependencies": {
         "@gracious.tech/fetch-client": "^2.2.0",
         "pdf-lib": "^1.17.1",
-        "pm-to-typst": "*",
+        "pm-to-typst": "^0.1.0",
         "printing-services": "^1.5.1",
-        "typst-fonts": "*",
-        "typst-utils": "*",
+        "typst-fonts": "^0.1.1",
+        "typst-utils": "^0.2.0",
         "zod": "^4.4.3"
     },
     "devDependencies": {

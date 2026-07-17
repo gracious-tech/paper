@@ -17,9 +17,9 @@ import type {TypstRequest, CompileFn, ProgressFn, Blueprint} from 'paper-bible-t
 export interface NodeCompileOptions {
     // Path to the typst CLI binary (default: "typst")
     typst_path?:string
-    // Directory of fonts downloaded by .bin/download_fonts (manifest.json + per-family
-    // dirs). When set, font directories for the families a request needs are resolved
-    // automatically via typst-fonts/node
+    // Directory holding the curated fonts tree (manifest.json + per-family dirs, from the
+    // bookcover repo's assets). When set, font directories for the families a request needs
+    // are resolved automatically via typst-fonts/node
     fonts_dir?:string
     // Additional font directories to pass to the typst CLI, on top of any resolved from
     // fonts_dir

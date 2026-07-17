@@ -18,6 +18,9 @@ export function get_default_blueprint():Blueprint{
 
         title: '',
 
+        // Cover (null = no cover)
+        cover: null,
+
         // Printing
         service_id: 'home',
         size_id: 'a4',

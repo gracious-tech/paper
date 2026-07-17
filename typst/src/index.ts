@@ -15,7 +15,7 @@ export {truncate_for_preview, PREVIEW_CHAR_LIMIT} from './preview.js'
 export type {PreviewSection, PreviewMessages, PreviewTruncation} from './preview.js'
 
 // Bundled font manifest helpers (used by the web/node compilers to load fonts). The manifest
-// itself is loaded at runtime by typst-fonts/node or typst-fonts/web — see .bin/download_fonts
+// itself is loaded at runtime by typst-fonts/node or typst-fonts/web from the assets tree
 export {get_bundled_font, collect_fonts} from './fonts.js'
 export type {BundledFont} from './fonts.js'
 
@@ -32,6 +32,9 @@ export {SCHEMA_VERSION, PDF_LIFETIME_MS} from './consts.js'
 
 // Blueprint shape validation (schema factory — callers supply the defaults to fall back to)
 export {make_blueprint_schema, clean_content_items} from './blueprint_schema.js'
+
+// Cover render helpers (blueprint size overlay + render cache key)
+export {cover_form_for_render, cover_render_key} from './cover.js'
 
 // Bundled title-page decorative pattern SVGs (name → corner SVG), used by the resolver and the
 // app's title-page editor
@@ -58,6 +61,7 @@ export type {
     ProgressStage,
     ProgressEvent,
     Blueprint,
+    CoverConfig,
     ContentItem,
     ContentTitle,
     ContentPassage,

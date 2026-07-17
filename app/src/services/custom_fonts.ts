@@ -40,11 +40,17 @@ export async function upload_custom_fonts(files:File[]):Promise<string[]> {
         name: file.name,
         data: new Uint8Array(await file.arrayBuffer()),
     })))
-    const parsed = process_font_files(inputs)
+    return add_custom_fonts(process_font_files(inputs))
+}
 
+
+// Add already-parsed font families to the library (used by the upload flow above, and for
+// fonts uploaded inside the embedded cover editor, which arrive pre-parsed as CustomFont[]).
+// Registers new families for preview + generation, persists them, and returns their names
+export async function add_custom_fonts(fonts:CustomFont[]):Promise<string[]> {
     const existing = new Set(custom_fonts.map(f => f.family))
     const added:string[] = []
-    for (const font of parsed) {
+    for (const font of fonts) {
         if (existing.has(font.family))
             continue
         custom_fonts.push(font)
@@ -61,7 +67,7 @@ export async function upload_custom_fonts(files:File[]):Promise<string[]> {
 
     // Persist new families to the user's online library (best effort — uploads still usable
     // this session even if persistence fails)
-    for (const font of parsed){
+    for (const font of fonts){
         if (added.includes(font.family)){
             void persist_font(font).catch((error:unknown) => {
                 report_error('banner', error)
@@ -115,10 +121,14 @@ export async function load_font_from_meta(meta:StoredFontMeta):Promise<CustomFon
 }
 
 
-// The uploaded font families a blueprint actually references
+// The uploaded font families a blueprint actually references (book fonts + cover fonts, so
+// version snapshots and server compiles carry everything both renders need)
 export function fonts_for_blueprint(blueprint:Blueprint):CustomFont[] {
     const wanted = new Set([blueprint.font_text, blueprint.font_text2,
         blueprint.font_headings, blueprint.font_titles].filter(f => f !== null))
+    for (const family of blueprint.cover?.font_families ?? []){
+        wanted.add(family)
+    }
     return custom_fonts.filter(font => wanted.has(font.family))
 }
 

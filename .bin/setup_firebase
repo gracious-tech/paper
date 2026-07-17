@@ -22,37 +22,13 @@ ASSETS_BUCKET="${2:-assets.paper.bible}"
 gcloud storage buckets update "gs://$PROJECT.firebasestorage.app" \
     --project "$PROJECT" --lifecycle-file=firebase_storage_lifecycle.json
 
-# Create the public assets bucket, holding fonts + typst wasm (domain-named buckets require
-# site verification in GCP)
-gcloud storage buckets create "gs://$ASSETS_BUCKET" --project "$PROJECT" \
-    --location=us-west1 --uniform-bucket-level-access || true
-gcloud storage buckets add-iam-policy-binding "gs://$ASSETS_BUCKET" \
-    --member=allUsers --role=roles/storage.objectViewer
-
-# Let Cloud Run's runtime service account read the assets bucket — the compile service mounts
-# it as a GCS volume (see deploy_server), and volume mounts authenticate as the service
-# account regardless of the bucket being publicly readable
+# Let Cloud Run's runtime service account read the assets bucket — the bucket itself is
+# created and published by the bookcover repo, but the compile service here mounts it as a
+# GCS volume (see deploy_server), and volume mounts authenticate as the service account
+# regardless of the bucket being publicly readable
 PROJECT_NUMBER="$(gcloud projects describe "$PROJECT" --format 'value(projectNumber)')"
 gcloud storage buckets add-iam-policy-binding "gs://$ASSETS_BUCKET" \
     --member="serviceAccount:$PROJECT_NUMBER-compute@developer.gserviceaccount.com" \
     --role=roles/storage.objectViewer
 
-# Assets are fetched cross-origin by the app and consumer apps, so the bucket needs CORS.
-# Objects are already public (allUsers viewer above), so there's no security benefit to
-# restricting origins here — allow any origin to keep this working for any deployment/mirror
-# without edits
-tmp_cors="$(mktemp)"
-cat > "$tmp_cors" <<'EOF'
-[
-    {
-        "origin": ["*"],
-        "method": ["GET", "HEAD"],
-        "responseHeader": ["Content-Type"],
-        "maxAgeSeconds": 3600
-    }
-]
-EOF
-gcloud storage buckets update "gs://$ASSETS_BUCKET" --cors-file="$tmp_cors"
-rm "$tmp_cors"
-
-echo "Done. Now run .bin/deploy_fonts and .bin/deploy_app"
+echo "Done. Now run .bin/deploy_server and .bin/deploy_app"

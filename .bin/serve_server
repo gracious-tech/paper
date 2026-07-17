@@ -12,7 +12,9 @@ export FIREBASE_STORAGE_EMULATOR_HOST=localhost:9199
 export GCLOUD_PROJECT=paper-bible
 export PORT=8788
 export TYPST_PATH="$PWD/.bin/typst"
-export FONTS_DIR="$PWD/fonts"
+# The shared assets tree (fonts/, docs/, frames/, ...) — a local copy/symlink of the bookcover
+# repo's assets/ dir, the same tree it publishes to assets.paper.bible
+export ASSETS_DIR="$PWD/assets"
 export FETCH_ENDPOINT="${FETCH_ENDPOINT:-http://localhost:8430/}"
 
 node --watch server/src/index.ts
