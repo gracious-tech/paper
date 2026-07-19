@@ -195,10 +195,12 @@ export async function compile_and_upload(id:string, blueprint:Blueprint,
                 bytes, {contentType: 'application/pdf', contentDisposition: 'inline'})
 
             // Render + publish the cover as its own separate PDF (a wraparound cover is a
-            // different page size and print services take it as its own file). A failure
-            // throws into the server fallback below, which compiles both
+            // different page size and print services take it as its own file). Rendered after
+            // the interior deliberately — its spine width derives from the actual page count
+            // just compiled. A failure throws into the server fallback below, which compiles
+            // both
             if (blueprint.cover){
-                const cover_bytes = await render_cover_pdf(blueprint, fonts)
+                const cover_bytes = await render_cover_pdf(blueprint, pages, fonts)
                 await uploadBytes(storage_ref(firebase_storage, `versions/${id}/cover.pdf`),
                     cover_bytes, {contentType: 'application/pdf', contentDisposition: 'inline'})
             }

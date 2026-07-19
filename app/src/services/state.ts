@@ -1,5 +1,5 @@
 
-import {reactive, computed} from 'vue'
+import {reactive, ref, computed} from 'vue'
 
 import {doc_has_copyright} from 'paper-bible-typst'
 
@@ -69,6 +69,20 @@ export function prompt_dialog(message:string, initial=''):Promise<string|null>{
 // Open design's blueprint
 // NOTE This will actually get init'd once content.collection is available
 export const blue = reactive({} as unknown as Blueprint)
+
+
+// Estimated page count of the full document, refreshed by DisplayPreview after every preview
+// compile (exact when the preview wasn't truncated). Page count is a property of the compiled
+// interior, never a user setting — versions use the actual count at creation time, while
+// anything needed sooner (preview cover spine, binding validity) works from this guess
+export const estimated_pages = ref<number|null>(null)
+
+
+// The current page-count guess, falling back to a plausible book size before the first
+// preview compile has produced an estimate
+export function page_count_guess():number{
+    return estimated_pages.value ?? 300
+}
 
 
 // Whether current blueprint includes a copyright item

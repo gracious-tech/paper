@@ -104,7 +104,6 @@ export function make_blueprint_schema(defaults:Blueprint):z.ZodType<Blueprint>{
         // Printing
         service_id: z.string().catch(defaults.service_id),
         size_id: z.string().catch(defaults.size_id),
-        page_count: z.number().catch(defaults.page_count),
         binding_type: z.string().catch(defaults.binding_type),
         ink_type: z.string().catch(defaults.ink_type),
         paper_type: z.string().catch(defaults.paper_type),

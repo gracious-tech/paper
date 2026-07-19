@@ -12,6 +12,10 @@ v-list-item(@click='select' :active='version.id === selected_version_id' color='
             v-progress-circular(v-if='version.status === "pending"' indeterminate size='32'
                 color='secondary')
             app-icon(v-else-if='version.status === "failed"' name='error' class='text-error')
+            //- The document compiled, but its actual page count broke its chosen binding
+            //- (DisplayDesignVersion shows the full explanation when the version is viewed)
+            app-icon(v-else-if='binding_issue' name='warning' class='text-warning'
+                v-tooltip='binding_issue_message')
         v-menu
             template(#activator='{props}')
                 v-btn(v-bind='props' icon variant='text' color='black' @click.stop)
@@ -48,6 +52,7 @@ import {useRouter} from 'vue-router'
 
 import DialogShareVersion from '@/comp/dialogs/DialogShareVersion.vue'
 import {show_toast, confirm_dialog} from '@/services/state'
+import {binding_page_issue} from '@/services/blueprints'
 import {create_design, restore_version_into_design} from '@/services/designs'
 import {get_pdf_url, get_cover_pdf_url, delete_version, regenerate_version, version_expired,
     share_version, selected_version_id} from '@/services/versions'
@@ -69,6 +74,26 @@ const show_share = ref(false)
 
 // Whether the PDF has passed its 1-year Storage lifetime (metadata remains, can regenerate)
 const expired = computed(() => version_expired(props.version))
+
+
+// Whether the produced document's actual page count isn't supported by its chosen binding,
+// and if so whether it fell short or ran over
+const binding_issue = computed(() => {
+    return props.version.status === 'available' && props.version.pages !== null
+        ? binding_page_issue(props.version.blueprint, props.version.pages)
+        : null
+})
+
+
+// Tooltip text explaining the binding issue above (fewer/more pages than the binding supports)
+const binding_issue_message = computed(() => {
+    if (!binding_issue.value){
+        return ''
+    }
+    return binding_issue.value.fewer
+        ? `${t("Binding requires at least")} ${binding_issue.value.limit} ${t("pages")}`
+        : `${t("Binding allows at most")} ${binding_issue.value.limit} ${t("pages")}`
+})
 
 
 const select = () => {

@@ -42,10 +42,11 @@ div.preview
 
 import {ref, computed, watch, onUnmounted} from 'vue'
 import {debounce} from 'lodash-es'
+import {PDFDocument} from 'pdf-lib'
 import {useI18n} from 'vue-i18n'
 
 import BtnGenerate from '@/comp/views/assets/BtnGenerate.vue'
-import {blue} from '@/services/state'
+import {blue, estimated_pages} from '@/services/state'
 import {content, bible_content} from '@/services/content'
 import {typst_generator} from '@/services/typst'
 import {get_custom_font_styles} from '@/services/custom_fonts'
@@ -182,6 +183,25 @@ async function compile(){
         }
         truncated.value = truncation.truncated
 
+        // Refresh the shared page-count estimate: the preview's own page count scaled by how
+        // much of the document the preview window covered (exact when nothing was truncated).
+        // Reading spreads and booklet 2-up sheets hold two book pages per PDF page, and the
+        // truncation notice pages aren't content so they're excluded before scaling. Rounded
+        // to an even number since bound pages always come in twos
+        const pdf_pages = (await PDFDocument.load(bytes)).getPageCount()
+        if (run !== latest_run){
+            return
+        }
+        const notice_pages = (truncation.request.preview_front ? 1 : 0)
+            + (truncation.request.preview_rear ? 1 : 0)
+        const per_pdf_page = mode.value === 'print' && !blue.booklet ? 1 : 2
+        const window_pages = Math.max(1, (pdf_pages - notice_pages) * per_pdf_page)
+        const scale = truncation.window_chars > 0
+            ? truncation.total_chars / truncation.window_chars
+            : 1
+        const page_estimate = Math.max(2, Math.round(window_pages * scale / 2) * 2)
+        estimated_pages.value = page_estimate
+
         // Merge the rendered cover into the preview (cached in cover.ts — book-only edits reuse
         // the previous render). Print mode shows the full wraparound cover as page 1, matching
         // the actual print file; Reading mode simulates opening the book, so it shows only the
@@ -191,9 +211,10 @@ async function compile(){
         if (blue.cover){
             try {
                 if (mode.value === 'print'){
-                    bytes = await prepend_cover_page(await render_cover_pdf(blue), bytes)
+                    bytes = await prepend_cover_page(
+                        await render_cover_pdf(blue, page_estimate), bytes)
                 } else {
-                    const {front, back} = await render_cover_pages(blue)
+                    const {front, back} = await render_cover_pages(blue, page_estimate)
                     bytes = await wrap_cover_reading_pages(front, back, bytes)
                 }
             } catch (error){

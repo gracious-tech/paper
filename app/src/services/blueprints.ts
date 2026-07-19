@@ -3,6 +3,7 @@ import {PassageReference} from '@gracious.tech/fetch-client'
 import {cloneDeep} from 'lodash-es'
 import {make_blueprint_schema} from 'paper-bible-typst'
 import {get_service, get_common_sizes} from 'printing-services'
+import type {BindingTypeId} from 'printing-services'
 
 import {content} from '@/services/content'
 import {blue} from '@/services/state'
@@ -24,7 +25,6 @@ export function get_default_blueprint():Blueprint{
         // Printing
         service_id: 'home',
         size_id: 'a4',
-        page_count: 300,
         binding_type: 'paperback',
         ink_type: 'bw',
         paper_type: 'white',
@@ -157,6 +157,42 @@ export function format_dims(width:number, height:number, unit:string):string{
     const u = unit === 'mm' ? 'mm' : 'in'
     const fmt = (v:number) => u === 'mm' ? String(Math.round(v)) : String(v)
     return `${fmt(width)} × ${fmt(height)} ${u}`
+}
+
+
+// Describes how a page count fails a binding's supported range: too few pages (below
+// `min_pages`) or too many (above `max_pages`), and the limit that was crossed. Includes the
+// binding's display name since warnings may be shown away from the binding selector itself
+export interface BindingPageIssue {
+    name:string
+    fewer:boolean
+    limit:number
+}
+
+
+// Whether a blueprint's chosen binding doesn't support the given page count, and if so whether
+// the document has too few or too many pages for it. Used for warnings only — the binding is
+// never auto-switched, as page count is derived from the document (estimated during design,
+// actual once compiled). Home/custom modes and services without a defined range for the chosen
+// binding have no such constraint to violate
+export function binding_page_issue(blueprint:Blueprint, pages:number):BindingPageIssue|null{
+    if (blueprint.service_id === 'home' || blueprint.service_id === 'custom'){
+        return null
+    }
+    const service = get_service(blueprint.service_id as Parameters<typeof get_service>[0])
+    const limits = service?.raw.binding_types[blueprint.binding_type as BindingTypeId]
+    if (!service || !limits){
+        return null
+    }
+    const name = service.get_binding_types().find(b => b.id === blueprint.binding_type)?.name
+        ?? blueprint.binding_type
+    if (pages < limits.min_pages){
+        return {name, fewer: true, limit: limits.min_pages}
+    }
+    if (pages > limits.max_pages){
+        return {name, fewer: false, limit: limits.max_pages}
+    }
+    return null
 }
 
 

@@ -79,7 +79,6 @@ export function build_blueprint(tier:Tier, overrides:Partial<Blueprint> = {}):Bl
         // Printing
         service_id: 'home',
         size_id: 'a4',
-        page_count: 300,
         binding_type: 'paperback',
         ink_type: 'bw',
         paper_type: 'white',

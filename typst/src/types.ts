@@ -203,7 +203,6 @@ export interface Blueprint {
     // Printing
     service_id:string  // printing service id, or 'custom' for manual bleed/spine
     size_id:string  // named size id, or '' for custom dimensions
-    page_count:number
     binding_type:string
     ink_type:string
     paper_type:string

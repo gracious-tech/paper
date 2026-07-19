@@ -152,7 +152,6 @@
   "Trim size": "",
   "Bleed": "",
   "Spine width": "",
-  "Page count": "",
   "Binding": "",
   "Ink type": "",
   "Paper type": "",
@@ -287,5 +286,12 @@
   "Add cover": "",
   "Remove this cover design?": "",
   "Open cover": "",
-  "Cover": ""
+  "Cover": "",
+  "Change the binding and create the document again.": "",
+  "That will also resize the cover's spine, so check its design afterwards.": "",
+  "binding": "",
+  "requires at least": "",
+  "allows at most": "",
+  "pages, but this document is estimated at": "",
+  "pages, but this document's final page count is": ""
 }

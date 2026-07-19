@@ -33,6 +33,11 @@ export interface PreviewMessages {
 export interface PreviewTruncation {
     request:TypstRequest
     truncated:boolean
+    // Rough character weight of the whole document and of the kept preview window (equal when
+    // not truncated) — callers scale the preview's compiled page count by total/window to
+    // estimate the full document's page count (e.g. for cover spine width)
+    total_chars:number
+    window_chars:number
 }
 
 
@@ -93,7 +98,7 @@ export function truncate_for_preview(
     const weights = request.content.map(item_weight)
     const total = weights.reduce((sum, weight) => sum + weight, 0)
     if (total <= PREVIEW_CHAR_LIMIT) {
-        return {request, truncated: false}
+        return {request, truncated: false, total_chars: total, window_chars: total}
     }
 
     // Character offset the window starts at, per section
@@ -146,5 +151,8 @@ export function truncate_for_preview(
         truncated_request.preview_rear = gen_notice_page(messages.end_title, messages.detail)
     }
 
-    return {request: truncated_request, truncated: true}
+    // The window's weight is recomputed from the kept items (cut passages weigh less than the
+    // originals), so page-count estimates scale by what actually got compiled
+    const window_chars = kept.reduce((sum, item) => sum + item_weight(item), 0)
+    return {request: truncated_request, truncated: true, total_chars: total, window_chars}
 }

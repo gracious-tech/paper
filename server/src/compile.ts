@@ -44,16 +44,17 @@ async function compile_quota_allows(uid:string):Promise<boolean>{
 }
 
 
-async function render_cover(blueprint:Blueprint, custom_fonts:CustomFont[])
+async function render_cover(blueprint:Blueprint, custom_fonts:CustomFont[], page_count:number)
         :Promise<Uint8Array>{
     // Render a frozen blueprint's cover to PDF bytes via the bookcover-node package (Typst
     // CLI + the same mounted fonts tree the book compile uses). The renderable schema is
-    // derived from the stored widget form with the blueprint's own size fields overlaid —
+    // derived from the stored widget form with the blueprint's own size fields (and the
+    // just-compiled interior's page count, which drives the spine width) overlaid —
     // identical logic to the in-browser path (see cover.ts / cover_worker.ts in the app)
     const cover = blueprint.cover!
     const cover_fonts = custom_fonts.filter(font => cover.font_families.includes(font.family))
     const schema = build_schema(
-        cover_form_for_render(cover, blueprint) as unknown as EmbedFormState,
+        cover_form_for_render(cover, blueprint, page_count) as unknown as EmbedFormState,
         cover_fonts.map(font => ({family: font.family, style: font.style})))
 
     // bookcover-node works on disk: it discovers background.<ext> in the input dir and writes
@@ -164,9 +165,11 @@ export async function handle_compile(uid:string, version_id:string, client_ip:st
 
         // Render + publish the cover as its own separate PDF when the version has one (a
         // wraparound cover is a different page size and print services take it as its own
-        // file). A cover failure fails the whole compile — same error surface as the book
+        // file). Rendered after the interior deliberately — its spine width derives from the
+        // actual page count just compiled. A cover failure fails the whole compile — same
+        // error surface as the book
         if (blueprint.cover){
-            const cover_bytes = await render_cover(blueprint, custom_fonts)
+            const cover_bytes = await render_cover(blueprint, custom_fonts, pages)
             await admin_bucket.file(`versions/${version_id}/cover.pdf`).save(
                 Buffer.from(cover_bytes),
                 {contentType: 'application/pdf', metadata: {contentDisposition: 'inline'}})

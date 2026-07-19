@@ -56,15 +56,17 @@ template(v-else)
         v-text-field(v-model.number='blue.custom_spine' type='number' variant='underlined'
             density='compact' :label='$t("Spine width")' class='mr-4' style='max-width: 120px')
 
-    //- Regular-service mode: page count, binding, ink and paper type
+    //- Regular-service mode: binding, ink and paper type (page count isn't asked for — it's
+    //- determined by the document itself, estimated from the preview until a version compiles)
     template(v-else)
-        div(class='ml-2 my-4')
-            v-text-field(v-model.number='blue.page_count' type='number' variant='underlined'
-                density='compact' :label='$t("Page count")' style='max-width: 140px')
-
         div(v-if='binding_items.length > 1' class='ml-2 my-4')
             v-select(v-model='blue.binding_type' :items='binding_items' :label='$t("Binding")'
                 variant='underlined' density='compact' style='max-width: 240px')
+
+        //- Warn (never auto-switch) when the chosen binding doesn't suit the estimated length —
+        //- the estimate refreshes after every preview compile, and the user keeps their choice
+        v-alert(v-if='binding_warning' type='warning' variant='tonal' density='compact'
+            class='ml-2 my-4' :text='binding_warning')
 
         div(v-if='show_ink_type && ink_items.length > 1' class='ml-2 my-4')
             v-select(v-model='blue.ink_type' :items='ink_items' :label='$t("Ink type")'
@@ -84,8 +86,8 @@ import {useI18n} from 'vue-i18n'
 import {list_services, get_service, get_common_sizes} from 'printing-services'
 import type {ServicePublic, SizeId, BindingTypeId, InkTypeId} from 'printing-services'
 
-import {blue} from '@/services/state'
-import {format_dims} from '@/services/blueprints'
+import {blue, estimated_pages} from '@/services/state'
+import {format_dims, binding_page_issue} from '@/services/blueprints'
 
 
 const {t} = useI18n()
@@ -141,12 +143,13 @@ const size_select_items = computed(() => [
 ])
 
 
-// Binding/ink/paper option lists, with invalid options disabled (regular service only)
+// Binding/ink/paper option lists, with invalid options disabled (regular service only).
+// Page count is deliberately not part of the binding validity here — it's only an estimate
+// that shifts with every edit, so it warns (binding_warning below) rather than disabling
 const binding_items = computed(() =>
     service.value?.get_binding_types({
         all: true,
         size: (blue.size_id || undefined) as SizeId|undefined,
-        pages: blue.page_count,
     }).map(b => ({title: b.name, value: b.id, props: {disabled: !b.valid}})) ?? [])
 
 const ink_items = computed(() =>
@@ -166,6 +169,27 @@ const paper_items = computed(() =>
 // Whether the service needs ink/paper type to compute cover dimensions
 const show_ink_type = computed(() => service.value?.cover_calc_requires_ink ?? false)
 const show_paper_type = computed(() => service.value?.cover_calc_requires_paper ?? false)
+
+
+// Warning text when the chosen binding doesn't suit the document's estimated length — shown
+// instead of ever auto-switching the binding, since the estimate can shift with every edit.
+// Silent until the first preview compile has produced an estimate (no point warning off the
+// generic fallback guess). States whether it's too short or too long and the limit, since a
+// bare "may not support this length" leaves the user guessing which direction to fix
+const binding_warning = computed(() => {
+    if (estimated_pages.value === null){
+        return null
+    }
+    const issue = binding_page_issue(blue, estimated_pages.value)
+    if (!issue){
+        return null
+    }
+    const requirement = issue.fewer
+        ? t("requires at least")
+        : t("allows at most")
+    return `${issue.name} ${t("binding")} ${requirement} ${issue.limit}`
+        + ` ${t("pages, but this document is estimated at")} ~${estimated_pages.value} ${t("pages")}.`
+})
 
 
 // Select a named size preset
@@ -211,21 +235,6 @@ function set_unit(unit:string):void{
     blue.custom_bleed = convert_unit(blue.custom_bleed, from, unit)
     blue.custom_spine = convert_unit(blue.custom_spine, from, unit)
     blue.custom_unit = unit as 'mm'|'inch'
-}
-
-
-// Reset binding to the first valid option when the current one is no longer valid
-function reset_binding_if_invalid():void{
-    if (!service.value){
-        return
-    }
-    const valid = service.value.get_binding_types({
-        size: (blue.size_id || undefined) as SizeId|undefined,
-        pages: blue.page_count,
-    })
-    if (valid.length && !valid.some(b => b.id === blue.binding_type)){
-        blue.binding_type = valid[0]!.id
-    }
 }
 
 
@@ -282,22 +291,6 @@ watch(() => blue.service_id, () => {
     blue.ink_type = inks.length ? inks[0]!.id : ''
     const papers = service.value!.get_paper_types()
     blue.paper_type = papers.length ? papers[0]!.id : ''
-})
-
-
-// When the size changes, the binding may become invalid
-watch(() => blue.size_id, () => {
-    reset_binding_if_invalid()
-})
-
-
-// When the page count changes, debounce before resetting binding (avoids rapid cascades)
-let page_count_timer:ReturnType<typeof setTimeout>|null = null
-watch(() => blue.page_count, () => {
-    if (page_count_timer !== null){
-        clearTimeout(page_count_timer)
-    }
-    page_count_timer = setTimeout(reset_binding_if_invalid, 700)
 })
 
 

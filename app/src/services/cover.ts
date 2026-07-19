@@ -14,6 +14,7 @@ import {PDFDocument} from 'pdf-lib'
 
 import {firebase_storage} from '@/services/firebase'
 import {ASSETS_PREFIX} from '@/services/typst'
+import {page_count_guess} from '@/services/state'
 import {user} from '@/services/auth'
 import {content} from '@/services/content'
 import {custom_fonts} from '@/services/custom_fonts'
@@ -174,11 +175,13 @@ export async function upload_cover_bg(bytes:Uint8Array, mime:string)
 // individual panels too (cheap CropBox post-process, not a second compile), so one render serves
 // both the full cover (Print preview, stored versions) and the front/back-only pages (Reading
 // preview, which never shows the spine as its own page).
+// `page_count` drives the spine width for real printing services — the interior PDF's actual
+// count at version creation, the shared estimate during preview (see state.ts).
 // `fonts` supplies a version's snapshotted custom fonts when regenerating (the live library
 // is used otherwise, mirroring compile_and_upload in versions.ts)
 let render_cache:{key:string, result:CoverRenderResult}|null = null
 
-async function render_cover(blueprint:Blueprint, fonts?:CustomFont[])
+async function render_cover(blueprint:Blueprint, page_count:number, fonts?:CustomFont[])
         :Promise<CoverRenderResult> {
     const cover = blueprint.cover
     if (!cover){
@@ -188,7 +191,7 @@ async function render_cover(blueprint:Blueprint, fonts?:CustomFont[])
         .filter(font => cover.font_families.includes(font.family))
     const fonts_key = (fonts ? 'snapshot:' : 'library:')
         + cover_fonts.map(font => font.family).join(',')
-    const key = cover_render_key(cover, blueprint) + '|' + fonts_key
+    const key = cover_render_key(cover, blueprint, page_count) + '|' + fonts_key
     if (render_cache?.key === key){
         return render_cache.result
     }
@@ -209,7 +212,7 @@ async function render_cover(blueprint:Blueprint, fonts?:CustomFont[])
     // clone rejects Proxy objects outright, so the worker call must get plain data only
     const result = await client.send({
         action: 'generate',
-        form: cloneDeep(cover_form_for_render(cover, blueprint)),
+        form: cloneDeep(cover_form_for_render(cover, blueprint, page_count)),
         image,
     }) as CoverRenderResult
     render_cache = {key, result}
@@ -219,17 +222,17 @@ async function render_cover(blueprint:Blueprint, fonts?:CustomFont[])
 
 // The full wraparound cover PDF (front + spine + back as one page) — used for the Print
 // preview and as the stored version's cover.pdf
-export async function render_cover_pdf(blueprint:Blueprint, fonts?:CustomFont[])
-        :Promise<Uint8Array> {
-    return (await render_cover(blueprint, fonts)).data
+export async function render_cover_pdf(blueprint:Blueprint, page_count:number,
+        fonts?:CustomFont[]):Promise<Uint8Array> {
+    return (await render_cover(blueprint, page_count, fonts)).data
 }
 
 
 // The cover's front and back panels only, each already cropped to its own page — used for the
 // Reading preview, which simulates opening the book and never shows the spine as a page
-export async function render_cover_pages(blueprint:Blueprint, fonts?:CustomFont[])
-        :Promise<{front:Uint8Array, back:Uint8Array}> {
-    const {front, back} = await render_cover(blueprint, fonts)
+export async function render_cover_pages(blueprint:Blueprint, page_count:number,
+        fonts?:CustomFont[]):Promise<{front:Uint8Array, back:Uint8Array}> {
+    const {front, back} = await render_cover(blueprint, page_count, fonts)
     return {front, back}
 }
 
@@ -261,9 +264,11 @@ export function default_cover_preset(blueprint:Blueprint):Record<string, unknown
     form['blurb'] = {type: 'doc', content: [{type: 'paragraph', content: [
         {type: 'text', text: "Created with paper.bible"}]}]}
 
-    // Size fields always mirror the blueprint (the widget's size UI is hidden when embedded)
+    // Size fields always mirror the blueprint (the widget's size UI is hidden when embedded),
+    // with the current page-count guess standing in for the not-yet-compiled interior
     return cover_form_for_render(
-        {form, bg_image_path: null, bg_image_hash: null, font_families: []}, blueprint)
+        {form, bg_image_path: null, bg_image_hash: null, font_families: []}, blueprint,
+        page_count_guess())
 }
 
 

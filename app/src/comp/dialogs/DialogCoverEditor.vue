@@ -21,7 +21,7 @@ import {ref, toRaw, watch} from 'vue'
 import {useI18n} from 'vue-i18n'
 
 import AppIcon from '@/comp/global/AppIcon.vue'
-import {blue, state} from '@/services/state'
+import {blue, state, page_count_guess} from '@/services/state'
 import {COVER_EDITOR_URL, COVER_EDITOR_ORIGIN, default_cover_preset, load_cover_bg,
     upload_cover_bg, hash_bytes, cover_font_families} from '@/services/cover'
 import {custom_fonts, add_custom_fonts} from '@/services/custom_fonts'
@@ -50,10 +50,13 @@ const send_init = async () => {
         return
     }
 
-    // Preset from the stored cover form (with the blueprint's current size fields overlaid)
-    // or the defaults for a brand new cover (book title, book icon, credit blurb)
+    // Preset from the stored cover form (with the blueprint's current size fields and the
+    // estimated page count overlaid) or the defaults for a brand new cover (book title, book
+    // icon, credit blurb)
     const cover = blue.cover
-    const preset = cover ? cover_form_for_render(cover, blue) : default_cover_preset(blue)
+    const preset = cover
+        ? cover_form_for_render(cover, blue, page_count_guess())
+        : default_cover_preset(blue)
 
     // Restore the stored bg image as a File beside the pure-JSON preset
     let bg_image:File|null = null
