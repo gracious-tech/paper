@@ -3,16 +3,16 @@
     "exclude": ["**/node_modules"],
     "compilerOptions": {
         "module": "ESNext",
-        "moduleResolution": "Node",
+        "moduleResolution": "Bundler",
         "target": "ESNext",
         "lib": ["DOM", "DOM.Iterable", "ESNext"],  // Can polyfill if needed since an end-user app
-        "baseUrl": ".",
-        "paths": {"@/*": ["src/*"]},
+        "paths": {"@/*": ["./src/*"]},
         "types": ["vite/client", "vite-svg-loader"],
 
         // Config
         "resolveJsonModule": true,  // Import JSON as objects
         "jsx": "preserve",  // Volar needs for typechecking pug templates (for some reason)
+        "skipLibCheck": true,  // TS 6 breaks vuetify's bundled .d.ts (GlobalComponents generic)
 
         // Strict checking
         "strict": true,
@@ -28,7 +28,7 @@
     },
     "vueCompilerOptions": {
         "plugins": [
-            "@volar/vue-language-plugin-pug"
+            "@vue/language-plugin-pug"
         ]
     }
 }

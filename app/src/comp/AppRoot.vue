@@ -42,6 +42,7 @@ DialogAccount(v-model='show_account')
 DialogConfirm
 DialogPrompt
 DialogCoverEditor
+DialogNewDesign
 
 v-snackbar(:model-value='!!state.toast' @update:model-value='state.toast = null' timeout='2500')
     | {{ state.toast }}
@@ -61,6 +62,7 @@ import DialogAccount from '@/comp/dialogs/DialogAccount.vue'
 import DialogConfirm from '@/comp/dialogs/DialogConfirm.vue'
 import DialogPrompt from '@/comp/dialogs/DialogPrompt.vue'
 import DialogCoverEditor from '@/comp/dialogs/DialogCoverEditor.vue'
+import DialogNewDesign from '@/comp/dialogs/DialogNewDesign.vue'
 import DisplaySplash from '@/comp/display/DisplaySplash.vue'
 import DisplayPreview from '@/comp/display/DisplayPreview.vue'
 import DisplayDesignVersion from '@/comp/display/DisplayDesignVersion.vue'

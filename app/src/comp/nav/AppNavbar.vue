@@ -21,7 +21,8 @@ nav.navbar
 import {computed} from 'vue'
 import {useRoute, useRouter} from 'vue-router'
 
-import {designs, create_design} from '@/services/designs'
+import {designs} from '@/services/designs'
+import {state} from '@/services/state'
 
 
 const route = useRoute()
@@ -49,9 +50,9 @@ const view_all = () => {
     void router.push({name: 'designs'})
 }
 
-const create = async () => {
-    const id = await create_design()
-    await router.push({name: 'design', params: {id}})
+const create = () => {
+    // Open the new-design wizard (it creates the design and routes to it itself on finish)
+    state.new_design = true
 }
 
 </script>

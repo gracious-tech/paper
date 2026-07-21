@@ -28,6 +28,7 @@ import {custom_fonts, add_custom_fonts} from '@/services/custom_fonts'
 import {report_error} from '@/services/errors'
 import {cover_form_for_render} from 'paper-bible-typst'
 
+import type {EmbedFormState} from 'bookcover-core'
 import type {InitMessage, WidgetMessage} from 'bookcover-web'
 
 
@@ -70,7 +71,7 @@ const send_init = async () => {
     const message:InitMessage = {
         type: 'init',
         // JSON round-trip so no Vue reactive proxies reach structured clone
-        preset: JSON.parse(JSON.stringify(preset)) as InitMessage['preset'],
+        preset: JSON.parse(JSON.stringify(preset)) as Partial<EmbedFormState>,
         bg_image,
         // The user's whole font library, so cover fonts match what the book can use
         custom_fonts: [...toRaw(custom_fonts)],

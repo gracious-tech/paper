@@ -3,16 +3,18 @@
     "devDependencies": {
         "@material-symbols/svg-400": "^0.8.1",
         "@types/lodash-es": "^4.17.8",
+        "@types/papaparse": "^5.5.2",
         "@types/pug": "^2.0.6",
         "@vitejs/plugin-vue": "^6.0.7",
-        "@volar/vue-language-plugin-pug": "^1.6.5",
+        "@vue/language-plugin-pug": "^3.3.7",
         "pug": "^3.0.2",
         "sass": "^1.63.4",
         "undici": "^7.16.0",
         "vite": "^8.1.0",
         "vite-plugin-vuetify": "^2.1.3",
         "vite-svg-loader": "^5.1.1",
-        "vue": "^3.3.4"
+        "vue": "^3.3.4",
+        "vue-tsc": "^3.3.7"
     },
     "dependencies": {
         "@gracious.tech/bible-references": "^1.2.1",
@@ -30,6 +32,7 @@
         "core-js": "^3.40.0",
         "firebase": "^12.16.0",
         "lodash-es": "^4.17.21",
+        "papaparse": "^5.5.4",
         "paper-bible-typst": "file:../typst",
         "paper-bible-typst-web": "file:../typst-web",
         "pdf-lib": "^1.17.1",

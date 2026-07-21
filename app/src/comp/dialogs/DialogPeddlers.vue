@@ -16,7 +16,7 @@ v-dialog(v-model='dialog' activator='parent' max-width='800')
 
 <script lang='ts' setup>
 
-import {computed, ref} from 'vue'
+import {ref} from 'vue'
 
 
 const dialog = ref(false)

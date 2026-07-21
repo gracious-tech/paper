@@ -236,7 +236,7 @@ async function compile(){
         }
 
         // Swap in the new PDF and revoke the previous object URL
-        const url = URL.createObjectURL(new Blob([bytes], {type: 'application/pdf'}))
+        const url = URL.createObjectURL(new Blob([new Uint8Array(bytes)], {type: 'application/pdf'}))
         if (pdf_url.value){
             URL.revokeObjectURL(pdf_url.value)
         }

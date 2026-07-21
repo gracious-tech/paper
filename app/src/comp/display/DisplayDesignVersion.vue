@@ -48,7 +48,7 @@ const {t} = useI18n()
 
 
 const time_since_request = ref('')
-let timer_interval:number|null = null
+let timer_interval:ReturnType<typeof setInterval>|null = null
 
 
 const status = computed(() => {

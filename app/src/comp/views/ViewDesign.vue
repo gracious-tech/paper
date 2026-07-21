@@ -47,8 +47,8 @@ const router = useRouter()
 const {t} = useI18n()
 
 
-const id = computed(() => route.params.id as string)
-const version_param = computed(() => route.params.version as string|undefined)
+const id = computed(() => route.params['id'] as string)
+const version_param = computed(() => route.params['version'] as string|undefined)
 
 
 // Whether this view has finished resolving whether `id` is ours (editor access) or someone
@@ -120,11 +120,6 @@ watch(current_design_id, new_id => {
     if (new_id && new_id !== id.value){
         void router.replace({name: 'design', params: {id: new_id}})
     }
-})
-
-
-const design_name = computed(() => {
-    return designs.find(item => item.id === id.value)?.name || t("Unnamed design")
 })
 
 

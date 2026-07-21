@@ -7,7 +7,6 @@ import type {BindingTypeId} from 'printing-services'
 
 import {content} from '@/services/content'
 import {blue} from '@/services/state'
-import {generate_token} from '@/services/utils'
 
 import type {Blueprint, ContentItem, ContentPassage} from '@/services/types'
 
@@ -37,39 +36,7 @@ export function get_default_blueprint():Blueprint{
         booklet_portrait: false,
 
         // Content
-        content: [
-            {
-                type: 'title',
-                id: generate_token(),
-                title: "Titus",
-                subtitle: "",
-                icon: 'game-icons:tied-scroll',
-                icon_size: 1,
-                pattern: 'straight',
-                color_primary: null,
-                color_secondary: null,
-                alone: true,
-            },
-            {
-                type: 'passage',
-                id: generate_token(),
-                book: 'tit',
-                start_chapter: null,
-                start_verse: null,
-                end_chapter: null,
-                end_verse: null,
-                title: false,
-            },
-            {
-                type: 'custom',
-                id: generate_token(),
-                name: "Copyright",
-                doc: {type: 'doc', content: [
-                    {type: 'paragraph', content: [{type: 'text', text: 'AUTO-COPYRIGHT'}]},
-                ]},
-                position: 'bottom',
-            },
-        ],
+        content: [],
         bibles: [content.collection.get_preferred_resource().id],
         bibles_layout: 'columns',
         bibles_align: 'paragraph',

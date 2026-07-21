@@ -35,6 +35,9 @@ export const state = reactive({
     // Whether the embedded cover editor (cover.paper.bible iframe) is open as a full-window
     // overlay — set by OptionsCover, rendered by DialogCoverEditor (mounted in AppRoot)
     cover_editor: false,
+    // Whether the new-design wizard dialog is open — set by AppNavbar's "New" button and by
+    // DisplaySplash for brand-new users, rendered by DialogNewDesign (mounted in AppRoot)
+    new_design: false,
     // Message for a brief snackbar toast (e.g. link copied confirmation), null when hidden
     toast: null as string|null,
     // Pending confirm-dialog request, rendered by DialogConfirm — null hides it (see confirm_dialog())

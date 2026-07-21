@@ -32,8 +32,8 @@ template(v-else)
             | {{ sheets_warning.text }}
 
     v-list(bg-color='transparent' class='flex-grow-1')
-        DesignVersionItem(:version='versions[0]' :design_id='design_id' :is_latest='true'
-            :editable='editable' class='latest_version')
+        DesignVersionItem(v-if='latest_version' :version='latest_version' :design_id='design_id'
+            :is_latest='true' :editable='editable' class='latest_version')
         div.after_latest
             v-chip(v-if='editable && design_needs_editor' size='small' variant='flat'
                     color='warning'

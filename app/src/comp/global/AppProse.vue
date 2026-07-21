@@ -15,7 +15,7 @@ div(class='prose d-flex flex-column')
                 component(:is='btn.icon' class='btn-icon')
 
     //- The editable content area
-    editor-content(:editor='editor' class='content flex-grow-1')
+    editor-content(v-if='editor' :editor='editor' class='content flex-grow-1')
 
 </template>
 

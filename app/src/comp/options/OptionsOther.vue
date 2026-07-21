@@ -8,7 +8,7 @@ p(class='text-body-2 text-medium-emphasis') {{$t("It's recommended to leave this
 
 v-checkbox(v-model='blue.app_link' :label='$t(`Include "Created with /paper.bible/"`)' class='mt-4')
 
-v-switch(v-model='blue.booklet_portrait' color='primary' :label='$t(`My printer doesn\'t allow "flip on short edge"`)' class='mt-4' :disabled='!blue.booklet')
+v-switch(v-model='blue.booklet_portrait' color='primary' :label="$t(`My printer doesn't allow \"flip on short edge\"`)" class='mt-4' :disabled='!blue.booklet')
 
 p(class='text-body-2 text-medium-emphasis') {{$t("If your printer can only flip on long edge (which is the default for double-sided portrait documents) then this setting will output a portrait PDF with alternating rotation which will look correct once printed double-sided.")}}
 

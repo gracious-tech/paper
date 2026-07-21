@@ -29,6 +29,16 @@ export default defineConfig(({mode}) => {
         },
         css: {
             devSourcemap: true,  // Include source map when injecting CSS in JS
+            preprocessorOptions: {
+                sass: {
+                    // Shared-assets base URL for stylesheets (fonts etc) — same dev/prod
+                    // switch as ASSETS_PREFIX in services/typst.ts, but Sass can't read
+                    // import.meta.env so it's injected as a variable here instead
+                    additionalData: `$assets_prefix: "${mode === 'development'
+                        ? 'http://localhost:5301/generator_assets/'
+                        : 'https://assets.paper.bible/'}"\n`,
+                },
+            },
         },
         server: {
             fs: {

@@ -30,6 +30,10 @@ export interface CoverRenderResult {
 // Every request carries an id, echoed back in the matching response
 export type CoverWorkerRequest = CoverWorkerAction & {id:number}
 
+// Plain `Omit` collapses a discriminated union to its common keys only (dropping the
+// action-specific fields) — this distributes it over each union member instead
+export type DistributiveOmit<T, K extends keyof any> = T extends unknown ? Omit<T, K> : never
+
 // Final response to a request: render result for generate, null for init/set_custom_fonts
 export type CoverWorkerResponse =
     | {id:number, ok:true, result:CoverRenderResult|null}
@@ -75,8 +79,8 @@ async function handle_action(message:CoverWorkerRequest):Promise<CoverRenderResu
     const image = message.image
         ? new Blob([message.image.data as unknown as BlobPart], {type: message.image.type})
         : undefined
-    const result = await generator.generate({schema, image, format: 'pdf', split: true,
-        custom_fonts: custom_fonts.flatMap(font => font.files)})
+    const result = await generator.generate({schema, ...image && {image}, format: 'pdf',
+        split: true, custom_fonts: custom_fonts.flatMap(font => font.files)})
     const split = result.split as {front:Uint8Array, back:Uint8Array}
     return {data: result.data as Uint8Array, front: split.front, back: split.back}
 }

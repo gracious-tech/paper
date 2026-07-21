@@ -149,20 +149,20 @@ const size_select_items = computed(() => [
 const binding_items = computed(() =>
     service.value?.get_binding_types({
         all: true,
-        size: (blue.size_id || undefined) as SizeId|undefined,
+        ...blue.size_id && {size: blue.size_id as SizeId},
     }).map(b => ({title: b.name, value: b.id, props: {disabled: !b.valid}})) ?? [])
 
 const ink_items = computed(() =>
     service.value?.get_ink_types({
         all: true,
-        binding_type: (blue.binding_type || undefined) as BindingTypeId|undefined,
+        ...blue.binding_type && {binding_type: blue.binding_type as BindingTypeId},
     }).map(i => ({title: i.name, value: i.id, props: {disabled: !i.valid}})) ?? [])
 
 const paper_items = computed(() =>
     service.value?.get_paper_types({
         all: true,
-        binding_type: (blue.binding_type || undefined) as BindingTypeId|undefined,
-        ink_type: (blue.ink_type || undefined) as InkTypeId|undefined,
+        ...blue.binding_type && {binding_type: blue.binding_type as BindingTypeId},
+        ...blue.ink_type && {ink_type: blue.ink_type as InkTypeId},
     }).map(p => ({title: p.name, value: p.id, props: {disabled: !p.valid}})) ?? [])
 
 

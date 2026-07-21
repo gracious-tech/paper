@@ -8,7 +8,7 @@ import {PassageReference} from '@gracious.tech/fetch-client'
 import {cloneDeep} from 'lodash-es'
 import {toRaw} from 'vue'
 import {ref as storage_ref, uploadBytes, getBytes} from 'firebase/storage'
-import {make_blank_form_values} from 'bookcover-core'
+import {make_blank_form_values, list_patterns} from 'bookcover-core'
 import {cover_form_for_render, cover_render_key} from 'paper-bible-typst'
 import {PDFDocument} from 'pdf-lib'
 
@@ -23,7 +23,8 @@ import {get_passages} from '@/services/blueprints'
 
 import type {CustomFont} from 'typst-fonts'
 import type {Blueprint, CoverConfig} from '@/services/types'
-import type {CoverWorkerRequest, CoverWorkerResponse, CoverRenderResult} from './cover_worker'
+import type {CoverWorkerRequest, CoverWorkerResponse, CoverRenderResult, DistributiveOmit}
+    from './cover_worker'
 
 
 // The embedded cover editor (the bookcover widget) — a separate deployment/origin
@@ -83,7 +84,7 @@ class CoverWorkerClient {
     }
 
     // Post one request to the worker and await its matching result
-    send(action:Omit<CoverWorkerRequest, 'id'>):Promise<CoverRenderResult|null> {
+    send(action:DistributiveOmit<CoverWorkerRequest, 'id'>):Promise<CoverRenderResult|null> {
         const id = this.next_id++
         return new Promise((resolve, reject) => {
             this.pending.set(id, {resolve, reject})
@@ -269,6 +270,28 @@ export function default_cover_preset(blueprint:Blueprint):Record<string, unknown
     return cover_form_for_render(
         {form, bg_image_path: null, bg_image_hash: null, font_families: []}, blueprint,
         page_count_guess())
+}
+
+
+// Seed a cover config for the new-design wizard's Photo / Pattern / Icon presets — a complete
+// form the user refines later in the cover widget (DialogCoverEditor round-trips cover.form
+// through cover_form_for_render on open, so any full form shape here reopens cleanly there)
+export function seed_cover_preset(kind:'photo'|'pattern'|'icon', blueprint:Blueprint)
+        :CoverConfig{
+
+    // Base: blank values plus the title from the first passage, its book's icon and a credit
+    // blurb (icon preset uses this as-is)
+    const form = default_cover_preset(blueprint)
+    if (kind === 'pattern'){
+        // Swap the icon for a default pattern (first of bookcover's built-ins)
+        form['icon_id'] = null
+        form['pattern_id'] = list_patterns()[0]!.id
+    } else if (kind === 'photo'){
+        // Full-spread photo mode without an image yet — the widget's upload flow fills it in
+        form['icon_id'] = null
+        form['bg_image_coverage'] = 'full'
+    }
+    return {form, bg_image_path: null, bg_image_hash: null, font_families: []}
 }
 
 

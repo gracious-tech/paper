@@ -10,7 +10,7 @@ import {firestore} from '@/services/firebase'
 import {api} from '@/services/api'
 import {user} from '@/services/auth'
 import {blue, state} from '@/services/state'
-import {clean_blueprint, gen_content_name} from '@/services/blueprints'
+import {clean_blueprint, gen_content_name, get_default_blueprint} from '@/services/blueprints'
 import {generate_token} from '@/services/utils'
 import {report_error} from '@/services/errors'
 
@@ -434,9 +434,12 @@ export async function init_designs(open_id:string|null = null):Promise<void>{
     // provoking a Firestore permission-denied error for what's actually a normal, expected case
     const existing = await getDocs(designs_query)
     if (existing.empty){
-        // No designs yet means this is a brand new user — show the welcome splash
+        // No designs yet means this is a brand new user — populate `blue` locally (never
+        // persisted; flush_changes can't write while no design is open) so boot-time watchers
+        // that dereference it stay safe, and show the welcome splash, which routes them into
+        // the new-design wizard rather than silently creating a design they never chose
+        Object.assign(blue, get_default_blueprint())
         state.splash = true
-        await create_design()
     } else if (open_id && existing.docs.some(item => item.id === open_id)){
         await open_design(open_id)
     } else {

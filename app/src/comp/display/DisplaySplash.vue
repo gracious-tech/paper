@@ -19,14 +19,25 @@ div.cont
 
 <script lang='ts' setup>
 
+import {useRouter} from 'vue-router'
+
 import BrandIcon from '@/assets/icon.svg?component'
 import {state} from '@/services/state'
+import {designs} from '@/services/designs'
+
+
+const router = useRouter()
 
 
 // Dismiss the splash, revealing whatever route the app already booted into (e.g. a shared
-// design/invite link the user arrived with) rather than redirecting away from it
+// design/invite link the user arrived with) rather than redirecting away from it. Brand-new
+// users who arrived at the app itself (no designs, plain /designs route) go straight into the
+// new-design wizard for their first design
 const start = () => {
     state.splash = false
+    if (!designs.length && router.currentRoute.value.name === 'designs'){
+        state.new_design = true
+    }
 }
 
 

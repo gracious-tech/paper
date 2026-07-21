@@ -1,29 +1,30 @@
 
 // Crimson Pro is the app's own UI font (not Bible content) — self-hosted from the curated
-// fonts bucket (see assets/fonts/, .bin/deploy_fonts) rather than Google Fonts
+// fonts bucket rather than Google Fonts. $assets_prefix is injected by vite.config.ts and
+// points at the local bookcover dev server in dev, the prod assets bucket otherwise
 @font-face
     font-family: 'Crimson Pro'
     font-style: normal
     font-weight: 400
-    src: url('https://assets.paper.bible/fonts/Crimson%20Pro/CrimsonPro-Regular.ttf')
+    src: url('#{$assets_prefix}fonts/Crimson%20Pro/CrimsonPro-Regular.ttf')
 
 @font-face
     font-family: 'Crimson Pro'
     font-style: normal
     font-weight: 700
-    src: url('https://assets.paper.bible/fonts/Crimson%20Pro/CrimsonPro-Bold.ttf')
+    src: url('#{$assets_prefix}fonts/Crimson%20Pro/CrimsonPro-Bold.ttf')
 
 @font-face
     font-family: 'Crimson Pro'
     font-style: italic
     font-weight: 400
-    src: url('https://assets.paper.bible/fonts/Crimson%20Pro/CrimsonPro-Italic.ttf')
+    src: url('#{$assets_prefix}fonts/Crimson%20Pro/CrimsonPro-Italic.ttf')
 
 @font-face
     font-family: 'Crimson Pro'
     font-style: italic
     font-weight: 700
-    src: url('https://assets.paper.bible/fonts/Crimson%20Pro/CrimsonPro-BoldItalic.ttf')
+    src: url('#{$assets_prefix}fonts/Crimson%20Pro/CrimsonPro-BoldItalic.ttf')
 
 
 html
