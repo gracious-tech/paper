@@ -37,6 +37,7 @@ import {PassageReference} from '@gracious.tech/fetch-client'
 import {blue, state} from '@/services/state'
 import {content} from '@/services/content'
 import {generate_token} from '@/services/utils'
+import {book_icon} from '@/services/icons'
 import IconField from '@/comp/editors/assets/IconField.vue'
 
 import type {ContentPassage} from '@/services/types'
@@ -120,6 +121,10 @@ watch(tmp_ref, () => {
     const reference = content.collection.reference_to_string(ref_obj, blue.bibles[0])
     if (!item && !tmp_title.value){
         tmp_title.value = reference
+    }
+    // Default the title icon to the passage's book icon, until the user picks their own
+    if (!item && !tmp_title_icon.value){
+        tmp_title_icon.value = book_icon[ref_obj.book] ?? null
     }
 
     // If this is a new content item, need to create

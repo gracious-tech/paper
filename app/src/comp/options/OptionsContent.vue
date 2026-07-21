@@ -32,16 +32,13 @@ div.warnings(v-if='warnings' class='mt-4 text-body-2')
 
 import {reactive, computed} from 'vue'
 import {useI18n} from 'vue-i18n'
-import {PassageReference} from '@gracious.tech/fetch-client'
 import Draggable from 'vuedraggable'
 
 import {blue, state, has_copyright, requires_copyright} from '@/services/state'
 import {gen_content_name} from '@/services/blueprints'
-import {content} from '@/services/content'
 import {generate_token} from '@/services/utils'
-import {book_icon} from '@/services/icons'
 
-import type {ContentItem, ContentPassage, ContentTitle} from '@/services/types'
+import type {ContentItem, ContentTitle} from '@/services/types'
 
 
 const {t} = useI18n()
@@ -90,28 +87,14 @@ const add_custom = () => {
 
 
 const add_title = () => {
-
-    const passage = blue.content.find(item => item.type === 'passage') as ContentPassage|undefined
-
-    // Auto-set title to first passage discovered if any
-    let default_title = ''
-    if (passage){
-        default_title = content.collection.reference_to_string(
-            new PassageReference(passage), blue.bibles[0])
-    }
-
     const new_title:ContentTitle = reactive({
         id: generate_token(),
         type: 'title',
-        title: default_title,
+        title: '',
         title_subtitle: "",
-        title_icon: passage ? book_icon[passage.book]! : 'mdi:cross',
+        title_icon: null,
     })
-    if (passage){
-        blue.content.unshift(new_title)
-    } else {
-        blue.content.push(new_title)
-    }
+    blue.content.push(new_title)
     state.editor = {
         component: 'EditorTitle',
         props: {
