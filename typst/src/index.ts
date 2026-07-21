@@ -49,6 +49,7 @@ export type {
     TypstRequest,
     PageConfig,
     TypographyConfig,
+    TitlepageConfig,
     FeatureConfig,
     TypstContentItem,
     TypstPassage,

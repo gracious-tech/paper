@@ -17,15 +17,20 @@ export function gen_passage(
 ):string {
     const parts:string[] = []
 
-    // Optional passage title. On a 2-column page it floats at the parent (page) scope so it
-    // spans the full width above both columns — a plain block would sit inside the first column
+    // Optional passage title + subtitle (no icon — that's only for full title pages). On a
+    // 2-column page it floats at the parent (page) scope so it spans the full width above both
+    // columns — a plain block would sit inside the first column
     if (passage.passage_title) {
         const title = `text(weight: "bold", size: 1.2em,
             [${escape_typst(passage.passage_title)}])`
+        const block = passage.passage_subtitle
+            ? `stack(spacing: 0.3em, align(center, ${title}),
+                align(center, text(size: 1em, [${escape_typst(passage.passage_subtitle)}])))`
+            : `align(center, ${title})`
         if (passage_columns(passage) === 2) {
-            parts.push(`#place(top + center, scope: "parent", float: true, ${title})`)
+            parts.push(`#place(top + center, scope: "parent", float: true, ${block})`)
         } else {
-            parts.push(`#align(center, ${title})`)
+            parts.push(`#${block}`)
         }
         parts.push('')
     }
@@ -57,13 +62,18 @@ export function gen_passage_facing(
 ):string {
     const parts:string[] = []
 
-    // The passage title repeats on both halves, since each becomes its own physical page
+    // The passage title (+ optional subtitle) repeats on both halves, since each becomes its
+    // own physical page
     if (passage.passage_title) {
         const title = `align(center, text(weight: "bold", size: 1.2em,
             [${escape_typst(passage.passage_title)}]))`
+        const subtitle = passage.passage_subtitle
+            ? `align(center, text(size: 1em, [${escape_typst(passage.passage_subtitle)}]))`
+            : null
+        const block = subtitle ? `stack(spacing: 0.3em, ${title}, ${subtitle})` : title
         parts.push(`#grid(columns: (1fr, 1fr), column-gutter: ${gutter},
-    ${title},
-    ${title})`)
+    ${block},
+    ${block})`)
         parts.push('')
     }
 

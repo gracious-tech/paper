@@ -8,7 +8,7 @@ import {PDFDocument, PDFDict, PDFName, PDFRawStream, PDFRef} from 'pdf-lib'
 
 import {compile_pdf, compile_pdf_spread_preview, generate_typst} from '../src/index.js'
 
-import type {TypstRequest, PageConfig, TypographyConfig} from 'paper-bible-typst'
+import type {TypstRequest, PageConfig, TypographyConfig, TitlepageConfig} from 'paper-bible-typst'
 import type {CustomFont} from '../src/index.js'
 
 
@@ -32,7 +32,15 @@ const TEST_TYPOGRAPHY:TypographyConfig = {
     text_color: null,
     font_headings: 'serif',
     font_headings2: 'serif',
-    font_titles: 'serif',
+}
+
+const TEST_TITLEPAGE:TitlepageConfig = {
+    font: 'serif',
+    frame_svg: null,
+    color_text: '#333333',
+    color_frame: '#666666',
+    icon_size: 1,
+    always: null,
 }
 
 // Helper to make a minimal request
@@ -41,6 +49,7 @@ function make_request(overrides:Partial<TypstRequest> = {}):TypstRequest {
         title: 'Test Bible',
         page: TEST_PAGE,
         typography: TEST_TYPOGRAPHY,
+        titlepage: TEST_TITLEPAGE,
         features: {
             show_chapters: false,
             show_chapters_style: 'divider',
@@ -65,7 +74,7 @@ function make_request(overrides:Partial<TypstRequest> = {}):TypstRequest {
             column_gap: '5mm',
             book: 'gen',
             passage_title: null,
-            alone: false,
+            passage_subtitle: null,
         }],
         arrangement: 'normal',
         show_pages: false,
@@ -114,10 +123,6 @@ describe('compile_pdf', () => {
                 title: 'Holy Bible',
                 subtitle: 'ESV',
                 icon: null,
-                pattern_svg: null,
-                color_primary: '#333333',
-                color_secondary: '#666666',
-                alone: false,
             }],
         }))
         const doc = await PDFDocument.load(result)
@@ -162,7 +167,7 @@ describe('compile_pdf', () => {
                     column_gap: '5mm',
                     book: 'gen',
                     passage_title: null,
-                    alone: false,
+                    passage_subtitle: null,
                 },
                 {
                     type: 'custom',
@@ -195,14 +200,14 @@ describe('compile_pdf', () => {
     }, 15000)
 
     it('deduplicates font subsets duplicated by multi-compile assembly', async () => {
-        // A booklet compiles each alone-passage separately, then merges and imposes with
+        // A booklet compiles each content item separately, then merges and imposes with
         // pdf-lib — which re-copies each compile's font subsets for every page copy/embed.
         // Two identical passages produce byte-identical subsets, so after optimize_pdf the
         // document must hold exactly one font program stream, shared by all descriptors
         const passage = make_request().content[0]!
         const result = await compile_pdf(make_request({
             arrangement: 'booklet',
-            content: [{...passage, alone: true}, {...passage, alone: true}],
+            content: [passage, passage],
         }))
         const doc = await PDFDocument.load(result)
 
@@ -300,7 +305,7 @@ describe('compile_pdf_spread_preview', () => {
         column_gap: '5mm',
         book: 'gen',
         passage_title: null,
-        alone: false,
+        passage_subtitle: null,
     }
 
     it('lays out spreads as 2-up landscape pages (twice the page width)', async () => {

@@ -125,7 +125,7 @@ export async function load_font_from_meta(meta:StoredFontMeta):Promise<CustomFon
 // version snapshots and server compiles carry everything both renders need)
 export function fonts_for_blueprint(blueprint:Blueprint):CustomFont[] {
     const wanted = new Set([blueprint.font_text, blueprint.font_text2,
-        blueprint.font_headings, blueprint.font_titles].filter(f => f !== null))
+        blueprint.font_headings, blueprint.titlepage_font].filter(f => f !== null))
     for (const family of blueprint.cover?.font_families ?? []){
         wanted.add(family)
     }

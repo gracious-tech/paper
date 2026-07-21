@@ -227,12 +227,22 @@ async function assemble_pages(
             continue
         }
 
-        // Titles never take page numbers; alone titles get an even-page start and a blank rear
-        const is_alone_title = item.type === 'title' && item.alone
+        // Titles never take page numbers. titlepage_always forces every title page to start on
+        // the given side — a blank is inserted first if the current page count doesn't already
+        // put the next page on that side. Nothing is padded after the item (that's the removed
+        // "ensure other side of page blank" behavior — only the start side is ever forced).
+        const title_always = item.type === 'title' ? request.titlepage.always : null
         const show_pages = request.show_pages && item.type !== 'title'
 
-        if (is_alone_title && booklike && final_doc.getPageCount() % 2 === 1) {
-            await add_blank()
+        if (title_always && booklike) {
+            // 0-indexed even page count so far -> next page lands recto/right (see the identical
+            // convention in process_faced's half_blank handling below)
+            const need_blank = title_always === 'right'
+                ? final_doc.getPageCount() % 2 === 1
+                : final_doc.getPageCount() % 2 === 0
+            if (need_blank) {
+                await add_blank()
+            }
         }
 
         // Compile the item as its own document. The start page keeps the page counter
@@ -257,10 +267,6 @@ async function assemble_pages(
         const page_limit = item.type === 'lines' ? 1 : item_doc.getPageCount()
         for (let p = 0; p < page_limit; p++) {
             await add_page(item_doc, p, show_pages)
-        }
-
-        if (is_alone_title && booklike && item_doc.getPageCount() % 2 !== 0) {
-            await add_blank()
         }
     }
 

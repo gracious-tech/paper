@@ -24,6 +24,12 @@ v-radio-group(v-model='half_blank' inline :label='$t("Keep a side blank for note
     v-radio(value='left' :label='$t("Left")')
     v-radio(value='right' :label='$t("Right")')
 
+v-radio-group(v-model='passage_title' inline
+        :label='$t("Passage titles")' class='my-6')
+    v-radio(value='null' :label='$t("None")')
+    v-radio(value='heading' :label='$t("Show as heading")')
+    v-radio(value='titlepage' :label='$t("Show as title page")')
+
 div(class='d-flex align-center ml-2')
     span(class='mr-4 text-medium-emphasis') {{ $t("Margins") }}
 
@@ -67,6 +73,15 @@ const half_blank = computed({
     get: () => String(blue.half_blank),
     set: value => {
         blue.half_blank = value === 'null' ? null : (value as 'left'|'right')
+    },
+})
+
+
+// Wrap passage_title so the radio group can use string values (null isn't a valid radio value)
+const passage_title = computed({
+    get: () => String(blue.passage_title),
+    set: value => {
+        blue.passage_title = value === 'null' ? null : (value as 'titlepage'|'heading')
     },
 })
 

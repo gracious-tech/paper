@@ -104,13 +104,8 @@ const add_title = () => {
         id: generate_token(),
         type: 'title',
         title: default_title,
-        subtitle: "",
-        icon: passage ? book_icon[passage.book]! : 'mdi:cross',
-        icon_size: 1,
-        pattern: 'straight',
-        color_primary: null,
-        color_secondary: null,
-        alone: true,
+        title_subtitle: "",
+        title_icon: passage ? book_icon[passage.book]! : 'mdi:cross',
     })
     if (passage){
         blue.content.unshift(new_title)

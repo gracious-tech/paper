@@ -20,22 +20,24 @@ const pm_doc_schema = z.custom<PmDoc>(value => {
 })
 
 
-// Decorative title page item
+// Decorative title page item. Per-field .catch() (rather than the wholesale item-drop that a bad
+// field would otherwise trigger, see clean_content_items below) tolerates old saved designs that
+// predate this field shape — a title item with no title_subtitle/title_icon at all still loads
+// with sensible blanks instead of vanishing entirely
 const content_title_schema = z.object({
     type: z.literal('title'),
     id: z.string().min(1),
-    title: z.string(),
-    subtitle: z.string(),
-    icon: z.string().nullable(),
-    icon_size: z.number(),
-    pattern: z.string(),
-    color_primary: z.string().nullable(),
-    color_secondary: z.string().nullable(),
-    alone: z.boolean(),
+    title: z.string().catch(''),
+    title_subtitle: z.string().catch(''),
+    title_icon: z.string().nullable().catch(null),
 }) satisfies z.ZodType<ContentItem>
 
 
-// Bible passage reference item
+// Bible passage reference item. title/title_subtitle/title_icon use per-field .catch() for the
+// same reason as content_title_schema above — old saved designs have `title` as a boolean (the
+// pre-redesign "show heading" toggle) and no title_subtitle/title_icon at all; without .catch()
+// here, a type mismatch on any one field would drop the whole passage (book/chapters/verses
+// included), not just its title
 const content_passage_schema = z.object({
     type: z.literal('passage'),
     id: z.string().min(1),
@@ -44,7 +46,9 @@ const content_passage_schema = z.object({
     start_verse: z.number().nullable(),
     end_chapter: z.number().nullable(),
     end_verse: z.number().nullable(),
-    title: z.boolean(),
+    title: z.string().catch(''),
+    title_subtitle: z.string().catch(''),
+    title_icon: z.string().nullable().catch(null),
 }) satisfies z.ZodType<ContentItem>
 
 
@@ -143,17 +147,26 @@ export function make_blueprint_schema(defaults:Blueprint):z.ZodType<Blueprint>{
         notes: z.string().nullable().catch(defaults.notes),
         crossref: z.enum(['small', 'medium', 'large']).nullable().catch(defaults.crossref),
         half_blank: z.enum(['left', 'right']).nullable().catch(defaults.half_blank),
+        passage_title: z.enum(['titlepage', 'heading']).nullable().catch(defaults.passage_title),
 
         // Style
         font_text: z.string().catch(defaults.font_text),
         font_text2: z.string().nullable().catch(defaults.font_text2),
         font_headings: z.string().nullable().catch(defaults.font_headings),
-        font_titles: z.string().nullable().catch(defaults.font_titles),
         font_size: z.number().catch(defaults.font_size),
         line_height: z.number().catch(defaults.line_height),
         justify: z.boolean().nullable().catch(defaults.justify),
         text_color: z.string().nullable().catch(defaults.text_color),
         columns: z.boolean().nullable().catch(defaults.columns),
+
+        // Title pages
+        titlepage_frame: z.string().nullable().catch(defaults.titlepage_frame),
+        titlepage_color_text: z.string().nullable().catch(defaults.titlepage_color_text),
+        titlepage_color_icon: z.string().nullable().catch(defaults.titlepage_color_icon),
+        titlepage_color_frame: z.string().nullable().catch(defaults.titlepage_color_frame),
+        titlepage_font: z.string().nullable().catch(defaults.titlepage_font),
+        titlepage_icon_size: z.number().catch(defaults.titlepage_icon_size),
+        titlepage_always: z.enum(['left', 'right']).nullable().catch(defaults.titlepage_always),
 
         // Spacing
         margin_unit: z.enum(['mm', 'in']).catch(defaults.margin_unit),

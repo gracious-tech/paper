@@ -228,6 +228,24 @@ describe('gen_passage', () => {
             const result = call(make_passage({passage_title: null}))
             expect(result).not.toContain('#align(center, text(weight: "bold"')
         })
+
+        it('renders subtitle beneath title when provided', () => {
+            const result = call(make_passage({
+                passage_title: 'Genesis 1:1-31',
+                passage_subtitle: 'The Creation',
+            }))
+            expect(result).toContain('Genesis 1:1-31')
+            expect(result).toContain('The Creation')
+            expect(result).toContain('stack(spacing:')
+        })
+
+        it('omits subtitle stack when passage_subtitle is null', () => {
+            const result = call(make_passage({
+                passage_title: 'Genesis 1:1-31',
+                passage_subtitle: null,
+            }))
+            expect(result).not.toContain('stack(spacing:')
+        })
     })
 
     // --- Scoped block ---

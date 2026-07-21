@@ -1,6 +1,6 @@
 
 import type {
-    TypstRequest, PageConfig, TypographyConfig, FeatureConfig,
+    TypstRequest, PageConfig, TypographyConfig, TitlepageConfig, FeatureConfig,
     TypstPassage, TypstTitlePage, TypstCustomPage, TypstLinesPage,
 } from '../src/types.js'
 
@@ -22,12 +22,22 @@ export const TEST_TYPOGRAPHY:TypographyConfig = {
     font_text2: 'Crimson Pro',
     font_headings: 'Crimson Pro',
     font_headings2: 'Crimson Pro',
-    font_titles: 'Dancing Script',
     font_fallbacks: ['Georgia', 'serif'],
     font_size: '10pt',
     line_height: 1.75,
     justify: true,
     text_color: null,
+}
+
+
+// Reusable test title-page style config
+export const TEST_TITLEPAGE:TitlepageConfig = {
+    font: 'Dancing Script',
+    frame_svg: null,
+    color_text: '#333333',
+    color_frame: '#666666',
+    icon_size: 1,
+    always: null,
 }
 
 
@@ -61,8 +71,8 @@ export function make_passage(overrides:Partial<TypstPassage> = {}):TypstPassage 
         column_gap: '5mm',
         book: 'gen',
         passage_title: null,
+        passage_subtitle: null,
         progress_label: 'Genesis 1:1',
-        alone: false,
         ...overrides,
     }
 }
@@ -75,11 +85,6 @@ export function make_title(overrides:Partial<TypstTitlePage> = {}):TypstTitlePag
         title: 'Holy Bible',
         subtitle: 'New International Version',
         icon: null,
-        icon_size: 1,
-        pattern_svg: null,
-        color_primary: '#333333',
-        color_secondary: '#666666',
-        alone: true,
         ...overrides,
     }
 }
@@ -112,6 +117,7 @@ export function make_request(overrides:Partial<TypstRequest> = {}):TypstRequest 
         title: 'Test Bible',
         page: TEST_PAGE,
         typography: TEST_TYPOGRAPHY,
+        titlepage: TEST_TITLEPAGE,
         features: TEST_FEATURES,
         content: [make_passage()],
         arrangement: 'normal',

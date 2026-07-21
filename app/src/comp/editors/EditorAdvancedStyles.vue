@@ -28,10 +28,43 @@ v-card-text(class='overflow-y-auto')
     AppColor(v-model='blue.text_color' :label='$t("Color of text")')
     p(class='text-body-2 text-medium-emphasis mt-2') {{$t("It's not recommended to use this setting unless you have eyesight issues that require it.")}}
 
+    v-divider(class='my-8')
+
+    h3(class='text-h6 mb-4') {{$t("Title pages")}}
+    p(class='text-body-2 text-medium-emphasis mb-4') {{$t("Applies to every title page in the document.")}}
+
+    AppFontSelect(v-model='blue.titlepage_font' :label='$t("Font for title pages")' auto
+        example='title' class='mb-4')
+
+    div.patterns
+        div.none(@click='blue.titlepage_frame = null'
+            :class='{active: blue.titlepage_frame === null}') {{$t("None")}}
+        img(v-for='pattern of pattern_items' :src='pattern.src' @click='pattern.click'
+            :class='{active: blue.titlepage_frame === pattern.pattern}')
+
+    div(class='mb-4')
+        AppColor(v-model='blue.titlepage_color_text' :label='$t("Color of text")')
+    div(class='mb-4')
+        AppColor(v-model='blue.titlepage_color_icon' :label='$t("Color of icon")')
+    div(class='mb-4')
+        AppColor(v-model='blue.titlepage_color_frame' :label='$t("Color of frame")')
+
+    v-slider(v-model='blue.titlepage_icon_size' :label='$t("Icon size")' :min='0.4' :max='2'
+        :step='0.1' thumb-label class='my-4' color='')
+
+    v-radio-group(v-model='titlepage_always' inline
+            :label='$t("Always start title pages on")' class='my-6')
+        v-radio(value='null' :label='$t("Either side")')
+        v-radio(value='left' :label='$t("Left")')
+        v-radio(value='right' :label='$t("Right")')
+
 </template>
 
 
 <script lang='ts' setup>
+
+import {computed} from 'vue'
+import {PATTERNS as patterns} from 'paper-bible-typst'
 
 import {blue, state} from '@/services/state'
 
@@ -41,6 +74,27 @@ const done = () => {
     state.editor = null
 }
 
+
+// Corner-frame pattern swatches for the global title-page frame setting
+const pattern_items = Object.entries(patterns).map(([pattern, svg]) => {
+    return {
+        pattern,
+        src: `data:image/svg+xml,${encodeURIComponent(svg)}`,
+        click(){
+            blue.titlepage_frame = pattern
+        },
+    }
+})
+
+
+// Wrap titlepage_always so the radio group can use string values (null isn't a valid radio value)
+const titlepage_always = computed({
+    get: () => String(blue.titlepage_always),
+    set: value => {
+        blue.titlepage_always = value === 'null' ? null : (value as 'left'|'right')
+    },
+})
+
 </script>
 
 
@@ -48,5 +102,27 @@ const done = () => {
 
 .v-card-text
     padding-bottom: 30vh
+
+
+.patterns
+    display: flex
+    flex-wrap: wrap
+
+    img, .none
+        width: 90px
+        height: 90px
+        cursor: pointer
+        margin: 6px
+
+        &:hover
+            outline: 1px solid rgb(var(--v-theme-primary), 0.3)
+
+        &.active
+            outline: 2px solid rgb(var(--v-theme-secondary))
+
+    .none
+        display: inline-flex
+        justify-content: center
+        align-items: center
 
 </style>

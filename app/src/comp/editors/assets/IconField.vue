@@ -25,9 +25,11 @@ div.icon-field
                         :class='{active: icon === ic.id}' :title='ic.id' @click='select(ic.id)')
                         img(:src='ic.url' :alt='ic.id')
                     button.icon-more(type='button' @click.stop='help_open = true') {{$t("More")}}
-        //- Size multiplier — inline, only when an icon is selected and the popover is closed
-        v-slider.icon-size(v-if='icon && !picker_open' v-model='size' :min='0.4' :max='2'
-            :step='0.1' thumb-label color='' hide-details :aria-label='$t("Icon size")')
+        //- Size multiplier — inline, only when a caller binds a size model (some icons, e.g.
+        //- title-page icons, use a single global size setting instead of a per-icon one)
+        v-slider.icon-size(v-if='icon && !picker_open && size !== undefined' v-model='size'
+            :min='0.4' :max='2' :step='0.1' thumb-label color='' hide-details
+            :aria-label='$t("Icon size")')
             template(#thumb-label='{modelValue}')
                 | {{Number(modelValue).toFixed(1)}}x
         //- Clear button — only when an icon is selected and the popover is closed
@@ -47,9 +49,11 @@ import {biblical_icons} from '@/services/icons'
 import IconHelpDialog from '@/comp/editors/assets/IconHelpDialog.vue'
 
 
-// Two-way bindings: the chosen Iconify ID (or raw SVG) and its size multiplier
+// Two-way bindings: the chosen Iconify ID (or raw SVG) and its size multiplier. size is
+// optional — some callers (e.g. title-page icons) use a single global size setting instead of
+// binding a per-icon one, so the slider is simply omitted when no size model is provided
 const icon = defineModel<string|null>('icon', {required: true})
-const size = defineModel<number>('size', {required: true})
+const size = defineModel<number|undefined>('size', {required: false})
 
 
 // Build a preview URL for an Iconify ID (or a pasted raw SVG) via the Iconify SVG API

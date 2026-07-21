@@ -7,6 +7,7 @@ export interface TypstRequest {
     title:string
     page:PageConfig
     typography:TypographyConfig
+    titlepage:TitlepageConfig
     features:FeatureConfig
     content:TypstContentItem[]
     arrangement:'normal'|'book'|'booklet'
@@ -55,12 +56,24 @@ export interface TypographyConfig {
     // Heading font within the second translation's content — font_headings if the user chose
     // one explicitly (headings stay consistent across both translations), else font_text2
     font_headings2:string
-    font_titles:string      // Font for title-page title/subtitle text
     font_fallbacks:string[]
     font_size:string        // e.g. "10pt"
     line_height:number      // e.g. 1.75 — module converts to Typst leading
     justify:boolean|null    // null = auto (justify when width permits)
     text_color:string|null  // Hex color for all text; unset = no fill rule (Typst default)
+}
+
+
+// Global styling for every title page in the document (standalone title items and passages
+// auto-inserted via Blueprint.passage_title === 'titlepage' alike)
+export interface TitlepageConfig {
+    font:string                 // Resolved (blue.titlepage_font ?? blue.font_text)
+    frame_svg:string|null       // Resolved corner-pattern SVG (raw, "#000000" placeholder), or null
+    color_text:string           // Hex color for title/subtitle text
+    color_frame:string          // Hex color for the corner pattern
+    icon_size:number            // Size multiplier for the icon (1 = default)
+    // Force every title page to start on this side (null = no forcing)
+    always:'left'|'right'|null
 }
 
 
@@ -97,12 +110,12 @@ export interface TypstPassage {
     column_gap:string       // e.g. "5mm"
     // Book code for auto-column detection (e.g. "psa", "isa")
     book:string
-    // Optional passage reference displayed above content
+    // Optional passage title displayed above content ('heading' mode only — 'titlepage' mode is
+    // a separate synthetic TypstTitlePage item injected before this one, see bible_content.ts)
     passage_title:string|null
+    passage_subtitle:string|null
     // Passage reference for progress reporting only (always set, regardless of passage_title)
     progress_label:string
-    // Ensure this starts on its own sheet with blank rear
-    alone:boolean
 }
 
 
@@ -112,19 +125,13 @@ export interface BiblePassageData {
 }
 
 
-// Decorative title page
+// Decorative title page. Styling (frame/colors/font/icon size/page-side forcing) is document-wide
+// — see TitlepageConfig on TypstRequest — so this only carries the page's own text/icon content
 export interface TypstTitlePage {
     type:'title'
     title:string
     subtitle:string
     icon:string|null            // Resolved + recolored icon SVG (from an Iconify ID or raw SVG)
-    icon_size:number            // Size multiplier for the icon (1 = default)
-    // One corner SVG string — module mirrors to all 4 corners
-    pattern_svg:string|null
-    color_primary:string        // Hex color for text
-    color_secondary:string      // Hex color for pattern and icon
-    // Ensure this starts on its own sheet with blank rear
-    alone:boolean
 }
 
 
@@ -238,17 +245,31 @@ export interface Blueprint {
     notes:string|null
     crossref:'small'|'medium'|'large'|null
     half_blank:'left'|'right'|null
+    // How passages with a title show it: null = never (even if title text is set), 'titlepage' =
+    // insert a decorative title page (styled per the Title pages section below) before the
+    // passage, 'heading' = inline heading + subheading (no icon) at the start of its own content
+    passage_title:'titlepage'|'heading'|null
 
     // Style
     font_text:string
     font_text2:string|null     // null = auto (matches font_text); font for the 2nd translation
     font_headings:string|null  // null = auto (matches font_text)
-    font_titles:string|null    // null = auto (matches font_text)
     font_size:number
     line_height:number
     justify:null|boolean
     text_color:string|null
     columns:null|boolean
+
+    // Title pages (global — applies uniformly to every title page in the document: standalone
+    // title items and passage-auto-inserted title pages alike)
+    titlepage_frame:string|null        // Pattern name (key into PATTERNS); null = no corner frame
+    titlepage_color_text:string|null   // null = default black
+    titlepage_color_icon:string|null   // null = default black
+    titlepage_color_frame:string|null  // null = default black
+    titlepage_font:string|null         // null = auto (matches font_text)
+    titlepage_icon_size:number         // Size multiplier for the icon (1 = default)
+    // Force every title page to start on this side; null = no forcing
+    titlepage_always:'left'|'right'|null
 
     // Spacing
     margin_unit:'mm'|'in'
@@ -268,22 +289,20 @@ export interface Blueprint {
 export type ContentItem = ContentTitle|ContentPassage|ContentCustom
 
 
-// Decorative title page item
+// Decorative title page item. Styling is document-wide (see Blueprint's titlepage_* fields) —
+// this only carries the page's own text/icon content
 export interface ContentTitle {
     type:'title'
     id:string
     title:string
-    subtitle:string
-    icon:string|null
-    icon_size:number  // Size multiplier for the icon (1 = default)
-    pattern:string
-    color_primary:string|null
-    color_secondary:string|null
-    alone:boolean  // Ensure appears on own page with blank rear (and also not on rear of previous)
+    title_subtitle:string
+    title_icon:string|null
 }
 
 
-// Bible passage reference item (resolved to fetched content at render time)
+// Bible passage reference item (resolved to fetched content at render time). title/title_subtitle/
+// title_icon mirror ContentTitle's fields — set when the passage should auto-show a title (as a
+// title page or inline heading, per Blueprint.passage_title)
 export interface ContentPassage {
     type:'passage'
     id:string
@@ -292,7 +311,9 @@ export interface ContentPassage {
     start_verse:number|null
     end_chapter:number|null
     end_verse:number|null
-    title:boolean
+    title:string
+    title_subtitle:string
+    title_icon:string|null
 }
 
 

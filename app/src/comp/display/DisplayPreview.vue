@@ -56,6 +56,7 @@ import {report_error} from '@/services/errors'
 import {truncate_for_preview} from 'paper-bible-typst'
 
 import type {ProgressEvent, PreviewSection} from 'paper-bible-typst'
+import type {ContentCustom} from '@/services/types'
 
 
 const {t} = useI18n()
@@ -285,16 +286,14 @@ watch(
 // sliders and colour pickers are deliberately left out here so they fall through to the debounced
 // watcher below instead.
 function discrete_signature():string {
-    const item_sigs = blue.content.map(item => {
-        if (item.type === 'title'){
-            return `title:${item.pattern}:${item.alone}`
-        } else if (item.type === 'passage'){
-            return `passage:${item.title}`
-        }
-        return `custom:${item.position}`
-    })
+    // Title/passage items no longer have any discrete (non-text, non-color) per-item field —
+    // title/title_subtitle/title_icon are all text/free-entry and fall through to the debounced
+    // deep watcher below; only 'custom' still has a genuinely discrete per-item field (position)
+    const item_sigs = blue.content
+        .filter((item):item is ContentCustom => item.type === 'custom')
+        .map(item => `custom:${item.position}`)
     return JSON.stringify([
-        blue.font_text, blue.font_text2, blue.font_headings, blue.font_titles,
+        blue.font_text, blue.font_text2, blue.font_headings, blue.titlepage_font,
         blue.service_id, blue.size_id, blue.binding_type, blue.ink_type, blue.paper_type,
         blue.custom_unit, blue.booklet, blue.booklet_portrait,
         blue.bibles_layout, blue.bibles_align, blue.half_blank, blue.justify, blue.columns,
@@ -303,6 +302,7 @@ function discrete_signature():string {
         blue.show_pages, blue.show_footnotes, blue.show_wj, blue.show_wj_bold,
         blue.show_wj_italic, blue.show_lines, blue.notes, blue.crossref,
         blue.margin_unit, blue.public_domain, blue.app_link,
+        blue.titlepage_frame, blue.titlepage_always, blue.passage_title,
         // The whole cover config — it only ever changes atomically (editor Finished / Remove)
         blue.cover,
         item_sigs,

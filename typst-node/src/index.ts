@@ -123,7 +123,7 @@ export type {CustomFont} from 'typst-fonts'
 
 // Re-export all types
 export type {
-    TypstRequest, PageConfig, TypographyConfig, TypstContentItem,
+    TypstRequest, PageConfig, TypographyConfig, TitlepageConfig, TypstContentItem,
     TypstPassage, BiblePassageData, TypstTitlePage, TypstCustomPage,
     TypstLinesPage, CompileFn, ProgressFn, ProgressEvent, ProgressStage,
     Blueprint, ContentItem, ContentTitle, ContentPassage, ContentCustom,

@@ -18,9 +18,9 @@ import {detect_font_fallbacks} from './fonts_detect.js'
 import type {FontStyle} from 'typst-fonts'
 import type {BibleCollection, BibleBookTypst, GetResourcesItem,
     } from '@gracious.tech/fetch-client'
-import type {Blueprint, ContentPassage, ContentTitle, ContentCustom, TypstRequest,
+import type {Blueprint, ContentPassage, ContentCustom, TypstRequest,
     TypstContentItem, TypstPassage, TypstTitlePage, TypstCustomPage, BiblePassageData,
-    PageConfig, TypstNotesFile, ProgressFn} from './types.js'
+    PageConfig, TypstNotesFile, ProgressFn, TitlepageConfig} from './types.js'
 
 
 // Default Bible content API endpoint (production fetch.bible)
@@ -219,13 +219,22 @@ export class BibleContent {
             progress?.({stage: 'fetch', i: fetch_i, total: fetch_total, label})
         }
 
+        // Resolve the global title-page style config once, and the icon color it needs (icon
+        // recoloring happens once per icon below, ahead of the request-level config)
+        const titlepage_color_icon = blue.titlepage_color_icon ?? '#000000'
+
         // Map supported content items (study notes/crossrefs are not yet supported, skipped)
         const items:TypstContentItem[] = []
         for (const item of blue.content) {
             if (item.type === 'passage') {
+                // A passage's own title, auto-shown as a full title page immediately before it
+                // when the document-wide passage_title setting is set to 'titlepage'
+                if (blue.passage_title === 'titlepage' && item.title.trim()) {
+                    items.push(await this.gen_title_page(item, titlepage_color_icon))
+                }
                 items.push(await this.gen_passage_item(blue, item, report_fetch))
             } else if (item.type === 'title') {
-                items.push(await this.gen_title_item(item))
+                items.push(await this.gen_title_page(item, titlepage_color_icon))
             } else if (item.type === 'custom') {
                 items.push(this.gen_custom_item(blue, item, resources))
             }
@@ -241,7 +250,6 @@ export class BibleContent {
                 font_text2,
                 font_headings: blue.font_headings ?? blue.font_text,
                 font_headings2: blue.font_headings ?? font_text2,
-                font_titles: blue.font_titles ?? blue.font_text,
                 font_fallbacks: detect_font_fallbacks(
                     items, blue.font_text, custom_font_styles?.[blue.font_text]),
                 font_size: `${blue.font_size}pt`,
@@ -249,6 +257,7 @@ export class BibleContent {
                 justify: blue.justify,
                 text_color: blue.text_color,
             },
+            titlepage: this.gen_titlepage_config(blue),
             features: {
                 show_chapters: blue.show_chapters,
                 show_chapters_style: blue.show_chapters_style,
@@ -346,9 +355,12 @@ export class BibleContent {
     private async gen_passage_item(
         blue:Blueprint, passage:ContentPassage, report_fetch?:(label:string) => void,
     ):Promise<TypstPassage> {
-        // Computed once regardless of passage.title, since progress_label always needs it
+        // Computed once regardless of passage_title mode, since progress_label always needs it
         const reference = this.collection.reference_to_string(
             new PassageReference(passage), blue.bibles[0])
+        // Inline heading mode only — 'titlepage' mode is handled by injecting a separate
+        // synthetic TypstTitlePage item before this one (see resolve())
+        const show_heading = blue.passage_title === 'heading' && passage.title.trim() !== ''
         return {
             type: 'passage',
             bibles: await this.gen_passage_bibles(blue, passage, report_fetch),
@@ -366,22 +378,38 @@ export class BibleContent {
             columns: blue.columns === null ? 'auto' : (blue.columns ? 2 : 1),
             column_gap: `${blue.column_gap}${blue.margin_unit}`,
             book: passage.book,
-            passage_title: passage.title ? reference : null,
+            passage_title: show_heading ? passage.title : null,
+            passage_subtitle: show_heading && passage.title_subtitle ? passage.title_subtitle : null,
             progress_label: reference,
-            alone: false,
         }
     }
 
-    // Convert a title content item to its Typst equivalent
-    private async gen_title_item(title:ContentTitle):Promise<TypstTitlePage> {
-        const color_secondary = title.color_secondary ?? '#000000'
+    // Resolve the document-wide title-page style config (shared by every title page: standalone
+    // ContentTitle items and passages auto-showing a title page alike)
+    private gen_titlepage_config(blue:Blueprint):TitlepageConfig {
+        return {
+            font: blue.titlepage_font ?? blue.font_text,
+            frame_svg: blue.titlepage_frame ? (this.patterns[blue.titlepage_frame] ?? null) : null,
+            color_text: blue.titlepage_color_text ?? '#000000',
+            color_frame: blue.titlepage_color_frame ?? '#000000',
+            icon_size: blue.titlepage_icon_size,
+            always: blue.titlepage_always,
+        }
+    }
 
+    // Build a TypstTitlePage from anything with title/title_subtitle/title_icon — used both for
+    // standalone ContentTitle items and the synthetic title page auto-inserted before a passage
+    // when blue.passage_title === 'titlepage' (see resolve())
+    private async gen_title_page(
+        source:{title:string, title_subtitle:string, title_icon:string|null},
+        color_icon:string,
+    ):Promise<TypstTitlePage> {
         // Resolve the Iconify ID (or raw SVG) to a recolored SVG; ignore a failed fetch so a bad
         // icon ID never breaks the whole document (the title just renders without an icon)
         let icon:string|null = null
-        if (title.icon) {
+        if (source.title_icon) {
             try {
-                icon = await resolve_icon(title.icon, color_secondary)
+                icon = await resolve_icon(source.title_icon, color_icon)
             } catch {
                 icon = null
             }
@@ -389,15 +417,9 @@ export class BibleContent {
 
         return {
             type: 'title',
-            title: title.title,
-            subtitle: title.subtitle,
+            title: source.title,
+            subtitle: source.title_subtitle,
             icon,
-            icon_size: title.icon_size ?? 1,
-            // Raw pattern SVG — the renderer substitutes the secondary colour itself
-            pattern_svg: this.patterns[title.pattern] ?? null,
-            color_primary: title.color_primary ?? '#000000',
-            color_secondary,
-            alone: title.alone,
         }
     }
 

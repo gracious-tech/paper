@@ -6,19 +6,24 @@ import {escape_typst, parse_unit} from './helpers.js'
 import type {PageConfig, TypstTitlePage} from './types.js'
 
 
-// Generate Typst markup for a decorative title page
-export function gen_title(title:TypstTitlePage, page:PageConfig, font_titles:string):string {
+// Generate Typst markup for a decorative title page. Styling (font/frame/colors/icon size) is
+// document-wide (see TitlepageConfig on TypstRequest) so it's passed in explicitly rather than
+// read off the item, which only carries its own text/icon content
+export function gen_title(
+    title:TypstTitlePage, page:PageConfig,
+    font:string, frame_svg:string|null, color_text:string, color_frame:string, icon_size:number,
+):string {
     const parts:string[] = []
-    const font = escape_typst_str(font_titles)
+    const font_escaped = escape_typst_str(font)
 
     const page_w = parse_unit(page.width)
     const page_h = parse_unit(page.height)
     const pattern_w = `${(page_w.num / 3).toFixed(2)}${page_w.unit}`
 
     // SVG corner patterns (one SVG mirrored to 4 corners)
-    if (title.pattern_svg) {
-        // Replace default color in SVG with the user's secondary color
-        const svg = title.pattern_svg.replace(/#000000/g, title.color_secondary)
+    if (frame_svg) {
+        // Replace default color in SVG with the user's frame color
+        const svg = frame_svg.replace(/#000000/g, color_frame)
         const svg_bytes = `bytes("${escape_svg_for_typst(svg)}")`
 
         parts.push(`// Corner patterns`)
@@ -40,25 +45,25 @@ export function gen_title(title:TypstTitlePage, page:PageConfig, font_titles:str
     parts.push(`#align(center)[`)
     parts.push(`    #v(${top_space})`)
     parts.push(`    #text(`)
-    parts.push(`        font: "${font}",`)
+    parts.push(`        font: "${font_escaped}",`)
     parts.push(`        weight: 700,`)
     parts.push(`        size: 55pt,`)
-    parts.push(`        fill: rgb("${title.color_primary}"),`)
+    parts.push(`        fill: rgb("${color_text}"),`)
     parts.push(`    )[${escape_typst(title.title)}]`)
 
     // Subtitle
     parts.push(`    #v(0.5cm)`)
     parts.push(`    #text(`)
-    parts.push(`        font: "${font}",`)
+    parts.push(`        font: "${font_escaped}",`)
     parts.push(`        weight: 700,`)
     parts.push(`        size: 20pt,`)
-    parts.push(`        fill: rgb("${title.color_primary}"),`)
+    parts.push(`        fill: rgb("${color_text}"),`)
     parts.push(`    )[${escape_typst(title.subtitle)}]`)
 
     // Icon (recolored SVG, embedded as an image and scaled to a fraction of the page width,
     // adjusted by the user's size multiplier)
     if (title.icon) {
-        const icon_w = `${(page_w.num / 4 * title.icon_size).toFixed(2)}${page_w.unit}`
+        const icon_w = `${(page_w.num / 4 * icon_size).toFixed(2)}${page_w.unit}`
         const icon_bytes = `bytes("${escape_svg_for_typst(title.icon)}")`
         parts.push(`    #v(${mid_space})`)
         parts.push(`    #image.decode(${icon_bytes}, width: ${icon_w})`)

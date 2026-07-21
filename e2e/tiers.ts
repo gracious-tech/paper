@@ -69,7 +69,9 @@ export function build_blueprint(tier:Tier, overrides:Partial<Blueprint> = {}):Bl
         start_verse: null,
         end_chapter: null,
         end_verse: null,
-        title: true,
+        title: book,
+        title_subtitle: '',
+        title_icon: null,
     }))
 
     return {
@@ -114,17 +116,26 @@ export function build_blueprint(tier:Tier, overrides:Partial<Blueprint> = {}):Bl
         notes: null,
         crossref: null,
         half_blank: null,
+        passage_title: 'heading',
 
         // Style
         font_text: "Crimson Pro",
         font_text2: null,
         font_headings: null,
-        font_titles: null,
         font_size: 10,
         line_height: 1.75,
         justify: null,
         text_color: null,
         columns: null,
+
+        // Title pages
+        titlepage_frame: 'straight',
+        titlepage_color_text: null,
+        titlepage_color_icon: null,
+        titlepage_color_frame: null,
+        titlepage_font: null,
+        titlepage_icon_size: 1,
+        titlepage_always: 'right',
 
         // Spacing
         margin_unit: 'mm',

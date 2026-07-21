@@ -38,7 +38,7 @@ export function collect_fonts(request:TypstRequest):string[] {
 
     // Title pages use the title font for text (icons are embedded SVG images, not a font)
     if (request.content.some(item => item.type === 'title')){
-        needed.add(request.typography.font_titles)
+        needed.add(request.titlepage.font)
     }
 
     // Base font always first, then the rest (excluding base) sorted for a stable cache key

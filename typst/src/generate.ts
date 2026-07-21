@@ -26,16 +26,10 @@ export function generate_typst(request:TypstRequest, start_page = 1):string {
     parts.push(gen_preamble(request))
 
     // Render each content item on its own page(s)
-    const booklike = request.arrangement !== 'normal'
-
     for (let i = 0; i < request.content.length; i++) {
         const item = request.content[i]!
 
-        // Page arrangement: ensure alone items start on an even page (recto)
-        if (booklike && is_alone(item) && i > 0) {
-            parts.push('#pagebreak(to: "even")')
-        } else if (i > 0) {
-            // Standard page break between items
+        if (i > 0) {
             parts.push('#pagebreak()')
         }
 
@@ -44,11 +38,6 @@ export function generate_typst(request:TypstRequest, start_page = 1):string {
         parts.push(gen_page_columns(item))
 
         parts.push(gen_content_item(item, request))
-
-        // For alone items in book mode, ensure the next item starts on a new sheet
-        if (booklike && is_alone(item)) {
-            parts.push('#pagebreak(to: "even")')
-        }
     }
 
     return parts.join('\n\n')
@@ -138,22 +127,12 @@ function gen_content_item(item:TypstContentItem, request:TypstRequest):string {
                 request.typography.font_text2, request.typography.font_headings2,
                 request.typography.font_fallbacks)
         case 'title':
-            return gen_title(item, request.page, request.typography.font_titles)
+            return gen_title(item, request.page, request.titlepage.font,
+                request.titlepage.frame_svg, request.titlepage.color_text,
+                request.titlepage.color_frame, request.titlepage.icon_size)
         case 'custom':
             return gen_custom(item)
         case 'lines':
             return gen_lines(item, request.page)
     }
-}
-
-
-// Check if a content item should be on its own sheet
-function is_alone(item:TypstContentItem):boolean {
-    if (item.type === 'title') {
-        return item.alone
-    }
-    if (item.type === 'passage') {
-        return item.alone
-    }
-    return false
 }

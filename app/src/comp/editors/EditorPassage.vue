@@ -14,8 +14,11 @@ v-card-text(class='flex-grow-1 d-flex flex-column')
     div
         v-text-field(v-model='tmp_ref' :label='$t("Book or passage")' :messages='messages'
             :error-messages='errors' :hide-details='false')
-    div(class='mb-4')
-        v-checkbox(v-model='tmp_title' :label='$t("Show passage heading")')
+    div
+        v-text-field(v-model='tmp_title' :label='$t("Title")')
+    div
+        v-text-field(v-model='tmp_title_subtitle' :label='$t("Subtitle")')
+    IconField(v-model:icon='tmp_title_icon')
     h3 {{$t("Available books")}}
     p(class='text-body-2 text-medium-emphasis mb-4') {{$t("Some may be missing if a translation you have selected only has one testament, or is still being translated or digitized.")}}
 
@@ -34,6 +37,7 @@ import {PassageReference} from '@gracious.tech/fetch-client'
 import {blue, state} from '@/services/state'
 import {content} from '@/services/content'
 import {generate_token} from '@/services/utils'
+import IconField from '@/comp/editors/assets/IconField.vue'
 
 import type {ContentPassage} from '@/services/types'
 
@@ -59,7 +63,9 @@ if (original){
 
 // Edit fields using tmp refs so actual data not changed unless valid
 const tmp_ref = ref(initial_ref)
-const tmp_title = ref(original?.title ?? true)
+const tmp_title = ref(original?.title ?? '')
+const tmp_title_subtitle = ref(original?.title_subtitle ?? '')
+const tmp_title_icon = ref<string|null>(original?.title_icon ?? null)
 const errors = ref([] as string[])
 const messages = ref([] as string[])
 
@@ -108,6 +114,14 @@ watch(tmp_ref, () => {
         end_verse: ref_obj._args.end_verse ?? null,
     }
 
+    // Detected passage reference, used both for the confirmation message and as the default
+    // title text (until the user types their own) so a fresh passage still shows a sensible
+    // heading out of the box, matching the pre-redesign auto-derived heading behaviour
+    const reference = content.collection.reference_to_string(ref_obj, blue.bibles[0])
+    if (!item && !tmp_title.value){
+        tmp_title.value = reference
+    }
+
     // If this is a new content item, need to create
     if (!item){
         item = reactive({
@@ -115,6 +129,8 @@ watch(tmp_ref, () => {
             id: generate_token(),
             ...common_props,
             title: tmp_title.value,
+            title_subtitle: tmp_title_subtitle.value,
+            title_icon: tmp_title_icon.value,
         })
         blue.content.push(item)
     } else {
@@ -122,12 +138,24 @@ watch(tmp_ref, () => {
     }
 
     // Show detected passage so user can verify correct
-    messages.value = [content.collection.reference_to_string(ref_obj, blue.bibles[0])]
+    messages.value = [reference]
 })
 
 watch(tmp_title, () => {
     if (item){
         item.title = tmp_title.value
+    }
+})
+
+watch(tmp_title_subtitle, () => {
+    if (item){
+        item.title_subtitle = tmp_title_subtitle.value
+    }
+})
+
+watch(tmp_title_icon, () => {
+    if (item){
+        item.title_icon = tmp_title_icon.value
     }
 })
 

@@ -71,30 +71,19 @@ describe('generate_typst', () => {
 
 describe('page arrangement', () => {
 
-    it('uses #pagebreak(to: "even") for alone items in book mode', () => {
+    it('uses simple #pagebreak() between items regardless of arrangement', () => {
+        // Page-side forcing for title pages (titlepage_always) is handled in pdf_postprocess.ts,
+        // not here — generate_typst only ever compiles a single item's document in the real
+        // pipeline (see compile_item in pdf_postprocess.ts), so it always uses a plain pagebreak
         const result = generate_typst(make_request({
             arrangement: 'book',
             content: [
-                make_title({alone: true}),
-                make_passage(),
-            ],
-        }))
-        expect(result).toContain('#pagebreak(to: "even")')
-    })
-
-    it('uses simple #pagebreak() in normal mode', () => {
-        const result = generate_typst(make_request({
-            arrangement: 'normal',
-            content: [
-                make_title({alone: true}),
+                make_title(),
                 make_passage(),
             ],
         }))
         expect(result).toContain('#pagebreak()')
-        // Should not have "to: even" forced by alone flag in normal mode
-        // (it appears before the second item, but alone items get even pagebreaks in book mode)
-        const even_breaks = (result.match(/#pagebreak\(to: "even"\)/g) || []).length
-        expect(even_breaks).toBe(0)
+        expect(result).not.toContain('#pagebreak(to:')
     })
 
     it('no pagebreak before first item', () => {

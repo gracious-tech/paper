@@ -116,13 +116,8 @@ function make_wizard_title_item(blueprint:Blueprint):ContentTitle{
         type: 'title',
         id: generate_token(),
         title,
-        subtitle: "",
-        icon: passage ? book_icon[passage.book]! : 'mdi:cross',
-        icon_size: 1,
-        pattern: 'straight',
-        color_primary: null,
-        color_secondary: null,
-        alone: true,
+        title_subtitle: "",
+        title_icon: passage ? book_icon[passage.book]! : 'mdi:cross',
     }
 }
 
@@ -150,35 +145,54 @@ export function build_new_blueprint(draft:NewDesignDraft):Blueprint{
     // Content: either one whole-book passage per selected book (canonical order regardless of
     // the order the user clicked them in), or the user's own passage list (their order, since
     // reordering it is the entire point of that mode), each showing its own heading
+
+    // A passage's auto-derived heading text (matches the editor's own "Book or passage" ref
+    // display), so a fresh design's passages show a sensible title out of the box
+    const passage_reference = (ref_args:{book:string, start_chapter:number|null,
+            start_verse:number|null, end_chapter:number|null, end_verse:number|null}):string => {
+        return content.collection.reference_to_string(
+            new PassageReference(ref_args), blueprint.bibles[0])
+    }
+
     if (draft.book_mode === 'passages'){
         blueprint.content = draft.passages
             .filter((passage):passage is DraftPassage & {book:string} => passage.book !== null)
-            .map(passage => ({
-                type: 'passage',
-                id: generate_token(),
-                book: passage.book,
-                start_chapter: passage.start_chapter,
-                start_verse: passage.start_verse,
-                end_chapter: passage.end_chapter,
-                end_verse: passage.end_verse,
-                title: true,
-            } as ContentPassage))
+            .map(passage => {
+                const ref_args = {
+                    book: passage.book,
+                    start_chapter: passage.start_chapter,
+                    start_verse: passage.start_verse,
+                    end_chapter: passage.end_chapter,
+                    end_verse: passage.end_verse,
+                }
+                return {
+                    type: 'passage',
+                    id: generate_token(),
+                    ...ref_args,
+                    title: passage_reference(ref_args),
+                    title_subtitle: '',
+                    title_icon: null,
+                } as ContentPassage
+            })
     } else {
         const selected = new Set(draft.books)
         const canonical = content.collection
             .get_books(content.collection.get_preferred_resource().id, {whole: true})
             .map(book => book.id)
             .filter(id => selected.has(id))
-        blueprint.content = canonical.map(book => ({
-            type: 'passage',
-            id: generate_token(),
-            book,
-            start_chapter: null,
-            start_verse: null,
-            end_chapter: null,
-            end_verse: null,
-            title: true,
-        } as ContentPassage))
+        blueprint.content = canonical.map(book => {
+            const ref_args = {
+                book, start_chapter: null, start_verse: null, end_chapter: null, end_verse: null,
+            }
+            return {
+                type: 'passage',
+                id: generate_token(),
+                ...ref_args,
+                title: passage_reference(ref_args),
+                title_subtitle: '',
+                title_icon: null,
+            } as ContentPassage
+        })
     }
     blueprint.content.push({
         type: 'custom',
