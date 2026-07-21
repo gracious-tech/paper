@@ -1,0 +1,47 @@
+
+<template lang='pug'>
+
+v-card(:class='{selected}' variant='outlined' @click='emit("select")')
+    img(:src='image' alt='')
+    div.text
+        strong {{ label }}
+        div.subtitle(v-if='subtitle') {{ subtitle }}
+
+</template>
+
+
+<script lang='ts' setup>
+
+
+// A selectable image card for the new-design wizard's choice grids (type/print/cover steps)
+defineProps<{image:string, label:string, subtitle?:string, selected:boolean}>()
+const emit = defineEmits<{(e:'select'):void}>()
+
+
+</script>
+
+
+<style lang='sass' scoped>
+
+.v-card
+    cursor: pointer
+
+    &.selected
+        border-color: rgb(var(--v-theme-secondary))
+        background-color: rgba(var(--v-theme-secondary), 0.08)
+
+    img
+        display: block
+        width: 100%
+        aspect-ratio: 2 / 1
+        object-fit: cover
+        background-color: rgba(var(--v-theme-primary), 0.08)
+
+    .text
+        padding: 8px 12px 10px 12px
+
+        .subtitle
+            font-size: 0.8rem
+            opacity: 0.7
+
+</style>

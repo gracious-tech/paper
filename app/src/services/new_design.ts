@@ -1,0 +1,204 @@
+
+// New-design wizard support: the per-step draft of user selections, the design-type presets,
+// and the assembly of a final Blueprint from a completed draft (only done once, at finish)
+
+import {PassageReference} from '@gracious.tech/fetch-client'
+
+import {content} from '@/services/content'
+import {get_default_blueprint} from '@/services/blueprints'
+import {seed_cover_preset} from '@/services/cover'
+import {book_icon} from '@/services/icons'
+import {generate_token} from '@/services/utils'
+
+import type {Blueprint, ContentPassage, ContentTitle} from '@/services/types'
+
+
+// The design types offered by the wizard's first step
+export type NewDesignType = 'regular'|'reading'|'notes'|'study'|'bilingual'
+
+
+// The cover styles offered by the wizard's last step ('minimal' is home-printing only)
+export type NewDesignCover = 'photo'|'pattern'|'icon'|'minimal'
+
+
+// A single line of the free-text passage list (parsed eagerly so a tick can show validity;
+// invalid lines keep their text so the user can fix them rather than losing the input)
+export interface DraftPassage {
+    id:string
+    text:string  // Raw user input, kept editable
+    book:string|null  // Parsed fields, or null/nulls if `text` isn't a recognised reference
+    start_chapter:number|null
+    start_verse:number|null
+    end_chapter:number|null
+    end_verse:number|null
+}
+
+
+// Per-step selections of the new-design wizard — assembled into a Blueprint only on finish,
+// so going back and changing e.g. the type never needs to un-apply a previous choice
+export interface NewDesignDraft {
+    type:NewDesignType|null
+    book_mode:'books'|'passages'  // Which of `books`/`passages` below is actually used at build
+    books:string[]  // fetch.bible book ids (order not significant; canonical order at build)
+    passages:DraftPassage[]  // Free-text passages (order significant; kept even if not active,
+                              // so toggling `book_mode` back and forth doesn't lose entries)
+    bibles:string[]  // 1-2 translation ids
+    service_id:string|null  // 'home' or a printing-services id ('custom' isn't offered here)
+    size_id:string|null
+    booklet:boolean  // Home printing only
+    binding_type:string  // Professional printing only, as are ink/paper below
+    ink_type:string
+    paper_type:string
+    cover:NewDesignCover|null
+}
+
+
+// A fresh draft — nothing decided yet beyond the home-printing defaults that mirror
+// get_default_blueprint() (used if the user picks "home" and changes nothing further). Bibles
+// starts empty (rather than pre-filled with the preferred translation) so the "Translations"
+// step isn't marked complete until the user actually reaches it — see NewDesignBibles.vue
+export function get_default_draft():NewDesignDraft{
+    return {
+        type: null,
+        book_mode: 'books',
+        books: [],
+        passages: [],
+        bibles: [],
+        service_id: null,
+        size_id: null,
+        booklet: true,
+        binding_type: 'paperback',
+        ink_type: 'bw',
+        paper_type: 'white',
+        cover: null,
+    }
+}
+
+
+// The design-type presets: only the fields that differ from the blank default blueprint
+// (diffs mirror the retired OptionsPreset panel; bilingual additionally requires a second
+// translation, which the wizard's translations step enforces). Images supplied later
+export const TYPE_PRESETS:{id:NewDesignType, image:string, diff:Partial<Blueprint>}[] = [
+    {id: 'regular', image: '/wizard/type_regular.webp', diff: {}},
+    {id: 'reading', image: '/wizard/type_reading.webp', diff: {
+        show_headings: false,
+        show_chapters: false,
+        show_verses: false,
+        show_footnotes: false,
+    }},
+    {id: 'notes', image: '/wizard/type_notes.webp', diff: {
+        show_footnotes: false,
+        line_height: 2.5,
+        half_blank: 'right',
+        bibles_layout: 'columns',  // Required for half_blank
+    }},
+    {id: 'study', image: '/wizard/type_study.webp', diff: {
+        show_footnotes: false,
+        notes: 'eng_tyndale',
+    }},
+    {id: 'bilingual', image: '/wizard/type_bilingual.webp', diff: {
+        show_footnotes: false,
+    }},
+]
+
+
+// A decorative title page for the "minimal ink" cover choice, matching the shape the editor's
+// own "Title page" button creates (title from the first passage, its book's icon)
+function make_wizard_title_item(blueprint:Blueprint):ContentTitle{
+    const passage = blueprint.content.find(
+        (item):item is ContentPassage => item.type === 'passage')
+    let title = ''
+    if (passage){
+        title = content.collection.reference_to_string(
+            new PassageReference(passage), blueprint.bibles[0])
+    }
+    return {
+        type: 'title',
+        id: generate_token(),
+        title,
+        subtitle: "",
+        icon: passage ? book_icon[passage.book]! : 'mdi:cross',
+        icon_size: 1,
+        pattern: 'straight',
+        color_primary: null,
+        color_secondary: null,
+        alone: true,
+    }
+}
+
+
+// Assemble the final Blueprint from a completed draft: defaults, then the type preset's diff,
+// then each step's selections. Content becomes whole-book passages in canonical order plus the
+// auto-copyright statement (translations nearly always require attribution), with a title page
+// prepended only for the minimal-ink cover choice
+export function build_new_blueprint(draft:NewDesignDraft):Blueprint{
+
+    const blueprint = get_default_blueprint()
+    Object.assign(blueprint, TYPE_PRESETS.find(preset => preset.id === draft.type)!.diff)
+
+    // Printing (booklet only applies to home printing)
+    blueprint.service_id = draft.service_id!
+    blueprint.size_id = draft.size_id!
+    blueprint.booklet = draft.service_id === 'home' && draft.booklet
+    blueprint.binding_type = draft.binding_type
+    blueprint.ink_type = draft.ink_type
+    blueprint.paper_type = draft.paper_type
+
+    // Translations (the wizard's step validation guarantees 1-2, and 2 for bilingual)
+    blueprint.bibles = [...draft.bibles] as [string, ...string[]]
+
+    // Content: either one whole-book passage per selected book (canonical order regardless of
+    // the order the user clicked them in), or the user's own passage list (their order, since
+    // reordering it is the entire point of that mode), each showing its own heading
+    if (draft.book_mode === 'passages'){
+        blueprint.content = draft.passages
+            .filter((passage):passage is DraftPassage & {book:string} => passage.book !== null)
+            .map(passage => ({
+                type: 'passage',
+                id: generate_token(),
+                book: passage.book,
+                start_chapter: passage.start_chapter,
+                start_verse: passage.start_verse,
+                end_chapter: passage.end_chapter,
+                end_verse: passage.end_verse,
+                title: true,
+            } as ContentPassage))
+    } else {
+        const selected = new Set(draft.books)
+        const canonical = content.collection
+            .get_books(content.collection.get_preferred_resource().id, {whole: true})
+            .map(book => book.id)
+            .filter(id => selected.has(id))
+        blueprint.content = canonical.map(book => ({
+            type: 'passage',
+            id: generate_token(),
+            book,
+            start_chapter: null,
+            start_verse: null,
+            end_chapter: null,
+            end_verse: null,
+            title: true,
+        } as ContentPassage))
+    }
+    blueprint.content.push({
+        type: 'custom',
+        id: generate_token(),
+        name: "Copyright",
+        doc: {type: 'doc', content: [
+            {type: 'paragraph', content: [{type: 'text', text: 'AUTO-COPYRIGHT'}]},
+        ]},
+        position: 'bottom',
+    })
+
+    // Cover: either a seeded preset the user refines later in the cover widget, or the
+    // minimal-ink choice (no cover at all, a title page as the first page instead)
+    if (draft.cover === 'minimal'){
+        blueprint.cover = null
+        blueprint.content.unshift(make_wizard_title_item(blueprint))
+    } else {
+        blueprint.cover = seed_cover_preset(draft.cover as Exclude<NewDesignCover, 'minimal'>,
+            blueprint)
+    }
+
+    return blueprint
+}
