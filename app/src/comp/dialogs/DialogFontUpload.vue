@@ -5,7 +5,7 @@ v-dialog(v-model='dialog' activator='parent' max-width='420')
     v-card
         template(#title) {{$t("Upload custom fonts")}}
         template(#text)
-            div(class='d-flex flex-column ga-4 text-body-2')
+            div(class='d-flex flex-column ga-4 text-body-medium')
 
                 //- Instructions
                 div(class='d-flex flex-column ga-1')
@@ -27,12 +27,12 @@ v-dialog(v-model='dialog' activator='parent' max-width='420')
                     @dragleave.prevent='is_dragging = false' @drop.prevent='on_drop')
                     AppIcon(name='upload')
                     span {{$t("Drop files here or click to browse")}}
-                    span(class='text-caption text-medium-emphasis') .zip, .ttf, .otf
+                    span(class='text-body-small text-medium-emphasis') .zip, .ttf, .otf
                     input(ref='file_input' type='file' accept='.zip,.ttf,.otf' multiple
                         class='d-none' @change='on_file_select')
 
                 //- Status message
-                div(v-if='status' class='d-flex align-center ga-1 text-caption'
+                div(v-if='status' class='d-flex align-center ga-1 text-body-small'
                     :class='status_error ? "text-error" : "text-medium-emphasis"') {{ status }}
 
         template(#actions)

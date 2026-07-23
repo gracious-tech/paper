@@ -9,7 +9,7 @@ v-divider
 
 v-card-text(class='overflow-y-auto')
 
-    h3(class='text-h6 mb-4') {{$t("Headings")}}
+    h3(class='text-title-large mb-4') {{$t("Headings")}}
 
     AppFontSelect(v-model='blue.font_headings' :label='$t("Font for headings")' auto
         example='heading' class='mb-4')
@@ -19,19 +19,19 @@ v-card-text(class='overflow-y-auto')
 
     v-slider(v-model='blue.show_headings_size' :label='$t("Size")' :min='0.8' :max='2'
         :step='0.05' thumb-label class='my-4' color='')
-    p(class='text-body-2 text-medium-emphasis') {{$t("Size is relative to normal text, with 1 being the same size.")}}
+    p(class='text-body-medium text-medium-emphasis') {{$t("Size is relative to normal text, with 1 being the same size.")}}
 
     v-divider(class='my-8')
 
-    h3(class='text-h6 mb-4') {{$t("Text color")}}
+    h3(class='text-title-large mb-4') {{$t("Text color")}}
 
     AppColor(v-model='blue.text_color' :label='$t("Color of text")')
-    p(class='text-body-2 text-medium-emphasis mt-2') {{$t("It's not recommended to use this setting unless you have eyesight issues that require it.")}}
+    p(class='text-body-medium text-medium-emphasis mt-2') {{$t("It's not recommended to use this setting unless you have eyesight issues that require it.")}}
 
     v-divider(class='my-8')
 
-    h3(class='text-h6 mb-4') {{$t("Title pages")}}
-    p(class='text-body-2 text-medium-emphasis mb-4') {{$t("Applies to every title page in the document.")}}
+    h3(class='text-title-large mb-4') {{$t("Title pages")}}
+    p(class='text-body-medium text-medium-emphasis mb-4') {{$t("Applies to every title page in the document.")}}
 
     AppFontSelect(v-model='blue.titlepage_font' :label='$t("Font for title pages")' auto
         example='title' class='mb-4')

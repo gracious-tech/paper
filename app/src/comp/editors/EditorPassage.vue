@@ -20,7 +20,7 @@ v-card-text(class='flex-grow-1 d-flex flex-column')
         v-text-field(v-model='tmp_title_subtitle' :label='$t("Subtitle")')
     IconField(v-model:icon='tmp_title_icon')
     h3 {{$t("Available books")}}
-    p(class='text-body-2 text-medium-emphasis mb-4') {{$t("Some may be missing if a translation you have selected only has one testament, or is still being translated or digitized.")}}
+    p(class='text-body-medium text-medium-emphasis mb-4') {{$t("Some may be missing if a translation you have selected only has one testament, or is still being translated or digitized.")}}
 
     v-list
         v-list-item(v-for='book of available_books' @click='tmp_ref = book' density='compact')

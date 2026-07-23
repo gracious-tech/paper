@@ -22,7 +22,7 @@ div.add(class='d-flex align-center flex-wrap')
     v-btn(:disabled='has_copyright' @click='add_copyright' size='small' variant='outlined')
         | {{$t("Copyright")}}
 
-div.warnings(v-if='warnings' class='mt-4 text-body-2')
+div.warnings(v-if='warnings' class='mt-4 text-body-medium')
     div(v-for='warning of warnings') {{ warning }}
 
 </template>

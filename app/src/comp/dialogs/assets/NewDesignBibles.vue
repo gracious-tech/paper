@@ -2,7 +2,7 @@
 <template lang='pug'>
 
 template(v-if='picking === null')
-    p(class='mb-3 text-body-2 text-medium-emphasis')
+    p(class='mb-3 text-body-medium text-medium-emphasis')
         | {{ $t("What Bible translation would you like to use?") }}
     v-list(bg-color='transparent')
         v-list-item(@click='picking = 0')
@@ -13,9 +13,9 @@ template(v-if='picking === null')
                 v-btn(v-if='draft.bibles[1] && draft.type !== "bilingual"' icon variant='text'
                         @click.stop='rm_secondary')
                     app-icon(name='close')
-    p.hint(v-if='draft.type === "bilingual" && !draft.bibles[1]' class='text-body-2 mt-2')
+    p.hint(v-if='draft.type === "bilingual" && !draft.bibles[1]' class='text-body-medium mt-2')
         | {{$t("Bilingual bibles need a second translation")}}
-    p.hint(v-if='duplicate' class='text-body-2 mt-2 text-error')
+    p.hint(v-if='duplicate' class='text-body-medium mt-2 text-error')
         | {{$t("The two translations must be different")}}
 
 BiblePicker(v-else :model-value='draft.bibles[picking] ?? draft.bibles[0] ?? null'

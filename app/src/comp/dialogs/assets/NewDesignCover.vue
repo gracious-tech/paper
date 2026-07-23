@@ -2,7 +2,7 @@
 <template lang='pug'>
 
 div
-    p(class='mb-3 text-body-2 text-medium-emphasis') {{ $t("What do you want the cover to look like?") }}
+    p(class='mb-3 text-body-medium text-medium-emphasis') {{ $t("What do you want the cover to look like?") }}
     div.grid
         NewDesignCard(v-for='item of covers' :key='item.id' :image='item.image' :label='item.label'
             :subtitle='item.subtitle' :selected='draft.cover === item.id'

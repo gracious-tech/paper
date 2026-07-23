@@ -6,7 +6,7 @@ v-dialog(:model-value='modelValue' @update:model-value='close' max-width='520')
         v-card-title {{ is_owner ? $t("Invite an editor") : $t("People with access") }}
         v-card-text
             template(v-if='is_owner')
-                p(class='text-caption mb-4')
+                p(class='text-body-small mb-4')
                     | {{$t("Anyone with this link can join as an editor and make changes together with you.")}}
                 v-text-field(v-if='share_url' :model-value='share_url' readonly density='compact'
                         hide-details class='mb-2' @focus='select_all')
@@ -14,7 +14,7 @@ v-dialog(:model-value='modelValue' @update:model-value='close' max-width='520')
                         v-btn(@click='copy_link' variant='text' size='small')
                             | {{ copied ? $t("Copied!") : $t("Copy") }}
                 v-btn(@click='reset_link' variant='tonal' size='small') {{$t("Reset link")}}
-                p(class='text-caption mt-1')
+                p(class='text-body-small mt-1')
                     | {{$t("Disables the previous link so it can no longer be used to become an editor.")}}
                 v-divider(class='my-4')
 
@@ -31,7 +31,7 @@ v-dialog(:model-value='modelValue' @update:model-value='close' max-width='520')
                     template(#append)
                         v-btn(v-if='is_owner && !person.owner' @click='kick_editor(person.uid)'
                                 icon='mdi-close' variant='text' size='small' color='error')
-            p(v-if='is_owner' class='text-caption mt-1')
+            p(v-if='is_owner' class='text-body-small mt-1')
                 | {{$t("Removing someone also resets the invite link so they can't use it to rejoin.")}}
         v-card-actions
             v-spacer

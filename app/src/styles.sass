@@ -27,6 +27,16 @@
     src: url('#{$assets_prefix}fonts/Crimson%20Pro/CrimsonPro-BoldItalic.ttf')
 
 
+// Vuetify 4 removed its global CSS reset (moved to per-component styles) — restore zeroed
+// margins on plain elements since the app relies on that for its many bare h1-h6/p tags
+@layer vuetify-core.reset
+    ul, ol, figure, details, summary
+        padding: 0
+        margin: 0
+    h1, h2, h3, h4, h5, h6, p
+        margin: 0
+
+
 html
     font-size: 12pt
     line-height: 1

@@ -1,7 +1,7 @@
 
 <template lang='pug'>
 
-p(class='mb-3 text-body-2 text-medium-emphasis') {{ $t("How would you like to print it?") }}
+p(class='mb-3 text-body-medium text-medium-emphasis') {{ $t("How would you like to print it?") }}
 
 //- First decision: printing at home vs professionally
 div.grid
@@ -26,7 +26,7 @@ template(v-else-if='professional')
     div.grid_sizes.mt-2
         v-card.choice(v-for='item in SIZE_OPTIONS' :key='item.id' variant='outlined' density='compact'
                 :class='{selected: draft.size_id === item.id}' @click='draft.size_id = item.id')
-            v-card-title(class='text-subtitle-1') {{ item.label }}
+            v-card-title(class='text-body-large') {{ item.label }}
             v-card-subtitle {{ item.dims }}
             v-card-text {{ item.subtitle }}
     img.size_guide(src='@/assets/images/book_sizes.avif' alt='' class='mt-5')

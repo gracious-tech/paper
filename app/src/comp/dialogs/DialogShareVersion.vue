@@ -7,7 +7,7 @@ v-dialog(:model-value='modelValue' @update:model-value='close' max-width='520')
     v-card
         v-card-title {{$t("Share version")}}
         v-card-text
-            p(class='text-caption mb-4')
+            p(class='text-body-small mb-4')
                 | {{$t("Anyone with this link can view the document and keep their own copy.")}}
             v-text-field(:model-value='share_url' readonly density='compact' hide-details
                     @focus='select_all')

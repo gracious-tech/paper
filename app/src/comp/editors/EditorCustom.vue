@@ -14,7 +14,7 @@ v-card-text(class='flex-grow-1 d-flex flex-column')
         v-text-field(v-model='item.name' :placeholder='$t("Label") + "..."')
     app-prose(v-model='item.doc' class='flex-grow-1')
     div(class='mt-4 mb-4')
-        p(class='text-caption') {{$t("Vertical position on page") + ":"}}
+        p(class='text-body-small') {{$t("Vertical position on page") + ":"}}
         v-radio-group(v-model='item.position' inline)
             v-radio(value='top' :label='$t("Top")')
             v-radio(value='middle' :label='$t("Middle")')

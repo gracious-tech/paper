@@ -3,7 +3,7 @@
 
 div
     template(v-if='draft.book_mode === "books"')
-        p(class='mb-3 text-body-2 text-medium-emphasis')
+        p(class='mb-3 text-body-medium text-medium-emphasis')
             | {{ $t("What books of the Bible do you want included? It can be as little as one passage or as large as the whole Bible.") }}
         div.mode_switch
             v-btn(size='small' variant='text' @click='draft.book_mode = "passages"')
@@ -26,7 +26,7 @@ div
                             app-icon(v-if='draft.books.includes(book.id)' name='check')
 
     template(v-else)
-        p(class='mb-3 text-body-2 text-medium-emphasis')
+        p(class='mb-3 text-body-medium text-medium-emphasis')
             | {{ $t("List the passages you want, one per line, e.g. \"Genesis 1:1-5\" or \"Matthew 5\", then click Add.") }}
         v-textarea(v-model='passage_input' :label='$t("Passages")' rows='4' hide-details='auto'
             variant='outlined')

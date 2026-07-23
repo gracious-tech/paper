@@ -13,7 +13,7 @@ template(v-if='is_home')
 
     v-switch(v-model='blue.booklet' :label='$t("Booklet (fold at home)")' color='primary'
         density='compact' hide-details)
-    p(v-if='blue.booklet' class='text-body-2 text-secondary') {{ $t("Two pages will appear on each side of paper and will only appear in the correct order once the whole booklet has been folded.") }}
+    p(v-if='blue.booklet' class='text-body-medium text-secondary') {{ $t("Two pages will appear on each side of paper and will only appear in the correct order once the whole booklet has been folded.") }}
 
 //- Service / custom modes: full trim size + print options
 template(v-else)

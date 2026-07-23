@@ -16,7 +16,7 @@ v-radio-group(v-model='columns' inline :label='$t("Columns")' class='my-4'
     v-radio(value='null' :label='$t("Auto")')
     v-radio(value='false' :label='$t("One")')
     v-radio(value='true' :label='$t("Two")')
-p(class='text-body-2 text-disabled') {{ $t("Auto will use two columns only for poetic books") }}
+p(class='text-body-medium text-disabled') {{ $t("Auto will use two columns only for poetic books") }}
 
 v-radio-group(v-model='half_blank' inline :label='$t("Keep a side blank for notetaking")'
         :disabled='blue.bibles.length > 1 && blue.bibles_layout === "alternate"' class='my-6')

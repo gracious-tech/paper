@@ -2,11 +2,11 @@
 <template lang='pug'>
 
 v-select(v-model='model' :items='items' :label='label' :hint='hint')
-    template(#item='{item, props: item_props}')
+    template(#item='{internalItem: item, props: item_props}')
         v-list-item(v-bind='item_props')
             template(#title v-if='typeof item.raw === "string"')
                 div(class='font-sample' :style='{fontFamily: item.raw}') {{ example_text }}
-                div(class='font-name text-caption text-medium-emphasis') {{ item.raw }}
+                div(class='font-name text-body-small text-medium-emphasis') {{ item.raw }}
     template(#append-item)
         v-divider
         v-list-item

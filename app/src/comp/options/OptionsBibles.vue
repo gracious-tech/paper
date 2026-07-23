@@ -13,7 +13,7 @@ v-list(bg-color='transparent')
             v-btn(v-if='!secondary_absent' icon variant='text' @click.stop='rm_secondary')
                 app-icon(name='close')
 
-div(v-if='warnings' class='mt-4 text-error text-body-2')
+div(v-if='warnings' class='mt-4 text-error text-body-medium')
     div(v-for='warning of warnings') {{ warning }}
 
 </template>
