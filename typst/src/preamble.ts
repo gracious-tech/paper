@@ -143,15 +143,15 @@ ${wj}
     left: 0.25in + (n - 1) * 0.25in,
     par(hanging-indent: 1in - (0.25in + (n - 1) * 0.25in), c),
 )
-// List entry — bullet on the first line
+// List entry
 #let li(n, c) = pad(
     left: (n - 1) * 0.25in + 0.125in,
-    par(hanging-indent: 0.375in, [• #c]),
+    par(hanging-indent: 0.375in, c),
 )
 // Embedded list entry
 #let lim(n, c) = pad(
     left: (n - 1) * 0.25in + 0.375in,
-    par(hanging-indent: 0.375in, [• #c]),
+    par(hanging-indent: 0.375in, c),
 )
 // Non-leveled wrapped paragraphs
 #let qc(c) = align(center, c)
