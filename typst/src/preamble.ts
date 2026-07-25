@@ -57,11 +57,16 @@ export function gen_preamble(request:TypstRequest, overrides:PreambleOverrides =
     if (!features.show_chapters) {
         chapter = '#let ch(n) = []'
     } else if (features.show_chapters_style === 'divider') {
-        // Centered divider with dashes, hidden for chapter 1. No font: override — see footer
+        // Centered divider with the number flanked by solid drawn rules (rather than dashes,
+        // which can leave font-dependent gaps), hidden for chapter 1. Each rule is a fixed-width
+        // box with its baseline raised so the line sits centred on the number rather than at the
+        // text baseline. No font: override — see footer
         chapter = `#let ch(n) = if n > 1 {
     v(1em)
-    align(center, text(size: 0.8em, weight: "regular",
-        [——— #str(n) ———]))
+    align(center, text(size: 0.8em, weight: "regular", {
+        let rule = box(width: 2em, baseline: -0.28em, line(length: 100%, stroke: 0.5pt))
+        [#rule #str(n) #rule]
+    }))
     v(1em)
 }`
     } else if (features.show_chapters_style === 'float') {
