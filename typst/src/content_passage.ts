@@ -202,21 +202,28 @@ function gen_heading_rules(passage:TypstPassage, font_size:string):string {
     // Reset the heading base size to the document text size (absolute, so Typst's built-in
     // per-level em scaling — 1.4em/1.2em/1em — can't compound with the em sizes below).
     // Wrap each heading body in a `block` so it isn't treated as a continuation
-    // paragraph — otherwise the document's `first-line-indent` would indent it.
+    // paragraph — otherwise the document's first-line-indent would indent it.
+    //
+    // Each rule drops its leading `v()` when the "ch-float-open" flag is set — i.e. when the
+    // heading immediately follows a 'float'-style chapter marker (see preamble.ts). That lets the
+    // heading rise to sit level with the big margin numeral instead of being pushed below it. The
+    // flag is read then cleared here, so it only affects the chapter's first heading; it is never
+    // set under the other chapter styles, so those keep their normal leading unconditionally.
+    // `block(above: 0pt)` keeps that suppression clean — the (kept) `v()` is then the only
+    // leading space, matching the previous rendering for non-chapter-opening headings.
+    const lead = (space:string, mult:number) => `it => context {
+    let open = state("ch-float-open", false).get()
+    state("ch-float-open", false).update(false)
+    if not open { v(${space}) }
+    block(above: 0pt, text(weight: ${weight}, style: ${style}, size: ${size(mult)}, it.body))`
     return `#show heading: set text(size: ${font_size})
-#show heading.where(level: 1): it => {
-    v(0.5em)
-    block(text(weight: ${weight}, style: ${style}, size: ${size(1.2)}, it.body))
+#show heading.where(level: 1): ${lead('0.5em', 1.2)}
     v(0.25em)
 }
-#show heading.where(level: 2): it => {
-    v(0.5em)
-    block(text(weight: ${weight}, style: ${style}, size: ${size(1)}, it.body))
+#show heading.where(level: 2): ${lead('0.5em', 1)}
     v(0.25em)
 }
-#show heading.where(level: 3): it => {
-    v(0.25em)
-    block(text(weight: ${weight}, style: ${style}, size: ${size(0.9)}, it.body))
+#show heading.where(level: 3): ${lead('0.25em', 0.9)}
     v(0.15em)
 }`
 }

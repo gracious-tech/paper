@@ -66,7 +66,6 @@
   "Blank pages have lines for notetaking": "",
   "Book name in footer": "",
   "Divider": "",
-  "Large font": "",
   "Heading / Chapter": "",
   "Columns": "",
   "Auto": "",
@@ -363,5 +362,6 @@
   "Images": "",
   "Applies to every passage image in the document.": "",
   "Padded (within the normal page margins)": "",
-  "Borderless (bleeds to the page edge)": ""
+  "Borderless (bleeds to the page edge)": "",
+  "Drop cap": ""
 }

@@ -126,7 +126,11 @@ describe('gen_preamble', () => {
             }))
             expect(result).toContain('#let ch(n) =')
             expect(result).toContain('place(')
-            expect(result).toContain('size: 2em')
+            // Sized to a fixed em value (not scaled to a measured line height), placed in the
+            // page's left margin (measure() is still used, only to offset by the numeral's width)
+            expect(result).toContain('size: 2.5em')
+            // Flags the chapter as just-opened so a following heading can rise level with it
+            expect(result).toContain('state("ch-float-open", false).update(true)')
         })
 
         it('generates heading chapter style', () => {
@@ -163,6 +167,27 @@ describe('gen_preamble', () => {
                 features: {...TEST_FEATURES, show_verses: false},
             }))
             expect(result).toContain('#let vn(n) = []')
+        })
+
+        it('clears the float chapter-open flag under the float style', () => {
+            // Under 'float' the first verse of a chapter clears the just-opened flag so a later
+            // mid-chapter heading keeps its normal leading (see the #ch note in preamble.ts)
+            const result = gen_preamble(make_request({
+                features: {...TEST_FEATURES, show_chapters: true, show_chapters_style: 'float',
+                    show_verses: true},
+            }))
+            const vn_source = result.slice(
+                result.indexOf('#let vn(n)'), result.indexOf('#let wj('))
+            expect(vn_source).toContain('state("ch-float-open", false).update(false)')
+        })
+
+        it('leaves the verse marker flag-free under non-float styles', () => {
+            const result = gen_preamble(make_request({
+                features: {...TEST_FEATURES, show_chapters: true, show_chapters_style: 'divider',
+                    show_verses: true},
+            }))
+            expect(result).toContain(
+                '#let vn(n) = [#text(weight: "bold", super(str(n)))#sym.space.nobreak.narrow]')
         })
     })
 

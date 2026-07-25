@@ -52,6 +52,14 @@ describe('gen_passage', () => {
             )
             expect(level2_match).not.toBeNull()
         })
+
+        it('drops heading leading space when a float chapter just opened', () => {
+            // A heading immediately after a 'float' #ch reads the shared flag and skips its
+            // leading v() so it rises level with the margin numeral (see gen_heading_rules)
+            const result = call(make_passage({show_headings: true}))
+            expect(result).toContain('if not open { v(0.5em) }')
+            expect(result).toContain('state("ch-float-open", false).get()')
+        })
     })
 
     // --- Footnote rules ---

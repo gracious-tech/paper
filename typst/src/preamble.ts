@@ -65,10 +65,36 @@ export function gen_preamble(request:TypstRequest, overrides:PreambleOverrides =
     v(1em)
 }`
     } else if (features.show_chapters_style === 'float') {
-        // Large floating chapter number positioned to the left
+        // Large numeral placed in the page's left margin, right-edge-aligned to the text (not
+        // wrapped by it — Typst has no CSS-style float/text-wrap-around-a-shape, so reserving
+        // exact line-space beside the numeral would need measuring the paragraph itself, which
+        // #ch(n) doesn't have access to; it's just a marker inline in already-fetched markup).
+        // Sized to a fixed em value regardless of digit count — multi-digit chapter numbers
+        // (e.g. 150) rely on the margin being wide enough, same as any other marginal note.
+        //
+        // A zero-height block (rather than a bare place()) roots the numeral at #ch(n)'s own
+        // position in the flow — non-floating place() anchors to its enclosing container's
+        // origin, so repeated calls would otherwise all stack at the container's top edge.
+        // `below: 0pt` means the marker adds no space beneath itself, so the block that follows
+        // sits at the numeral's top edge; the block's default `above` spacing is kept so a new
+        // chapter is still separated from the previous one. top-edge/bottom-edge "bounds"
+        // tightens the frame to the digit's own glyph bounds, so place(top + ...) puts the top of
+        // the numeral level with the top of the following line.
+        //
+        // The one thing that would still push the following content below the numeral is a
+        // section heading's own leading space. So #ch flags the chapter as just-opened; a heading
+        // that immediately follows reads the flag and drops its leading space to rise level with
+        // the numeral (see gen_heading_rules in content_passage.ts). The flag is cleared by that
+        // heading, or by the first verse marker (#vn) when a chapter opens straight into text, so
+        // later mid-chapter headings keep their normal spacing.
         chapter = `#let ch(n) = {
-    v(0.6em)
-    place(dx: -0.75em, text(size: 2em, weight: "bold", str(n)))
+    context {
+        let num = text(size: 2.5em, weight: "bold", top-edge: "bounds", bottom-edge: "bounds",
+            str(n))
+        block(below: 0pt, height: 0pt,
+            place(top + left, dx: -(measure(num).width + 0.3em), num))
+    }
+    state("ch-float-open", false).update(true)
 }`
     } else {
         // 'heading' — Chapter N as a heading (font comes from the document-wide heading
@@ -78,9 +104,19 @@ export function gen_preamble(request:TypstRequest, overrides:PreambleOverrides =
 
     // Verse marker (#vn) — superscript bold number glued to the next word with a narrow
     // no-break space (U+202F) so it can't be stranded at a line end when the text wraps
-    const verse = features.show_verses
-        ? `#let vn(n) = [#text(weight: "bold", super(str(n)))#sym.space.nobreak.narrow]`
-        : '#let vn(n) = []'
+    const verse_mark = features.show_verses
+        ? '[#text(weight: "bold", super(str(n)))#sym.space.nobreak.narrow]'
+        : '[]'
+    // Under the 'float' chapter style the first verse of a chapter also clears the just-opened
+    // flag (see the #ch note above) so that a mid-chapter heading later on keeps its normal
+    // leading; other styles keep the plain one-line definition
+    const float_chapters = features.show_chapters && features.show_chapters_style === 'float'
+    const verse = float_chapters
+        ? `#let vn(n) = {
+    state("ch-float-open", false).update(false)
+    ${verse_mark}
+}`
+        : `#let vn(n) = ${verse_mark}`
 
     // Words of Jesus (#wj) — plain unless color/bold/italic styling is enabled
     const wj_styles:string[] = []

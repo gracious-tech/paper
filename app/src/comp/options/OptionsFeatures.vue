@@ -37,7 +37,7 @@ const wj_label = computed(() => {
 
 const chapter_styles = [
     {value: 'divider', title: t("Divider") + " / --- 2 ---"},
-    {value: 'float', title: t("Large font") + " / 2"},
+    {value: 'float', title: t("Drop cap") + " / 2"},
     {value: 'heading', title: t("Heading / Chapter") + " 2"},
 ]
 
