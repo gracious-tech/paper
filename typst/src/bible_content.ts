@@ -11,6 +11,7 @@ import {LruCache, estimate_bytes} from './helpers.js'
 import {prose_to_typst, replace_copyright_marker} from './prose.js'
 import {gen_copyright_typst} from './copyright.js'
 import {resolve_icon} from './icon_cache.js'
+import {resolve_passage_image} from './image_cache.js'
 import {PATTERNS} from './generated/patterns.js'
 import {inject_study_notes} from './content_notes.js'
 import {detect_font_fallbacks} from './fonts_detect.js'
@@ -242,6 +243,15 @@ export class BibleContent {
 
         const font_text2 = blue.font_text2 ?? blue.font_text
 
+        // Collect every resolved passage image's bytes into one asset map, keyed by the virtual
+        // filename generated Typst source references (see gen_passage_image in content_passage.ts)
+        const assets:Record<string, Uint8Array> = {}
+        for (const item of items) {
+            if (item.type === 'passage' && item.image) {
+                assets[item.image.filename] = item.image.bytes
+            }
+        }
+
         return {
             title: blue.title,
             page: this.gen_page(blue),
@@ -271,6 +281,8 @@ export class BibleContent {
             arrangement: blue.booklet ? 'booklet' : 'book',
             show_pages: blue.show_pages,
             booklet_portrait: blue.booklet_portrait,
+            image_style: blue.image_style,
+            assets,
         }
     }
 
@@ -361,9 +373,13 @@ export class BibleContent {
         // Inline heading mode only — 'titlepage' mode is handled by injecting a separate
         // synthetic TypstTitlePage item before this one (see resolve())
         const show_heading = blue.passage_title === 'heading' && passage.title.trim() !== ''
+        const image = passage.image
+            ? await resolve_passage_image(passage.image, passage.id)
+            : null
         return {
             type: 'passage',
             bibles: await this.gen_passage_bibles(blue, passage, report_fetch),
+            image,
             multi_layout: blue.bibles_layout,
             multi_align: blue.bibles_align,
             half_blank: blue.half_blank,

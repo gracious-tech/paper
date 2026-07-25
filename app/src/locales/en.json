@@ -349,5 +349,19 @@
   "Either side": "",
   "Show as title page": "",
   "Passage titles": "",
-  "Show as heading": ""
+  "Show as heading": "",
+  "Image": "",
+  "Remove image": "",
+  "Upload": "",
+  "URL": "",
+  "Uploading...": "",
+  "Choose file...": "",
+  "Image URL": "",
+  "From URL": "",
+  "Uploaded": "",
+  "Failed to upload image": "",
+  "Images": "",
+  "Applies to every passage image in the document.": "",
+  "Padded (within the normal page margins)": "",
+  "Borderless (bleeds to the page edge)": ""
 }

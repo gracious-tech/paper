@@ -17,6 +17,11 @@ const config = {
 }
 
 
+// Exposed so callers can build public Storage download URLs deterministically (see
+// content_images.ts) without an extra getDownloadURL() round-trip
+export const storage_bucket = config.storageBucket
+
+
 // Init the app and the services used throughout the frontend
 export const firebase_app = initializeApp(config)
 export const firebase_auth = getAuth(firebase_app)

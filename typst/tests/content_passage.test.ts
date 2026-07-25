@@ -2,7 +2,7 @@
 import {describe, it, expect} from 'vitest'
 
 import {gen_passage, passage_columns} from '../src/content_passage.js'
-import {make_passage} from './fixtures.js'
+import {make_passage, TEST_PAGE} from './fixtures.js'
 
 import type {TypstPassage} from '../src/types.js'
 
@@ -18,7 +18,8 @@ function call(
     passage:TypstPassage, font_text2 = FONT_TEXT2, font_headings2 = FONT_HEADINGS2,
     font_fallbacks = FONT_FALLBACKS,
 ):string {
-    return gen_passage(passage, FONT_SIZE, font_text2, font_headings2, font_fallbacks)
+    return gen_passage(passage, TEST_PAGE, 'padded', FONT_SIZE, font_text2, font_headings2,
+        font_fallbacks)
 }
 
 
@@ -174,7 +175,8 @@ describe('gen_passage', () => {
                     {content: '#vn(1)Bible 2 content'},
                 ],
                 multi_layout: 'columns',
-            }), FONT_SIZE, 'Second Font', 'Second Heading Font', ['Fallback Font'])
+            }), TEST_PAGE, 'padded', FONT_SIZE, 'Second Font', 'Second Heading Font',
+                ['Fallback Font'])
 
             // First cell carries no font override — the override sits ahead of the second only
             const second_cell_start = result.indexOf('#set text(font: ("Second Font"')
@@ -245,6 +247,40 @@ describe('gen_passage', () => {
                 passage_subtitle: null,
             }))
             expect(result).not.toContain('stack(spacing:')
+        })
+    })
+
+    // --- Passage image ---
+
+    describe('passage image', () => {
+
+        const image = {filename: 'passage_img_test.jpg', bytes: new Uint8Array([1, 2, 3])}
+
+        it('omits image markup when null', () => {
+            const result = call(make_passage({image: null}))
+            expect(result).not.toContain('passage_img_test.jpg')
+        })
+
+        it('renders the image before any title/content, in cover mode', () => {
+            const result = call(make_passage({image, passage_title: 'Genesis 1:1-31'}))
+            expect(result).toContain('image("passage_img_test.jpg"')
+            expect(result).toContain('fit: "cover"')
+            expect(result.indexOf('passage_img_test.jpg'))
+                .toBeLessThan(result.indexOf('Genesis 1:1-31'))
+        })
+
+        it('stays in normal flow (no #place) in padded mode, respecting margins', () => {
+            const result = gen_passage(make_passage({image}), TEST_PAGE, 'padded',
+                FONT_SIZE, FONT_TEXT2, FONT_HEADINGS2, FONT_FALLBACKS)
+            expect(result).not.toContain('#place(top + left')
+            expect(result).toContain('#box(width: 100%')
+        })
+
+        it('bleeds past the page margins in borderless mode', () => {
+            const result = gen_passage(make_passage({image}), TEST_PAGE, 'borderless',
+                FONT_SIZE, FONT_TEXT2, FONT_HEADINGS2, FONT_FALLBACKS)
+            expect(result).toContain('#place(top + left')
+            expect(result).toContain(`dx: -${TEST_PAGE.margin_left}`)
         })
     })
 

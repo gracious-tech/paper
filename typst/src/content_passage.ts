@@ -1,10 +1,36 @@
 
 import {escape_typst_str} from 'typst-utils'
 
-import {LARGE_POETRY, LOTS_OF_POETRY, escape_typst} from './helpers.js'
+import {LARGE_POETRY, LOTS_OF_POETRY, escape_typst, parse_unit} from './helpers.js'
 import {build_aligned_rows} from './bilingual.js'
 
-import type {TypstPassage} from './types.js'
+import type {PageConfig, TypstPassage, TypstPassageImage} from './types.js'
+
+
+// Generate Typst markup for a passage's image, shown in the top half of its first page before
+// any headings/content. 'padded' stays within the normal page margins (plain in-flow content);
+// 'borderless' bleeds to the true page edge (place()'d outside the margin box, with a #v()
+// spacer to reserve the same vertical space in the flow so subsequent content isn't overlapped)
+function gen_passage_image(
+    image:TypstPassageImage, page:PageConfig, image_style:'borderless'|'padded',
+):string {
+    const filename = escape_typst_str(image.filename)
+    const page_h = parse_unit(page.height)
+    const half_h = `${(page_h.num / 2).toFixed(2)}${page_h.unit}`
+
+    if (image_style === 'borderless') {
+        return `#v(${half_h})
+#place(top + left, dx: -${page.margin_left}, dy: -${page.margin_top},
+    image("${filename}", width: ${page.width}, height: ${half_h}, fit: "cover"))`
+    }
+
+    // Padded: normal in-flow content already respects the page's margins. Height is measured
+    // from the current flow position, so subtracting the top margin keeps the image's bottom
+    // edge at the page's true half-way line (matching the borderless variant)
+    const content_h = `${half_h} - ${page.margin_top}`
+    return `#box(width: 100%, height: ${content_h}, clip: true,
+    image("${filename}", width: 100%, height: 100%, fit: "cover"))`
+}
 
 
 // Generate Typst markup for a Bible passage content item. font_size is the document text size
@@ -12,10 +38,17 @@ import type {TypstPassage} from './types.js'
 // second translation is actually rendered side-by-side (grid layout with 2 bibles) — see
 // gen_multi_bible_grids
 export function gen_passage(
-    passage:TypstPassage, font_size:string, font_text2:string, font_headings2:string,
+    passage:TypstPassage, page:PageConfig, image_style:'borderless'|'padded',
+    font_size:string, font_text2:string, font_headings2:string,
     font_fallbacks:string[],
 ):string {
     const parts:string[] = []
+
+    // Optional image, shown before any title/heading/content
+    if (passage.image) {
+        parts.push(gen_passage_image(passage.image, page, image_style))
+        parts.push('')
+    }
 
     // Optional passage title + subtitle (no icon — that's only for full title pages). On a
     // 2-column page it floats at the parent (page) scope so it spans the full width above both
@@ -57,10 +90,20 @@ ${inner}
 // target page's text width) and entry_width confines footnote entries to the left half so a
 // long note can't straddle the cut.
 export function gen_passage_facing(
-    passage:TypstPassage, font_size:string, font_text2:string, font_headings2:string,
+    passage:TypstPassage, page:PageConfig, image_style:'borderless'|'padded',
+    font_size:string, font_text2:string, font_headings2:string,
     font_fallbacks:string[], gutter:string, entry_width:string,
 ):string {
     const parts:string[] = []
+
+    // The image repeats on both halves too, same as the title block below
+    if (passage.image) {
+        const half = gen_passage_image(passage.image, page, image_style)
+        parts.push(`#grid(columns: (1fr, 1fr), column-gutter: ${gutter},
+    ${half},
+    ${half})`)
+        parts.push('')
+    }
 
     // The passage title (+ optional subtitle) repeats on both halves, since each becomes its
     // own physical page

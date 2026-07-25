@@ -83,6 +83,9 @@ export function get_default_blueprint():Blueprint{
         titlepage_icon_size: 1,
         titlepage_always: 'right',
 
+        // Images
+        image_style: 'padded',
+
         // Spacing
         margin_unit: 'mm',
         margin_top: 10,

@@ -58,6 +58,15 @@ v-card-text(class='overflow-y-auto')
         v-radio(value='left' :label='$t("Left")')
         v-radio(value='right' :label='$t("Right")')
 
+    v-divider(class='my-8')
+
+    h3(class='text-title-large mb-4') {{$t("Images")}}
+    p(class='text-body-medium text-medium-emphasis mb-4') {{$t("Applies to every passage image in the document.")}}
+
+    v-radio-group(v-model='blue.image_style' inline :label='$t("Style")')
+        v-radio(value='padded' :label='$t("Padded (within the normal page margins)")')
+        v-radio(value='borderless' :label='$t("Borderless (bleeds to the page edge)")')
+
 </template>
 
 

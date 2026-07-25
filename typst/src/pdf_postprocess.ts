@@ -176,7 +176,7 @@ async function assemble_pages(
 
     // Compile a blank page for padding
     const blank_source = generate_typst_blank(request)
-    const blank_pdf = await compile_fn(blank_source)
+    const blank_pdf = await compile_fn(blank_source, request.assets)
     const blank_doc = await PDFDocument.load(blank_pdf)
 
     // Start building the final PDF
@@ -292,7 +292,7 @@ async function compile_item(
     request:TypstRequest, item:TypstContentItem, compile_fn:CompileFn, start_page:number,
 ):Promise<PDFDocument> {
     const source = generate_typst(make_item_request(request, item), start_page)
-    const bytes = await compile_fn(source)
+    const bytes = await compile_fn(source, request.assets)
     return await PDFDocument.load(bytes)
 }
 
@@ -319,7 +319,7 @@ async function process_facing(
     // The double-width footer prints each half's own final page number, so it needs the
     // starting page rather than a counter offset (the counter advances once per double page)
     const source = generate_typst_facing(request, passage, final_doc.getPageCount() + 1)
-    const wide_doc = await PDFDocument.load(await compile_fn(source))
+    const wide_doc = await PDFDocument.load(await compile_fn(source, request.assets))
     const split_doc = await split_facing(wide_doc)
 
     for (let p = 0; p < split_doc.getPageCount(); p++) {

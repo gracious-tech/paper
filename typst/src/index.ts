@@ -53,6 +53,7 @@ export type {
     FeatureConfig,
     TypstContentItem,
     TypstPassage,
+    TypstPassageImage,
     BiblePassageData,
     TypstTitlePage,
     TypstCustomPage,
@@ -66,5 +67,6 @@ export type {
     ContentItem,
     ContentTitle,
     ContentPassage,
+    ContentPassageImage,
     ContentCustom,
 } from './types.js'

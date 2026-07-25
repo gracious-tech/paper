@@ -13,6 +13,12 @@ export interface TypstRequest {
     arrangement:'normal'|'book'|'booklet'
     show_pages:boolean
     booklet_portrait:boolean
+    // How a passage image sits on the page: 'borderless' bleeds to the true page edge, 'padded'
+    // stays within the normal page margins (see Blueprint.image_style)
+    image_style:'borderless'|'padded'
+    // Binary assets referenced by generated Typst source (virtual filename -> bytes), served via
+    // the compiler's shadow filesystem — currently only passage images (see TypstPassageImage)
+    assets:Record<string, Uint8Array>
     // Preview-only notice pages placed before/after the arranged document ("Start of preview"
     // when content before the window was cut, "End of preview" when content after was), kept
     // out of content so booklet imposition doesn't fold them into the sheet pairing — the
@@ -81,11 +87,23 @@ export interface TitlepageConfig {
 export type TypstContentItem = TypstPassage | TypstTitlePage | TypstCustomPage | TypstLinesPage
 
 
+// A passage image, resolved to actual bytes + a virtual filename the compiler's shadow
+// filesystem can serve it under (raster bytes can't be inlined as Typst source text like the
+// SVG icons/frames in content_title.ts — see TypstRequest.assets)
+export interface TypstPassageImage {
+    filename:string
+    bytes:Uint8Array
+}
+
+
 // Bible passage with all display configuration
 export interface TypstPassage {
     type:'passage'
     // Pre-rendered Typst content per translation (1 or 2 bibles)
     bibles:BiblePassageData[]
+    // Optional image shown in the top half of the passage's first page, before any
+    // headings/content (null = none)
+    image:TypstPassageImage|null
     // How multiple translations are laid out (single bible ignores this): 'columns' puts them
     // side by side on each page, 'alternate' as facing pages (compiled double-width and split
     // in post-processing — see process_facing in pdf_postprocess.ts)
@@ -150,8 +168,12 @@ export interface TypstLinesPage {
 }
 
 
-// Function signature for compiling a Typst source string to PDF bytes
-export type CompileFn = (source:string) => Promise<Uint8Array>
+// Function signature for compiling a Typst source string to PDF bytes. assets maps a virtual
+// filename to bytes the compiler should serve it as (e.g. passage images) — raster bytes can't
+// be inlined as Typst source text, so they're registered in the compiler's shadow filesystem
+// instead and referenced by name from generated source (see TypstRequest.assets)
+export type CompileFn =
+    (source:string, assets?:Record<string, Uint8Array>) => Promise<Uint8Array>
 
 
 // Coarse stages reported during PDF generation. 'fetch' and 'compile' are the only stages that
@@ -271,6 +293,9 @@ export interface Blueprint {
     // Force every title page to start on this side; null = no forcing
     titlepage_always:'left'|'right'|null
 
+    // Images (global — applies to every passage image; per-passage content is on ContentPassage)
+    image_style:'borderless'|'padded'
+
     // Spacing
     margin_unit:'mm'|'in'
     margin_top:number
@@ -314,6 +339,21 @@ export interface ContentPassage {
     title:string
     title_subtitle:string
     title_icon:string|null
+    image:ContentPassageImage|null
+}
+
+
+// An image shown in the top half of a passage's first page, before any headings/content. Either
+// a URL to an external image service, or a user-uploaded image (content-addressed in Storage,
+// mirroring CoverConfig's bg image). `url` is always the fetchable address the shared typst core
+// package fetches via plain fetch() — for 'upload' it's the uploaded file's own download URL, so
+// core never needs to know about Storage/Firebase at all. `path`/`hash` are app-layer bookkeeping
+// only (upload dedup + version-freeze re-pathing), unused by core.
+export interface ContentPassageImage {
+    source:'url'|'upload'
+    url:string|null
+    path:string|null
+    hash:string|null
 }
 
 

@@ -92,7 +92,8 @@ export function generate_typst_facing(
 
     const parts:string[] = []
     parts.push(gen_preamble(request, {width: `2 * ${page.width}`, margin, footer}))
-    parts.push(gen_passage_facing(passage, typography.font_size, typography.font_text2,
+    parts.push(gen_passage_facing(passage, page, request.image_style,
+        typography.font_size, typography.font_text2,
         typography.font_headings2, typography.font_fallbacks,
         `2 * ${page.margin_left}`,
         `${page.width} - ${page.margin_left} - ${page.margin_right}`))
@@ -123,7 +124,8 @@ ${gen_lines({type: 'lines', spacing}, request.page)}`
 function gen_content_item(item:TypstContentItem, request:TypstRequest):string {
     switch (item.type) {
         case 'passage':
-            return gen_passage(item, request.typography.font_size,
+            return gen_passage(item, request.page, request.image_style,
+                request.typography.font_size,
                 request.typography.font_text2, request.typography.font_headings2,
                 request.typography.font_fallbacks)
         case 'title':

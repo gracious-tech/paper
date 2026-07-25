@@ -111,9 +111,11 @@ export class TypstWeb {
         return this.compiled_bytes > COMPILE_BYTES_BUDGET
     }
 
-    // Build a compile function that turns a single Typst source string into PDF bytes
+    // Build a compile function that turns a single Typst source string into PDF bytes. assets
+    // (e.g. passage images) are registered in the compiler's shadow filesystem by virtual
+    // filename, the same primitive the bookcover-web pipeline uses for its own images
     private make_compile_fn():CompileFn {
-        return async (source:string):Promise<Uint8Array> => {
+        return async (source:string, assets?:Record<string, Uint8Array>):Promise<Uint8Array> => {
             const hash = hash_source(source)
             if (!this.seen_sources.has(hash)) {
                 this.seen_sources.add(hash)
@@ -121,6 +123,9 @@ export class TypstWeb {
             }
             this.compiler.resetShadow()
             this.compiler.addSource('/main.typ', source)
+            for (const [filename, bytes] of Object.entries(assets ?? {})) {
+                this.compiler.mapShadow(`/${filename}`, bytes)
+            }
             const result = await this.compiler.compile({
                 mainFilePath: '/main.typ',
                 format: CompileFormatEnum.pdf,

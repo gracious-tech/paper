@@ -134,7 +134,7 @@ export type {
 function make_compile_fn(options:NodeCompileOptions | undefined, font_paths:string[]):CompileFn {
     const typst_path = options?.typst_path ?? 'typst'
 
-    return async (source:string):Promise<Uint8Array> => {
+    return async (source:string, assets?:Record<string, Uint8Array>):Promise<Uint8Array> => {
         // Create a temp directory for this compilation
         const tmp_dir = await mkdtemp(join(tmpdir(), 'typst-'))
         const input_path = join(tmp_dir, 'input.typ')
@@ -143,6 +143,13 @@ function make_compile_fn(options:NodeCompileOptions | undefined, font_paths:stri
         try {
             // Write the Typst source to a temp file
             await writeFile(input_path, source, 'utf-8')
+
+            // Write any binary assets (e.g. passage images) alongside it, so the CLI resolves
+            // image("filename") relative to its own working directory (the same technique the
+            // bookcover-node pipeline uses for its own images)
+            for (const [filename, bytes] of Object.entries(assets ?? {})) {
+                await writeFile(join(tmp_dir, filename), bytes)
+            }
 
             // Write any custom (user-uploaded) fonts into this same temp dir, reusing its
             // existing cleanup below rather than a second temp-directory lifecycle

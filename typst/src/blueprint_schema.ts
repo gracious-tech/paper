@@ -2,7 +2,7 @@
 import {z} from 'zod'
 
 import type {PmDoc} from 'pm-to-typst'
-import type {Blueprint, ContentItem, CoverConfig} from './types.js'
+import type {Blueprint, ContentItem, ContentPassageImage, CoverConfig} from './types.js'
 
 
 // Zod validation for untrusted Blueprint data (Firestore docs written by co-editors). The TS
@@ -33,6 +33,16 @@ const content_title_schema = z.object({
 }) satisfies z.ZodType<ContentItem>
 
 
+// A passage image (URL or user-uploaded, see ContentPassageImage) — per-field .catch() so an
+// old/malformed image config degrades to "no image" rather than dropping the whole passage
+const content_passage_image_schema = z.object({
+    source: z.enum(['url', 'upload']).catch('url'),
+    url: z.string().nullable().catch(null),
+    path: z.string().nullable().catch(null),
+    hash: z.string().nullable().catch(null),
+}) satisfies z.ZodType<ContentPassageImage>
+
+
 // Bible passage reference item. title/title_subtitle/title_icon use per-field .catch() for the
 // same reason as content_title_schema above — old saved designs have `title` as a boolean (the
 // pre-redesign "show heading" toggle) and no title_subtitle/title_icon at all; without .catch()
@@ -49,6 +59,7 @@ const content_passage_schema = z.object({
     title: z.string().catch(''),
     title_subtitle: z.string().catch(''),
     title_icon: z.string().nullable().catch(null),
+    image: content_passage_image_schema.nullable().catch(null),
 }) satisfies z.ZodType<ContentItem>
 
 
@@ -167,6 +178,9 @@ export function make_blueprint_schema(defaults:Blueprint):z.ZodType<Blueprint>{
         titlepage_font: z.string().nullable().catch(defaults.titlepage_font),
         titlepage_icon_size: z.number().catch(defaults.titlepage_icon_size),
         titlepage_always: z.enum(['left', 'right']).nullable().catch(defaults.titlepage_always),
+
+        // Images
+        image_style: z.enum(['borderless', 'padded']).catch(defaults.image_style),
 
         // Spacing
         margin_unit: z.enum(['mm', 'in']).catch(defaults.margin_unit),

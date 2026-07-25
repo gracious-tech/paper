@@ -73,6 +73,7 @@ export function make_passage(overrides:Partial<TypstPassage> = {}):TypstPassage 
         passage_title: null,
         passage_subtitle: null,
         progress_label: 'Genesis 1:1',
+        image: null,
         ...overrides,
     }
 }
@@ -123,6 +124,8 @@ export function make_request(overrides:Partial<TypstRequest> = {}):TypstRequest 
         arrangement: 'normal',
         show_pages: true,
         booklet_portrait: false,
+        image_style: 'padded',
+        assets: {},
         ...overrides,
     }
 }

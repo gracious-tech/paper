@@ -19,6 +19,7 @@ v-card-text(class='flex-grow-1 d-flex flex-column')
     div
         v-text-field(v-model='tmp_title_subtitle' :label='$t("Subtitle")')
     IconField(v-model:icon='tmp_title_icon')
+    ImageField(v-model:image='tmp_image')
     h3 {{$t("Available books")}}
     p(class='text-body-medium text-medium-emphasis mb-4') {{$t("Some may be missing if a translation you have selected only has one testament, or is still being translated or digitized.")}}
 
@@ -39,8 +40,9 @@ import {content} from '@/services/content'
 import {generate_token} from '@/services/utils'
 import {book_icon} from '@/services/icons'
 import IconField from '@/comp/editors/assets/IconField.vue'
+import ImageField from '@/comp/editors/assets/ImageField.vue'
 
-import type {ContentPassage} from '@/services/types'
+import type {ContentPassage, ContentPassageImage} from '@/services/types'
 
 
 const props = defineProps<{item:ContentPassage|null}>()
@@ -67,6 +69,7 @@ const tmp_ref = ref(initial_ref)
 const tmp_title = ref(original?.title ?? '')
 const tmp_title_subtitle = ref(original?.title_subtitle ?? '')
 const tmp_title_icon = ref<string|null>(original?.title_icon ?? null)
+const tmp_image = ref<ContentPassageImage|null>(original?.image ?? null)
 const errors = ref([] as string[])
 const messages = ref([] as string[])
 
@@ -136,6 +139,7 @@ watch(tmp_ref, () => {
             title: tmp_title.value,
             title_subtitle: tmp_title_subtitle.value,
             title_icon: tmp_title_icon.value,
+            image: tmp_image.value,
         })
         blue.content.push(item)
     } else {
@@ -161,6 +165,12 @@ watch(tmp_title_subtitle, () => {
 watch(tmp_title_icon, () => {
     if (item){
         item.title_icon = tmp_title_icon.value
+    }
+})
+
+watch(tmp_image, () => {
+    if (item){
+        item.image = tmp_image.value
     }
 })
 

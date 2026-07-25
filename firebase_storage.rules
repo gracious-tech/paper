@@ -67,6 +67,18 @@ service firebase.storage {
                 && request.resource.size < 20 * 1024 * 1024;
         }
 
+        // Per-version snapshots of uploaded passage images (swept with the version by the
+        // lifecycle rule, like the font/cover snapshots above)
+        match /versions/{version_id}/images/{file} {
+            allow get: if true;
+
+            allow create: if request.auth != null
+                && firestore.get(
+                    /databases/(default)/documents/versions/$(version_id))
+                    .data.owner == request.auth.uid
+                && request.resource.size < 20 * 1024 * 1024;
+        }
+
         // Per-user reusable custom font library
         match /user_fonts/{uid}/{path=**} {
             allow get: if true;
@@ -80,6 +92,17 @@ service firebase.storage {
         // Per-user cover background image library (content-addressed by hash, so re-saving an
         // unchanged image is an idempotent overwrite of identical bytes)
         match /user_cover_images/{uid}/{path=**} {
+            allow get: if true;
+
+            allow delete: if request.auth != null && request.auth.uid == uid;
+
+            allow create, update: if request.auth != null && request.auth.uid == uid
+                && request.resource.size < 20 * 1024 * 1024;
+        }
+
+        // Per-user reusable passage image library (content-addressed by hash, same as the cover
+        // bg image library above)
+        match /user_content_images/{uid}/{path=**} {
             allow get: if true;
 
             allow delete: if request.auth != null && request.auth.uid == uid;
