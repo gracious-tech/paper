@@ -9,6 +9,13 @@ v-divider
 
 v-card-text(class='overflow-y-auto')
 
+    h3(class='text-title-large mb-4') {{$t("Chapter numbers")}}
+
+    v-select(v-model='blue.show_chapters_style' :items='chapter_styles'
+        :disabled='!blue.show_chapters' :label='$t("Style")' variant='outlined')
+
+    v-divider(class='my-8')
+
     h3(class='text-title-large mb-4') {{$t("Headings")}}
 
     AppFontSelect(v-model='blue.font_headings' :label='$t("Font for headings")' auto
@@ -73,15 +80,26 @@ v-card-text(class='overflow-y-auto')
 <script lang='ts' setup>
 
 import {computed} from 'vue'
+import {useI18n} from 'vue-i18n'
 import {PATTERNS as patterns} from 'paper-bible-typst'
 
 import {blue, state} from '@/services/state'
+
+const {t} = useI18n()
 
 
 // Close the editor
 const done = () => {
     state.editor = null
 }
+
+
+// Chapter number style options
+const chapter_styles = [
+    {value: 'divider', title: t("Divider") + " / --- 2 ---"},
+    {value: 'float', title: t("Drop cap") + " / 2"},
+    {value: 'heading', title: t("Heading / Chapter") + " 2"},
+]
 
 
 // Corner-frame pattern swatches for the global title-page frame setting
