@@ -3,7 +3,8 @@
 // so the same options can drive both the in-browser and server pipelines. Re-exported here so
 // existing `@/services/types` imports keep working.
 export type {Blueprint, CoverConfig, ContentItem, ContentTitle, ContentPassage,
-    ContentPassageImage, ContentCustom} from 'paper-bible-typst'
+    ContentPassageImage, ContentCustom, ContentPictureStory,
+    PictureStorySlide} from 'paper-bible-typst'
 
 import type {Blueprint} from 'paper-bible-typst'
 

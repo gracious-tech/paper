@@ -7,7 +7,7 @@
 import {FetchClient, PassageReference} from '@gracious.tech/fetch-client'
 import {get_common_sizes, get_service} from 'printing-services'
 
-import {LruCache, estimate_bytes} from './helpers.js'
+import {LruCache, estimate_bytes, escape_typst, emphasize_sentences} from './helpers.js'
 import {prose_to_typst, replace_copyright_marker} from './prose.js'
 import {gen_copyright_typst} from './copyright.js'
 import {resolve_icon} from './icon_cache.js'
@@ -17,11 +17,12 @@ import {inject_study_notes} from './content_notes.js'
 import {detect_font_fallbacks} from './fonts_detect.js'
 
 import type {FontStyle} from 'typst-fonts'
-import type {BibleCollection, BibleBookTypst, GetResourcesItem,
+import type {BibleCollection, BibleBookTypst, BibleBookTxt, GetResourcesItem,
     } from '@gracious.tech/fetch-client'
-import type {Blueprint, ContentPassage, ContentCustom, TypstRequest,
-    TypstContentItem, TypstPassage, TypstTitlePage, TypstCustomPage, BiblePassageData,
-    PageConfig, TypstNotesFile, ProgressFn, TitlepageConfig} from './types.js'
+import type {Blueprint, ContentPassage, ContentCustom, ContentPictureStory, TypstRequest,
+    TypstContentItem, TypstPassage, TypstTitlePage, TypstCustomPage, TypstPictureStory,
+    TypstPictureStorySlide, BiblePassageData, PageConfig, TypstNotesFile, ProgressFn,
+    TitlepageConfig} from './types.js'
 
 
 // Default Bible content API endpoint (production fetch.bible)
@@ -73,6 +74,9 @@ export class BibleContent {
     // Cache of fetched Typst books, keyed `${bible}_${book}` (LRU, shared budget with notes —
     // notes files are small in practice so books dominate the cap)
     private books_typst:LruCache<BibleBookTypst>
+    // Cache of fetched plain-text books, keyed `${bible}_${book}` (used by picture stories, which
+    // want clean prose with no verse numbers/headings/footnotes — the txt format has none)
+    private books_txt:LruCache<BibleBookTxt>
     // Cache of fetched study notes files, keyed `${resource}_${book}` (null = none available)
     private notes_cache:LruCache<TypstNotesFile|null>
 
@@ -91,6 +95,7 @@ export class BibleContent {
         this.manifest_ttl_ms = opts.manifest_ttl_ms ?? null
         const cache_ttl_ms = opts.cache_ttl_ms ?? null
         this.books_typst = new LruCache(opts.cache_max_bytes ?? null, cache_ttl_ms)
+        this.books_txt = new LruCache(opts.cache_max_bytes ?? null, cache_ttl_ms)
         this.notes_cache = new LruCache(opts.cache_max_bytes ?? null, cache_ttl_ms)
     }
 
@@ -147,6 +152,30 @@ export class BibleContent {
         }
         const instance = await this.collection.fetch_book(bible, book, 'typst')
         this.books_typst.set(key, instance, estimate_bytes(instance))
+        return instance
+    }
+
+    // Fetch (and cache) the plain-text content for one book, or null if unavailable. Used by
+    // picture stories, which render clean prose rather than the marked-up Typst format
+    async fetch_book_txt(
+        bible:string, book:string, on_fetch?:(label:string) => void,
+    ):Promise<BibleBookTxt|null> {
+        const key = `${bible}_${book}`
+        const cached = this.books_txt.get(key)
+        if (cached) {
+            return cached
+        }
+        const meta = this.collection.get_books(bible, {object: true})[book]
+        if (!meta?.available) {
+            return null
+        }
+        if (on_fetch) {
+            on_fetch(meta.name)
+        } else {
+            this.on_progress?.({stage: 'fetch', label: meta.name})
+        }
+        const instance = await this.collection.fetch_book(bible, book, 'txt')
+        this.books_txt.set(key, instance, estimate_bytes(instance))
         return instance
     }
 
@@ -211,6 +240,14 @@ export class BibleContent {
                 for (const bible of blue.bibles) {
                     fetch_keys.add(`${bible}_${item.book}`)
                 }
+            } else if (item.type === 'picture_story') {
+                // Each passage slide fetches its book from the primary translation only (picture
+                // stories render a single translation's clean prose)
+                for (const slide of item.slides) {
+                    if (slide.mode === 'passage' && slide.book) {
+                        fetch_keys.add(`${blue.bibles[0]}_${slide.book}`)
+                    }
+                }
             }
         }
         const fetch_total = [...fetch_keys].filter(key => !this.books_typst.has(key)).length
@@ -238,6 +275,12 @@ export class BibleContent {
                 items.push(await this.gen_title_page(item, titlepage_color_icon))
             } else if (item.type === 'custom') {
                 items.push(this.gen_custom_item(blue, item, resources))
+            } else if (item.type === 'picture_story') {
+                // Auto title page before the story, same rule as passages
+                if (blue.passage_title === 'titlepage' && item.title.trim()) {
+                    items.push(await this.gen_title_page(item, titlepage_color_icon))
+                }
+                items.push(await this.gen_picture_story_item(blue, item, report_fetch))
             }
         }
 
@@ -249,6 +292,12 @@ export class BibleContent {
         for (const item of items) {
             if (item.type === 'passage' && item.image) {
                 assets[item.image.filename] = item.image.bytes
+            } else if (item.type === 'picture_story') {
+                for (const slide of item.slides) {
+                    if (slide.image) {
+                        assets[slide.image.filename] = slide.image.bytes
+                    }
+                }
             }
         }
 
@@ -398,6 +447,39 @@ export class BibleContent {
             passage_subtitle: show_heading && passage.title_subtitle ? passage.title_subtitle : null,
             progress_label: reference,
         }
+    }
+
+    // Convert a picture-story content item to its Typst equivalent — one resolved slide per page.
+    // The image alternates top/bottom by slide index. A passage slide renders clean prose from the
+    // plain-text format (no verse numbers/headings/footnotes), from the primary translation only;
+    // a text slide is prose-converted from its rich-text doc. When blue.story_emphasis is on,
+    // passage prose auto-italicizes questions and emboldens exclamations.
+    private async gen_picture_story_item(
+        blue:Blueprint, story:ContentPictureStory, report_fetch?:(label:string) => void,
+    ):Promise<TypstPictureStory> {
+        const slides:TypstPictureStorySlide[] = []
+        for (const [i, slide] of story.slides.entries()) {
+            // Image bytes, keyed per slide so virtual filenames never collide
+            const image = slide.image
+                ? await resolve_passage_image(slide.image, `${story.id}_${i}`)
+                : null
+
+            let body:string|null = null
+            if (slide.mode === 'passage' && slide.book) {
+                // Clean prose from the primary translation's plain-text format
+                const instance = await this.fetch_book_txt(blue.bibles[0], slide.book, report_fetch)
+                const text = instance
+                    ? instance.get_passage_from_ref(new PassageReference(slide), {
+                        attribute: false, verse_nums: false, headings: false, notes: false})
+                    : ''
+                body = blue.story_emphasis ? emphasize_sentences(text) : escape_typst(text)
+            } else if (slide.mode === 'text') {
+                body = prose_to_typst(slide.doc)
+            }
+
+            slides.push({image, body, image_position: i % 2 === 0 ? 'top' : 'bottom'})
+        }
+        return {type: 'picture_story', slides}
     }
 
     // Resolve the document-wide title-page style config (shared by every title page: standalone

@@ -5,6 +5,32 @@ export function escape_typst(text:string):string {
 }
 
 
+// Escape plain text for Typst while auto-emphasizing sentence tone: sentences ending in "?" are
+// italicized and those ending in "!" are emboldened. Runs on plain text (not Typst markup) so
+// sentence detection stays reliable — leading whitespace/paragraph breaks are kept outside the
+// emphasis wrapper so paragraphs still break. Used for picture-story passage prose.
+export function emphasize_sentences(text:string):string {
+    // Each match is one sentence: any run of non-terminator characters up to and including its
+    // terminator(s) and any trailing closing quotes/brackets, or a final run with no terminator
+    const sentences = text.match(/[^.!?]*[.!?]+["'”’)\]]*|[^.!?]+$/g)
+    if (!sentences) {
+        return escape_typst(text)
+    }
+    return sentences.map(sentence => {
+        // Keep leading whitespace (incl. paragraph breaks) outside any wrapper
+        const lead = sentence.match(/^\s*/)![0]
+        const core = sentence.slice(lead.length)
+        // The sentence's terminator, ignoring trailing quotes/brackets
+        const terminator = core.replace(/["'”’)\]]*$/, '').slice(-1)
+        const escaped = escape_typst(core)
+        const wrapped = terminator === '?' ? `#emph[${escaped}]`
+            : terminator === '!' ? `#strong[${escaped}]`
+            : escaped
+        return escape_typst(lead) + wrapped
+    }).join('')
+}
+
+
 // Books that almost always need 2-column layout due to size and poetry line breaks
 export const LARGE_POETRY = ['job', 'psa', 'pro', 'isa', 'jer', 'ezk']
 

@@ -27,27 +27,56 @@ export function start_watchers(){
         }
     }, {deep: true, immediate: true})
 
-    // Auto-load (and cache) the Typst content for every passage's book, recording readiness in
-    // the reactive `loaded` mirror so the preview re-renders as each book arrives
+    // Auto-load (and cache) each passage's book content, recording readiness in the reactive
+    // `loaded` mirror so the preview re-renders as each book arrives. Regular passages render the
+    // marked-up Typst format; picture stories render clean plain text (from the primary
+    // translation only) — preload each in the format it will actually be compiled from.
     // WARN Watch sources must be functions so still reactive when blueprint completely replaced
     watch([() => blue.bibles, () => blue.content], () => {
 
-        const content_books = [...new Set(blue.content.filter(item => item.type === 'passage')
-            .map(item => (item as ContentPassage).book))]
+        // Distinct books needed in each format
+        const typst_books = new Set<string>()
+        const txt_books = new Set<string>()
+        for (const item of blue.content){
+            if (item.type === 'passage'){
+                typst_books.add(item.book)
+            } else if (item.type === 'picture_story'){
+                for (const slide of item.slides){
+                    if (slide.mode === 'passage' && slide.book){
+                        txt_books.add(slide.book)
+                    }
+                }
+            }
+        }
 
+        // Marked-up Typst for regular passages, across every selected translation
         for (const bible of blue.bibles){
-            for (const book of content_books){
+            for (const book of typst_books){
                 const key = `${bible}_${book}`
                 if (content.loaded[key]){
                     continue
                 }
-                // Fetch the Typst format, used by the in-browser PDF preview and generation
                 void bible_content.fetch_book(bible, book).then(instance => {
                     if (instance){
                         content.loaded[key] = true
                     }
                 })
             }
+        }
+
+        // Plain text for picture stories, primary translation only (~txt key so it never clashes
+        // with the same book's Typst readiness flag)
+        const primary = blue.bibles[0]
+        for (const book of txt_books){
+            const key = `${primary}_${book}~txt`
+            if (content.loaded[key]){
+                continue
+            }
+            void bible_content.fetch_book_txt(primary, book).then(instance => {
+                if (instance){
+                    content.loaded[key] = true
+                }
+            })
         }
     }, {deep: true, immediate: true})
 

@@ -73,6 +73,7 @@ export function get_default_blueprint():Blueprint{
         justify: null,
         text_color: null,
         columns: null,
+        story_emphasis: false,
 
         // Title pages
         titlepage_frame: 'straight',
@@ -118,6 +119,26 @@ export function clean_blueprint(blueprint:unknown):Blueprint{
 }
 
 
+// Collect the distinct book codes referenced by all scripture in the content — both standalone
+// passage items and the passage slides of picture stories — so book content can be preloaded and
+// availability/attribution checks cover every passage the document shows
+export function collect_passage_books(items:ContentItem[]):string[]{
+    const books = new Set<string>()
+    for (const item of items){
+        if (item.type === 'passage'){
+            books.add(item.book)
+        } else if (item.type === 'picture_story'){
+            for (const slide of item.slides){
+                if (slide.mode === 'passage' && slide.book){
+                    books.add(slide.book)
+                }
+            }
+        }
+    }
+    return [...books]
+}
+
+
 // Generate name for content item
 export function gen_content_name(item:ContentItem):string{
     if (item.type === 'passage'){
@@ -126,6 +147,8 @@ export function gen_content_name(item:ContentItem):string{
         return item.name
     } else if (item.type === 'title'){
         return item.title
+    } else if (item.type === 'picture_story'){
+        return item.name || item.title || "Picture story"
     }
     return "Nameless"
 }

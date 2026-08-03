@@ -84,7 +84,8 @@ export interface TitlepageConfig {
 
 
 // Union of all content item types
-export type TypstContentItem = TypstPassage | TypstTitlePage | TypstCustomPage | TypstLinesPage
+export type TypstContentItem =
+    TypstPassage | TypstTitlePage | TypstCustomPage | TypstLinesPage | TypstPictureStory
 
 
 // A passage image, resolved to actual bytes + a virtual filename the compiler's shadow
@@ -165,6 +166,25 @@ export interface TypstCustomPage {
 export interface TypstLinesPage {
     type:'lines'
     spacing:string              // e.g. "10mm"
+}
+
+
+// One resolved slide of a picture story, rendered as its own page. The body is pre-rendered Typst
+// markup — either clean scripture prose (a passage with verse/chapter numbers, headings and
+// footnotes all stripped) or prose-converted free text — or null for an image-only slide.
+// image_position is computed from the slide's index (even = top, odd = bottom) so it alternates
+export interface TypstPictureStorySlide {
+    image:TypstPassageImage|null    // resolved bytes + virtual filename (shadow-fs), null = none
+    body:string|null                // clean prose markup, or null for an image-only slide
+    image_position:'top'|'bottom'
+}
+
+
+// A sequence of illustrated slides, one page each (see gen_picture_story). image-only slides are
+// full-page; body-only slides are vertically centred; image + body split the page in half
+export interface TypstPictureStory {
+    type:'picture_story'
+    slides:TypstPictureStorySlide[]
 }
 
 
@@ -281,6 +301,9 @@ export interface Blueprint {
     justify:null|boolean
     text_color:string|null
     columns:null|boolean
+    // Picture stories only: auto-emphasize sentence tone — italicize questions (ending "?") and
+    // embolden exclamations (ending "!"). Applies to picture-story passage prose (nothing else)
+    story_emphasis:boolean
 
     // Title pages (global — applies uniformly to every title page in the document: standalone
     // title items and passage-auto-inserted title pages alike)
@@ -311,7 +334,7 @@ export interface Blueprint {
 
 
 // A single item in the document's content list
-export type ContentItem = ContentTitle|ContentPassage|ContentCustom
+export type ContentItem = ContentTitle|ContentPassage|ContentCustom|ContentPictureStory
 
 
 // Decorative title page item. Styling is document-wide (see Blueprint's titlepage_* fields) —
@@ -364,6 +387,39 @@ export interface ContentCustom {
     name:string
     doc:PmDoc
     position:'top'|'middle'|'bottom'
+}
+
+
+// One slide of a picture story: an optional image plus a body that is either a Bible passage
+// (same flat ref fields as ContentPassage, so gen_passage_bibles resolves it) or free rich text.
+// mode selects which body is used; both sets of fields are always present (defaulted) so toggling
+// the mode in the editor never loses the other side's input
+export interface PictureStorySlide {
+    id:string
+    image:ContentPassageImage|null
+    mode:'passage'|'text'
+    // passage ref (mode === 'passage')
+    book:string
+    start_chapter:number|null
+    start_verse:number|null
+    end_chapter:number|null
+    end_verse:number|null
+    // free rich text (mode === 'text')
+    doc:PmDoc
+}
+
+
+// A sequence of illustrated slides, rendered one page each. title/title_subtitle/title_icon
+// mirror ContentPassage so an auto title page can be shown before the story (see
+// Blueprint.passage_title)
+export interface ContentPictureStory {
+    type:'picture_story'
+    id:string
+    name:string
+    title:string
+    title_subtitle:string
+    title_icon:string|null
+    slides:PictureStorySlide[]
 }
 
 

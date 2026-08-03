@@ -56,7 +56,6 @@ import {report_error} from '@/services/errors'
 import {truncate_for_preview} from 'paper-bible-typst'
 
 import type {ProgressEvent, PreviewSection} from 'paper-bible-typst'
-import type {ContentCustom} from '@/services/types'
 
 
 const {t} = useI18n()
@@ -288,10 +287,18 @@ watch(
 function discrete_signature():string {
     // Title/passage items no longer have any discrete (non-text, non-color) per-item field —
     // title/title_subtitle/title_icon are all text/free-entry and fall through to the debounced
-    // deep watcher below; only 'custom' still has a genuinely discrete per-item field (position)
-    const item_sigs = blue.content
-        .filter((item):item is ContentCustom => item.type === 'custom')
-        .map(item => `custom:${item.position}`)
+    // deep watcher below. 'custom' has its position; a picture story's slides each have a discrete
+    // passage/text mode toggle and image-present toggle (the refs/text/image url are text-like and
+    // fall through to the debounced watcher)
+    const item_sigs = blue.content.flatMap(item => {
+        if (item.type === 'custom'){
+            return [`custom:${item.position}`]
+        }
+        if (item.type === 'picture_story'){
+            return [`picture_story:${item.slides.map(s => `${s.mode}:${s.image ? 1 : 0}`).join(',')}`]
+        }
+        return []
+    })
     return JSON.stringify([
         blue.font_text, blue.font_text2, blue.font_headings, blue.titlepage_font,
         blue.service_id, blue.size_id, blue.binding_type, blue.ink_type, blue.paper_type,
@@ -302,7 +309,7 @@ function discrete_signature():string {
         blue.show_pages, blue.show_footnotes, blue.show_wj, blue.show_wj_bold,
         blue.show_wj_italic, blue.show_lines, blue.notes, blue.crossref,
         blue.margin_unit, blue.public_domain, blue.app_link,
-        blue.titlepage_frame, blue.titlepage_always, blue.passage_title,
+        blue.titlepage_frame, blue.titlepage_always, blue.passage_title, blue.story_emphasis,
         // The whole cover config — it only ever changes atomically (editor Finished / Remove)
         blue.cover,
         item_sigs,

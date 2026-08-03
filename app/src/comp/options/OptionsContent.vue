@@ -19,6 +19,7 @@ div.add(class='d-flex align-center flex-wrap')
     v-btn(@click='add_passage' size='small' variant='outlined') {{$t("Passage")}}
     v-btn(@click='add_custom' size='small' variant='outlined') {{$t("Text")}}
     v-btn(@click='add_title' size='small' variant='outlined') {{$t("Title page")}}
+    v-btn(@click='add_picture_story' size='small' variant='outlined') {{$t("Picture story")}}
     v-btn(:disabled='has_copyright' @click='add_copyright' size='small' variant='outlined')
         | {{$t("Copyright")}}
 
@@ -38,7 +39,7 @@ import {blue, state, has_copyright, requires_copyright} from '@/services/state'
 import {gen_content_name} from '@/services/blueprints'
 import {generate_token} from '@/services/utils'
 
-import type {ContentItem, ContentTitle} from '@/services/types'
+import type {ContentItem, ContentTitle, ContentPictureStory} from '@/services/types'
 
 
 const {t} = useI18n()
@@ -48,6 +49,7 @@ const type_label:Record<string, string> = {
     passage: t("Passage"),
     custom: t("Text"),
     title: t("Title page"),
+    picture_story: t("Picture story"),
 }
 
 
@@ -104,6 +106,26 @@ const add_title = () => {
 }
 
 
+const add_picture_story = () => {
+    const new_story:ContentPictureStory = reactive({
+        id: generate_token(),
+        type: 'picture_story',
+        name: '',
+        title: '',
+        title_subtitle: "",
+        title_icon: null,
+        slides: [],
+    })
+    blue.content.push(new_story)
+    state.editor = {
+        component: 'EditorPictureStory',
+        props: {
+            item: new_story,
+        },
+    }
+}
+
+
 const add_copyright = () => {
     blue.content.push(reactive({
         type: 'custom',
@@ -130,6 +152,7 @@ const edit = (item:ContentItem) => {
         passage: 'EditorPassage',
         title: 'EditorTitle',
         custom: 'EditorCustom',
+        picture_story: 'EditorPictureStory',
     }
 
     state.editor = {

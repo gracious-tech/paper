@@ -58,6 +58,8 @@ export type {
     TypstTitlePage,
     TypstCustomPage,
     TypstLinesPage,
+    TypstPictureStory,
+    TypstPictureStorySlide,
     CompileFn,
     ProgressFn,
     ProgressStage,
@@ -69,4 +71,6 @@ export type {
     ContentPassage,
     ContentPassageImage,
     ContentCustom,
+    ContentPictureStory,
+    PictureStorySlide,
 } from './types.js'

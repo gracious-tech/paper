@@ -74,6 +74,13 @@ v-card-text(class='overflow-y-auto')
         v-radio(value='padded' :label='$t("Padded (within the normal page margins)")')
         v-radio(value='borderless' :label='$t("Borderless (bleeds to the page edge)")')
 
+    v-divider(class='my-8')
+
+    h3(class='text-title-large mb-4') {{$t("Picture stories")}}
+
+    v-checkbox(v-model='blue.story_emphasis' :label='$t("Emphasize tone")' hide-details)
+    p(class='text-body-medium text-medium-emphasis mt-2') {{$t("Italicize questions and embolden exclamations in picture story passages.")}}
+
 </template>
 
 

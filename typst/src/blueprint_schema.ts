@@ -2,7 +2,8 @@
 import {z} from 'zod'
 
 import type {PmDoc} from 'pm-to-typst'
-import type {Blueprint, ContentItem, ContentPassageImage, CoverConfig} from './types.js'
+import type {Blueprint, ContentItem, ContentPassageImage, CoverConfig,
+    PictureStorySlide} from './types.js'
 
 
 // Zod validation for untrusted Blueprint data (Firestore docs written by co-editors). The TS
@@ -73,6 +74,35 @@ const content_custom_schema = z.object({
 }) satisfies z.ZodType<ContentItem>
 
 
+// One slide of a picture story. Per-field .catch() everywhere (except the required id) so a
+// malformed slide degrades to sensible blanks rather than dropping the whole story — both the
+// passage-ref fields and the text doc are always present regardless of the slide's current mode
+const picture_story_slide_schema = z.object({
+    id: z.string().min(1),
+    image: content_passage_image_schema.nullable().catch(null),
+    mode: z.enum(['passage', 'text']).catch('passage'),
+    book: z.string().catch(''),
+    start_chapter: z.number().nullable().catch(null),
+    start_verse: z.number().nullable().catch(null),
+    end_chapter: z.number().nullable().catch(null),
+    end_verse: z.number().nullable().catch(null),
+    doc: pm_doc_schema.catch({type: 'doc', content: []} as PmDoc),
+}) satisfies z.ZodType<PictureStorySlide>
+
+
+// A picture-story item (a sequence of illustrated slides). title/name use per-field .catch() like
+// the other items; a bad slides array degrades to empty rather than dropping the whole item
+const content_picture_story_schema = z.object({
+    type: z.literal('picture_story'),
+    id: z.string().min(1),
+    name: z.string().catch(''),
+    title: z.string().catch(''),
+    title_subtitle: z.string().catch(''),
+    title_icon: z.string().nullable().catch(null),
+    slides: z.array(picture_story_slide_schema).catch([]),
+}) satisfies z.ZodType<ContentItem>
+
+
 // Cover config — the widget form is only validated shallowly; the cover renderer re-parses
 // the derived schema with bookcover's own zod schema, so a bad co-editor value can only
 // break its own cover render (never the book compile)
@@ -86,7 +116,8 @@ const cover_config_schema = z.object({
 
 // Any single content item
 const content_item_schema = z.discriminatedUnion('type',
-    [content_title_schema, content_passage_schema, content_custom_schema])
+    [content_title_schema, content_passage_schema, content_custom_schema,
+        content_picture_story_schema])
 
 
 export function clean_content_items(items:unknown[]):ContentItem[]{
@@ -169,6 +200,7 @@ export function make_blueprint_schema(defaults:Blueprint):z.ZodType<Blueprint>{
         justify: z.boolean().nullable().catch(defaults.justify),
         text_color: z.string().nullable().catch(defaults.text_color),
         columns: z.boolean().nullable().catch(defaults.columns),
+        story_emphasis: z.boolean().catch(defaults.story_emphasis),
 
         // Title pages
         titlepage_frame: z.string().nullable().catch(defaults.titlepage_frame),

@@ -4,6 +4,7 @@ import {gen_passage, gen_passage_facing, passage_columns} from './content_passag
 import {gen_title} from './content_title.js'
 import {gen_custom} from './content_custom.js'
 import {gen_lines} from './content_lines.js'
+import {gen_picture_story} from './content_picture_story.js'
 
 import type {TypstRequest, TypstContentItem, TypstPassage} from './types.js'
 
@@ -136,5 +137,7 @@ function gen_content_item(item:TypstContentItem, request:TypstRequest):string {
             return gen_custom(item)
         case 'lines':
             return gen_lines(item, request.page)
+        case 'picture_story':
+            return gen_picture_story(item, request.page, request.image_style)
     }
 }

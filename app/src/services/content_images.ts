@@ -57,18 +57,42 @@ export async function upload_passage_image(bytes:Uint8Array, mime:string)
 export async function plan_version_images(version_id:string, blueprint:Blueprint)
         :Promise<{frozen:ContentItem[], uploads:[string, Uint8Array, string][]}> {
     const uploads:[string, Uint8Array, string][] = []
+
+    // Freeze one uploaded image into the version's prefix, returning its re-pathed config.
+    // URL-sourced (or absent) images need no snapshot — they pass through unchanged. path_stem is
+    // the destination path without its extension.
+    const freeze_image = async (image:ContentPassageImage, path_stem:string)
+            :Promise<ContentPassageImage> => {
+        if (image.source !== 'upload' || !image.path){
+            return image
+        }
+        const image_ref = storage_ref(firebase_storage, image.path)
+        const bytes = new Uint8Array(await getBytes(image_ref))
+        const ext = image.path.slice(image.path.lastIndexOf('.') + 1)
+        const path = `${path_stem}.${ext}`
+        uploads.push([path, bytes, IMAGE_EXT_MIME[ext] ?? 'image/jpeg'])
+        return {...image, path, url: storage_public_url(path)}
+    }
+
     const map_item = async (raw_item:ContentItem):Promise<ContentItem> => {
         const item = cloneDeep(toRaw(raw_item))
-        if (item.type !== 'passage' || !item.image
-                || item.image.source !== 'upload' || !item.image.path) {
+        // A passage has one image, keyed by the item id
+        if (item.type === 'passage' && item.image){
+            return {...item,
+                image: await freeze_image(item.image, `versions/${version_id}/images/${item.id}`)}
+        }
+        // A picture story has one image per slide, keyed by item id + slide index
+        if (item.type === 'picture_story'){
+            item.slides = await Promise.all(item.slides.map(async (slide, i) => {
+                if (!slide.image){
+                    return slide
+                }
+                return {...slide, image: await freeze_image(
+                    slide.image, `versions/${version_id}/images/${item.id}_${i}`)}
+            }))
             return item
         }
-        const image_ref = storage_ref(firebase_storage, item.image.path)
-        const bytes = new Uint8Array(await getBytes(image_ref))
-        const ext = item.image.path.slice(item.image.path.lastIndexOf('.') + 1)
-        const path = `versions/${version_id}/images/${item.id}.${ext}`
-        uploads.push([path, bytes, IMAGE_EXT_MIME[ext] ?? 'image/jpeg'])
-        return {...item, image: {...item.image, path, url: storage_public_url(path)}}
+        return item
     }
     const frozen = await Promise.all(blueprint.content.map(map_item))
     return {frozen, uploads}

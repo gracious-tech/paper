@@ -217,13 +217,13 @@ function gen_heading_rules(passage:TypstPassage, font_size:string):string {
     if not open { v(${space}) }
     block(above: 0pt, text(weight: ${weight}, style: ${style}, size: ${size(mult)}, it.body))`
     return `#show heading: set text(size: ${font_size})
-#show heading.where(level: 1): ${lead('0.5em', 1.2)}
+#show heading.where(level: 1): ${lead('1.2em', 1.2)}
     v(0.25em)
 }
-#show heading.where(level: 2): ${lead('0.5em', 1)}
+#show heading.where(level: 2): ${lead('1em', 1)}
     v(0.25em)
 }
-#show heading.where(level: 3): ${lead('0.25em', 0.9)}
+#show heading.where(level: 3): ${lead('0.6em', 0.9)}
     v(0.15em)
 }`
 }

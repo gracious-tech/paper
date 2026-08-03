@@ -4,8 +4,9 @@ import {reactive, ref, computed} from 'vue'
 import {doc_has_copyright} from 'paper-bible-typst'
 
 import {content} from '@/services/content'
+import {collect_passage_books} from '@/services/blueprints'
 
-import type {Blueprint, ContentPassage} from '@/services/types'
+import type {Blueprint} from '@/services/types'
 
 
 // General state
@@ -100,7 +101,7 @@ export const requires_copyright = computed(() => {
     if (blue.notes){
         return true  // TODO Parse restrictions from collection (might have PD ones in future)
     }
-    return blue.content.some(item => item.type === 'passage')
+    return collect_passage_books(blue.content).length > 0
         && blue.bibles.some(item =>
             !content.translations[item]?.licenses.find(l => !l.restrictions.forbid_attributionless))
 })
@@ -114,10 +115,8 @@ export const supports_wj = computed(() => {
 
 // Whether all passages are available in all translations
 export const translations_have_passages = computed(() => {
+    const books = collect_passage_books(blue.content)
     return blue.bibles.every(bible => {
-        return blue.content.filter(i => i.type === 'passage').every(p => {
-            const book = (p as ContentPassage).book
-            return content.books[bible]?.[book]?.available
-        })
+        return books.every(book => content.books[bible]?.[book]?.available)
     })
 })
