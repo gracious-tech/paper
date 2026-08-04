@@ -266,6 +266,8 @@ ${wj}
     left: (n - 1) * 0.25in + 0.375in,
     par(hanging-indent: 0.375in, c),
 )
+// Stanza break (USFM \b) — a deliberate blank line between poetry stanzas
+#let b() = v(1em)
 // Non-leveled wrapped paragraphs
 #let qc(c) = align(center, c)
 #let qr(c) = align(right, c)
