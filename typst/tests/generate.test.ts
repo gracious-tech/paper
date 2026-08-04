@@ -200,8 +200,8 @@ describe('generate_typst_facing', () => {
         expect(result).toContain('str(7 + 2 * n - 1)')
     })
 
-    it('omits page numbers when show_pages is off', () => {
-        const request = {...facing_request(), show_pages: false}
+    it('omits page numbers when running_pages is off', () => {
+        const request = {...facing_request(), running_pages: false}
         const result = generate_typst_facing(request, facing_passage())
         expect(result).toContain('footer: none')
     })

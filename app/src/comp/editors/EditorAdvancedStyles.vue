@@ -9,6 +9,21 @@ v-divider
 
 v-card-text(class='overflow-y-auto')
 
+    h3(class='text-title-large mb-4') {{$t("Page numbers/headings")}}
+
+    div(v-if='!blue.running_pages && !blue.running_headings' class='text-body-medium text-medium-emphasis mb-4') {{$t("Enable page numbers and/or book & chapter name under Features to configure these.")}}
+
+    v-radio-group(v-model='blue.running_position' inline :label='$t("Position")'
+            :disabled='!blue.running_pages && !blue.running_headings' class='my-4')
+        v-radio(value='footer' :label='$t("Bottom")')
+        v-radio(value='header' :label='$t("Top")')
+    v-radio-group(v-model='blue.running_align' inline :label='$t("Page number alignment")'
+            :disabled='!blue.running_pages && !blue.running_headings' class='my-4')
+        v-radio(value='center' :label='$t("Center")')
+        v-radio(value='outer' :label='$t("Outer edge")')
+
+    v-divider(class='my-8')
+
     h3(class='text-title-large mb-4') {{$t("Chapter numbers")}}
 
     v-select(v-model='blue.show_chapters_style' :items='chapter_styles'

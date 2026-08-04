@@ -2,7 +2,8 @@
 
 v-checkbox(v-model='blue.show_chapters' :label='$t("Chapter numbers")')
 v-checkbox(v-model='blue.show_verses' :label='$t("Verse numbers")')
-v-checkbox(v-model='blue.show_pages' :label='$t("Page numbers")')
+v-checkbox(v-model='blue.running_pages' :label='$t("Page numbers")')
+v-checkbox(v-model='blue.running_headings' :label='$t("Book & chapter name")')
 v-checkbox(v-model='blue.show_headings' :label='$t("Section headings")')
 v-checkbox(v-model='blue.show_footnotes' :label='$t("Footnotes")')
 v-checkbox(v-model='blue.show_lines' :label='$t("Blank pages have lines for notetaking")')
@@ -11,7 +12,6 @@ div(v-if='blue.show_wj && supports_wj' class='wj_style')
     AppColor(v-model='blue.show_wj_color' :label="$t(`Color of Jesus' words`)")
     v-checkbox(v-model='blue.show_wj_bold' :label='$t("Bold")' density='compact' hide-details)
     v-checkbox(v-model='blue.show_wj_italic' :label='$t("Italic")' density='compact' hide-details)
-//- v-checkbox(v-model='blue.show_book_name' :label='$t("Book name in footer")')
 
 </template>
 

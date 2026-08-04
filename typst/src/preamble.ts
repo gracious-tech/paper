@@ -7,11 +7,60 @@ import type {TypstRequest} from './types.js'
 
 
 // Optional page-geometry overrides for special documents — facing-pages compiles double the
-// width with fixed margins and a per-half page-number footer (see generate_typst_facing)
+// width with fixed margins and a per-half header/footer row (see generate_typst_facing)
 export interface PreambleOverrides {
     width?:string
     margin?:string
+    header?:string
     footer?:string
+}
+
+
+// Build the combined page-number + running-heading row (a 3-cell left/center/right grid, the
+// standard running-head layout) shown in whichever page slot (header/footer) the blueprint
+// chose. Returns 'none' when neither feature is on. The returned expression must be evaluated
+// inside a #context block by the caller — it reads state set up in generate.ts's per-item loop
+// (running-active/running-book/running-chapter/running-side) via state(...).at(here())
+function gen_page_furniture_row(request:TypstRequest):string {
+    if (!request.running_pages && !request.running_headings) {
+        return 'none'
+    }
+
+    // Page number cell. No font: override — inherits the document-wide #set text(font: (...))
+    // below (font_text + its regular fallbacks), same as any other text
+    const number = request.running_pages
+        ? 'text(size: 7pt, counter(page).display())'
+        : 'none'
+
+    // Running heading cell — only shows once a passage is the active content item (title/
+    // custom/lines/picture-story pages have no book/chapter to show)
+    const heading = request.running_headings
+        ? `if state("running-active", false).at(here()) {
+            text(size: 7pt, state("running-book", "").at(here()) + " "
+                + str(state("running-chapter", 0).at(here())))
+        } else { none }`
+        : 'none'
+
+    // The page number takes request.running_align; the running heading takes the other slot
+    const outer = request.running_align === 'outer' ? number : heading
+    const center = request.running_align === 'outer' ? heading : number
+
+    return `{
+        // Odd = recto/right by convention, matching the parity pdf_postprocess.ts already
+        // encodes for blank-page insertion. running-side overrides this for half_blank
+        // passages, whose physical side is fixed regardless of the Typst-internal page
+        // counter (see process_faced in pdf_postprocess.ts)
+        let side = state("running-side", none).at(here())
+        let recto = if side != none { side == "right" }
+            else { calc.odd(counter(page).at(here()).first()) }
+        let outer_cell = align(if recto { right } else { left }, ${outer})
+        let center_cell = align(center, ${center})
+        grid(columns: (1fr, 1fr, 1fr), align: horizon,
+            if recto { none } else { outer_cell },
+            center_cell,
+            if recto { outer_cell } else { none },
+        )
+    }`
 }
 
 
@@ -43,31 +92,45 @@ export function gen_preamble(request:TypstRequest, overrides:PreambleOverrides =
         ?? `(top: ${page.margin_top}, bottom: ${page.margin_bottom}, `
         + `inside: ${page.margin_left}, outside: ${page.margin_right})`
 
-    // Page footer with page numbers (state-based visibility). No font: override — inherits the
-    // document-wide #set text(font: (...)) below (font_text + its regular fallbacks), same as
-    // any other text, rather than a separate fixed style
+    // Page number + running heading, combined into whichever slot (header/footer) the
+    // blueprint chose — see gen_page_furniture_row
+    const furniture_row = gen_page_furniture_row(request)
+
+    const header = overrides.header
+        ?? (request.running_position === 'header' && furniture_row !== 'none'
+            ? `context {
+    counter(footnote).update(0)
+    ${furniture_row}
+}`
+            : 'context counter(footnote).update(0)')
+
     const footer = overrides.footer
-        ?? (request.show_pages
-            ? `context align(center, text(size: 7pt,
-            counter(page).display()))`
+        ?? (request.running_position === 'footer' && furniture_row !== 'none'
+            ? `context ${furniture_row}`
             : 'none')
 
-    // Chapter marker (#ch) — style depends on the chosen option
+    // Chapter marker (#ch) — style depends on the chosen option. Every branch updates
+    // running-chapter unconditionally (regardless of whether the style visually shows
+    // anything), so the running heading keeps tracking chapters even when chapter numbers
+    // are hidden entirely
     let chapter:string
     if (!features.show_chapters) {
-        chapter = '#let ch(n) = []'
+        chapter = '#let ch(n) = state("running-chapter", 0).update(n)'
     } else if (features.show_chapters_style === 'divider') {
         // Centered divider with the number flanked by solid drawn rules (rather than dashes,
         // which can leave font-dependent gaps), hidden for chapter 1. Each rule is a fixed-width
         // box with its baseline raised so the line sits centred on the number rather than at the
         // text baseline. No font: override — see footer
-        chapter = `#let ch(n) = if n > 1 {
-    v(1em)
-    align(center, text(size: 0.8em, weight: "regular", {
-        let rule = box(width: 2em, baseline: -0.28em, line(length: 100%, stroke: 0.5pt))
-        [#rule #str(n) #rule]
-    }))
-    v(1em)
+        chapter = `#let ch(n) = {
+    state("running-chapter", 0).update(n)
+    if n > 1 {
+        v(1em)
+        align(center, text(size: 0.8em, weight: "regular", {
+            let rule = box(width: 2em, baseline: -0.28em, line(length: 100%, stroke: 0.5pt))
+            [#rule #str(n) #rule]
+        }))
+        v(1em)
+    }
 }`
     } else if (features.show_chapters_style === 'float') {
         // Large numeral placed in the page's left margin, right-edge-aligned to the text (not
@@ -93,6 +156,7 @@ export function gen_preamble(request:TypstRequest, overrides:PreambleOverrides =
         // heading, or by the first verse marker (#vn) when a chapter opens straight into text, so
         // later mid-chapter headings keep their normal spacing.
         chapter = `#let ch(n) = {
+    state("running-chapter", 0).update(n)
     context {
         let num = text(size: 2.5em, weight: "bold", top-edge: "bounds", bottom-edge: "bounds",
             str(n))
@@ -104,7 +168,10 @@ export function gen_preamble(request:TypstRequest, overrides:PreambleOverrides =
     } else {
         // 'heading' — Chapter N as a heading (font comes from the document-wide heading
         // show rule below, same as any other heading)
-        chapter = '#let ch(n) = heading(level: 1, "Chapter " + str(n))'
+        chapter = `#let ch(n) = {
+    state("running-chapter", 0).update(n)
+    heading(level: 1, "Chapter " + str(n))
+}`
     }
 
     // Verse marker (#vn) — superscript bold number glued to the next word with a narrow
@@ -152,7 +219,7 @@ export function gen_preamble(request:TypstRequest, overrides:PreambleOverrides =
     width: ${overrides.width ?? page.width},
     height: ${page.height},
     margin: ${margin},
-    header: context counter(footnote).update(0),
+    header: ${header},
     footer: ${footer},
     footer-descent: 20%,
 )

@@ -108,7 +108,7 @@ async function compile_notice(
     if (!notice) {
         return null
     }
-    return await compile_item({...request, show_pages: false}, notice, compile_fn, 1)
+    return await compile_item({...request, running_pages: false}, notice, compile_fn, 1)
 }
 
 
@@ -232,7 +232,7 @@ async function assemble_pages(
         // put the next page on that side. Nothing is padded after the item (that's the removed
         // "ensure other side of page blank" behavior — only the start side is ever forced).
         const title_always = item.type === 'title' ? request.titlepage.always : null
-        const show_pages = request.show_pages && item.type !== 'title'
+        const show_pages = request.running_pages && item.type !== 'title'
 
         if (title_always && booklike) {
             // 0-indexed even page count so far -> next page lands recto/right (see the identical
@@ -323,7 +323,7 @@ async function process_facing(
     const split_doc = await split_facing(wide_doc)
 
     for (let p = 0; p < split_doc.getPageCount(); p++) {
-        await add_page(split_doc, p, request.show_pages)
+        await add_page(split_doc, p, request.running_pages)
     }
 }
 
@@ -362,7 +362,7 @@ async function process_faced(
     add_blank:() => Promise<void>,
 ):Promise<void> {
 
-    const show_pages = request.show_pages
+    const show_pages = request.running_pages
 
     // Ruled lines on the facing side (reused for every page); otherwise a plain blank
     let lines_doc:PDFDocument|null = null

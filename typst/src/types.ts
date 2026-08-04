@@ -11,7 +11,14 @@ export interface TypstRequest {
     features:FeatureConfig
     content:TypstContentItem[]
     arrangement:'normal'|'book'|'booklet'
-    show_pages:boolean
+    running_pages:boolean
+    // Book + chapter shown alongside the page number (e.g. "Genesis 3")
+    running_headings:boolean
+    // Which page slot the page number + running heading render in together
+    running_position:'header'|'footer'
+    // The page number's horizontal position; the running heading always takes
+    // whichever of these two the page number doesn't
+    running_align:'center'|'outer'
     booklet_portrait:boolean
     // How a passage image sits on the page: 'borderless' bleeds to the true page edge, 'padded'
     // stays within the normal page margins (see Blueprint.image_style)
@@ -129,6 +136,13 @@ export interface TypstPassage {
     column_gap:string       // e.g. "5mm"
     // Book code for auto-column detection (e.g. "psa", "isa")
     book:string
+    // Display name of the book, for the running heading (translation-dependent, e.g.
+    // "Psalms" vs "Salmos" — resolved from the fetched Bible collection, not a static map)
+    book_name:string
+    // Chapter the passage opens on, for seeding the running heading — the USX->Typst
+    // converter only emits a #ch() marker for a chapter's own opening verse, so a passage
+    // starting mid-chapter never triggers one for its first (partial) chapter
+    start_chapter:number
     // Optional passage title displayed above content ('heading' mode only — 'titlepage' mode is
     // a separate synthetic TypstTitlePage item injected before this one, see bible_content.ts)
     passage_title:string|null
@@ -277,7 +291,14 @@ export interface Blueprint {
     show_chapters:boolean
     show_chapters_style:'divider'|'float'|'heading'
     show_verses:boolean
-    show_pages:boolean
+    running_pages:boolean
+    // Book + chapter shown alongside the page number (e.g. "Genesis 3")
+    running_headings:boolean
+    // Which page slot the page number + running heading render in together
+    running_position:'header'|'footer'
+    // The page number's horizontal position; the running heading always takes
+    // whichever of these two the page number doesn't
+    running_align:'center'|'outer'
     show_footnotes:boolean
     show_wj:boolean
     show_wj_color:string|null

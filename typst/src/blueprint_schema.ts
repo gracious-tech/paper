@@ -179,7 +179,10 @@ export function make_blueprint_schema(defaults:Blueprint):z.ZodType<Blueprint>{
         show_chapters_style: z.enum(['divider', 'float', 'heading'])
             .catch(defaults.show_chapters_style),
         show_verses: z.boolean().catch(defaults.show_verses),
-        show_pages: z.boolean().catch(defaults.show_pages),
+        running_pages: z.boolean().catch(defaults.running_pages),
+        running_headings: z.boolean().catch(defaults.running_headings),
+        running_position: z.enum(['header', 'footer']).catch(defaults.running_position),
+        running_align: z.enum(['center', 'outer']).catch(defaults.running_align),
         show_footnotes: z.boolean().catch(defaults.show_footnotes),
         show_wj: z.boolean().catch(defaults.show_wj),
         show_wj_color: z.string().nullable().catch(defaults.show_wj_color),

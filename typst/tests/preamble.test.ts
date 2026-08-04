@@ -87,18 +87,18 @@ describe('gen_preamble', () => {
         expect(result).toContain('#set footnote.entry(separator:')
     })
 
-    it('includes page footer when show_pages is true', () => {
-        const result = gen_preamble(make_request({show_pages: true}))
+    it('includes page footer when running_pages is true', () => {
+        const result = gen_preamble(make_request({running_pages: true}))
         expect(result).toContain('counter(page).display()')
     })
 
-    it('sets footer to none when show_pages is false', () => {
-        const result = gen_preamble(make_request({show_pages: false}))
+    it('sets footer to none when running_pages and running_headings are both false', () => {
+        const result = gen_preamble(make_request({running_pages: false, running_headings: false}))
         expect(result).toContain('footer: none')
     })
 
     it('footer text has no font: override, so it inherits font_text + its fallbacks', () => {
-        const result = gen_preamble(make_request({show_pages: true}))
+        const result = gen_preamble(make_request({running_pages: true}))
         const footer_source = result.slice(
             result.indexOf('footer:'), result.indexOf('footer-descent'))
         expect(footer_source).not.toContain('font:')
@@ -112,8 +112,8 @@ describe('gen_preamble', () => {
             const result = gen_preamble(make_request({
                 features: {...TEST_FEATURES, show_chapters: true, show_chapters_style: 'divider'},
             }))
-            expect(result).toContain('#let ch(n) = if n > 1')
-            expect(result).toContain('———')
+            expect(result).toContain('if n > 1')
+            expect(result).toContain('line(length: 100%, stroke: 0.5pt)')
             // No font: override — inherits font_text + its fallbacks, same as regular body text
             const divider_source = result.slice(
                 result.indexOf('#let ch(n)'), result.indexOf('#let vn(n)'))
@@ -137,14 +137,14 @@ describe('gen_preamble', () => {
             const result = gen_preamble(make_request({
                 features: {...TEST_FEATURES, show_chapters: true, show_chapters_style: 'heading'},
             }))
-            expect(result).toContain('#let ch(n) = heading(level: 1, "Chapter " + str(n))')
+            expect(result).toContain('heading(level: 1, "Chapter " + str(n))')
         })
 
         it('hides chapters when show_chapters is false', () => {
             const result = gen_preamble(make_request({
                 features: {...TEST_FEATURES, show_chapters: false},
             }))
-            expect(result).toContain('#let ch(n) = []')
+            expect(result).toContain('#let ch(n) = state("running-chapter", 0).update(n)')
         })
     })
 
