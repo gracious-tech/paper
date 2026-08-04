@@ -220,7 +220,7 @@ function gen_heading_rules(passage:TypstPassage, font_size:string):string {
 #show heading.where(level: 1): ${lead('1.2em', 1.2)}
     v(0.25em)
 }
-#show heading.where(level: 2): ${lead('1em', 1)}
+#show heading.where(level: 2): ${lead('2em', 1)}
     v(0.25em)
 }
 #show heading.where(level: 3): ${lead('0.6em', 0.9)}

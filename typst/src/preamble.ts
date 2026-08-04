@@ -225,8 +225,13 @@ export function gen_preamble(request:TypstRequest, overrides:PreambleOverrides =
 )
 #set text(font: (${fonts}), size: ${typography.font_size}${
         typography.text_color ? `, fill: rgb("${typography.text_color}")` : ''})
+// spacing matches leading (rather than Typst's larger default) so a paragraph break reads the
+// same as a wrapped line — indent alone marks a new paragraph, no added gap. A literal 0pt would
+// make consecutive paragraphs overlap, since block spacing is additive on top of zero rather
+// than replacing the line-height advance leading provides within a paragraph
 #set par(
     leading: ${leading},
+    spacing: ${leading},
     justify: ${justify},
     first-line-indent: (amount: 1.5em, all: false),
 )
