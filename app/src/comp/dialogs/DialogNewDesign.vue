@@ -39,7 +39,7 @@ v-dialog(:model-value='state.new_design' @update:model-value='cancel' :fullscree
             v-spacer
             span.text-medium-emphasis(v-if='step === "books"') {{ books_selected_label }}
             v-spacer
-            v-btn(@click='next'
+            v-btn(v-if='step !== "type"' @click='next'
                     :disabled='step === "cover" ? !all_steps_valid : !step_valid'
                     :loading='creating' color='secondary' variant='flat')
                 | {{ step === 'cover' ? $t("Create") : $t("Next") }}
@@ -157,6 +157,14 @@ watch(() => state.new_design, opened => {
         Object.assign(draft, get_default_draft())
         step.value = 'type'
         busy.value = false
+    }
+})
+
+
+// Auto-advance from the type step as soon as a type is picked (no "Next" click needed there)
+watch(() => draft.type, type => {
+    if (step.value === 'type' && type !== null){
+        next()
     }
 })
 
