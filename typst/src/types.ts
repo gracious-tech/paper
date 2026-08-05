@@ -436,7 +436,6 @@ export interface PictureStorySlide {
 export interface ContentPictureStory {
     type:'picture_story'
     id:string
-    name:string
     title:string
     title_subtitle:string
     title_icon:string|null

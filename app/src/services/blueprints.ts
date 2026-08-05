@@ -220,7 +220,7 @@ export function gen_content_name(item:ContentItem):string{
     } else if (item.type === 'title'){
         return item.title
     } else if (item.type === 'picture_story'){
-        return item.name || item.title || "Picture story"
+        return item.title || "Picture story"
     }
     return "Nameless"
 }

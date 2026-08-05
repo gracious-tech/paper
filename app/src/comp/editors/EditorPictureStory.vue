@@ -10,9 +10,8 @@ v-card-title(class='d-flex align-center')
 v-divider
 
 v-card-text(class='flex-grow-1 d-flex flex-column')
-    //- Story-level fields: a label plus the optional auto title page (same props as a passage)
-    div
-        v-text-field(v-model='item.name' :placeholder='$t("Label") + "..."')
+    //- Story-level fields: the optional auto title page (same props as a passage); title also
+    //- doubles as the item's label in the content list (see gen_content_name)
     div
         v-text-field(v-model='item.title' :label='$t("Title")')
     div
@@ -70,7 +69,7 @@ const item = props.item
 // Deep copy of the original so a cancel can fully restore nested slide edits
 const original = cloneDeep(props.item)
 // Whether this item was newly created for this edit (so cancel removes it entirely)
-const is_new = item.slides.length === 0 && !item.title && !item.name
+const is_new = item.slides.length === 0 && !item.title
 
 
 // Read a slide's flat ref fields as a PassageRef for PassageField (null until a book is set)

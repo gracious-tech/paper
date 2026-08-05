@@ -132,7 +132,6 @@ const add_picture_story = () => {
     open_picture_story_editor(reactive({
         id: generate_token(),
         type: 'picture_story',
-        name: '',
         title: '',
         title_subtitle: "",
         title_icon: null,
@@ -146,7 +145,6 @@ const add_picture_story_from = (story:Story) => {
     open_picture_story_editor(reactive({
         id: generate_token(),
         type: 'picture_story',
-        name: story.heading,
         title: story.heading,
         title_subtitle: story_reference_label(story),
         title_icon: null,

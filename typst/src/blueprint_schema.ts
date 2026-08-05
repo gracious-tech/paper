@@ -90,12 +90,11 @@ const picture_story_slide_schema = z.object({
 }) satisfies z.ZodType<PictureStorySlide>
 
 
-// A picture-story item (a sequence of illustrated slides). title/name use per-field .catch() like
+// A picture-story item (a sequence of illustrated slides). title uses per-field .catch() like
 // the other items; a bad slides array degrades to empty rather than dropping the whole item
 const content_picture_story_schema = z.object({
     type: z.literal('picture_story'),
     id: z.string().min(1),
-    name: z.string().catch(''),
     title: z.string().catch(''),
     title_subtitle: z.string().catch(''),
     title_icon: z.string().nullable().catch(null),
