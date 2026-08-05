@@ -17,6 +17,8 @@ template(v-if='picking === null')
         | {{$t("Bilingual bibles need a second translation")}}
     p.hint(v-if='duplicate' class='text-body-medium mt-2 text-error')
         | {{$t("The two translations must be different")}}
+    div(v-if='warnings.length' class='mt-2 text-error text-body-medium')
+        div(v-for='warning of warnings') {{ warning }}
 
 BiblePicker(v-else :model-value='draft.bibles[picking] ?? draft.bibles[0] ?? null'
         @update:model-value='select')
@@ -32,6 +34,7 @@ import {computed, ref, watch} from 'vue'
 import {useI18n} from 'vue-i18n'
 
 import {content} from '@/services/content'
+import {missing_book_warnings} from '@/services/blueprints'
 import BiblePicker from '@/comp/reuseable/BiblePicker.vue'
 
 import type {NewDesignDraft} from '@/services/new_design'
@@ -77,6 +80,23 @@ const secondary_title = computed(() => {
 // Whether both slots hold the same translation (blocks proceeding via step validation)
 const duplicate = computed(() => {
     return !!draft.bibles[1] && draft.bibles[0] === draft.bibles[1]
+})
+
+
+// Books referenced by whichever of the previous step's two modes is active
+const referenced_books = computed(() => {
+    if (draft.book_mode === 'books'){
+        return draft.books
+    }
+    return draft.passages
+        .map(passage => passage.book)
+        .filter((book):book is string => book !== null)
+})
+
+
+// Warn if either chosen translation doesn't include one of the referenced books
+const warnings = computed(() => {
+    return missing_book_warnings(referenced_books.value, draft.bibles, t)
 })
 
 

@@ -111,12 +111,3 @@ export const requires_copyright = computed(() => {
 export const supports_wj = computed(() => {
     return blue.bibles.some(bible => content.wj_markup[bible])
 })
-
-
-// Whether all passages are available in all translations
-export const translations_have_passages = computed(() => {
-    const books = collect_passage_books(blue.content)
-    return blue.bibles.every(bible => {
-        return books.every(book => content.books[bible]?.[book]?.available)
-    })
-})

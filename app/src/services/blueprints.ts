@@ -142,6 +142,75 @@ export function collect_passage_books(items:ContentItem[]):string[]{
 }
 
 
+// Whether a translation has zero available books in the given testament (common for NT-only/
+// OT-only translations, or ones still being digitized)
+function testament_unavailable(bible:string, testament:'ot'|'nt'):boolean{
+    const books = content.books[bible]
+    if (!books){
+        return false
+    }
+    return !Object.values(books).some(book => book[testament] && book.available)
+}
+
+
+// One warning per translation missing at least one of the given books, naming exactly what's
+// missing — a whole missing testament collapses to a single "Old/New Testament" label instead of
+// listing every book, since translations are commonly NT-only, OT-only, or partly digitized.
+// `t` is the caller's own useI18n() translator, since these strings mix translated labels with
+// untranslated book/translation names
+export function missing_book_warnings(
+    book_ids:string[], bibles:readonly string[], t:(key:string) => string,
+):string[]{
+    const warnings:string[] = []
+    for (const bible of bibles){
+        const bible_books = content.books[bible]
+        if (!bible_books){
+            continue  // Not loaded yet
+        }
+        const missing = book_ids.filter(id => !bible_books[id]?.available)
+        if (!missing.length){
+            continue
+        }
+
+        // Collapse whichever testaments are entirely unavailable into a single label each
+        const covered = new Set<string>()
+        const labels:string[] = []
+        for (const testament of ['ot', 'nt'] as const){
+            const testament_missing = missing.filter(id => bible_books[id]?.[testament])
+            if (testament_missing.length && testament_unavailable(bible, testament)){
+                labels.push(testament === 'ot' ? t("Old Testament") : t("New Testament"))
+                for (const id of testament_missing){
+                    covered.add(id)
+                }
+            }
+        }
+        for (const id of missing){
+            if (!covered.has(id)){
+                labels.push(bible_books[id]!.name)
+            }
+        }
+
+        const trans = content.translations[bible]
+        const name = trans?.name_local || trans?.name_english || bible
+        warnings.push(`${name} ${t("doesn't include")}: ${labels.join(', ')}`)
+    }
+    return warnings
+}
+
+
+// Cheap boolean version of missing_book_warnings(), for disabling actions without building the
+// full warning text
+export function has_missing_books(book_ids:string[], bibles:readonly string[]):boolean{
+    return bibles.some(bible => {
+        const bible_books = content.books[bible]
+        if (!bible_books){
+            return false  // Not loaded yet
+        }
+        return book_ids.some(id => !bible_books[id]?.available)
+    })
+}
+
+
 // Generate name for content item
 export function gen_content_name(item:ContentItem):string{
     if (item.type === 'passage'){

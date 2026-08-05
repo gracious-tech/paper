@@ -2,7 +2,7 @@
 <template lang='pug'>
 
 v-btn-group(rounded='pill' divided color='secondary-darken-1' variant='elevated')
-    v-btn(@click='generate' :disabled='!blue.content.length || !typst_generator'
+    v-btn(@click='generate' :disabled='!blue.content.length || !typst_generator || blocked'
         :loading='generating') {{$t("Create")}}
     v-btn(v-if='latest_version' @click='view_versions' icon
             v-tooltip:top='$t("Versions")')
@@ -13,7 +13,7 @@ v-btn-group(rounded='pill' divided color='secondary-darken-1' variant='elevated'
 
 <script lang='ts' setup>
 
-import {ref} from 'vue'
+import {ref, computed} from 'vue'
 import {useRouter} from 'vue-router'
 
 import {blue} from '@/services/state'
@@ -21,7 +21,7 @@ import {current_design_id, flush_changes} from '@/services/designs'
 import {create_pending_version, compile_and_upload, selected_version_id, latest_version,
     } from '@/services/versions'
 import {typst_generator} from '@/services/typst'
-import {gen_content_name} from '@/services/blueprints'
+import {gen_content_name, collect_passage_books, has_missing_books} from '@/services/blueprints'
 
 
 const router = useRouter()
@@ -29,6 +29,13 @@ const router = useRouter()
 
 // Whether a PDF is currently being compiled (disables the Create button)
 const generating = ref(false)
+
+
+// Whether a selected translation is missing one of the chosen books (disables the Create button;
+// the specifics are shown in place of the preview and under the translations selector)
+const blocked = computed(() => {
+    return has_missing_books(collect_passage_books(blue.content), blue.bibles)
+})
 
 
 const view_versions = async () => {

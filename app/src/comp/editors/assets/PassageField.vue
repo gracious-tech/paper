@@ -2,16 +2,13 @@
 <template lang='pug'>
 
 //- Passage reference picker: a free-text field parsed by the fetch-client into flat ref fields,
-//- with the detected reference echoed back and a clickable list of the books available in every
-//- selected translation
+//- with the detected reference echoed back and a warning if a selected translation doesn't
+//- include the chosen book
 div.passage-field
     v-text-field(v-model='tmp_ref' :label='$t("Book or passage")' :messages='messages'
         :error-messages='errors' :hide-details='false')
-    h3(class='mt-2') {{$t("Available books")}}
-    p(class='text-body-medium text-medium-emphasis mb-2') {{$t("Some may be missing if a translation you have selected only has one testament, or is still being translated or digitized.")}}
-    v-list
-        v-list-item(v-for='book of available_books' @click='tmp_ref = book' density='compact')
-            v-list-item-title {{ book }}
+    div(v-if='warnings.length' class='mt-2 text-error text-body-medium')
+        div(v-for='warning of warnings') {{ warning }}
 
 </template>
 
@@ -19,10 +16,12 @@ div.passage-field
 <script lang='ts' setup>
 
 import {ref, watch, computed} from 'vue'
+import {useI18n} from 'vue-i18n'
 import {PassageReference} from '@gracious.tech/fetch-client'
 
 import {blue} from '@/services/state'
 import {content} from '@/services/content'
+import {missing_book_warnings} from '@/services/blueprints'
 
 import type {ContentPassage} from '@/services/types'
 
@@ -42,6 +41,8 @@ const error = defineModel<boolean>('error', {required: false, default: false})
 // Emitted when a valid reference resolves, so a parent can derive default title/icon text
 const emit = defineEmits<{resolved:[reference:string, book:string]}>()
 
+const {t} = useI18n()
+
 
 // Human text for the current reference (what the user edits) — seeded from any existing ref
 let initial_ref = ''
@@ -54,21 +55,12 @@ const errors = ref([] as string[])
 const messages = ref([] as string[])
 
 
-// Determine which books are available in all selected translations
-const available_books = computed(() => {
-    const books:string[] = []
-    main_loop: for (const book of Object.values(content.books[blue.bibles[0]]!)){
-        if (!book.available){
-            continue
-        }
-        for (const bible of blue.bibles.slice(1)){
-            if (!content.books[bible]?.[book.id]?.available){
-                continue main_loop
-            }
-        }
-        books.push(book.name)
+// Warn if any selected translation doesn't include the currently chosen book
+const warnings = computed(() => {
+    if (!passage.value){
+        return []
     }
-    return books
+    return missing_book_warnings([passage.value.book], blue.bibles, t)
 })
 
 
@@ -109,10 +101,5 @@ watch(tmp_ref, () => {
 
 
 <style lang='sass' scoped>
-
-.passage-field
-    .v-list
-        max-height: 260px
-        overflow-y: auto
 
 </style>

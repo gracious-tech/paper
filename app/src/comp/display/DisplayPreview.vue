@@ -19,7 +19,10 @@ div.preview
         //- on mobile (parent .display has display:none, see AppRoot.vue)
         BtnGenerate.create
 
-    div.frame(v-if='pdf_url')
+    div.status(v-if='missing_warnings.length')
+        h3(class='mb-4') {{ $t("Translations missing chosen books") }}
+        p(v-for='warning of missing_warnings' class='status-detail') {{ warning }}
+    div.frame(v-else-if='pdf_url')
         iframe(:src='pdf_url')
         //- Semi-transparent readout of the in-progress recompile, layered over the still-visible
         //- (and still-scrollable, via pointer-events:none) previous PDF
@@ -48,6 +51,7 @@ import {useI18n} from 'vue-i18n'
 import BtnGenerate from '@/comp/views/assets/BtnGenerate.vue'
 import {blue, estimated_pages} from '@/services/state'
 import {content, bible_content} from '@/services/content'
+import {collect_passage_books, missing_book_warnings} from '@/services/blueprints'
 import {typst_generator} from '@/services/typst'
 import {get_custom_font_styles} from '@/services/custom_fonts'
 import {render_cover_pdf, render_cover_pages, prepend_cover_page, wrap_cover_reading_pages}
@@ -109,6 +113,12 @@ function set_section(value:PreviewSection){
     void compile()
 }
 
+// Whether a selected translation is missing a chosen book — shown instead of the preview, and
+// blocks compiling since the document can't be generated as configured
+const missing_warnings = computed(() => {
+    return missing_book_warnings(collect_passage_books(blue.content), blue.bibles, t)
+})
+
 // Incrementing id so out-of-order async compiles can be discarded
 let latest_run = 0
 
@@ -140,6 +150,12 @@ async function compile(){
     // Wait until the WASM compiler is ready (watcher retriggers when it becomes available)
     const generator = typst_generator.value
     if (!generator){
+        return
+    }
+
+    // Can't compile while a selected translation is missing a chosen book (shown as a warning
+    // in place of the preview instead)
+    if (missing_warnings.value.length){
         return
     }
 

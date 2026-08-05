@@ -24,8 +24,9 @@ div(v-if='warnings' class='mt-4 text-error text-body-medium')
 import {computed} from 'vue'
 import {useI18n} from 'vue-i18n'
 
-import {blue, state, translations_have_passages} from '@/services/state'
+import {blue, state} from '@/services/state'
 import {content} from '@/services/content'
+import {collect_passage_books, missing_book_warnings} from '@/services/blueprints'
 
 
 const {t} = useI18n()
@@ -49,11 +50,7 @@ const secondary_absent = computed(() => {
 })
 
 const warnings = computed(() => {
-    const items:string[] = []
-    if (!translations_have_passages.value){
-        items.push(t("These translations do not all have the passages chosen"))
-    }
-    return items
+    return missing_book_warnings(collect_passage_books(blue.content), blue.bibles, t)
 })
 
 const rm_primary = () => {
