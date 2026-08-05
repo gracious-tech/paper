@@ -19,27 +19,33 @@ div.add(class='d-flex align-center flex-wrap')
     v-btn(@click='add_passage' size='small' variant='outlined') {{$t("Passage")}}
     v-btn(@click='add_custom' size='small' variant='outlined') {{$t("Text")}}
     v-btn(@click='add_title' size='small' variant='outlined') {{$t("Title page")}}
-    v-btn(@click='add_picture_story' size='small' variant='outlined') {{$t("Picture story")}}
+    v-btn(@click='picker_open = true' size='small' variant='outlined') {{$t("Picture story")}}
     v-btn(:disabled='has_copyright' @click='add_copyright' size='small' variant='outlined')
         | {{$t("Copyright")}}
 
 div.warnings(v-if='warnings' class='mt-4 text-body-medium')
     div(v-for='warning of warnings') {{ warning }}
 
+DialogPictureStoryPicker(v-model='picker_open' @select-story='add_picture_story_from'
+    @select-custom='add_picture_story')
+
 </template>
 
 
 <script lang='ts' setup>
 
-import {reactive, computed} from 'vue'
+import {reactive, computed, ref} from 'vue'
 import {useI18n} from 'vue-i18n'
 import Draggable from 'vuedraggable'
 
 import {blue, state, has_copyright, requires_copyright} from '@/services/state'
 import {gen_content_name} from '@/services/blueprints'
 import {generate_token} from '@/services/utils'
+import {story_to_slides, story_reference_label} from '@/services/stories'
+import DialogPictureStoryPicker from '@/comp/dialogs/DialogPictureStoryPicker.vue'
 
 import type {ContentItem, ContentTitle, ContentPictureStory} from '@/services/types'
+import type {Story} from '@/services/stories'
 
 
 const {t} = useI18n()
@@ -106,16 +112,12 @@ const add_title = () => {
 }
 
 
-const add_picture_story = () => {
-    const new_story:ContentPictureStory = reactive({
-        id: generate_token(),
-        type: 'picture_story',
-        name: '',
-        title: '',
-        title_subtitle: "",
-        title_icon: null,
-        slides: [],
-    })
+// Open the picture-story picker rather than creating one directly
+const picker_open = ref(false)
+
+
+// Push a new picture-story item to the content list and open it for editing
+const open_picture_story_editor = (new_story:ContentPictureStory) => {
     blue.content.push(new_story)
     state.editor = {
         component: 'EditorPictureStory',
@@ -123,6 +125,33 @@ const add_picture_story = () => {
             item: new_story,
         },
     }
+}
+
+
+const add_picture_story = () => {
+    open_picture_story_editor(reactive({
+        id: generate_token(),
+        type: 'picture_story',
+        name: '',
+        title: '',
+        title_subtitle: "",
+        title_icon: null,
+        slides: [],
+    }))
+}
+
+
+// Pre-fill a picture story from a predefined story (still fully editable afterward)
+const add_picture_story_from = (story:Story) => {
+    open_picture_story_editor(reactive({
+        id: generate_token(),
+        type: 'picture_story',
+        name: story.heading,
+        title: story.heading,
+        title_subtitle: story_reference_label(story),
+        title_icon: null,
+        slides: story_to_slides(story),
+    }))
 }
 
 
