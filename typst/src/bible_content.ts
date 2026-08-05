@@ -288,6 +288,7 @@ export class BibleContent {
         }
 
         const font_text2 = blue.font_text2 ?? blue.font_text
+        const font_size2 = blue.font_size2 ?? blue.font_size
 
         // Collect every resolved passage image's bytes into one asset map, keyed by the virtual
         // filename generated Typst source references (see gen_passage_image in content_passage.ts)
@@ -315,6 +316,7 @@ export class BibleContent {
                 font_fallbacks: detect_font_fallbacks(
                     items, blue.font_text, custom_font_styles?.[blue.font_text]),
                 font_size: `${blue.font_size}pt`,
+                font_size2: `${font_size2}pt`,
                 line_height: blue.line_height,
                 justify: blue.justify,
                 text_color: blue.text_color,

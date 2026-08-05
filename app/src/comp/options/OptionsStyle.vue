@@ -4,9 +4,6 @@
 AppFontSelect(v-model='blue.font_text' :label='$t("Font for text")' example='verse'
     class='mb-4')
 
-AppFontSelect(v-if='blue.bibles.length > 1' v-model='blue.font_text2'
-    :label='$t("Font for second translation")' auto example='verse' class='mb-4')
-
 //- NOTE Allow large font for users with poor eyesight
 v-slider(v-model='blue.font_size' :label='$t("Font size")' :min='6' :max='26' thumb-label
     class='my-4' color='')

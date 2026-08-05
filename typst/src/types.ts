@@ -74,6 +74,8 @@ export interface TypographyConfig {
     font_headings2:string
     font_fallbacks:string[]
     font_size:string        // e.g. "10pt"
+    // Font size for the second translation, when 2 bibles are selected (defaults to font_size)
+    font_size2:string
     line_height:number      // e.g. 1.75 — module converts to Typst leading
     justify:boolean|null    // null = auto (justify when width permits)
     text_color:string|null  // Hex color for all text; unset = no fill rule (Typst default)
@@ -326,6 +328,7 @@ export interface Blueprint {
     font_text2:string|null     // null = auto (matches font_text); font for the 2nd translation
     font_headings:string|null  // null = auto (matches font_text)
     font_size:number
+    font_size2:number|null     // null = auto (matches font_size); font size for the 2nd translation
     line_height:number
     justify:null|boolean
     text_color:string|null

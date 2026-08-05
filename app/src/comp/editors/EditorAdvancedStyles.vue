@@ -43,6 +43,18 @@ v-card-text(class='overflow-y-auto')
         :step='0.05' thumb-label class='my-4' color='')
     p(class='text-body-medium text-medium-emphasis') {{$t("Size is relative to normal text, with 1 being the same size.")}}
 
+    template(v-if='blue.bibles.length > 1')
+
+        v-divider(class='my-8')
+
+        h3(class='text-title-large mb-4') {{$t("Second translation")}}
+
+        AppFontSelect(v-model='blue.font_text2' :label='$t("Font for second translation")' auto
+            example='verse' class='mb-4')
+
+        v-slider(v-model='font_size2' :label='$t("Font size")' :min='6' :max='26' thumb-label
+            class='my-4' color='')
+
     v-divider(class='my-8')
 
     h3(class='text-title-large mb-4') {{$t("Text color")}}
@@ -140,6 +152,15 @@ const pattern_items = Object.entries(patterns).map(([pattern, svg]) => {
             blue.titlepage_frame = pattern
         },
     }
+})
+
+
+// Wrap font_size2 so the slider has a number to bind to (null means auto = matches font_size)
+const font_size2 = computed({
+    get: () => blue.font_size2 ?? blue.font_size,
+    set: value => {
+        blue.font_size2 = value
+    },
 })
 
 

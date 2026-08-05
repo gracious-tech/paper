@@ -14,14 +14,15 @@ const GRID_ROWS = 4
 // pre-rendered body (clean scripture prose or text). 'single' layout: one slide per page, the
 // image in the top or bottom half; 'grid' layout: 4 slides per page, one per row, the image in
 // the left or right cell. story_alternate switches the image side per slide (top/bottom or
-// left/right) instead of always using the same side. font_text2/font_fallbacks are only used when
-// a slide has a second translation (body2) to stack below body.
+// left/right) instead of always using the same side. font_text2/font_size2/font_fallbacks are only
+// used when a slide has a second translation (body2) to stack below body.
 export function gen_picture_story(
     story:TypstPictureStory, page:PageConfig, image_style:'borderless'|'padded',
     story_layout:'single'|'grid', story_alternate:boolean,
-    font_text2:string, font_fallbacks:string[],
+    font_text2:string, font_size2:string, font_fallbacks:string[],
 ):string {
-    const bodies = story.slides.map(slide => gen_slide_body(slide, font_text2, font_fallbacks))
+    const bodies = story.slides.map(
+        slide => gen_slide_body(slide, font_text2, font_size2, font_fallbacks))
     if (story_layout === 'grid') {
         return gen_grid_pages(story.slides, bodies, page, image_style, story_alternate)
     }
@@ -39,7 +40,7 @@ export function gen_picture_story(
 // (scoped to the second translation's font) with a spacer between. Returns null when the slide
 // has no body at all, so the caller's existing image-only/blank handling still applies.
 function gen_slide_body(
-    slide:TypstPictureStorySlide, font_text2:string, font_fallbacks:string[],
+    slide:TypstPictureStorySlide, font_text2:string, font_size2:string, font_fallbacks:string[],
 ):string|null {
     if (!slide.body) {
         return null
@@ -51,7 +52,7 @@ function gen_slide_body(
     return `${slide.body}
 #v(1em)
 #[
-#set text(font: (${fonts2}))
+#set text(font: (${fonts2}), size: ${font_size2})
 ${slide.body2}
 ]`
 }

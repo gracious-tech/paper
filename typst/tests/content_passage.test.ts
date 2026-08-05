@@ -12,14 +12,15 @@ import type {TypstPassage} from '../src/types.js'
 const FONT_SIZE = '10pt'
 const FONT_TEXT2 = 'Crimson Pro'
 const FONT_HEADINGS2 = 'Crimson Pro'
+const FONT_SIZE2 = '10pt'
 const FONT_FALLBACKS:string[] = []
 
 function call(
     passage:TypstPassage, font_text2 = FONT_TEXT2, font_headings2 = FONT_HEADINGS2,
-    font_fallbacks = FONT_FALLBACKS,
+    font_fallbacks = FONT_FALLBACKS, font_size2 = FONT_SIZE2,
 ):string {
     return gen_passage(passage, TEST_PAGE, 'padded', FONT_SIZE, font_text2, font_headings2,
-        font_fallbacks)
+        font_size2, font_fallbacks)
 }
 
 
@@ -183,7 +184,7 @@ describe('gen_passage', () => {
                     {content: '#vn(1)Bible 2 content'},
                 ],
                 multi_layout: 'columns',
-            }), TEST_PAGE, 'padded', FONT_SIZE, 'Second Font', 'Second Heading Font',
+            }), TEST_PAGE, 'padded', FONT_SIZE, 'Second Font', 'Second Heading Font', FONT_SIZE2,
                 ['Fallback Font'])
 
             // First cell carries no font override — the override sits ahead of the second only
@@ -191,7 +192,8 @@ describe('gen_passage', () => {
             expect(second_cell_start).toBeGreaterThan(-1)
             expect(result.slice(0, second_cell_start)).toContain('Bible 1 content')
             const second_cell = result.slice(second_cell_start)
-            expect(second_cell).toContain('#set text(font: ("Second Font", "Fallback Font"))')
+            expect(second_cell)
+                .toContain(`#set text(font: ("Second Font", "Fallback Font"), size: ${FONT_SIZE2})`)
             expect(second_cell).toContain('#show heading: set text(font: "Second Heading Font")')
             expect(second_cell).toContain('Bible 2 content')
         })
@@ -279,14 +281,14 @@ describe('gen_passage', () => {
 
         it('stays in normal flow (no #place) in padded mode, respecting margins', () => {
             const result = gen_passage(make_passage({image}), TEST_PAGE, 'padded',
-                FONT_SIZE, FONT_TEXT2, FONT_HEADINGS2, FONT_FALLBACKS)
+                FONT_SIZE, FONT_TEXT2, FONT_HEADINGS2, FONT_SIZE2, FONT_FALLBACKS)
             expect(result).not.toContain('#place(top + left')
             expect(result).toContain('#box(width: 100%')
         })
 
         it('bleeds past the page margins in borderless mode', () => {
             const result = gen_passage(make_passage({image}), TEST_PAGE, 'borderless',
-                FONT_SIZE, FONT_TEXT2, FONT_HEADINGS2, FONT_FALLBACKS)
+                FONT_SIZE, FONT_TEXT2, FONT_HEADINGS2, FONT_SIZE2, FONT_FALLBACKS)
             expect(result).toContain('#place(top + left')
             expect(result).toContain(`dx: -${TEST_PAGE.margin_left}`)
         })

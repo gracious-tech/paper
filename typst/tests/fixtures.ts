@@ -24,6 +24,7 @@ export const TEST_TYPOGRAPHY:TypographyConfig = {
     font_headings2: 'Crimson Pro',
     font_fallbacks: ['Georgia', 'serif'],
     font_size: '10pt',
+    font_size2: '10pt',
     line_height: 1.75,
     justify: true,
     text_color: null,

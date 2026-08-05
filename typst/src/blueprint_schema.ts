@@ -198,6 +198,7 @@ export function make_blueprint_schema(defaults:Blueprint):z.ZodType<Blueprint>{
         font_text2: z.string().nullable().catch(defaults.font_text2),
         font_headings: z.string().nullable().catch(defaults.font_headings),
         font_size: z.number().catch(defaults.font_size),
+        font_size2: z.number().nullable().catch(defaults.font_size2),
         line_height: z.number().catch(defaults.line_height),
         justify: z.boolean().nullable().catch(defaults.justify),
         text_color: z.string().nullable().catch(defaults.text_color),

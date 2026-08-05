@@ -71,6 +71,7 @@ export function get_default_blueprint():Blueprint{
 
         // Max pages 30 (15 sheets) but ideally not greater than 20 (10 sheets)
         font_size: 10,  // Pref 10, lowest 8
+        font_size2: null,
         line_height: 1.75,  // Pref 1.75, lowest 1.5
 
         justify: null,
