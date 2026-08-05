@@ -231,6 +231,7 @@ function gen_content_item(item:TypstContentItem, request:TypstRequest):string {
         case 'lines':
             return gen_lines(item, request.page)
         case 'picture_story':
-            return gen_picture_story(item, request.page, request.image_style)
+            return gen_picture_story(item, request.page, request.image_style,
+                request.typography.font_text2, request.typography.font_fallbacks)
     }
 }

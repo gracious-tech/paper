@@ -241,11 +241,14 @@ export class BibleContent {
                     fetch_keys.add(`${bible}_${item.book}`)
                 }
             } else if (item.type === 'picture_story') {
-                // Each passage slide fetches its book from the primary translation only (picture
-                // stories render a single translation's clean prose)
+                // Each passage slide fetches its book from the primary translation, plus the
+                // second one (when selected) for the stacked second-translation body
                 for (const slide of item.slides) {
                     if (slide.mode === 'passage' && slide.book) {
                         fetch_keys.add(`${blue.bibles[0]}_${slide.book}`)
+                        if (blue.bibles[1]) {
+                            fetch_keys.add(`${blue.bibles[1]}_${slide.book}`)
+                        }
                     }
                 }
             }
@@ -457,8 +460,10 @@ export class BibleContent {
 
     // Convert a picture-story content item to its Typst equivalent — one resolved slide per page.
     // The image alternates top/bottom by slide index. A passage slide renders clean prose from the
-    // plain-text format (no verse numbers/headings/footnotes), from the primary translation only;
-    // a text slide is prose-converted from its rich-text doc. When blue.story_emphasis is on,
+    // plain-text format (no verse numbers/headings/footnotes); when a second bible is selected,
+    // the same passage in that translation is also resolved (body2), stacked below the first (see
+    // gen_picture_story). A text slide is prose-converted from its rich-text doc and never has a
+    // second body (it's free text, not tied to a translation). When blue.story_emphasis is on,
     // passage prose auto-italicizes questions and emboldens exclamations.
     private async gen_picture_story_item(
         blue:Blueprint, story:ContentPictureStory, report_fetch?:(label:string) => void,
@@ -471,19 +476,32 @@ export class BibleContent {
                 : null
 
             let body:string|null = null
+            let body2:string|null = null
             if (slide.mode === 'passage' && slide.book) {
+                const ref = new PassageReference(slide)
                 // Clean prose from the primary translation's plain-text format
                 const instance = await this.fetch_book_txt(blue.bibles[0], slide.book, report_fetch)
                 const text = instance
-                    ? instance.get_passage_from_ref(new PassageReference(slide), {
+                    ? instance.get_passage_from_ref(ref, {
                         attribute: false, verse_nums: false, headings: false, notes: false})
                     : ''
                 body = blue.story_emphasis ? emphasize_sentences(text) : escape_typst(text)
+
+                // Second translation (when selected), same passage, rendered below the first
+                if (blue.bibles[1]) {
+                    const instance2 =
+                        await this.fetch_book_txt(blue.bibles[1], slide.book, report_fetch)
+                    const text2 = instance2
+                        ? instance2.get_passage_from_ref(ref, {
+                            attribute: false, verse_nums: false, headings: false, notes: false})
+                        : ''
+                    body2 = blue.story_emphasis ? emphasize_sentences(text2) : escape_typst(text2)
+                }
             } else if (slide.mode === 'text') {
                 body = prose_to_typst(slide.doc)
             }
 
-            slides.push({image, body, image_position: i % 2 === 0 ? 'top' : 'bottom'})
+            slides.push({image, body, body2, image_position: i % 2 === 0 ? 'top' : 'bottom'})
         }
         return {type: 'picture_story', slides}
     }

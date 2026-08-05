@@ -186,10 +186,13 @@ export interface TypstLinesPage {
 // One resolved slide of a picture story, rendered as its own page. The body is pre-rendered Typst
 // markup — either clean scripture prose (a passage with verse/chapter numbers, headings and
 // footnotes all stripped) or prose-converted free text — or null for an image-only slide.
+// body2 is the same passage in a second translation (only ever set for passage-mode slides when
+// a second bible is selected), rendered stacked below the first — see gen_picture_story.
 // image_position is computed from the slide's index (even = top, odd = bottom) so it alternates
 export interface TypstPictureStorySlide {
     image:TypstPassageImage|null    // resolved bytes + virtual filename (shadow-fs), null = none
     body:string|null                // clean prose markup, or null for an image-only slide
+    body2:string|null               // second translation's clean prose, stacked below body
     image_position:'top'|'bottom'
 }
 

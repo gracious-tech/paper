@@ -9,14 +9,39 @@ import type {PageConfig, TypstPictureStory, TypstPictureStorySlide} from './type
 // Generate Typst markup for a picture story — a sequence of slides, one page each. Each slide
 // pairs an optional image with an optional pre-rendered body (clean scripture prose or text). The
 // image sits in the top or bottom half of the page (alternating per slide, decided at resolve
-// time); an image-only slide fills the whole page and a body-only slide is centred.
+// time); an image-only slide fills the whole page and a body-only slide is centred. font_text2/
+// font_fallbacks are only used when a slide has a second translation (body2) to stack below body.
 export function gen_picture_story(
     story:TypstPictureStory, page:PageConfig, image_style:'borderless'|'padded',
+    font_text2:string, font_fallbacks:string[],
 ):string {
     // Each slide is its own page; separate them with hard page breaks
     return story.slides
-        .map(slide => gen_slide(slide, slide.body, page, image_style))
+        .map(slide => gen_slide(
+            slide, gen_slide_body(slide, font_text2, font_fallbacks), page, image_style))
         .join('\n\n#pagebreak()\n\n')
+}
+
+
+// Merge a slide's two translation bodies into one block, the second stacked below the first
+// (scoped to the second translation's font) with a spacer between. Returns null when the slide
+// has no body at all, so the caller's existing image-only/blank handling still applies.
+function gen_slide_body(
+    slide:TypstPictureStorySlide, font_text2:string, font_fallbacks:string[],
+):string|null {
+    if (!slide.body) {
+        return null
+    }
+    if (!slide.body2) {
+        return slide.body
+    }
+    const fonts2 = [font_text2, ...font_fallbacks].map(f => `"${escape_typst_str(f)}"`).join(', ')
+    return `${slide.body}
+#v(1em)
+#[
+#set text(font: (${fonts2}))
+${slide.body2}
+]`
 }
 
 
