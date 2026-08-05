@@ -21,7 +21,8 @@ v-dialog(:model-value='state.new_design' @update:model-value='cancel' :fullscree
                 v-window-item(value='type')
                     NewDesignType(:draft='draft')
                 v-window-item(value='books')
-                    NewDesignBooks(:draft='draft')
+                    NewDesignStories(v-if='draft.type === "picture_story"' :draft='draft')
+                    NewDesignBooks(v-else :draft='draft')
                 v-window-item(value='bibles')
                     NewDesignBibles(:draft='draft' @busy='busy = $event')
                 v-window-item(value='print')
@@ -60,6 +61,7 @@ import {get_default_draft, build_new_blueprint} from '@/services/new_design'
 import {report_error} from '@/services/errors'
 import NewDesignType from '@/comp/dialogs/assets/NewDesignType.vue'
 import NewDesignBooks from '@/comp/dialogs/assets/NewDesignBooks.vue'
+import NewDesignStories from '@/comp/dialogs/assets/NewDesignStories.vue'
 import NewDesignBibles from '@/comp/dialogs/assets/NewDesignBibles.vue'
 import NewDesignPrint from '@/comp/dialogs/assets/NewDesignPrint.vue'
 import NewDesignCover from '@/comp/dialogs/assets/NewDesignCover.vue'
@@ -93,11 +95,12 @@ const fullscreen = computed(() => width.value <= 900)
 const step_index = computed(() => STEPS.indexOf(step.value))
 
 
-// Short label shown under each step's progress indicator
+// Short label shown under each step's progress indicator (the "books" step becomes a story
+// picker for the picture_story type, so its label follows suit)
 const step_labels = computed(() => {
     return {
         type: t("Type"),
-        books: t("Books"),
+        books: draft.type === 'picture_story' ? t("Stories") : t("Books"),
         bibles: t("Translations"),
         print: t("Print"),
         cover: t("Cover"),
@@ -114,7 +117,7 @@ const is_step_valid = (id:typeof STEPS[number]):boolean => {
         if (draft.book_mode === 'passages'){
             return draft.passages.some(passage => passage.book !== null)
         }
-        return draft.books.length >= 1
+        return draft.type === 'picture_story' ? draft.stories.length >= 1 : draft.books.length >= 1
     }
     if (id === 'bibles'){
         const bibles = draft.bibles.filter(id => id)
@@ -135,11 +138,14 @@ const step_valid = computed(() => {
 })
 
 
-// Count of books/passages selected, shown alongside the nav buttons on the books step
+// Count of books/stories/passages selected, shown alongside the nav buttons on the books step
 const books_selected_label = computed(() => {
-    const count = draft.book_mode === 'passages'
-        ? draft.passages.filter(passage => passage.book !== null).length
-        : draft.books.length
+    let count = draft.books.length
+    if (draft.book_mode === 'passages'){
+        count = draft.passages.filter(passage => passage.book !== null).length
+    } else if (draft.type === 'picture_story'){
+        count = draft.stories.length
+    }
     return `${count} ${t("included")}`
 })
 
@@ -200,7 +206,7 @@ const next = async () => {
     }
     creating.value = true
     try {
-        const id = await create_design(build_new_blueprint(draft))
+        const id = await create_design(await build_new_blueprint(draft))
         state.new_design = false
         await router.push({name: 'design', params: {id}})
     } catch (error){

@@ -51,6 +51,10 @@ const labels:Record<string, {label:string, subtitle:string}> = {
         label: t("Bilingual Bible"),
         subtitle: t("Two translations side by side"),
     },
+    picture_story: {
+        label: t("Picture Story"),
+        subtitle: t("Illustrated Bible stories, one image per page"),
+    },
 }
 const types = computed(() => TYPE_PRESETS.map(preset => ({
     id: preset.id,

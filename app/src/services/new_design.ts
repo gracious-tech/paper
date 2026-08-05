@@ -9,12 +9,14 @@ import {get_default_blueprint} from '@/services/blueprints'
 import {seed_cover_preset} from '@/services/cover'
 import {book_icon} from '@/services/icons'
 import {generate_token} from '@/services/utils'
+import {fetch_stories, story_to_slides, story_reference_label, story_canonical_cmp}
+    from '@/services/stories'
 
-import type {Blueprint, ContentPassage, ContentTitle} from '@/services/types'
+import type {Blueprint, ContentPassage, ContentPictureStory, ContentTitle} from '@/services/types'
 
 
 // The design types offered by the wizard's first step
-export type NewDesignType = 'regular'|'reading'|'notes'|'study'|'bilingual'
+export type NewDesignType = 'regular'|'reading'|'notes'|'study'|'bilingual'|'picture_story'
 
 
 // The cover styles offered by the wizard's last step ('minimal' is home-printing only)
@@ -38,8 +40,11 @@ export interface DraftPassage {
 // so going back and changing e.g. the type never needs to un-apply a previous choice
 export interface NewDesignDraft {
     type:NewDesignType|null
-    book_mode:'books'|'passages'  // Which of `books`/`passages` below is actually used at build
+    // Which of the two content sources below is used at build. For `picture_story`, 'books'
+    // means the predefined story list (`stories`) rather than whole books
+    book_mode:'books'|'passages'
     books:string[]  // fetch.bible book ids (order not significant; canonical order at build)
+    stories:string[]  // Predefined picture-story ids (picture_story type only)
     passages:DraftPassage[]  // Free-text passages (order significant; kept even if not active,
                               // so toggling `book_mode` back and forth doesn't lose entries)
     bibles:string[]  // 1-2 translation ids
@@ -62,6 +67,7 @@ export function get_default_draft():NewDesignDraft{
         type: null,
         book_mode: 'books',
         books: [],
+        stories: [],
         passages: [],
         bibles: [],
         service_id: null,
@@ -99,6 +105,7 @@ export const TYPE_PRESETS:{id:NewDesignType, image:string, diff:Partial<Blueprin
     {id: 'bilingual', image: '/wizard/type_bilingual.webp', diff: {
         show_footnotes: false,
     }},
+    {id: 'picture_story', image: '/wizard/type_picture_story.webp', diff: {}},
 ]
 
 
@@ -125,8 +132,9 @@ function make_wizard_title_item(blueprint:Blueprint):ContentTitle{
 // Assemble the final Blueprint from a completed draft: defaults, then the type preset's diff,
 // then each step's selections. Content becomes whole-book passages in canonical order plus the
 // auto-copyright statement (translations nearly always require attribution), with a title page
-// prepended only for the minimal-ink cover choice
-export function build_new_blueprint(draft:NewDesignDraft):Blueprint{
+// prepended only for the minimal-ink cover choice. Async because the picture_story type looks up
+// the predefined story list (already cached by the time the wizard reaches this step)
+export async function build_new_blueprint(draft:NewDesignDraft):Promise<Blueprint>{
 
     const blueprint = get_default_blueprint()
     Object.assign(blueprint, TYPE_PRESETS.find(preset => preset.id === draft.type)!.diff)
@@ -154,7 +162,52 @@ export function build_new_blueprint(draft:NewDesignDraft):Blueprint{
             new PassageReference(ref_args), blueprint.bibles[0])
     }
 
-    if (draft.book_mode === 'passages'){
+    if (draft.type === 'picture_story'){
+        if (draft.book_mode === 'passages'){
+            // One passage per line, exactly like the regular passages mode, just wrapped as a
+            // single unillustrated slide so an image can be added later per slide
+            blueprint.content = draft.passages
+                .filter((passage):passage is DraftPassage & {book:string} => passage.book !== null)
+                .map(passage => {
+                    const ref_args = {
+                        book: passage.book,
+                        start_chapter: passage.start_chapter,
+                        start_verse: passage.start_verse,
+                        end_chapter: passage.end_chapter,
+                        end_verse: passage.end_verse,
+                    }
+                    return {
+                        type: 'picture_story',
+                        id: generate_token(),
+                        title: passage_reference(ref_args),
+                        title_subtitle: '',
+                        title_icon: null,
+                        slides: [{
+                            id: generate_token(),
+                            image: null,
+                            mode: 'passage',
+                            ...ref_args,
+                            doc: {type: 'doc', content: [{type: 'paragraph'}]},
+                        }],
+                    } as ContentPictureStory
+                })
+        } else {
+            // Predefined stories, in canonical order, each already illustrated (see story_to_slides)
+            const stories = await fetch_stories()
+            const selected = new Set(draft.stories)
+            blueprint.content = stories
+                .filter(story => selected.has(story.id))
+                .sort(story_canonical_cmp)
+                .map(story => ({
+                    type: 'picture_story',
+                    id: generate_token(),
+                    title: story.heading,
+                    title_subtitle: story_reference_label(story),
+                    title_icon: null,
+                    slides: story_to_slides(story),
+                } as ContentPictureStory))
+        }
+    } else if (draft.book_mode === 'passages'){
         blueprint.content = draft.passages
             .filter((passage):passage is DraftPassage & {book:string} => passage.book !== null)
             .map(passage => {

@@ -386,5 +386,11 @@
   "Couldn't load the story list — try again": "",
   "Translations missing chosen books": "",
   "Page numbers/headings": "",
-  "doesn't include": ""
+  "doesn't include": "",
+  "Choose the Bible stories you want included — each comes with its own illustrations.": "",
+  "List the passages you want, one per line, e.g. \"Genesis 1:1-5\" or \"Matthew 5\", then click Add. You can add images to each afterward from Advanced settings.": "",
+  "Choose predefined stories instead": "",
+  "Picture Story": "",
+  "Illustrated Bible stories, one image per page": "",
+  "Stories": ""
 }
