@@ -93,6 +93,13 @@ v-card-text(class='overflow-y-auto')
 
     h3(class='text-title-large mb-4') {{$t("Picture stories")}}
 
+    v-radio-group(v-model='blue.story_layout' inline :label='$t("Layout")' class='mb-2')
+        v-radio(value='single' :label='$t("One image & passage per page")')
+        v-radio(value='grid' :label='$t("Grid of 4 images & passages per page")')
+
+    v-checkbox(v-model='blue.story_alternate' :label='$t("Alternate image side")' hide-details)
+    p(class='text-body-medium text-medium-emphasis mt-2 mb-4') {{$t("Switch which side the image appears on from one passage to the next, rather than always the same side.")}}
+
     v-checkbox(v-model='blue.story_emphasis' :label='$t("Emphasize tone")' hide-details)
     p(class='text-body-medium text-medium-emphasis mt-2') {{$t("Italicize questions and embolden exclamations in picture story passages.")}}
 

@@ -23,6 +23,9 @@ export interface TypstRequest {
     // How a passage image sits on the page: 'borderless' bleeds to the true page edge, 'padded'
     // stays within the normal page margins (see Blueprint.image_style)
     image_style:'borderless'|'padded'
+    // Picture story layout + image-side alternation (see Blueprint.story_layout/story_alternate)
+    story_layout:'single'|'grid'
+    story_alternate:boolean
     // Binary assets referenced by generated Typst source (virtual filename -> bytes), served via
     // the compiler's shadow filesystem — currently only passage images (see TypstPassageImage)
     assets:Record<string, Uint8Array>
@@ -183,22 +186,24 @@ export interface TypstLinesPage {
 }
 
 
-// One resolved slide of a picture story, rendered as its own page. The body is pre-rendered Typst
-// markup — either clean scripture prose (a passage with verse/chapter numbers, headings and
-// footnotes all stripped) or prose-converted free text — or null for an image-only slide.
-// body2 is the same passage in a second translation (only ever set for passage-mode slides when
-// a second bible is selected), rendered stacked below the first — see gen_picture_story.
-// image_position is computed from the slide's index (even = top, odd = bottom) so it alternates
+// One resolved slide of a picture story. The body is pre-rendered Typst markup — either clean
+// scripture prose (a passage with verse/chapter numbers, headings and footnotes all stripped) or
+// prose-converted free text — or null for an image-only slide. body2 is the same passage in a
+// second translation (only ever set for passage-mode slides when a second bible is selected),
+// rendered stacked below the first — see gen_picture_story. Which side/half the image sits on is
+// decided at generate time (not stored here) since it depends on document-wide layout settings —
+// see gen_picture_story in content_picture_story.ts
 export interface TypstPictureStorySlide {
     image:TypstPassageImage|null    // resolved bytes + virtual filename (shadow-fs), null = none
     body:string|null                // clean prose markup, or null for an image-only slide
     body2:string|null               // second translation's clean prose, stacked below body
-    image_position:'top'|'bottom'
 }
 
 
-// A sequence of illustrated slides, one page each (see gen_picture_story). image-only slides are
-// full-page; body-only slides are vertically centred; image + body split the page in half
+// A sequence of illustrated slides (see gen_picture_story). 'single' layout: one slide per page,
+// image-only slides full-page, body-only slides vertically centred, image + body split the page
+// in half. 'grid' layout: 4 slides per page in a 2-column grid, each slide as one row (image +
+// body side by side)
 export interface TypstPictureStory {
     type:'picture_story'
     slides:TypstPictureStorySlide[]
@@ -328,6 +333,12 @@ export interface Blueprint {
     // Picture stories only: auto-emphasize sentence tone — italicize questions (ending "?") and
     // embolden exclamations (ending "!"). Applies to picture-story passage prose (nothing else)
     story_emphasis:boolean
+    // Picture stories only: 'single' = one slide per page (image filling half); 'grid' = 4 slides
+    // per page in a 2-column grid (image+text per row)
+    story_layout:'single'|'grid'
+    // Picture stories only: alternate which side the image appears on per slide, rather than
+    // always the same side ('single': top; 'grid': left)
+    story_alternate:boolean
 
     // Title pages (global — applies uniformly to every title page in the document: standalone
     // title items and passage-auto-inserted title pages alike)

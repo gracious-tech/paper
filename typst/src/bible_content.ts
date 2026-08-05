@@ -337,6 +337,8 @@ export class BibleContent {
             running_align: blue.running_align,
             booklet_portrait: blue.booklet_portrait,
             image_style: blue.image_style,
+            story_layout: blue.story_layout,
+            story_alternate: blue.story_alternate,
             assets,
         }
     }
@@ -458,13 +460,14 @@ export class BibleContent {
         }
     }
 
-    // Convert a picture-story content item to its Typst equivalent — one resolved slide per page.
-    // The image alternates top/bottom by slide index. A passage slide renders clean prose from the
-    // plain-text format (no verse numbers/headings/footnotes); when a second bible is selected,
-    // the same passage in that translation is also resolved (body2), stacked below the first (see
-    // gen_picture_story). A text slide is prose-converted from its rich-text doc and never has a
-    // second body (it's free text, not tied to a translation). When blue.story_emphasis is on,
-    // passage prose auto-italicizes questions and emboldens exclamations.
+    // Convert a picture-story content item to its Typst equivalent. A passage slide renders clean
+    // prose from the plain-text format (no verse numbers/headings/footnotes); when a second bible
+    // is selected, the same passage in that translation is also resolved (body2), stacked below
+    // the first (see gen_picture_story). A text slide is prose-converted from its rich-text doc
+    // and never has a second body (it's free text, not tied to a translation). When
+    // blue.story_emphasis is on, passage prose auto-italicizes questions and emboldens
+    // exclamations. Layout (single/grid) and image-side alternation are decided at generate time,
+    // not here — see gen_picture_story in content_picture_story.ts
     private async gen_picture_story_item(
         blue:Blueprint, story:ContentPictureStory, report_fetch?:(label:string) => void,
     ):Promise<TypstPictureStory> {
@@ -501,7 +504,7 @@ export class BibleContent {
                 body = prose_to_typst(slide.doc)
             }
 
-            slides.push({image, body, body2, image_position: i % 2 === 0 ? 'top' : 'bottom'})
+            slides.push({image, body, body2})
         }
         return {type: 'picture_story', slides}
     }

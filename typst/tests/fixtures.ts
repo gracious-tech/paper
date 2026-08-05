@@ -130,6 +130,8 @@ export function make_request(overrides:Partial<TypstRequest> = {}):TypstRequest 
         running_align: 'center',
         booklet_portrait: false,
         image_style: 'padded',
+        story_layout: 'single',
+        story_alternate: false,
         assets: {},
         ...overrides,
     }

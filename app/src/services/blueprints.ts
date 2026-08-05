@@ -77,6 +77,8 @@ export function get_default_blueprint():Blueprint{
         text_color: null,
         columns: null,
         story_emphasis: false,
+        story_layout: 'single',
+        story_alternate: false,
 
         // Title pages
         titlepage_frame: 'straight',

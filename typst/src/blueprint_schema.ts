@@ -203,6 +203,8 @@ export function make_blueprint_schema(defaults:Blueprint):z.ZodType<Blueprint>{
         text_color: z.string().nullable().catch(defaults.text_color),
         columns: z.boolean().nullable().catch(defaults.columns),
         story_emphasis: z.boolean().catch(defaults.story_emphasis),
+        story_layout: z.enum(['single', 'grid']).catch(defaults.story_layout),
+        story_alternate: z.boolean().catch(defaults.story_alternate),
 
         // Title pages
         titlepage_frame: z.string().nullable().catch(defaults.titlepage_frame),
