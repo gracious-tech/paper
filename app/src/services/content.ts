@@ -56,6 +56,22 @@ export async function load_fonts(fonts_prefix:string):Promise<void> {
 }
 
 
+// Ensure a translation's book metadata (names/availability, words-of-Jesus support) is loaded
+// into `content.books`/`content.wj_markup` — shared by the auto-load watcher (for the open
+// design's `blue.bibles`) and the new-design wizard (whose `draft.bibles` isn't watched there)
+export async function ensure_bible_books_loaded(bible:string):Promise<void> {
+    if (content.books[bible]){
+        return
+    }
+    // Immediately set before local names available
+    content.books[bible] = bible_content.collection.get_books(bible, {object: true, whole: true})
+    // Once have fetched local names, update the list and record wj support
+    const {wj_markup} = await bible_content.load_translation(bible)
+    content.wj_markup[bible] = wj_markup
+    content.books[bible] = bible_content.collection.get_books(bible, {object: true, whole: true})
+}
+
+
 // Roughly strip Typst markup down to plain text — used only for font-picker example text, where
 // an exact result doesn't matter, just something readable in the chosen font
 function typst_to_plain(markup:string):string {

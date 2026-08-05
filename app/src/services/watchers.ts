@@ -2,7 +2,8 @@
 import {watch} from 'vue'
 
 import {blue} from '@/services/state'
-import {content, bible_content, resolve_passage_examples} from '@/services/content'
+import {content, bible_content, resolve_passage_examples, ensure_bible_books_loaded}
+    from '@/services/content'
 
 import type {ContentPassage, ContentTitle} from '@/services/types'
 
@@ -13,17 +14,7 @@ export function start_watchers(){
     // Auto-load book names + words-of-Jesus support for each selected translation
     watch(() => blue.bibles, async () => {
         for (const bible of blue.bibles){
-            // If don't have books for bible yet, get them
-            if (!content.books[bible]){
-                // Immediately set before local names available
-                content.books[bible]
-                    = bible_content.collection.get_books(bible, {object: true, whole: true})
-                // Once have fetched local names, update the list and record wj support
-                const {wj_markup} = await bible_content.load_translation(bible)
-                content.wj_markup[bible] = wj_markup
-                content.books[bible]
-                    = bible_content.collection.get_books(bible, {object: true, whole: true})
-            }
+            await ensure_bible_books_loaded(bible)
         }
     }, {deep: true, immediate: true})
 

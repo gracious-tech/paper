@@ -33,7 +33,7 @@ BiblePicker(v-else :model-value='draft.bibles[picking] ?? draft.bibles[0] ?? nul
 import {computed, ref, watch} from 'vue'
 import {useI18n} from 'vue-i18n'
 
-import {content} from '@/services/content'
+import {content, ensure_bible_books_loaded} from '@/services/content'
 import {missing_book_warnings} from '@/services/blueprints'
 import BiblePicker from '@/comp/reuseable/BiblePicker.vue'
 
@@ -54,6 +54,16 @@ const {t} = useI18n()
 if (!draft.bibles.length){
     draft.bibles.push(content.collection.get_preferred_resource().id)
 }
+
+
+// Auto-load book availability for each selected translation — `draft.bibles` isn't the open
+// design's `blue.bibles`, so the app-wide watcher in watchers.ts never fetches it, and the
+// missing-books warning below would otherwise stay empty forever
+watch(() => draft.bibles, bibles => {
+    for (const bible of bibles){
+        void ensure_bible_books_loaded(bible)
+    }
+}, {deep: true, immediate: true})
 
 
 // Which slot (0/1) is currently being picked, null when showing the summary list
