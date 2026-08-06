@@ -3,7 +3,7 @@
 
 v-card(:class='{selected}' variant='outlined' @click='emit("select")')
     img(:src='image' alt='')
-    div.text
+    div.text(:class='tint')
         strong {{ label }}
         div.subtitle(v-if='subtitle') {{ subtitle }}
 
@@ -14,7 +14,9 @@ v-card(:class='{selected}' variant='outlined' @click='emit("select")')
 
 
 // A selectable image card for the new-design wizard's choice grids (type/print/cover steps)
-defineProps<{image:string, label:string, subtitle?:string, selected:boolean}>()
+// `tint` optionally colors the text area to distinguish sub-categories (e.g. text vs picture
+// designs in the type step)
+defineProps<{image:string, label:string, subtitle?:string, selected:boolean, tint?:'blue'|'yellow'}>()
 const emit = defineEmits<{(e:'select'):void}>()
 
 
@@ -39,6 +41,12 @@ const emit = defineEmits<{(e:'select'):void}>()
 
     .text
         padding: 8px 12px 10px 12px
+
+        &.blue
+            background-color: #e3f0ff
+
+        &.yellow
+            background-color: #fdf6d8
 
         .subtitle
             font-size: 0.8rem

@@ -11,6 +11,11 @@ import {book_icon} from '@/services/icons'
 import {generate_token} from '@/services/utils'
 import {fetch_stories, story_to_slides, story_reference_label, story_canonical_cmp}
     from '@/services/stories'
+import img_type_regular from '@/assets/images/design_types/type_standard.avif'
+import img_type_reading from '@/assets/images/design_types/type_reading.avif'
+import img_type_notes from '@/assets/images/design_types/type_notes.avif'
+import img_type_study from '@/assets/images/design_types/type_study.avif'
+import img_type_bilingual from '@/assets/images/design_types/type_bilingual.avif'
 
 import type {Blueprint, ContentPassage, ContentPictureStory, ContentTitle} from '@/services/types'
 
@@ -83,26 +88,26 @@ export function get_default_draft():NewDesignDraft{
 
 // The design-type presets: only the fields that differ from the blank default blueprint
 // (diffs mirror the retired OptionsPreset panel; bilingual additionally requires a second
-// translation, which the wizard's translations step enforces). Images supplied later
+// translation, which the wizard's translations step enforces). picture_story has no artwork yet
 export const TYPE_PRESETS:{id:NewDesignType, image:string, diff:Partial<Blueprint>}[] = [
-    {id: 'regular', image: '/wizard/type_regular.webp', diff: {}},
-    {id: 'reading', image: '/wizard/type_reading.webp', diff: {
+    {id: 'regular', image: img_type_regular, diff: {}},
+    {id: 'reading', image: img_type_reading, diff: {
         show_headings: false,
         show_chapters: false,
         show_verses: false,
         show_footnotes: false,
     }},
-    {id: 'notes', image: '/wizard/type_notes.webp', diff: {
+    {id: 'notes', image: img_type_notes, diff: {
         show_footnotes: false,
         line_height: 2.5,
         half_blank: 'right',
         bibles_layout: 'columns',  // Required for half_blank
     }},
-    {id: 'study', image: '/wizard/type_study.webp', diff: {
+    {id: 'study', image: img_type_study, diff: {
         show_footnotes: false,
         notes: 'eng_tyndale',
     }},
-    {id: 'bilingual', image: '/wizard/type_bilingual.webp', diff: {
+    {id: 'bilingual', image: img_type_bilingual, diff: {
         show_footnotes: false,
     }},
     {id: 'picture_story', image: '/wizard/type_picture_story.webp', diff: {}},

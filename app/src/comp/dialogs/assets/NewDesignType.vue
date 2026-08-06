@@ -5,7 +5,7 @@ div
     p(class='mb-3 text-body-medium text-medium-emphasis') {{ $t("What do you want it to look like?") }}
     div.grid
         NewDesignCard(v-for='item of types' :key='item.id' :image='item.image' :label='item.label'
-            :subtitle='item.subtitle' :selected='draft.type === item.id'
+            :subtitle='item.subtitle' :selected='draft.type === item.id' :tint='item.tint'
             @select='draft.type = item.id')
 
 </template>
@@ -59,6 +59,7 @@ const labels:Record<string, {label:string, subtitle:string}> = {
 const types = computed(() => TYPE_PRESETS.map(preset => ({
     id: preset.id,
     image: preset.image,
+    tint: preset.id === 'picture_story' ? 'yellow' as const : 'blue' as const,
     ...labels[preset.id]!,
 })))
 
