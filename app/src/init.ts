@@ -21,6 +21,10 @@ import RadioChecked from '@material-symbols/svg-400/rounded/radio_button_checked
 import RadioUnchecked from '@material-symbols/svg-400/rounded/radio_button_unchecked.svg'
 import ExpandMore from '@material-symbols/svg-400/rounded/expand_more.svg'
 import Check from '@material-symbols/svg-400/rounded/check.svg'
+import Warning from '@material-symbols/svg-400/rounded/warning-fill.svg'
+import Info from '@material-symbols/svg-400/rounded/info-fill.svg'
+import ErrorIcon from '@material-symbols/svg-400/rounded/error-fill.svg'
+import CheckCircle from '@material-symbols/svg-400/rounded/check_circle-fill.svg'
 
 import AppIcon from './comp/global/AppIcon.vue'
 import AppProse from './comp/global/AppProse.vue'
@@ -109,6 +113,10 @@ app.use(createVuetify({
             radioOff: RadioUnchecked,
             dropdown: ExpandMore,
             complete: Check,
+            warning: Warning,
+            info: Info,
+            error: ErrorIcon,
+            success: CheckCircle,
         },
     },
 }))
