@@ -173,7 +173,6 @@
   "Start of preview": "",
   "End of preview": "",
   "Create document to see the rest": "",
-  "Advanced styles": "",
   "Headings": "",
   "Font for headings": "",
   "Bold": "",
@@ -398,5 +397,6 @@
   "Alternate image side": "",
   "Switch which side the image appears on from one passage to the next, rather than always the same side.": "",
   "Second translation": "",
-  "Workarounds": ""
+  "Workarounds": "",
+  "Advanced options": ""
 }

@@ -2,7 +2,7 @@
 <template lang='pug'>
 
 v-card-title(class='d-flex justify-space-between align-center')
-    | {{$t("Advanced styles")}}
+    | {{$t("Advanced options")}}
     v-btn(@click='done' size='large' variant='text' color='secondary') {{$t("Done")}}
 
 v-divider

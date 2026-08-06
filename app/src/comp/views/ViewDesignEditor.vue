@@ -42,6 +42,11 @@ div.cont(v-if='!trigger_rerender')
     h2 {{$t("Layout")}}
     OptionsLayout
 
+    v-divider(class='my-8')
+
+    div(class='d-flex justify-center')
+        v-btn(@click='advanced' variant='tonal' color='primary') {{$t("Advanced options")}}
+
 </template>
 
 
@@ -59,10 +64,19 @@ import OptionsPaper from '@/comp/options/OptionsPaper.vue'
 import OptionsStudy from '@/comp/options/OptionsStudy.vue'
 import OptionsBibles from '@/comp/options/OptionsBibles.vue'
 
-import {blue} from '@/services/state'
+import {blue, state} from '@/services/state'
 
 
 const trigger_rerender = ref(false)
+
+
+// Open the advanced options editor (headings, text color, title pages, etc)
+const advanced = () => {
+    state.editor = {
+        component: 'EditorAdvancedStyles',
+        props: {},
+    }
+}
 
 </script>
 

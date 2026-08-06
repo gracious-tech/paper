@@ -18,8 +18,6 @@ v-radio-group(v-model='justify' inline :label='$t("Justify")' class='my-4')
     v-radio(value='false' :label='$t("No")')
 p(class='text-body-medium text-disabled') {{$t("Auto will not justify when width is too narrow")}}
 
-v-btn(@click='advanced' variant='tonal' color='primary' class='mt-4') {{$t("Advanced styles")}}
-
 </template>
 
 
@@ -27,7 +25,7 @@ v-btn(@click='advanced' variant='tonal' color='primary' class='mt-4') {{$t("Adva
 
 import {computed} from 'vue'
 
-import {blue, state} from '@/services/state'
+import {blue} from '@/services/state'
 
 const justify = computed({
     get: () => String(blue.justify),
@@ -35,16 +33,6 @@ const justify = computed({
         blue.justify = value === 'null' ? null : (value === 'true')
     },
 })
-
-
-// Open the advanced styles editor (headings, text color)
-const advanced = () => {
-    state.editor = {
-        component: 'EditorAdvancedStyles',
-        props: {},
-    }
-}
-
 
 </script>
 
