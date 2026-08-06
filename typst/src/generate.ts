@@ -9,7 +9,39 @@ import {gen_lines} from './content_lines.js'
 import {gen_picture_story} from './content_picture_story.js'
 
 import type {PreambleOverrides} from './preamble.js'
-import type {TypstRequest, TypstContentItem, TypstPassage} from './types.js'
+import type {PageConfig, TypstRequest, TypstContentItem, TypstPassage} from './types.js'
+
+
+// How a compile's margins relate to the physical page — either Typst's own inside/outside swap
+// (alternating each page by parity, for ordinary continuous book flow) or a fixed physical side
+// pinned for every page of the compile (for half-blank/notetaking layouts, where content must
+// stay on the same side as its facing notes page throughout — even across multiple content
+// pages, which Typst's own binding would otherwise alternate internally)
+export type MarginMode =
+    | {kind:'alternating', binding:'left'|'right'}
+    | {kind:'fixed', side:'left'|'right'}
+
+
+// Build the #set page margin dict + binding for a MarginMode. 'fixed' 'left' means this page is
+// always the verso/left half of a spread, so its near-spine (inner) margin sits on the physical
+// right; 'right' (recto) puts inner on the physical left
+function margin_overrides(page:PageConfig, mode:MarginMode):{margin:string, binding:'left'|'right'} {
+    if (mode.kind === 'alternating') {
+        return {
+            binding: mode.binding,
+            margin: `(top: ${page.margin_top}, bottom: ${page.margin_bottom}, `
+                + `inside: ${page.margin_left}, outside: ${page.margin_right})`,
+        }
+    }
+    const [left, right] = mode.side === 'left'
+        ? [page.margin_right, page.margin_left]
+        : [page.margin_left, page.margin_right]
+    return {
+        binding: mode.side,
+        margin: `(top: ${page.margin_top}, bottom: ${page.margin_bottom}, `
+            + `left: ${left}, right: ${right})`,
+    }
+}
 
 
 // Generate a single Typst document string from a request
@@ -17,8 +49,10 @@ import type {TypstRequest, TypstContentItem, TypstPassage} from './types.js'
 // For features that need multi-document compilation (alternate interleaving, half-blank),
 // use generate_pdf() instead which handles the full pipeline
 // start_page offsets the built-in page counter so numbering stays continuous when a book is
-// assembled from several separately-compiled documents (see compile_group in pdf_postprocess.ts)
-export function generate_typst(request:TypstRequest, start_page = 1):string {
+// assembled from several separately-compiled documents (see compile_group in pdf_postprocess.ts).
+// margin_mode defaults to alternating-by-start_page-parity (see margin_overrides); half-blank
+// passages pass a 'fixed' mode instead (see pdf_postprocess.ts)
+export function generate_typst(request:TypstRequest, start_page = 1, margin_mode?:MarginMode):string {
     const parts:string[] = []
 
     // Must precede any page content to take effect on this document's first page
@@ -26,8 +60,15 @@ export function generate_typst(request:TypstRequest, start_page = 1):string {
         parts.push(`#counter(page).update(${start_page})`)
     }
 
+    // Each content item compiles as its own document, so its physical first page is always
+    // "odd" as far as Typst's inside/outside margin swap is concerned — counter(page).update()
+    // above only affects displayed numbers, not that swap. When this item's true position in
+    // the assembled book is an even page, flip the binding so "inside" still lands on the
+    // correct physical side (see margin_overrides)
+    const mode = margin_mode ?? {kind: 'alternating', binding: start_page % 2 === 0 ? 'right' : 'left'}
+
     // Document preamble (page, fonts, paragraph, footer)
-    parts.push(gen_preamble(request))
+    parts.push(gen_preamble(request, margin_overrides(request.page, mode)))
 
     // Render each content item on its own page(s)
     for (let i = 0; i < request.content.length; i++) {
@@ -51,6 +92,21 @@ export function generate_typst(request:TypstRequest, start_page = 1):string {
 }
 
 
+// The fixed physical side a half-blank passage's content lives on, given which side its facing
+// notes page is pinned to (null when the passage isn't half-blank at all). Shared by the
+// running-heading override below and pdf_postprocess.ts's margin-mode wiring (assemble_pages/
+// process_faced), so both agree on which side is which
+export function half_blank_content_side(half_blank:'left'|'right'|null):'left'|'right'|null {
+    if (half_blank === 'left') {
+        return 'right'
+    }
+    if (half_blank === 'right') {
+        return 'left'
+    }
+    return null
+}
+
+
 // Reset the running-heading state (read by preamble.ts's page-furniture row) at the start of
 // each content item. Passages seed book/chapter/side from their own data — further updated by
 // #ch(n) calls as content progresses through the item, see preamble.ts — while every other item
@@ -63,9 +119,8 @@ function gen_running_state_reset(item:TypstContentItem):string {
     // half_blank passages always land on a fixed physical side regardless of the page — see
     // process_faced in pdf_postprocess.ts — so the live per-page parity check in preamble.ts
     // is overridden with that fixed side instead
-    const side = item.half_blank === 'left' ? '"right"'
-        : item.half_blank === 'right' ? '"left"'
-        : 'none'
+    const content_side = half_blank_content_side(item.half_blank)
+    const side = content_side ? `"${content_side}"` : 'none'
     return `#state("running-active", false).update(true)
 #state("running-book", "").update("${escape_typst_str(item.book_name)}")
 #state("running-chapter", 0).update(${item.start_chapter})
@@ -195,20 +250,30 @@ function gen_facing_furniture(request:TypstRequest, start_page:number, gutter:st
 }
 
 
-// Generate a minimal Typst document for a blank page (used in post-processing)
-export function generate_typst_blank(request:TypstRequest):string {
+// Generate a minimal Typst document for a blank page (used in post-processing). Blank/lines
+// pages are pre-compiled once and their single page reused at many different positions, so
+// callers pick the right MarginMode up front for however this instance will be used: generic
+// padding blanks alternate by true absolute parity, while notetaking facing pages need a fixed
+// side (see margin_overrides and pdf_postprocess.ts's assemble_pages/process_faced)
+export function generate_typst_blank(
+    request:TypstRequest, margin_mode:MarginMode = {kind: 'alternating', binding: 'left'},
+):string {
+    const overrides = margin_overrides(request.page, margin_mode)
     return `#set page(
     width: ${request.page.width},
     height: ${request.page.height},
-    margin: (top: ${request.page.margin_top}, bottom: ${request.page.margin_bottom},
-        left: ${request.page.margin_left}, right: ${request.page.margin_right}),
+    margin: ${overrides.margin},
+    binding: ${overrides.binding},
 )`
 }
 
 
 // Generate a minimal Typst document for a lines page (used in post-processing)
-export function generate_typst_lines(request:TypstRequest, spacing:string):string {
-    return `${generate_typst_blank(request)}
+export function generate_typst_lines(
+    request:TypstRequest, spacing:string,
+    margin_mode:MarginMode = {kind: 'alternating', binding: 'left'},
+):string {
+    return `${generate_typst_blank(request, margin_mode)}
 
 ${gen_lines({type: 'lines', spacing})}`
 }

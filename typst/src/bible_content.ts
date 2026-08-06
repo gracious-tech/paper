@@ -60,6 +60,15 @@ function norm_unit(unit:string):'mm'|'in' {
 }
 
 
+// Convert a length between mm/in (trim size and margins can be recorded in different units)
+function convert_unit(value:number, from:'mm'|'in', to:'mm'|'in'):number {
+    if (from === to) {
+        return value
+    }
+    return from === 'mm' ? value / 25.4 : value * 25.4
+}
+
+
 // Resolves user Blueprints into TypstRequests, fetching + caching Bible content as needed
 export class BibleContent {
 
@@ -348,15 +357,26 @@ export class BibleContent {
     // Resolve the chosen trim size + margins to a concrete PageConfig of Typst unit strings
     private gen_page(blue:Blueprint):PageConfig {
         const trim = this.resolve_trim(blue)
+
+        // Clamp each margin to 50% of the corresponding trim dimension (in the margin's own
+        // unit, since trim/margin units can differ) so a bad/extreme value can't collapse or
+        // invert the content area and blow up layout/compile
+        const max_vertical = convert_unit(trim.height, trim.unit, blue.margin_unit) / 2
+        const max_horizontal = convert_unit(trim.width, trim.unit, blue.margin_unit) / 2
+        const margin_top = Math.min(blue.margin_top, max_vertical)
+        const margin_bottom = Math.min(blue.margin_bottom, max_vertical)
+        const margin_inner = Math.min(blue.margin_inner, max_horizontal)
+        const margin_outer = Math.min(blue.margin_outer, max_horizontal)
+
         return {
             // Trim/page size; booklet imposition is handled downstream
             width: `${trim.width}${trim.unit}`,
             height: `${trim.height}${trim.unit}`,
-            margin_top: `${blue.margin_top}${blue.margin_unit}`,
-            margin_bottom: `${blue.margin_bottom}${blue.margin_unit}`,
+            margin_top: `${margin_top}${blue.margin_unit}`,
+            margin_bottom: `${margin_bottom}${blue.margin_unit}`,
             // Inner/outer map to typst's inside/outside binding-aware margins
-            margin_left: `${blue.margin_inner}${blue.margin_unit}`,
-            margin_right: `${blue.margin_outer}${blue.margin_unit}`,
+            margin_left: `${margin_inner}${blue.margin_unit}`,
+            margin_right: `${margin_outer}${blue.margin_unit}`,
         }
     }
 

@@ -13,6 +13,7 @@ export interface PreambleOverrides {
     margin?:string
     header?:string
     footer?:string
+    binding?:'left'|'right'
 }
 
 
@@ -87,10 +88,15 @@ export function gen_preamble(request:TypstRequest, overrides:PreambleOverrides =
         justify = 'true'
     }
 
-    // Build margin specification (inside/outside so Typst swaps on alternating pages)
+    // Build margin specification (inside/outside so Typst swaps on alternating pages).
+    // Typst's inside/outside swap follows the *physical* first page of this compile (always
+    // "odd"), not the counter(page) value set below — so when a content item's true position
+    // in the assembled book is even, the caller passes binding: 'right' to mirror it and keep
+    // "inside" on the correct physical side (see generate_typst's start_page parity)
     const margin = overrides.margin
         ?? `(top: ${page.margin_top}, bottom: ${page.margin_bottom}, `
         + `inside: ${page.margin_left}, outside: ${page.margin_right})`
+    const binding = overrides.binding ?? 'left'
 
     // Page number + running heading, combined into whichever slot (header/footer) the
     // blueprint chose — see gen_page_furniture_row
@@ -219,6 +225,7 @@ export function gen_preamble(request:TypstRequest, overrides:PreambleOverrides =
     width: ${overrides.width ?? page.width},
     height: ${page.height},
     margin: ${margin},
+    binding: ${binding},
     header: ${header},
     footer: ${footer},
     footer-descent: 20%,

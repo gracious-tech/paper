@@ -2,11 +2,36 @@
 import {PDFDocument, PDFPage, degrees, rgb} from 'pdf-lib'
 
 import {generate_typst, generate_typst_facing, generate_typst_blank,
-    generate_typst_lines, passage_is_alternate} from './generate.js'
+    generate_typst_lines, passage_is_alternate, half_blank_content_side} from './generate.js'
 import {optimize_pdf} from './pdf_optimize.js'
 
+import type {MarginMode} from './generate.js'
 import type {TypstRequest, TypstContentItem, TypstPassage, CompileFn, ProgressFn,
     } from './types.js'
+
+
+// Fill color for a spread-preview slot that isn't a real page (see arrange_spreads) — a subtle
+// gray so it reads as "not printed" rather than a blank printed page
+const NOT_A_PAGE_FILL = rgb(0.92, 0.92, 0.92)
+
+
+// A blank/lines padding page's single compiled page gets reused at many different absolute
+// positions, each with its own true parity — see generate_typst_blank's alternating MarginMode.
+// Callers keep both pre-compiled variants and pick per-insertion via binding_for_page rather
+// than recompiling on every use. Only for generic padding — half-blank notetaking pages use a
+// single fixed-side compile instead (see process_faced), since their side never depends on
+// absolute position
+interface BlankVariants {
+    left:PDFDocument
+    right:PDFDocument
+}
+
+
+// The binding a generic padding page at this 1-based absolute position needs to keep "inside"
+// on the correct physical side — mirrors generate_typst's default start_page-parity logic
+function binding_for_page(page_number:number):'left'|'right' {
+    return page_number % 2 === 1 ? 'left' : 'right'
+}
 
 
 // Full pipeline: generate Typst source(s), compile via provided function, assemble and
@@ -49,7 +74,8 @@ export async function generate_pdf(
 
     // Keep a trimmed book preview even so facing-page parity still reads correctly
     if (preview && request.arrangement === 'book' && final_doc.getPageCount() % 2 === 1) {
-        const [page] = await final_doc.copyPages(blank_doc, [0])
+        const binding = binding_for_page(final_doc.getPageCount() + 1)
+        const [page] = await final_doc.copyPages(blank_doc[binding], [0])
         final_doc.addPage(page as PDFPage)
     }
 
@@ -115,6 +141,10 @@ async function compile_notice(
 // Arrange a reading-order document into facing-page spreads: a leading blank so page 1 sits
 // on the right, then each subsequent pair side by side. Each spread is one landscape page
 // (2x width) with the two pages drawn left and right (same 2-up technique as apply_booklet).
+// Page 1 is always odd/recto by definition (there's no "page 0"), so the leading synthetic
+// blank is unconditional — it's needed even when page 1 itself already happens to be a real
+// blank page (e.g. assemble_pages's half-blank alignment padding), since that page is still a
+// real, printed, odd-numbered page that belongs on the right of its own spread
 async function arrange_spreads(
     reading_doc:PDFDocument, request:TypstRequest,
 ):Promise<Uint8Array> {
@@ -137,7 +167,8 @@ async function arrange_spreads(
         slots.push(null)
     }
 
-    // Each pair of slots becomes one spread; null slots are left blank (white)
+    // Each pair of slots becomes one spread; a null slot isn't a real page (the inside of the
+    // front/back cover), so it gets a subtle gray fill instead of matching-white to signal that
     for (let i = 0; i < slots.length; i += 2) {
         const new_page = spread_doc.addPage([page_w * 2, page_h])
         const left_slot = slots[i]
@@ -146,19 +177,16 @@ async function arrange_spreads(
         if (left_slot != null) {
             const [embed] = await spread_doc.embedPages([reading_doc.getPage(left_slot)])
             new_page.drawPage(embed!, {x: 0, y: 0, width: page_w, height: page_h})
+        } else {
+            new_page.drawRectangle({x: 0, y: 0, width: page_w, height: page_h, color: NOT_A_PAGE_FILL})
         }
         if (right_slot != null) {
             const [embed] = await spread_doc.embedPages([reading_doc.getPage(right_slot)])
             new_page.drawPage(embed!, {x: page_w, y: 0, width: page_w, height: page_h})
+        } else {
+            new_page.drawRectangle(
+                {x: page_w, y: 0, width: page_w, height: page_h, color: NOT_A_PAGE_FILL})
         }
-
-        // Solid black line down the centre seam, dividing the two facing pages (preview only)
-        new_page.drawLine({
-            start: {x: page_w, y: 0},
-            end: {x: page_w, y: page_h},
-            thickness: 1,
-            color: rgb(0, 0, 0),
-        })
     }
 
     const pdf_bytes = await spread_doc.save()
@@ -170,14 +198,18 @@ async function arrange_spreads(
 // (reading order, including all blank/note pages) — before any booklet imposition
 async function assemble_pages(
     request:TypstRequest, compile_fn:CompileFn, on_progress?:ProgressFn,
-):Promise<{final_doc:PDFDocument, blank_doc:PDFDocument, blank_flags:boolean[]}> {
+):Promise<{final_doc:PDFDocument, blank_doc:BlankVariants, blank_flags:boolean[]}> {
 
     const booklike = request.arrangement !== 'normal'
 
-    // Compile a blank page for padding
-    const blank_source = generate_typst_blank(request)
-    const blank_pdf = await compile_fn(blank_source, request.assets)
-    const blank_doc = await PDFDocument.load(blank_pdf)
+    // Compile both binding variants of the blank padding page — whichever absolute position
+    // each padding page lands at (decided below, at insertion time) picks the matching one
+    const blank_doc:BlankVariants = {
+        left: await PDFDocument.load(await compile_fn(
+            generate_typst_blank(request, {kind: 'alternating', binding: 'left'}), request.assets)),
+        right: await PDFDocument.load(await compile_fn(
+            generate_typst_blank(request, {kind: 'alternating', binding: 'right'}), request.assets)),
+    }
 
     // Start building the final PDF
     const final_doc = await PDFDocument.create()
@@ -194,8 +226,9 @@ async function assemble_pages(
             if (!booklike) {
                 return  // Skip blanks in 'normal' mode
             }
-            // Copy blank page
-            const [page] = await final_doc.copyPages(blank_doc, [0])
+            // Copy the blank variant matching this insertion's true position
+            const binding = binding_for_page(final_doc.getPageCount() + 1)
+            const [page] = await final_doc.copyPages(blank_doc[binding], [0])
             final_doc.addPage(page as PDFPage)
         } else {
             const [page] = await final_doc.copyPages(source_doc, [page_index])
@@ -245,11 +278,19 @@ async function assemble_pages(
             }
         }
 
+        // Half-blank passages pin their content to a fixed physical side for the whole run
+        // (see half_blank_content_side) rather than alternating by absolute position — content
+        // must stay on the same side as its facing notes page throughout
+        const half_blank_side = item.type === 'passage' ? half_blank_content_side(item.half_blank) : null
+        const margin_mode:MarginMode|undefined = half_blank_side
+            ? {kind: 'fixed', side: half_blank_side}
+            : undefined
+
         // Compile the item as its own document. The start page keeps the page counter
         // continuous with what's already been assembled, since each section is its own Typst
         // compile (its internal counter would otherwise restart at 1)
         const item_doc = await compile_item(
-            request, item, compile_fn, final_doc.getPageCount() + 1,
+            request, item, compile_fn, final_doc.getPageCount() + 1, margin_mode,
         )
 
         // Half-blank: face every page of the compiled passage with a blank/lines page
@@ -288,10 +329,12 @@ function trim_trailing_blanks(doc:PDFDocument, blank_flags:boolean[]):void {
 
 // Compile a single content item into its own PDF document.
 // start_page offsets the item's page counter so numbers stay continuous across sections.
+// margin_mode overrides the default alternating-by-parity margins (see half_blank_content_side).
 async function compile_item(
     request:TypstRequest, item:TypstContentItem, compile_fn:CompileFn, start_page:number,
+    margin_mode?:MarginMode,
 ):Promise<PDFDocument> {
-    const source = generate_typst(make_item_request(request, item), start_page)
+    const source = generate_typst(make_item_request(request, item), start_page, margin_mode)
     const bytes = await compile_fn(source, request.assets)
     return await PDFDocument.load(bytes)
 }
@@ -364,11 +407,19 @@ async function process_faced(
 
     const show_pages = request.running_pages
 
-    // Ruled lines on the facing side (reused for every page); otherwise a plain blank
+    // The facing side is always the opposite of content's fixed side (see
+    // half_blank_content_side) — never alternating, since the notes page must stay on the same
+    // physical side as its facing content throughout the whole passage
+    const content_side = half_blank_content_side(passage.half_blank)!
+    const facing_side:'left'|'right' = content_side === 'left' ? 'right' : 'left'
+    const facing_mode:MarginMode = {kind: 'fixed', side: facing_side}
+
+    // Ruled lines on the facing side (reused for every page — one fixed-side compile, since
+    // every facing page sits on the same physical side); otherwise a plain blank
     let lines_doc:PDFDocument|null = null
     if (passage.show_lines) {
-        const lines_source = generate_typst_lines(request, '10mm')
-        lines_doc = await PDFDocument.load(await compile_fn(lines_source))
+        lines_doc = await PDFDocument.load(
+            await compile_fn(generate_typst_lines(request, '10mm', facing_mode), request.assets))
     }
 
     // Ensure the pair starts on the correct page for book-like arrangement
@@ -376,12 +427,17 @@ async function process_faced(
         await add_blank()
     }
 
-    // Add the facing (blank or lines) side
+    // Add the facing (blank or lines) side — a fixed-side blank when there are no ruled lines
+    // (skipped in 'normal' arrangement, same as generic add_blank(), since the generic variant
+    // picks by absolute parity and doesn't apply to this fixed-side facing page)
+    let facing_blank:PDFDocument|null = null
     const add_facing = async () => {
         if (lines_doc) {
             await add_page(lines_doc, 0, false)
-        } else {
-            await add_blank()
+        } else if (booklike) {
+            facing_blank ??= await PDFDocument.load(
+                await compile_fn(generate_typst_blank(request, facing_mode), request.assets))
+            await add_page(facing_blank, 0, false)
         }
     }
 
@@ -402,7 +458,7 @@ async function process_faced(
 // are the pre-compiled preview notice pages (if any), placed before/after the imposed sheets
 // so they don't get folded into the sheet pairing.
 async function apply_booklet(
-    assembled_doc:PDFDocument, request:TypstRequest, blank_doc:PDFDocument, preview = false,
+    assembled_doc:PDFDocument, request:TypstRequest, blank_doc:BlankVariants, preview = false,
     front_doc:PDFDocument|null = null, rear_doc:PDFDocument|null = null,
 ):Promise<Uint8Array> {
 
@@ -414,10 +470,12 @@ async function apply_booklet(
         : Math.ceil(page_count / 4) * 4
 
     // Pad with compiled blank pages if needed (must have a content stream so they can be
-    // embedded below — a bare pdf-lib addPage() has no Contents and fails to embed)
+    // embedded below — a bare pdf-lib addPage() has no Contents and fails to embed). Each padded
+    // page picks the binding variant matching its own absolute position, not just the first
     if (target_count > page_count) {
         for (let i = page_count; i < target_count; i++) {
-            const [page] = await assembled_doc.copyPages(blank_doc, [0])
+            const binding = binding_for_page(i + 1)
+            const [page] = await assembled_doc.copyPages(blank_doc[binding], [0])
             assembled_doc.addPage(page as PDFPage)
         }
     }
