@@ -9,8 +9,8 @@ div
         v-btn(size='small' variant='tonal' color='primary' :disabled='!passage_input.trim()'
             @click='add_passages') {{$t("Add")}}
         slot(name='switch')
-    Draggable(v-if='draft.passages.length' v-model='draft.passages' handle='.handle'
-            item-key='id' class='mt-4')
+    AppDraggableList(v-if='draft.passages.length' :list='draft.passages' :item_key='i => i.id'
+            handle='.handle' class='mt-4')
         template(#item='{element}')
             div.passage_row
                 v-text-field(:model-value='element.text' density='compact' hide-details
@@ -28,10 +28,10 @@ div
 <script lang='ts' setup>
 
 import {ref} from 'vue'
-import Draggable from 'vuedraggable'
 
 import {content} from '@/services/content'
 import {generate_token} from '@/services/utils'
+import AppDraggableList from '@/comp/global/AppDraggableList.vue'
 
 import type {NewDesignDraft, DraftPassage} from '@/services/new_design'
 

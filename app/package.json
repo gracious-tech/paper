@@ -5,6 +5,7 @@
         "@types/lodash-es": "^4.17.8",
         "@types/papaparse": "^5.5.2",
         "@types/pug": "^2.0.6",
+        "@types/sortablejs": "^1.15.9",
         "@vitejs/plugin-vue": "^6.0.7",
         "@vue/language-plugin-pug": "^3.3.7",
         "pug": "^3.0.2",
@@ -27,6 +28,7 @@
         "@tiptap/pm": "^3.27.1",
         "@tiptap/starter-kit": "^3.27.1",
         "@tiptap/vue-3": "^3.27.1",
+        "@vueuse/integrations": "^14.4.0",
         "bookcover-core": "^0.5.0",
         "bookcover-web": "^0.5.0",
         "core-js": "^3.40.0",
@@ -37,10 +39,10 @@
         "paper-bible-typst-web": "file:../typst-web",
         "pdf-lib": "^1.17.1",
         "printing-services": "^1.5.1",
+        "sortablejs": "^1.15.7",
         "typst-fonts": "^0.1.1",
         "vue-i18n": "^11.1.12",
         "vue-router": "^5.1.0",
-        "vuedraggable": "^4.1.0",
         "vuetify": "^4.1.5"
     }
 }

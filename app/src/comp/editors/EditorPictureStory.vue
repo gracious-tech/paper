@@ -21,7 +21,7 @@ v-card-text(class='flex-grow-1 d-flex flex-column')
     v-divider(class='my-2')
 
     //- The slides, each rendered as its own page (image + a passage or text body)
-    Draggable(v-model='item.slides' handle='.slide-handle' item-key='id')
+    AppDraggableList(:list='item.slides' :item_key='i => i.id' handle='.slide-handle')
         template(#item='{element: slide, index}')
             v-card.slide(variant='outlined' class='mb-3 pa-3')
                 div(class='d-flex align-center mb-2')
@@ -49,10 +49,10 @@ v-card-text(class='flex-grow-1 d-flex flex-column')
 <script lang='ts' setup>
 
 import {cloneDeep} from 'lodash-es'
-import Draggable from 'vuedraggable'
 
 import {blue, state} from '@/services/state'
 import {generate_token} from '@/services/utils'
+import AppDraggableList from '@/comp/global/AppDraggableList.vue'
 import IconField from '@/comp/editors/assets/IconField.vue'
 import ImageField from '@/comp/editors/assets/ImageField.vue'
 import PassageField from '@/comp/editors/assets/PassageField.vue'

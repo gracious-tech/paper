@@ -2,7 +2,7 @@
 <template lang='pug'>
 
 v-list(bg-color='transparent')
-    Draggable(v-model='blue.content' handle='.handle' item-key='id')
+    AppDraggableList(:list='blue.content' :item_key='i => i.id' handle='.handle')
         template(#item='{element}')
             v-list-item(@click='() => edit(element)')
                 template(#prepend)
@@ -36,13 +36,13 @@ DialogPictureStoryPicker(v-model='picker_open' @select-story='add_picture_story_
 
 import {reactive, computed, ref} from 'vue'
 import {useI18n} from 'vue-i18n'
-import Draggable from 'vuedraggable'
 
 import {blue, state, has_copyright, requires_copyright} from '@/services/state'
 import {gen_content_name} from '@/services/blueprints'
 import {generate_token} from '@/services/utils'
 import {story_to_slides, story_reference_label} from '@/services/stories'
 import DialogPictureStoryPicker from '@/comp/dialogs/DialogPictureStoryPicker.vue'
+import AppDraggableList from '@/comp/global/AppDraggableList.vue'
 
 import type {ContentItem, ContentTitle, ContentPictureStory} from '@/services/types'
 import type {Story} from '@/services/stories'
