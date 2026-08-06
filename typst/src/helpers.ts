@@ -5,15 +5,58 @@ export function escape_typst(text:string):string {
 }
 
 
+// Quote-opening characters treated as a sentence boundary in their own right (see
+// split_sentences) — straight quote/apostrophe chars are ambiguous (contractions, possessives,
+// closing quotes) so only unambiguous curly/angle openers count
+const QUOTE_OPENERS = '“‘«„'
+
+
+// Split text into "sentence" chunks for emphasize_sentences: a run of characters up to and
+// including its terminator(s) and any trailing closing quotes/brackets; or, if a quote opens
+// before any terminator is reached, the narration up to (not including) that quote — so
+// un-terminated narration leading into a quote ("...said: “Stop!”") splits off into its own
+// (unwrapped) chunk instead of being pulled into the quote's emphasis span; or the remainder of
+// the text if neither is reached
+function split_sentences(text:string):string[] {
+    const sentences:string[] = []
+    let start = 0
+    let i = 0
+    while (i < text.length) {
+        const ch = text[i]!
+        if (i > start && QUOTE_OPENERS.includes(ch)) {
+            sentences.push(text.slice(start, i))
+            start = i
+            continue
+        }
+        if ('.!?'.includes(ch)) {
+            let j = i + 1
+            while (j < text.length && '.!?'.includes(text[j]!)) {
+                j++
+            }
+            while (j < text.length && '"\'’”)]'.includes(text[j]!)) {
+                j++
+            }
+            sentences.push(text.slice(start, j))
+            start = j
+            i = j
+            continue
+        }
+        i++
+    }
+    if (start < text.length) {
+        sentences.push(text.slice(start))
+    }
+    return sentences
+}
+
+
 // Escape plain text for Typst while auto-emphasizing sentence tone: sentences ending in "?" are
 // italicized and those ending in "!" are emboldened. Runs on plain text (not Typst markup) so
 // sentence detection stays reliable — leading whitespace/paragraph breaks are kept outside the
 // emphasis wrapper so paragraphs still break. Used for picture-story passage prose.
 export function emphasize_sentences(text:string):string {
-    // Each match is one sentence: any run of non-terminator characters up to and including its
-    // terminator(s) and any trailing closing quotes/brackets, or a final run with no terminator
-    const sentences = text.match(/[^.!?]*[.!?]+["'”’)\]]*|[^.!?]+$/g)
-    if (!sentences) {
+    const sentences = split_sentences(text)
+    if (!sentences.length) {
         return escape_typst(text)
     }
     return sentences.map(sentence => {
