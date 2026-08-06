@@ -173,6 +173,18 @@ function gen_passage_inner(
         lines.push('#set par(first-line-indent: 0em)')
     }
 
+    // A heading (or the 'float' chapter marker's own block(), see chapter in preamble.ts)
+    // normally precedes the passage's first paragraph, which is what stops Typst's
+    // first-line-indent (all: false) from indenting it — that rule only skips a paragraph
+    // immediately preceded by a non-paragraph flow item. When headings/chapters are hidden
+    // (e.g. the "reading" preset) or absent from the source content, nothing plays that role,
+    // so the passage's opening paragraph would wrongly get indented like a mid-flow
+    // continuation. A zero-height block guarantees that role unconditionally, regardless of
+    // heading/chapter settings — height/below 0pt keeps it invisible and spacing-neutral (an
+    // equivalent #metadata(none) marker does NOT work: Typst ignores metadata entirely when
+    // deciding whether the next paragraph follows a paragraph)
+    lines.push('#block(below: 0pt, height: 0pt)')
+
     // Render the content (any 2-column layout comes from the page setting, not a block)
     if (use_grid) {
         lines.push(gen_multi_bible_grids(
@@ -220,8 +232,8 @@ function gen_heading_rules(passage:TypstPassage, font_size:string):string {
 #show heading.where(level: 1): ${lead('1.2em', 1.2)}
     v(0.25em)
 }
-#show heading.where(level: 2): ${lead('2em', 1)}
-    v(0.25em)
+#show heading.where(level: 2): ${lead('1.5em', 1)}
+    v(0.2em)
 }
 #show heading.where(level: 3): ${lead('0.6em', 0.9)}
     v(0.15em)

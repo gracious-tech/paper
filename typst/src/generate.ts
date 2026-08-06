@@ -210,7 +210,7 @@ export function generate_typst_blank(request:TypstRequest):string {
 export function generate_typst_lines(request:TypstRequest, spacing:string):string {
     return `${generate_typst_blank(request)}
 
-${gen_lines({type: 'lines', spacing}, request.page)}`
+${gen_lines({type: 'lines', spacing})}`
 }
 
 
@@ -229,7 +229,7 @@ function gen_content_item(item:TypstContentItem, request:TypstRequest):string {
         case 'custom':
             return gen_custom(item)
         case 'lines':
-            return gen_lines(item, request.page)
+            return gen_lines(item)
         case 'picture_story':
             return gen_picture_story(item, request.page, request.image_style,
                 request.story_layout, request.story_alternate,
