@@ -5,7 +5,7 @@ div.preview
     div.toolbar
         v-btn-toggle(:model-value='mode' @update:model-value='set_mode'
             density='compact' variant='elevated' color='primary' divided mandatory)
-            v-btn(v-if='blue.booklet' value='reading' size='small') {{ $t("Reading") }}
+            v-btn(value='reading' size='small') {{ $t("Reading") }}
             v-btn(value='print' size='small') {{ $t("Print") }}
         //- Which part of a large document to preview — only shown when the document exceeded
         //- the preview size limit and had to be truncated
@@ -85,14 +85,6 @@ const overlay_error_title = computed(() => t("Something went wrong :("))
 // Which layout to render: 'reading' = facing-page book spreads (default),
 // 'print' = the actual final PDF (folded booklet order or sequential pages)
 const mode = ref<'reading'|'print'>('reading')
-
-// The reading spread view only makes sense for booklets; non-booklets print sequentially,
-// so force 'print' whenever booklet is off (the Reading toggle is also hidden then)
-watch(() => blue.booklet, booklet => {
-    if (!booklet){
-        mode.value = 'print'
-    }
-}, {immediate: true})
 
 // Switch the preview layout and immediately recompile (no debounce for an explicit click)
 function set_mode(value:'reading'|'print'){
