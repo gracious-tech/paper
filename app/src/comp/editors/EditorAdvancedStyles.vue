@@ -115,6 +115,22 @@ v-card-text(class='overflow-y-auto')
     v-checkbox(v-model='blue.story_emphasis' :label='$t("Emphasize tone")' hide-details)
     p(class='text-body-medium text-medium-emphasis mt-2') {{$t("Italicize questions and embolden exclamations in picture story passages.")}}
 
+    v-divider(class='my-8')
+
+    h3(class='text-title-large mb-4') {{$t("Copyright")}}
+
+    v-checkbox(v-model='blue.public_domain' :label='$t("Dedicate your own content to the public domain")')
+    p(class='text-body-medium text-medium-emphasis') {{$t("It's recommended to leave this checked so anyone can copy and share your creation without any further restrictions than the Bible translations themselves require. This has no effect on the licenses of third-party material you use, such as Bible translations.")}}
+
+    v-checkbox(v-model='blue.app_link' :label='$t(`Include "Created with /paper.bible/"`)' class='mt-4')
+
+    v-divider(class='my-8')
+
+    h3(class='text-title-large mb-4') {{$t("Workarounds")}}
+
+    v-switch(v-model='blue.booklet_portrait' color='primary' :label="$t(`My printer doesn't allow \"flip on short edge\"`)" class='mt-4' :disabled='!blue.booklet')
+    p(class='text-body-medium text-medium-emphasis') {{$t("If your printer can only flip on long edge (which is the default for double-sided portrait documents) then this setting will output a portrait PDF with alternating rotation which will look correct once printed double-sided.")}}
+
 </template>
 
 

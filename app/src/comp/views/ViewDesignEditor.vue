@@ -41,10 +41,6 @@ div.cont(v-if='!trigger_rerender')
 
     h2 {{$t("Layout")}}
     OptionsLayout
-    v-divider(class='my-8')
-
-    h2 {{$t("Other stuff...")}}
-    OptionsOther
 
 </template>
 
@@ -58,7 +54,6 @@ import OptionsContent from '@/comp/options/OptionsContent.vue'
 import OptionsCover from '@/comp/options/OptionsCover.vue'
 import OptionsFeatures from '@/comp/options/OptionsFeatures.vue'
 import OptionsStyle from '@/comp/options/OptionsStyle.vue'
-import OptionsOther from '@/comp/options/OptionsOther.vue'
 import OptionsLayout from '@/comp/options/OptionsLayout.vue'
 import OptionsPaper from '@/comp/options/OptionsPaper.vue'
 import OptionsStudy from '@/comp/options/OptionsStudy.vue'
