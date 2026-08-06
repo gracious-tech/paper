@@ -9,7 +9,7 @@ v-divider
 
 v-card-text(class='overflow-y-auto')
 
-    h3(class='text-title-large mb-4') {{$t("Page numbers/headings")}}
+    h2(class='mb-4') {{$t("Page numbers/headings")}}
 
     div(v-if='!blue.running_pages && !blue.running_headings' class='text-body-medium text-medium-emphasis mb-4') {{$t("Enable page numbers and/or book & chapter name under Features to configure these.")}}
 
@@ -24,14 +24,14 @@ v-card-text(class='overflow-y-auto')
 
     v-divider(class='my-8')
 
-    h3(class='text-title-large mb-4') {{$t("Chapter numbers")}}
+    h2(class='mb-4') {{$t("Chapter numbers")}}
 
     v-select(v-model='blue.show_chapters_style' :items='chapter_styles'
         :disabled='!blue.show_chapters' :label='$t("Style")' variant='outlined')
 
     v-divider(class='my-8')
 
-    h3(class='text-title-large mb-4') {{$t("Headings")}}
+    h2(class='mb-4') {{$t("Headings")}}
 
     AppFontSelect(v-model='blue.font_headings' :label='$t("Font for headings")' auto
         example='heading' class='mb-4')
@@ -47,7 +47,7 @@ v-card-text(class='overflow-y-auto')
 
         v-divider(class='my-8')
 
-        h3(class='text-title-large mb-4') {{$t("Second translation")}}
+        h2(class='mb-4') {{$t("Second translation")}}
 
         AppFontSelect(v-model='blue.font_text2' :label='$t("Font for second translation")' auto
             example='verse' class='mb-4')
@@ -57,14 +57,14 @@ v-card-text(class='overflow-y-auto')
 
     v-divider(class='my-8')
 
-    h3(class='text-title-large mb-4') {{$t("Text color")}}
+    h2(class='mb-4') {{$t("Text color")}}
 
     AppColor(v-model='blue.text_color' :label='$t("Color of text")')
     p(class='text-body-medium text-medium-emphasis mt-2') {{$t("It's not recommended to use this setting unless you have eyesight issues that require it.")}}
 
     v-divider(class='my-8')
 
-    h3(class='text-title-large mb-4') {{$t("Title pages")}}
+    h2(class='mb-4') {{$t("Title pages")}}
     p(class='text-body-medium text-medium-emphasis mb-4') {{$t("Applies to every title page in the document.")}}
 
     AppFontSelect(v-model='blue.titlepage_font' :label='$t("Font for title pages")' auto
@@ -94,7 +94,7 @@ v-card-text(class='overflow-y-auto')
 
     v-divider(class='my-8')
 
-    h3(class='text-title-large mb-4') {{$t("Images")}}
+    h2(class='mb-4') {{$t("Images")}}
     p(class='text-body-medium text-medium-emphasis mb-4') {{$t("Applies to every passage image in the document.")}}
 
     v-radio-group(v-model='blue.image_style' inline :label='$t("Style")')
@@ -103,7 +103,7 @@ v-card-text(class='overflow-y-auto')
 
     v-divider(class='my-8')
 
-    h3(class='text-title-large mb-4') {{$t("Picture stories")}}
+    h2(class='mb-4') {{$t("Picture stories")}}
 
     v-radio-group(v-model='blue.story_layout' inline :label='$t("Layout")' class='mb-2')
         v-radio(value='single' :label='$t("One image & passage per page")')
@@ -117,7 +117,7 @@ v-card-text(class='overflow-y-auto')
 
     v-divider(class='my-8')
 
-    h3(class='text-title-large mb-4') {{$t("Copyright")}}
+    h2(class='mb-4') {{$t("Copyright")}}
 
     v-checkbox(v-model='blue.public_domain' :label='$t("Dedicate your own content to the public domain")')
     p(class='text-body-medium text-medium-emphasis') {{$t("It's recommended to leave this checked so anyone can copy and share your creation without any further restrictions than the Bible translations themselves require. This has no effect on the licenses of third-party material you use, such as Bible translations.")}}
@@ -126,7 +126,7 @@ v-card-text(class='overflow-y-auto')
 
     v-divider(class='my-8')
 
-    h3(class='text-title-large mb-4') {{$t("Workarounds")}}
+    h2(class='mb-4') {{$t("Workarounds")}}
 
     v-switch(v-model='blue.booklet_portrait' color='primary' :label="$t(`My printer doesn't allow \"flip on short edge\"`)" class='mt-4' :disabled='!blue.booklet')
     p(class='text-body-medium text-medium-emphasis') {{$t("If your printer can only flip on long edge (which is the default for double-sided portrait documents) then this setting will output a portrait PDF with alternating rotation which will look correct once printed double-sided.")}}
@@ -195,6 +195,11 @@ const titlepage_always = computed({
 
 .v-card-text
     padding-bottom: 30vh
+
+
+h2
+    font-size: 18px
+    margin-bottom: 12px
 
 
 .patterns
