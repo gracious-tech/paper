@@ -12,7 +12,7 @@ import type {TypstRequest, TypstContentItem, TypstPassage, CompileFn, ProgressFn
 
 // Fill color for a spread-preview slot that isn't a real page (see arrange_spreads) — a subtle
 // gray so it reads as "not printed" rather than a blank printed page
-const NOT_A_PAGE_FILL = rgb(0.92, 0.92, 0.92)
+const NOT_A_PAGE_FILL = rgb(0.9, 0.9, 0.9)
 
 
 // A blank/lines padding page's single compiled page gets reused at many different absolute
@@ -187,6 +187,15 @@ async function arrange_spreads(
             new_page.drawRectangle(
                 {x: page_w, y: 0, width: page_w, height: page_h, color: NOT_A_PAGE_FILL})
         }
+
+        // Thin, half-opacity line down the centre seam, dividing the two facing pages
+        // (preview only) — subtle rather than a bold rule
+        new_page.drawLine({
+            start: {x: page_w, y: 0},
+            end: {x: page_w, y: page_h},
+            thickness: 1,
+            color: NOT_A_PAGE_FILL,
+        })
     }
 
     const pdf_bytes = await spread_doc.save()
