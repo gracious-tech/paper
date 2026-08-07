@@ -70,9 +70,15 @@ function gen_page_furniture_row(request:TypstRequest):string {
 export function gen_preamble(request:TypstRequest, overrides:PreambleOverrides = {}):string {
     const {page, typography, features} = request
 
-    // Calculate leading from line_height (Typst leading = gap between lines, not multiplier)
+    // Calculate leading from line_height. Typst's "leading" is only the *added* gap between
+    // lines — the rest of a line's advance comes from the font's own ascent/descent metrics,
+    // which are font-dependent and usually well under 1em, so `(line_height - 1) * font_size`
+    // (the naive approach) undershoots badly and line_height stops behaving like a multiplier
+    // of font_size at all. Forcing top-edge/bottom-edge to 0 (below) collapses that font-metric
+    // contribution to nothing, making leading the *entire* baseline-to-baseline advance — so
+    // line_height * font_size is the whole line height, matching what the UI promises
     const font = parse_unit(typography.font_size)
-    const leading = `${((typography.line_height - 1) * font.num).toFixed(2)}${font.unit}`
+    const leading = `${(typography.line_height * font.num).toFixed(2)}${font.unit}`
 
     // Build font list
     const fonts = [typography.font_text, ...typography.font_fallbacks]
@@ -230,7 +236,8 @@ export function gen_preamble(request:TypstRequest, overrides:PreambleOverrides =
     footer: ${footer},
     footer-descent: 20%,
 )
-#set text(font: (${fonts}), size: ${typography.font_size}${
+#set text(font: (${fonts}), size: ${typography.font_size}, hyphenate: ${
+        typography.hyphenate}${
         typography.text_color ? `, fill: rgb("${typography.text_color}")` : ''})
 // spacing matches leading (rather than Typst's larger default) so a paragraph break reads the
 // same as a wrapped line — indent alone marks a new paragraph, no added gap. A literal 0pt would
@@ -242,6 +249,12 @@ export function gen_preamble(request:TypstRequest, overrides:PreambleOverrides =
     justify: ${justify},
     first-line-indent: (amount: 1.5em, all: false),
 )
+// Scoped (not global) so only body paragraphs are affected — headings, footnotes, and running
+// headers/footers keep Typst's own font-metric-based spacing untouched. Zeroing top-edge/
+// bottom-edge makes the font's own ascent/descent contribute nothing to a paragraph line's
+// natural height, so leading (above) becomes the whole baseline-to-baseline advance, which is
+// what makes line_height a literal multiple of font_size rather than font-metric-dependent
+#show par: set text(top-edge: 0pt, bottom-edge: 0pt)
 
 // Heading font — applies document-wide to any heading (chapter markers, section headings)
 #show heading: set text(font: "${escape_typst_str(typography.font_headings)}")

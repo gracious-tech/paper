@@ -76,8 +76,10 @@ export interface TypographyConfig {
     font_size:string        // e.g. "10pt"
     // Font size for the second translation, when 2 bibles are selected (defaults to font_size)
     font_size2:string
-    line_height:number      // e.g. 1.75 — module converts to Typst leading
+    line_height:number      // Literal multiplier of font_size (2 = double line height) — see
+                             // preamble.ts's leading calc for how this maps to Typst's `leading`
     justify:boolean|null    // null = auto (justify when width permits)
+    hyphenate:boolean       // Whether to hyphenate wrapped words
     text_color:string|null  // Hex color for all text; unset = no fill rule (Typst default)
 }
 
@@ -331,11 +333,15 @@ export interface Blueprint {
     font_size2:number|null     // null = auto (matches font_size); font size for the 2nd translation
     line_height:number
     justify:null|boolean
+    hyphenate:boolean
     text_color:string|null
     columns:null|boolean
     // Picture stories only: auto-emphasize sentence tone — italicize questions (ending "?") and
-    // embolden exclamations (ending "!"). Applies to picture-story passage prose (nothing else)
+    // embolden exclamations (ending "!"), at twice the normal text size. Applies to picture-story
+    // passage prose (nothing else)
     story_emphasis:boolean
+    // Color of auto-emphasized text (see story_emphasis above); null = inherit the ambient color
+    story_emphasis_color:string|null
     // Picture stories only: 'single' = one slide per page (image filling half); 'grid' = 4 slides
     // per page in a 2-column grid (image+text per row)
     story_layout:'single'|'grid'

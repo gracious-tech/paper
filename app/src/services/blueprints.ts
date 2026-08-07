@@ -75,9 +75,11 @@ export function get_default_blueprint():Blueprint{
         line_height: 1.75,  // Pref 1.75, lowest 1.5
 
         justify: null,
+        hyphenate: true,
         text_color: null,
         columns: null,
-        story_emphasis: false,
+        story_emphasis: true,
+        story_emphasis_color: '#4862ad',
         story_layout: 'single',
         story_alternate: false,
 

@@ -328,6 +328,7 @@ export class BibleContent {
                 font_size2: `${font_size2}pt`,
                 line_height: blue.line_height,
                 justify: blue.justify,
+                hyphenate: blue.hyphenate,
                 text_color: blue.text_color,
             },
             titlepage: this.gen_titlepage_config(blue),
@@ -488,7 +489,8 @@ export class BibleContent {
     // the first (see gen_picture_story). A text slide is prose-converted from its rich-text doc
     // and never has a second body (it's free text, not tied to a translation). When
     // blue.story_emphasis is on, passage prose auto-italicizes questions and emboldens
-    // exclamations. Layout (single/grid) and image-side alternation are decided at generate time,
+    // exclamations (enlarged + colored per blue.story_emphasis_color). Layout (single/grid) and
+    // image-side alternation are decided at generate time,
     // not here — see gen_picture_story in content_picture_story.ts
     private async gen_picture_story_item(
         blue:Blueprint, story:ContentPictureStory, report_fetch?:(label:string) => void,
@@ -510,7 +512,8 @@ export class BibleContent {
                     ? instance.get_passage_from_ref(ref, {
                         attribute: false, verse_nums: false, headings: false, notes: false})
                     : ''
-                body = blue.story_emphasis ? emphasize_sentences(text) : escape_typst(text)
+                body = blue.story_emphasis
+                    ? emphasize_sentences(text, blue.story_emphasis_color) : escape_typst(text)
 
                 // Second translation (when selected), same passage, rendered below the first
                 if (blue.bibles[1]) {
@@ -520,7 +523,9 @@ export class BibleContent {
                         ? instance2.get_passage_from_ref(ref, {
                             attribute: false, verse_nums: false, headings: false, notes: false})
                         : ''
-                    body2 = blue.story_emphasis ? emphasize_sentences(text2) : escape_typst(text2)
+                    body2 = blue.story_emphasis
+                        ? emphasize_sentences(text2, blue.story_emphasis_color)
+                        : escape_typst(text2)
                 }
             } else if (slide.mode === 'text') {
                 body = prose_to_typst(slide.doc)

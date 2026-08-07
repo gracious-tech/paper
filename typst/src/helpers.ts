@@ -7,8 +7,11 @@ export function escape_typst(text:string):string {
 
 // Quote-opening characters treated as a sentence boundary in their own right (see
 // split_sentences) — straight quote/apostrophe chars are ambiguous (contractions, possessives,
-// closing quotes) so only unambiguous curly/angle openers count
-const QUOTE_OPENERS = '“‘«„'
+// closing quotes) so only unambiguous curly/angle openers count. Also doubles as the pairing used
+// by emphasize_sentences to track quote depth (opener -> its matching closer) so quoted dialogue
+// gets colored even where it isn't already bold/italic
+const QUOTE_PAIRS:Record<string, string> = {'“': '”', '‘': '’', '«': '»', '„': '”'}
+const QUOTE_OPENERS = Object.keys(QUOTE_PAIRS).join('')
 
 
 // Split text into "sentence" chunks for emphasize_sentences: a run of characters up to and
@@ -51,24 +54,48 @@ function split_sentences(text:string):string[] {
 
 
 // Escape plain text for Typst while auto-emphasizing sentence tone: sentences ending in "?" are
-// italicized and those ending in "!" are emboldened. Runs on plain text (not Typst markup) so
-// sentence detection stays reliable — leading whitespace/paragraph breaks are kept outside the
-// emphasis wrapper so paragraphs still break. Used for picture-story passage prose.
-export function emphasize_sentences(text:string):string {
+// italicized and those ending in "!" are emboldened, both enlarged; quoted dialogue that's
+// neither (e.g. a plain statement) is still enlarged and colored, just without the bold/italic —
+// so a whole quote reads consistently even when only part of it is a question/exclamation. Color
+// (if given) applies to any of the above. Runs on plain text (not Typst markup) so sentence
+// detection stays reliable — leading whitespace/paragraph breaks are kept outside the emphasis
+// wrapper so paragraphs still break. Used for picture-story passage prose. "em" sizes scale
+// relative to whatever text size is active where this markup is placed (see gen_fit_body), so
+// they stay proportionally the same even though picture-story body text itself is dynamically
+// sized per slide
+export function emphasize_sentences(text:string, color:string|null):string {
     const sentences = split_sentences(text)
     if (!sentences.length) {
         return escape_typst(text)
     }
+    // Tracks unmatched open quotes across segments (a stack of expected closers) — quoted
+    // dialogue spanning multiple sentences (e.g. two questions in a row) still counts as "in a
+    // quote" once split_sentences has broken it into separate segments
+    const quote_stack:string[] = []
     return sentences.map(sentence => {
         // Keep leading whitespace (incl. paragraph breaks) outside any wrapper
         const lead = sentence.match(/^\s*/)![0]
         const core = sentence.slice(lead.length)
+        const in_quote = quote_stack.length > 0 || core[0] in QUOTE_PAIRS
+        for (const ch of core) {
+            const closer = quote_stack[quote_stack.length - 1]
+            if (closer && ch === closer) {
+                quote_stack.pop()
+            } else if (ch in QUOTE_PAIRS) {
+                quote_stack.push(QUOTE_PAIRS[ch]!)
+            }
+        }
         // The sentence's terminator, ignoring trailing quotes/brackets
         const terminator = core.replace(/["'”’)\]]*$/, '').slice(-1)
         const escaped = escape_typst(core)
-        const wrapped = terminator === '?' ? `#emph[${escaped}]`
-            : terminator === '!' ? `#strong[${escaped}]`
-            : escaped
+        const args = terminator === '?' ? ['size: 1.4em', 'style: "italic"']
+            : terminator === '!' ? ['size: 1.4em', 'weight: "bold"']
+            : in_quote ? ['size: 1.4em']
+            : []
+        if (args.length && color) {
+            args.push(`fill: rgb("${color}")`)
+        }
+        const wrapped = args.length ? `#text(${args.join(', ')})[${escaped}]` : escaped
         return escape_typst(lead) + wrapped
     }).join('')
 }

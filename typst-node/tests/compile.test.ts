@@ -29,6 +29,7 @@ const TEST_TYPOGRAPHY:TypographyConfig = {
     font_size: '10pt',
     line_height: 1.5,
     justify: true,
+    hyphenate: true,
     text_color: null,
     font_headings: 'serif',
     font_headings2: 'serif',

@@ -57,6 +57,13 @@ v-card-text(class='overflow-y-auto')
 
     v-divider(class='my-8')
 
+    h2(class='mb-4') {{$t("Text")}}
+
+    v-checkbox(v-model='blue.hyphenate' :label='$t("Hyphenate")' hide-details)
+    p(class='text-body-medium text-medium-emphasis mt-2') {{$t("Break long words across lines with a hyphen where needed.")}}
+
+    v-divider(class='my-8')
+
     h2(class='mb-4') {{$t("Text color")}}
 
     AppColor(v-model='blue.text_color' :label='$t("Color of text")')
@@ -113,7 +120,10 @@ v-card-text(class='overflow-y-auto')
     p(class='text-body-medium text-medium-emphasis mt-2 mb-4') {{$t("Switch which side the image appears on from one passage to the next, rather than always the same side.")}}
 
     v-checkbox(v-model='blue.story_emphasis' :label='$t("Emphasize tone")' hide-details)
-    p(class='text-body-medium text-medium-emphasis mt-2') {{$t("Italicize questions and embolden exclamations in picture story passages.")}}
+    p(class='text-body-medium text-medium-emphasis mt-2 mb-4') {{$t("Italicize questions and embolden exclamations in picture story passages, enlarged and colored.")}}
+
+    AppColor(v-if='blue.story_emphasis' v-model='blue.story_emphasis_color'
+        :label='$t("Color of emphasized text")')
 
     v-divider(class='my-8')
 

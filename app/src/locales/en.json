@@ -398,5 +398,9 @@
   "Switch which side the image appears on from one passage to the next, rather than always the same side.": "",
   "Second translation": "",
   "Workarounds": "",
-  "Advanced options": ""
+  "Advanced options": "",
+  "Hyphenate": "",
+  "Break long words across lines with a hyphen where needed.": "",
+  "Italicize questions and embolden exclamations in picture story passages, enlarged and colored.": "",
+  "Color of emphasized text": ""
 }

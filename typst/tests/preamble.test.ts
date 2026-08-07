@@ -51,9 +51,15 @@ describe('gen_preamble', () => {
     })
 
     it('calculates leading from line_height', () => {
-        // line_height 1.75 with 10pt font = (1.75 - 1) * 10 = 7.50pt
+        // line_height 1.75 with 10pt font = 1.75 * 10 = 17.50pt (the whole line advance, since
+        // top-edge/bottom-edge 0pt below zeroes out the font's own metric contribution)
         const result = gen_preamble(make_request())
-        expect(result).toContain('leading: 7.50pt')
+        expect(result).toContain('leading: 17.50pt')
+    })
+
+    it('zeroes text top-edge/bottom-edge so leading is the whole line advance', () => {
+        const result = gen_preamble(make_request())
+        expect(result).toContain('top-edge: 0pt, bottom-edge: 0pt')
     })
 
     it('sets justify true when explicitly true', () => {

@@ -110,7 +110,10 @@ export const TYPE_PRESETS:{id:NewDesignType, image:string, diff:Partial<Blueprin
     {id: 'bilingual', image: img_type_bilingual, diff: {
         show_footnotes: false,
     }},
-    {id: 'picture_story', image: '/wizard/type_picture_story.webp', diff: {}},
+    {id: 'picture_story', image: '/wizard/type_picture_story.webp', diff: {
+        hyphenate: false,
+        line_height: 2,
+    }},
 ]
 
 
