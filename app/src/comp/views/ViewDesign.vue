@@ -177,7 +177,7 @@ const keep_copy = async () => {
 .view_design
     display: flex
     flex-direction: column
-    height: 100%
     flex-grow: 1
+    min-height: 0
 
 </style>

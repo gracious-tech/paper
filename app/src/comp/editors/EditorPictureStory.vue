@@ -9,7 +9,7 @@ v-card-title(class='d-flex align-center')
 
 v-divider
 
-v-card-text(class='flex-grow-1 d-flex flex-column')
+v-card-text(class='flex-grow-1 d-flex flex-column overflow-y-auto')
     //- Story-level fields: the optional auto title page (same props as a passage); title also
     //- doubles as the item's label in the content list (see gen_content_name)
     div
