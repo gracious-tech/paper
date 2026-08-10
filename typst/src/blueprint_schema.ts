@@ -219,7 +219,7 @@ export function make_blueprint_schema(defaults:Blueprint):z.ZodType<Blueprint>{
         titlepage_always: z.enum(['left', 'right']).nullable().catch(defaults.titlepage_always),
 
         // Images
-        image_style: z.enum(['borderless', 'padded']).catch(defaults.image_style),
+        image_style: z.enum(['borderless', 'padded', 'painted', 'torn']).catch(defaults.image_style),
 
         // Spacing
         margin_unit: z.enum(['mm', 'in']).catch(defaults.margin_unit),

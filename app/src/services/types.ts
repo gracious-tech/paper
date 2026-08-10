@@ -4,7 +4,7 @@
 // existing `@/services/types` imports keep working.
 export type {Blueprint, CoverConfig, ContentItem, ContentTitle, ContentPassage,
     ContentPassageImage, ContentCustom, ContentPictureStory,
-    PictureStorySlide} from 'paper-bible-typst'
+    PictureStorySlide, ImageStyle} from 'paper-bible-typst'
 
 import type {Blueprint} from 'paper-bible-typst'
 

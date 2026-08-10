@@ -3,7 +3,7 @@ import {escape_typst_str} from 'typst-utils'
 
 import {parse_unit} from './helpers.js'
 
-import type {PageConfig, TypstPictureStory, TypstPictureStorySlide} from './types.js'
+import type {ImageStyle, PageConfig, TypstPictureStory, TypstPictureStorySlide} from './types.js'
 
 
 // Number of rows (= slides) per page in the grid layout (2 columns × 4 rows)
@@ -47,7 +47,7 @@ const FIT_GUTTER_EM = 0.12
 // so they all end up rendered at the same font size — a fresh random key per call keeps multiple
 // picture-story items in the same document from sharing state with each other
 export function gen_picture_story(
-    story:TypstPictureStory, page:PageConfig, image_style:'borderless'|'padded',
+    story:TypstPictureStory, page:PageConfig, image_style:ImageStyle,
     story_layout:'single'|'grid', story_alternate:boolean, line_height:number, font_size:string,
     font_text2:string, font_size2:string, font_fallbacks:string[],
 ):string {
@@ -175,7 +175,7 @@ ${body}
 // be pushed onto extra pages by paragraph leading or inter-block spacing, so each slide stays
 // exactly one page.
 function gen_slide(
-    slide:TypstPictureStorySlide, page:PageConfig, image_style:'borderless'|'padded',
+    slide:TypstPictureStorySlide, page:PageConfig, image_style:ImageStyle,
     image_position:'top'|'bottom', line_height:number, font_size:string, font_text2:string,
     font_size2:string, font_fallbacks:string[], story_key:string,
 ):string {
@@ -220,17 +220,20 @@ function gen_slide(
 }
 
 
-// Absolutely-placed image for one half of a slide. 'padded' keeps the image within the margins
-// (placed in its content-area half); 'borderless' bleeds it to the true page edge.
+// Absolutely-placed image for one half of a slide. Padded (plain/painted/torn) keeps the image
+// within the margins (placed in its content-area half); 'borderless' bleeds it to the true page
+// edge. Painted/torn use fit: "contain" since the image arrives pre-masked with an irregular
+// transparent edge (see gen_passage_image)
 function gen_half_image(
-    filename:string, page:PageConfig, image_style:'borderless'|'padded',
+    filename:string, page:PageConfig, image_style:ImageStyle,
     which:'top'|'bottom', half_content:string, half_page:string,
 ):string {
-    if (image_style === 'padded') {
+    if (image_style !== 'borderless') {
+        const fit = image_style === 'padded' ? 'cover' : 'contain'
         const dy = which === 'top' ? '0pt' : half_content
         return `#place(top + left, dy: ${dy},
     block(width: 100%, height: ${half_content}, clip: true,
-        image("${filename}", width: 100%, height: 100%, fit: "cover")))`
+        image("${filename}", width: 100%, height: 100%, fit: "${fit}")))`
     }
     // Borderless: bleed to the page edge (offset out past the margins by the margin amount)
     return which === 'top'
@@ -243,12 +246,13 @@ function gen_half_image(
 
 // Absolutely-placed full-page image for an image-only slide
 function gen_full_image(
-    filename:string, page:PageConfig, image_style:'borderless'|'padded', content_h:string,
+    filename:string, page:PageConfig, image_style:ImageStyle, content_h:string,
 ):string {
-    if (image_style === 'padded') {
+    if (image_style !== 'borderless') {
+        const fit = image_style === 'padded' ? 'cover' : 'contain'
         return `#place(top + left,
     block(width: 100%, height: ${content_h}, clip: true,
-        image("${filename}", width: 100%, height: 100%, fit: "cover")))`
+        image("${filename}", width: 100%, height: 100%, fit: "${fit}")))`
     }
     // Borderless: bleeds to every page edge
     return `#place(top + left, dx: -${page.margin_left}, dy: -${page.margin_top},
@@ -278,7 +282,7 @@ ${body}
 // columns — one row per slide, image in one cell and body in the other). Uses the same
 // full-height-reserving-block approach as gen_slide so each page of rows can't grow past one page
 function gen_grid_pages(
-    slides:TypstPictureStorySlide[], page:PageConfig, image_style:'borderless'|'padded',
+    slides:TypstPictureStorySlide[], page:PageConfig, image_style:ImageStyle,
     story_alternate:boolean, line_height:number, font_size:string, font_text2:string,
     font_size2:string, font_fallbacks:string[], story_key:string,
 ):string {
@@ -308,7 +312,7 @@ function gen_grid_pages(
 // the slide is missing one of them (mirrors gen_slide's image-only/body-only/blank handling)
 function gen_grid_row(
     slide:TypstPictureStorySlide, row:number, image_left:boolean, page:PageConfig,
-    image_style:'borderless'|'padded', cell_w:string, cell_h:string, content_w:string,
+    image_style:ImageStyle, cell_w:string, cell_h:string, content_w:string,
     line_height:number, font_size:string, font_text2:string, font_size2:string,
     font_fallbacks:string[], story_key:string,
 ):string {
@@ -368,19 +372,21 @@ function gen_grid_text_place(
 }
 
 
-// Absolutely-placed image for one cell of the grid. 'padded' keeps the image within its cell;
-// 'borderless' bleeds past the margin on any edge of the cell that's also a true page edge — the
-// left and/or right edge of the cell that touches the page side (an image spanning the full row
-// width bleeds both), and/or the top/bottom edge of the row when it's the first/last on the page
+// Absolutely-placed image for one cell of the grid. Padded (plain/painted/torn) keeps the image
+// within its cell; 'borderless' bleeds past the margin on any edge of the cell that's also a true
+// page edge — the left and/or right edge of the cell that touches the page side (an image
+// spanning the full row width bleeds both), and/or the top/bottom edge of the row when it's the
+// first/last on the page
 function gen_grid_cell_image(
-    filename:string, page:PageConfig, image_style:'borderless'|'padded',
+    filename:string, page:PageConfig, image_style:ImageStyle,
     dx:string, dy:string, width:string, height:string,
     bleed_left:boolean, bleed_right:boolean, is_top:boolean, is_bottom:boolean,
 ):string {
-    if (image_style === 'padded') {
+    if (image_style !== 'borderless') {
+        const fit = image_style === 'padded' ? 'cover' : 'contain'
         return `#place(top + left, dx: ${dx}, dy: ${dy},
     block(width: ${width}, height: ${height}, clip: true,
-        image("${filename}", width: 100%, height: 100%, fit: "cover")))`
+        image("${filename}", width: 100%, height: 100%, fit: "${fit}")))`
     }
     let bleed_dx = dx
     let bleed_w = width

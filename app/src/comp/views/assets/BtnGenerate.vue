@@ -22,6 +22,7 @@ import {create_pending_version, compile_and_upload, selected_version_id, latest_
     } from '@/services/versions'
 import {typst_generator} from '@/services/typst'
 import {gen_content_name, collect_passage_books, has_missing_books} from '@/services/blueprints'
+import {resolve_content_for_style} from '@/services/content_images'
 
 
 const router = useRouter()
@@ -58,24 +59,30 @@ const generate = async () => {
         blue.title = gen_content_name(blue.content[0]!)
     }
 
-    // Force-flush any pending autosave so the design's persisted save_token always matches what
-    // gets frozen below (the debounced autosave alone can't guarantee this at click-time)
-    await flush_changes()
-
-    // Freeze the current design into an immutable pending version (a deep clone, so later
-    // edits to `blue` won't affect this in-flight version)
-    const design_id = current_design_id.value
-    const blueprint = {...blue, content: [...blue.content]}
-    const version_id = await create_pending_version(design_id, blueprint)
-
-    // Switch to the version view
-    selected_version_id.value = version_id
-    await router.push({name: 'design', params: {id: design_id, version: version_id}})
-
-    // Compile the final PDF in-browser via Typst and upload it (status updates arrive via the
-    // versions Firestore sync)
+    // Shown as loading from here on — style resolution below can take a moment the first time a
+    // painted/torn image needs processing, same as the compile step already did
     generating.value = true
     try {
+        // Force-flush any pending autosave so the design's persisted save_token always matches
+        // what gets frozen below (the debounced autosave alone can't guarantee this at
+        // click-time)
+        await flush_changes()
+
+        // Freeze the current design into an immutable pending version (a deep clone, so later
+        // edits to `blue` won't affect this in-flight version). Painted/torn images are swapped
+        // for their processed variant here — before the version doc is written, since Firestore
+        // rules forbid ever patching `blueprint` afterwards (see content_images.ts)
+        const design_id = current_design_id.value
+        const styled_content = await resolve_content_for_style(blue.content, blue.image_style)
+        const blueprint = {...blue, content: styled_content}
+        const version_id = await create_pending_version(design_id, blueprint)
+
+        // Switch to the version view
+        selected_version_id.value = version_id
+        await router.push({name: 'design', params: {id: design_id, version: version_id}})
+
+        // Compile the final PDF in-browser via Typst and upload it (status updates arrive via the
+        // versions Firestore sync)
         await compile_and_upload(version_id, blueprint)
     } finally {
         generating.value = false

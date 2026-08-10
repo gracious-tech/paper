@@ -4,15 +4,18 @@ import {escape_typst_str} from 'typst-utils'
 import {LARGE_POETRY, LOTS_OF_POETRY, escape_typst, parse_unit} from './helpers.js'
 import {build_aligned_rows} from './bilingual.js'
 
-import type {PageConfig, TypstPassage, TypstPassageImage} from './types.js'
+import type {ImageStyle, PageConfig, TypstPassage, TypstPassageImage} from './types.js'
 
 
 // Generate Typst markup for a passage's image, shown in the top half of its first page before
-// any headings/content. 'padded' stays within the normal page margins (plain in-flow content);
-// 'borderless' bleeds to the true page edge (place()'d outside the margin box, with a #v()
-// spacer to reserve the same vertical space in the flow so subsequent content isn't overlapped)
+// any headings/content. 'borderless' bleeds to the true page edge (place()'d outside the margin
+// box, with a #v() spacer to reserve the same vertical space in the flow so subsequent content
+// isn't overlapped); every other style stays within the normal page margins (plain in-flow
+// content). 'painted'/'torn' images arrive pre-masked (irregular transparent edge baked into the
+// pixels by the app before upload — see image_frame.ts) so they use fit: "contain" rather than
+// "cover", which would crop back into a hard rectangle and cut the masked edge away
 function gen_passage_image(
-    image:TypstPassageImage, page:PageConfig, image_style:'borderless'|'padded',
+    image:TypstPassageImage, page:PageConfig, image_style:ImageStyle,
 ):string {
     const filename = escape_typst_str(image.filename)
     const page_h = parse_unit(page.height)
@@ -24,12 +27,13 @@ function gen_passage_image(
     image("${filename}", width: ${page.width}, height: ${half_h}, fit: "cover"))`
     }
 
-    // Padded: normal in-flow content already respects the page's margins. Height is measured
-    // from the current flow position, so subtracting the top margin keeps the image's bottom
-    // edge at the page's true half-way line (matching the borderless variant)
+    // Padded (plain/painted/torn): normal in-flow content already respects the page's margins.
+    // Height is measured from the current flow position, so subtracting the top margin keeps the
+    // image's bottom edge at the page's true half-way line (matching the borderless variant)
+    const fit = image_style === 'padded' ? 'cover' : 'contain'
     const content_h = `${half_h} - ${page.margin_top}`
     return `#box(width: 100%, height: ${content_h}, clip: true,
-    image("${filename}", width: 100%, height: 100%, fit: "cover"))`
+    image("${filename}", width: 100%, height: 100%, fit: "${fit}"))`
 }
 
 
@@ -38,7 +42,7 @@ function gen_passage_image(
 // used when a second translation is actually rendered side-by-side (grid layout with 2 bibles)
 // — see gen_multi_bible_grids
 export function gen_passage(
-    passage:TypstPassage, page:PageConfig, image_style:'borderless'|'padded',
+    passage:TypstPassage, page:PageConfig, image_style:ImageStyle,
     font_size:string, font_text2:string, font_headings2:string, font_size2:string,
     font_fallbacks:string[],
 ):string {
@@ -90,7 +94,7 @@ ${inner}
 // target page's text width) and entry_width confines footnote entries to the left half so a
 // long note can't straddle the cut.
 export function gen_passage_facing(
-    passage:TypstPassage, page:PageConfig, image_style:'borderless'|'padded',
+    passage:TypstPassage, page:PageConfig, image_style:ImageStyle,
     font_size:string, font_text2:string, font_headings2:string, font_size2:string,
     font_fallbacks:string[], gutter:string, entry_width:string,
 ):string {

@@ -2,6 +2,13 @@
 import type {PmDoc} from 'pm-to-typst'
 
 
+// How a passage/picture-story image sits on the page: 'borderless' bleeds to the true page edge;
+// 'padded' stays within the normal page margins with a hard rectangular crop; 'painted'/'torn'
+// are also padded, but the image itself is pre-masked (see app-side image_frame.ts) with an
+// irregular painted-brushstroke/torn-paper transparent edge instead of a hard crop
+export type ImageStyle = 'borderless'|'padded'|'painted'|'torn'
+
+
 // Top-level request for generating a Typst document / PDF
 export interface TypstRequest {
     title:string
@@ -20,9 +27,8 @@ export interface TypstRequest {
     // whichever of these two the page number doesn't
     running_align:'center'|'outer'
     booklet_portrait:boolean
-    // How a passage image sits on the page: 'borderless' bleeds to the true page edge, 'padded'
-    // stays within the normal page margins (see Blueprint.image_style)
-    image_style:'borderless'|'padded'
+    // How a passage image sits on the page (see Blueprint.image_style)
+    image_style:ImageStyle
     // Picture story layout + image-side alternation (see Blueprint.story_layout/story_alternate)
     story_layout:'single'|'grid'
     story_alternate:boolean
@@ -361,7 +367,7 @@ export interface Blueprint {
     titlepage_always:'left'|'right'|null
 
     // Images (global — applies to every passage image; per-passage content is on ContentPassage)
-    image_style:'borderless'|'padded'
+    image_style:ImageStyle
 
     // Spacing
     margin_unit:'mm'|'in'

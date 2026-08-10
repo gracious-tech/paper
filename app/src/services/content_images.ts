@@ -1,7 +1,10 @@
 
 // User-uploaded passage image support: content-addressed Storage upload (mirrors cover.ts's bg
 // image handling) + freeze-time snapshotting so an immutable version never depends on the user's
-// mutable image library.
+// mutable image library. Also handles painted/torn border styling: the *original* upload is never
+// touched, so switching styles never requires re-uploading — a processed variant is derived on
+// demand (canvas-masked, see image_frame.ts) and cached content-addressed by the original's hash,
+// so repeat renders/style-switches are idempotent and don't reprocess/re-upload unnecessarily.
 
 import {ref as storage_ref, uploadBytes, getBytes} from 'firebase/storage'
 import {cloneDeep} from 'lodash-es'
@@ -10,8 +13,9 @@ import {toRaw} from 'vue'
 import {firebase_storage, storage_bucket} from '@/services/firebase'
 import {user} from '@/services/auth'
 import {hash_bytes} from '@/services/cover'
+import {is_masked_image_style, apply_image_frame} from '@/services/image_frame'
 
-import type {Blueprint, ContentItem, ContentPassageImage} from '@/services/types'
+import type {Blueprint, ContentItem, ContentPassageImage, ImageStyle} from '@/services/types'
 
 
 // Upload types accepted for passage images, and their Storage path extensions
@@ -46,6 +50,83 @@ export async function upload_passage_image(bytes:Uint8Array, mime:string)
     const path = `user_content_images/${user.value!.uid}/${hash}.${ext}`
     await uploadBytes(storage_ref(firebase_storage, path), bytes, {contentType: mime})
     return {source: 'upload', url: storage_public_url(path), path, hash}
+}
+
+
+// In-memory cache of resolved styled variants, keyed by `${style}:${variant}:${original hash/
+// url}` — so repeat preview recompiles (which re-run on every edit) don't re-fetch/re-process/
+// re-upload an unchanged image. Session-lifetime only; the content-addressed Storage path (below)
+// is what makes this idempotent across sessions too.
+const styled_cache = new Map<string, Promise<ContentPassageImage>>()
+
+// Resolve a passage image to the variant that should actually be embedded for a given
+// image_style: unchanged for plain styles (padded/borderless — no processing needed), or a
+// canvas-masked copy for painted/torn. `variant` picks the mask's rotation/flip (see
+// image_frame.ts) — the masked copy is uploaded to its own Storage prefix, content-addressed by
+// the *original* image's hash + style + variant, so switching styles back and forth only ever
+// (re)processes an image once per style, never the original.
+async function get_styled_passage_image(image:ContentPassageImage, style:ImageStyle, variant:number)
+        :Promise<ContentPassageImage> {
+    if (!is_masked_image_style(style) || !image.url) {
+        return image
+    }
+    const cache_key = `${style}:${variant}:${image.hash ?? image.url}`
+    let cached = styled_cache.get(cache_key)
+    if (!cached) {
+        cached = process_styled_passage_image(image, style, variant)
+        styled_cache.set(cache_key, cached)
+        // Don't cache failures — a later resolve should retry
+        cached.catch(() => styled_cache.delete(cache_key))
+    }
+    return cached
+}
+
+// Fetch the original, apply the frame mask, and upload the result
+async function process_styled_passage_image(
+    image:ContentPassageImage, style:ImageStyle, variant:number,
+):Promise<ContentPassageImage> {
+    const response = await fetch(image.url!)
+    if (!response.ok) {
+        throw new Error(`Failed to fetch image "${image.url}": ${response.status}`)
+    }
+    const source_bytes = new Uint8Array(await response.arrayBuffer())
+    const source_hash = image.hash ?? await hash_bytes(source_bytes)
+    const styled_blob = await apply_image_frame(new Blob([source_bytes]), style, variant)
+    const styled_bytes = new Uint8Array(await styled_blob.arrayBuffer())
+    const path = `user_content_images/${user.value!.uid}/styled/${style}_v${variant}_${source_hash}.png`
+    await uploadBytes(storage_ref(firebase_storage, path), styled_bytes, {contentType: 'image/png'})
+    return {source: 'upload', url: storage_public_url(path), path, hash: await hash_bytes(styled_bytes)}
+}
+
+// Resolve every passage/picture-story image in a content list to the variant appropriate for the
+// given image_style — used both to build the live preview's compile input and to bake the correct
+// variant into a version's frozen blueprint at "Create" time (so the server-side compile fallback
+// never needs to know about styling at all — it just fetches whatever url ends up in the frozen
+// blueprint, exactly like it does for any other image today). Each image gets a stable mask
+// rotation/flip variant based on its position among the document's images (not random), so
+// regenerating the same document always looks the same, while images generally differ from their
+// neighbours — see image_frame.ts's apply_image_frame
+export async function resolve_content_for_style(content:ContentItem[], style:ImageStyle)
+        :Promise<ContentItem[]> {
+    let next_variant = 0
+    const take_variant = () => next_variant++
+    return Promise.all(content.map(async item => {
+        if (item.type === 'passage' && item.image) {
+            const variant = take_variant()
+            return {...item, image: await get_styled_passage_image(item.image, style, variant)}
+        }
+        if (item.type === 'picture_story') {
+            const slides = await Promise.all(item.slides.map(async slide => {
+                if (!slide.image) {
+                    return slide
+                }
+                const variant = take_variant()
+                return {...slide, image: await get_styled_passage_image(slide.image, style, variant)}
+            }))
+            return {...item, slides}
+        }
+        return item
+    }))
 }
 
 

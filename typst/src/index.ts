@@ -73,4 +73,5 @@ export type {
     ContentCustom,
     ContentPictureStory,
     PictureStorySlide,
+    ImageStyle,
 } from './types.js'

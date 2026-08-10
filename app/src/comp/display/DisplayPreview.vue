@@ -54,6 +54,7 @@ import {content, bible_content} from '@/services/content'
 import {collect_passage_books, missing_book_warnings} from '@/services/blueprints'
 import {typst_generator} from '@/services/typst'
 import {get_custom_font_styles} from '@/services/custom_fonts'
+import {resolve_content_for_style} from '@/services/content_images'
 import {render_cover_pdf, render_cover_pages, prepend_cover_page, wrap_cover_reading_pages}
     from '@/services/cover'
 import {report_error} from '@/services/errors'
@@ -168,10 +169,15 @@ async function compile(){
     }
 
     try {
+        // Swap in painted/torn variants of any images before resolving (a no-op for the plain
+        // styles) — see content_images.ts for why this can't just happen inside resolve() itself
+        const styled_content = await resolve_content_for_style(blue.content, blue.image_style)
+
         // 'reading' lays out the pages as facing-page book spreads (as if the book were opened);
         // 'print' produces the final PDF layout (booklet fold order, or sequential if not a
         // booklet) with print-only blank padding relaxed for the screen (preview flag below)
-        const request = await bible_content.resolve(blue, get_custom_font_styles(), on_progress)
+        const request = await bible_content.resolve(
+            {...blue, content: styled_content}, get_custom_font_styles(), on_progress)
 
         // Large documents are cut down to a fast-compiling ~50 page window (positioned by the
         // Start|Middle|End toggle), with a notice page wherever content was cut short

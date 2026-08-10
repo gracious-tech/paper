@@ -106,6 +106,8 @@ v-card-text(class='overflow-y-auto')
 
     v-radio-group(v-model='blue.image_style' inline :label='$t("Style")')
         v-radio(value='padded' :label='$t("Padded (within the normal page margins)")')
+        v-radio(value='painted' :label='$t("Painted (padded, with a painted brushstroke edge)")')
+        v-radio(value='torn' :label='$t("Torn (padded, with a torn-paper edge)")')
         v-radio(value='borderless' :label='$t("Borderless (bleeds to the page edge)")')
 
     v-divider(class='my-8')
