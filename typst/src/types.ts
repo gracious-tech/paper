@@ -41,6 +41,10 @@ export interface TypstRequest {
     // pipeline places them around the arranged pages instead (see truncate_for_preview)
     preview_front?:TypstCustomPage
     preview_rear?:TypstCustomPage
+    // Preview-only label drawn centred on the "inside of front cover" gray slot of the reading
+    // preview's first spread (see arrange_spreads) — translated text supplied by the app, since
+    // this file has no access to i18n
+    preview_cover_label?:string
 }
 
 

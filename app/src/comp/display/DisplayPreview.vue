@@ -187,6 +187,12 @@ async function compile(){
             detail: t("Create document to see the rest"),
         })
 
+        // Label the "inside of front cover" gray slot on the reading preview's first spread so
+        // it's clear it's not a missing/blank page — print mode never shows that synthetic slot
+        if (mode.value === 'reading'){
+            truncation.request.preview_cover_label = t("Inside of cover")
+        }
+
         let bytes = mode.value === 'print'
             ? await generator.compile_pdf(truncation.request, on_progress, true)
             : await generator.compile_pdf_preview(truncation.request, on_progress)

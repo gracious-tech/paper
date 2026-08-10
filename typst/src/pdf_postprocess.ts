@@ -1,5 +1,5 @@
 
-import {PDFDocument, PDFPage, degrees, rgb} from 'pdf-lib'
+import {PDFDocument, PDFFont, PDFPage, StandardFonts, degrees, rgb} from 'pdf-lib'
 
 import {generate_typst, generate_typst_facing, generate_typst_blank,
     generate_typst_lines, passage_is_alternate, half_blank_content_side} from './generate.js'
@@ -13,6 +13,9 @@ import type {TypstRequest, TypstContentItem, TypstPassage, CompileFn, ProgressFn
 // Fill color for a spread-preview slot that isn't a real page (see arrange_spreads) — a subtle
 // gray so it reads as "not printed" rather than a blank printed page
 const NOT_A_PAGE_FILL = rgb(0.9, 0.9, 0.9)
+
+// Text color for the "inside of cover" hint drawn on that same slot
+const NOT_A_PAGE_LABEL_COLOR = rgb(0.55, 0.55, 0.55)
 
 
 // A blank/lines padding page's single compiled page gets reused at many different absolute
@@ -138,6 +141,23 @@ async function compile_notice(
 }
 
 
+// Draw text centred within one half (page_w wide) of a spread page, starting at x_offset (0 for
+// the left slot, page_w for the right)
+function draw_slot_label(
+    page:PDFPage, font:PDFFont, text:string, x_offset:number, page_w:number, page_h:number,
+) {
+    const size = 18
+    const text_width = font.widthOfTextAtSize(text, size)
+    page.drawText(text, {
+        x: x_offset + (page_w - text_width) / 2,
+        y: page_h / 2 - size / 2,
+        size,
+        font,
+        color: NOT_A_PAGE_LABEL_COLOR,
+    })
+}
+
+
 // Arrange a reading-order document into facing-page spreads: a leading blank so page 1 sits
 // on the right, then each subsequent pair side by side. Each spread is one landscape page
 // (2x width) with the two pages drawn left and right (same 2-up technique as apply_booklet).
@@ -156,6 +176,12 @@ async function arrange_spreads(
 
     const spread_doc = await PDFDocument.create()
     const {width: page_w, height: page_h} = reading_doc.getPage(0).getSize()
+
+    // Only embedded when there's actually a label to draw (the CLI/server compile path never
+    // sets preview_cover_label, since it has no i18n to translate it with)
+    const label_font = request.preview_cover_label
+        ? await spread_doc.embedFont(StandardFonts.Helvetica)
+        : null
 
     // Slot order: a leading blank (null) so page 1 lands on the right, then every page in
     // reading order. Pad to even so the final spread has both sides.
@@ -179,6 +205,12 @@ async function arrange_spreads(
             new_page.drawPage(embed!, {x: 0, y: 0, width: page_w, height: page_h})
         } else {
             new_page.drawRectangle({x: 0, y: 0, width: page_w, height: page_h, color: NOT_A_PAGE_FILL})
+            // Only the very first spread's left slot is the front cover's inside face — later
+            // null slots (e.g. a trailing pad) aren't, so the label is deliberately not repeated
+            if (i === 0 && label_font) {
+                draw_slot_label(
+                    new_page, label_font, request.preview_cover_label!, 0, page_w, page_h)
+            }
         }
         if (right_slot != null) {
             const [embed] = await spread_doc.embedPages([reading_doc.getPage(right_slot)])
