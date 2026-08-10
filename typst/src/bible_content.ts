@@ -17,6 +17,7 @@ import {inject_study_notes} from './content_notes.js'
 import {detect_font_fallbacks} from './fonts_detect.js'
 
 import type {FontStyle} from 'typst-fonts'
+import type {QuoteState} from './helpers.js'
 import type {BibleCollection, BibleBookTypst, BibleBookTxt, GetResourcesItem,
     } from '@gracious.tech/fetch-client'
 import type {Blueprint, ContentPassage, ContentCustom, ContentPictureStory, TypstRequest,
@@ -496,6 +497,11 @@ export class BibleContent {
         blue:Blueprint, story:ContentPictureStory, report_fetch?:(label:string) => void,
     ):Promise<TypstPictureStory> {
         const slides:TypstPictureStorySlide[] = []
+        // Carried across slides (one array per translation, mutated in place by
+        // emphasize_sentences) so dialogue split across slides — e.g. one slide per verse — is
+        // still recognized as a quote once it resumes on a later slide that never itself opens one
+        const quote_state:QuoteState = []
+        const quote_state2:QuoteState = []
         for (const [i, slide] of story.slides.entries()) {
             // Image bytes, keyed per slide so virtual filenames never collide
             const image = slide.image
@@ -513,7 +519,8 @@ export class BibleContent {
                         attribute: false, verse_nums: false, headings: false, notes: false})
                     : ''
                 body = blue.story_emphasis
-                    ? emphasize_sentences(text, blue.story_emphasis_color) : escape_typst(text)
+                    ? emphasize_sentences(text, blue.story_emphasis_color, quote_state)
+                    : escape_typst(text)
 
                 // Second translation (when selected), same passage, rendered below the first
                 if (blue.bibles[1]) {
@@ -524,7 +531,7 @@ export class BibleContent {
                             attribute: false, verse_nums: false, headings: false, notes: false})
                         : ''
                     body2 = blue.story_emphasis
-                        ? emphasize_sentences(text2, blue.story_emphasis_color)
+                        ? emphasize_sentences(text2, blue.story_emphasis_color, quote_state2)
                         : escape_typst(text2)
                 }
             } else if (slide.mode === 'text') {

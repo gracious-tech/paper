@@ -8,38 +8,70 @@ export function escape_typst(text:string):string {
 // Quote-opening characters treated as a sentence boundary in their own right (see
 // split_sentences) — straight quote/apostrophe chars are ambiguous (contractions, possessives,
 // closing quotes) so only unambiguous curly/angle openers count. Also doubles as the pairing used
-// by emphasize_sentences to track quote depth (opener -> its matching closer) so quoted dialogue
+// by split_sentences to track quote depth (opener -> its matching closer) so quoted dialogue
 // gets colored even where it isn't already bold/italic
 const QUOTE_PAIRS:Record<string, string> = {'“': '”', '‘': '’', '«': '»', '„': '”'}
 const QUOTE_OPENERS = Object.keys(QUOTE_PAIRS).join('')
 
+// A stack of expected closers (innermost last), threaded in/out of split_sentences/
+// emphasize_sentences so quote depth can be carried across calls — e.g. one call per
+// picture-story slide, where dialogue that opens on one slide may not close until a later one
+export type QuoteState = string[]
 
-// Split text into "sentence" chunks for emphasize_sentences: a run of characters up to and
-// including its terminator(s) and any trailing closing quotes/brackets; or, if a quote opens
-// before any terminator is reached, the narration up to (not including) that quote — so
-// un-terminated narration leading into a quote ("...said: “Stop!”") splits off into its own
-// (unwrapped) chunk instead of being pulled into the quote's emphasis span; or the remainder of
-// the text if neither is reached
-function split_sentences(text:string):string[] {
-    const sentences:string[] = []
+
+// Split text into "sentence" chunks for emphasize_sentences, each tagged with whether it's inside
+// (or itself closes) a quote. A chunk is a run of characters up to and including its
+// terminator(s) and any trailing closing quotes/brackets; or, if a quote opens before any
+// terminator is reached, the narration up to (not including) that quote — so un-terminated
+// narration leading into a quote ("...said: “Stop!”") splits off into its own (unwrapped) chunk
+// instead of being pulled into the quote's emphasis span; or, symmetrically, a quote closing mid-
+// chunk ("“Stop!” he said") ends the chunk right there so trailing narration doesn't inherit the
+// quote's emphasis either; or the remainder of the text if none of the above is reached.
+// quote_stack is the caller's running stack of expected closers — mutated in place (pushed on
+// open, popped on close) so a caller processing a passage across multiple calls (e.g. a slide per
+// verse range) can pass the same array through and have depth tracked in exactly one place,
+// rather than this function and its caller each keeping their own copy that can drift apart
+function split_sentences(text:string, quote_stack:QuoteState):{text:string, in_quote:boolean}[] {
+    const sentences:{text:string, in_quote:boolean}[] = []
     let start = 0
     let i = 0
     while (i < text.length) {
         const ch = text[i]!
-        if (i > start && QUOTE_OPENERS.includes(ch)) {
-            sentences.push(text.slice(start, i))
-            start = i
+        const closer = quote_stack[quote_stack.length - 1]
+        // Closing the innermost open quote — if that fully unwinds the stack, end the chunk here
+        // (rather than only at the next terminator) so any trailing narration in the same source
+        // sentence starts its own, unemphasized chunk
+        if (closer && ch === closer) {
+            quote_stack.pop()
+            i++
+            if (!quote_stack.length) {
+                sentences.push({text: text.slice(start, i), in_quote: true})
+                start = i
+            }
             continue
         }
+        if (i > start && QUOTE_OPENERS.includes(ch)) {
+            sentences.push({text: text.slice(start, i), in_quote: quote_stack.length > 0})
+            start = i
+        }
+        if (ch in QUOTE_PAIRS) {
+            quote_stack.push(QUOTE_PAIRS[ch]!)
+        }
         if ('.!?'.includes(ch)) {
+            const chunk_in_quote = quote_stack.length > 0
             let j = i + 1
             while (j < text.length && '.!?'.includes(text[j]!)) {
                 j++
             }
             while (j < text.length && '"\'’”)]'.includes(text[j]!)) {
+                const trailing = text[j]!
+                const trailing_closer = quote_stack[quote_stack.length - 1]
+                if (trailing_closer && trailing === trailing_closer) {
+                    quote_stack.pop()
+                }
                 j++
             }
-            sentences.push(text.slice(start, j))
+            sentences.push({text: text.slice(start, j), in_quote: chunk_in_quote})
             start = j
             i = j
             continue
@@ -47,7 +79,7 @@ function split_sentences(text:string):string[] {
         i++
     }
     if (start < text.length) {
-        sentences.push(text.slice(start))
+        sentences.push({text: text.slice(start), in_quote: quote_stack.length > 0})
     }
     return sentences
 }
@@ -62,29 +94,20 @@ function split_sentences(text:string):string[] {
 // wrapper so paragraphs still break. Used for picture-story passage prose. "em" sizes scale
 // relative to whatever text size is active where this markup is placed (see gen_fit_body), so
 // they stay proportionally the same even though picture-story body text itself is dynamically
-// sized per slide
-export function emphasize_sentences(text:string, color:string|null):string {
-    const sentences = split_sentences(text)
+// sized per slide. quote_stack defaults to a fresh (empty) stack; pass one in (and reuse it across
+// calls) to carry quote depth across a continuous run of separately-emphasized text — e.g. one
+// call per picture-story slide, where a slide can open a quote its own text never closes
+export function emphasize_sentences(
+    text:string, color:string|null, quote_stack:QuoteState = [],
+):string {
+    const sentences = split_sentences(text, quote_stack)
     if (!sentences.length) {
         return escape_typst(text)
     }
-    // Tracks unmatched open quotes across segments (a stack of expected closers) — quoted
-    // dialogue spanning multiple sentences (e.g. two questions in a row) still counts as "in a
-    // quote" once split_sentences has broken it into separate segments
-    const quote_stack:string[] = []
-    return sentences.map(sentence => {
+    return sentences.map(({text: sentence, in_quote}) => {
         // Keep leading whitespace (incl. paragraph breaks) outside any wrapper
         const lead = sentence.match(/^\s*/)![0]
         const core = sentence.slice(lead.length)
-        const in_quote = quote_stack.length > 0 || core[0] in QUOTE_PAIRS
-        for (const ch of core) {
-            const closer = quote_stack[quote_stack.length - 1]
-            if (closer && ch === closer) {
-                quote_stack.pop()
-            } else if (ch in QUOTE_PAIRS) {
-                quote_stack.push(QUOTE_PAIRS[ch]!)
-            }
-        }
         // The sentence's terminator, ignoring trailing quotes/brackets
         const terminator = core.replace(/["'”’)\]]*$/, '').slice(-1)
         const escaped = escape_typst(core)
