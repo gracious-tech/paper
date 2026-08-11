@@ -63,7 +63,7 @@ const create = () => {
 .navbar
     display: flex
     align-items: flex-end
-    height: 48px
+    height: 42px
     gap: 6px
     padding: 0 8px
 

@@ -7,8 +7,9 @@ v-app.app(v-else)
 
         header
             h1
-                BrandIcon.brand
-                span Paper Bible
+                router-link.brand_link(:to='{name: "designs"}')
+                    BrandIcon.brand
+                    span Paper Bible
                 v-spacer
                 VBtn.account(@click='show_account = true' color='' icon variant='text'
                         v-tooltip:left='$t("Account")')
@@ -113,16 +114,23 @@ const show_account = ref(false)
         h1
             display: flex
             align-items: center
-            padding: 12px 12px 0 12px
+            padding: 6px 6px 0 12px
             margin-bottom: 4px
+            font-size: 24px
 
-            > span
-                font-family: "Crimson Pro", serif
+            .brand_link
+                display: flex
+                align-items: center
+                color: inherit
+                text-decoration: none
 
-            .brand
-                margin-right: 12px
-                width: 36px
-                height: 36px
+                span
+                    font-family: "Crimson Pro", serif
+
+                .brand
+                    margin-right: 12px
+                    width: 28px
+                    height: 28px
 
 
 .display
