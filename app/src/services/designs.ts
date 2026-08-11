@@ -16,8 +16,11 @@ import {clean_blueprint, gen_content_name, content_preview, get_default_blueprin
 import {generate_token} from '@/services/utils'
 import {report_error} from '@/services/errors'
 
+import {build_new_blueprint} from '@/services/new_design'
+
 import type {Blueprint, ContentItem, DesignMeta, ViewedDesign, DesignEditorInfo}
     from '@/services/types'
+import type {NewDesignDraft} from '@/services/new_design'
 
 
 // Debounce delay for saving design edits (long enough to batch bursts of typing/slider drags)
@@ -30,6 +33,18 @@ export const designs = reactive([] as DesignMeta[])
 
 // Id of the design currently open (whose blueprint is mirrored into `blue`)
 export const current_design_id = ref(null as string|null)
+
+
+// Wizard-related state of the currently open design — sibling fields of the doc that live
+// outside `Blueprint`/`blue` (see new_design.ts: build_new_blueprint() is a one-way, lossy
+// transform, so accurately reopening/labelling a wizard step needs the original draft, not just
+// a re-derivation from the Blueprint it produced). Kept as a simple full-replace on every
+// snapshot (not diffed like `blue`) since these are only ever written by one explicit user
+// action at a time (finishing a wizard-edit, or clicking "Advanced")
+export const design_wizard = reactive({
+    simple_mode: false,
+    draft: null as NewDesignDraft|null,
+})
 
 
 // Resolves once the first designs-list snapshot has arrived — a deep-linked /designs/:id whose
@@ -235,6 +250,8 @@ export async function open_design(id:string):Promise<void>{
     unsub_doc?.()
     synced = null
     current_design_id.value = id
+    design_wizard.simple_mode = false
+    design_wizard.draft = null
 
     await new Promise<void>((resolve, reject) => {
         unsub_doc = onSnapshot(doc(firestore, 'designs', id), snap => {
@@ -248,15 +265,20 @@ export async function open_design(id:string):Promise<void>{
                 return
             }
 
+            const data = snap.data()
+            design_wizard.simple_mode = !!data['simple_mode']
+            design_wizard.draft = data['wizard_draft']
+                ? cloneDeep(data['wizard_draft'] as NewDesignDraft) : null
+
             // First snapshot populates the whole blueprint; later ones merge field-by-field
             if (!synced){
-                const remote = doc_to_blueprint(snap.data())
+                const remote = doc_to_blueprint(data)
                 Object.assign(blue, remote)
                 synced = cloneDeep(remote)
                 resolve()
             } else if (!snap.metadata.hasPendingWrites){
                 // Ignore local echoes — only apply snapshots that include the server's state
-                apply_remote(doc_to_blueprint(snap.data()))
+                apply_remote(doc_to_blueprint(data))
             }
         }, error => {
             report_error('banner', error)
@@ -277,8 +299,11 @@ async function open_other_design(deleted_id:string):Promise<void>{
 }
 
 
-export async function create_design(from?:Blueprint):Promise<string>{
-    // Create a new design (optionally copying an existing blueprint) and open it
+export async function create_design(from?:Blueprint, wizard_draft?:NewDesignDraft):Promise<string>{
+    // Create a new design (optionally copying an existing blueprint) and open it. `wizard_draft`
+    // is only passed by the new-design wizard's finish step — it marks the design as starting in
+    // simple_mode and stashes the draft so its steps can be reopened/summarised accurately later
+    // (see design_wizard above)
     const uid = user.value!.uid
     const id = generate_token()
     const blueprint = clean_blueprint(from ? cloneDeep(from) : undefined)
@@ -294,10 +319,33 @@ export async function create_design(from?:Blueprint):Promise<string>{
         modified: serverTimestamp(),
         category: null,
         latest_version: null,
+        ...(wizard_draft ? {simple_mode: true, wizard_draft: cloneDeep(wizard_draft)} : {}),
         ...split_blueprint_doc(blueprint),
     })
     await open_design(id)
     return id
+}
+
+
+// One-way: permanently leave simple mode for a design, revealing the full editor from then on
+export async function leave_simple_mode(id:string):Promise<void>{
+    design_wizard.simple_mode = false  // Optimistic — avoids a visible flash back before the echo
+    await updateDoc(doc(firestore, 'designs', id), {simple_mode: false})
+}
+
+
+// Apply an edited wizard draft to the open design: rebuilds the Blueprint from the draft (the
+// same transform the wizard itself uses at creation) and persists the draft alongside it, so a
+// later "Change" on another step still shows accurate values. Only valid while `id` is the open
+// design (blue is mutated directly, riding the existing debounced autosave in start_design_sync())
+export async function apply_wizard_edit(id:string, draft:NewDesignDraft):Promise<void>{
+    // build_new_blueprint() never sets `title` (it's not one of the wizard's steps) — preserve
+    // whatever's there (e.g. set via the /designs list rename action) rather than blanking it
+    const title = blue.title
+    Object.assign(blue, await build_new_blueprint(draft))
+    blue.title = title
+    design_wizard.draft = cloneDeep(draft)  // Optimistic, mirrors leave_simple_mode() above
+    await updateDoc(doc(firestore, 'designs', id), {wizard_draft: cloneDeep(draft)})
 }
 
 

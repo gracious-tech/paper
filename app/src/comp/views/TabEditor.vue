@@ -18,13 +18,14 @@ import EditorBible from '@/comp/editors/EditorBible.vue'
 import EditorTitle from '@/comp/editors/EditorTitle.vue'
 import EditorPictureStory from '@/comp/editors/EditorPictureStory.vue'
 import EditorAdvancedStyles from '@/comp/editors/EditorAdvancedStyles.vue'
+import EditorWizardStep from '@/comp/editors/EditorWizardStep.vue'
 
 import type {Component} from 'vue'
 
 
 const components:Record<string, Component> = {
     EditorPassage, EditorCustom, EditorBible, EditorTitle, EditorPictureStory,
-    EditorAdvancedStyles,
+    EditorAdvancedStyles, EditorWizardStep,
 }
 
 const editor = computed(() => {

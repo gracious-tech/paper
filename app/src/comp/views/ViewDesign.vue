@@ -12,6 +12,7 @@ div.view_design(v-else-if='state.viewed_version && !state.viewed_confirmed')
 div.view_design(v-else)
     template(v-if='show_editor')
         TabEditor(v-if='state.editor')
+        ViewDesignSimple(v-else-if='design_wizard.simple_mode')
         ViewDesignEditor(v-else)
     template(v-else)
         DesignVersionsList(:design_id='id' :editable='is_editor')
@@ -33,10 +34,12 @@ import {useI18n} from 'vue-i18n'
 
 import TabEditor from './TabEditor.vue'
 import ViewDesignEditor from './ViewDesignEditor.vue'
+import ViewDesignSimple from './ViewDesignSimple.vue'
 import DesignVersionsList from './assets/DesignVersionsList.vue'
 import {state, show_toast} from '@/services/state'
 import {ApiError} from '@/services/api'
-import {designs, designs_loaded, current_design_id, open_design} from '@/services/designs'
+import {designs, designs_loaded, current_design_id, open_design, design_wizard}
+    from '@/services/designs'
 import {start_versions_sync, selected_version_id, latest_version, design_needs_editor,
     fetch_latest_version_id, copy_version_to_new_design} from '@/services/versions'
 import {report_error} from '@/services/errors'

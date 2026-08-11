@@ -16,7 +16,7 @@ div
 import {computed} from 'vue'
 import {useI18n} from 'vue-i18n'
 
-import {TYPE_PRESETS} from '@/services/new_design'
+import {TYPE_PRESETS, wizard_type_label} from '@/services/new_design'
 import NewDesignCard from '@/comp/dialogs/assets/NewDesignCard.vue'
 
 import type {NewDesignDraft, NewDesignType} from '@/services/new_design'
@@ -39,38 +39,13 @@ const select = (id:NewDesignType) => {
 }
 
 
-// Display labels/subtitles per type, joined with each preset's image
-const labels:Record<string, {label:string, subtitle:string}> = {
-    regular: {
-        label: t("Regular Bible"),
-        subtitle: t("How most bibles look, with verse numbers and headings"),
-    },
-    reading: {
-        label: t("Reading Bible"),
-        subtitle: t("No verse numbers, like a normal book"),
-    },
-    notes: {
-        label: t("Notes Bible"),
-        subtitle: t("Lots of space to write notes"),
-    },
-    study: {
-        label: t("Study Bible"),
-        subtitle: t("Extensive footnotes to guide readers"),
-    },
-    bilingual: {
-        label: t("Bilingual Bible"),
-        subtitle: t("Two translations side by side"),
-    },
-    picture_story: {
-        label: t("Picture Story"),
-        subtitle: t("Illustrated Bible stories, one image per page"),
-    },
-}
+// Labels/subtitles per type (shared with the simple-mode summary row), joined with each
+// preset's image
 const types = computed(() => TYPE_PRESETS.map(preset => ({
     id: preset.id,
     image: preset.image,
     tint: preset.id === 'picture_story' ? 'yellow' as const : 'blue' as const,
-    ...labels[preset.id]!,
+    ...wizard_type_label(preset.id, t),
 })))
 
 

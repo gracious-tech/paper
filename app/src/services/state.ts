@@ -7,6 +7,7 @@ import {content} from '@/services/content'
 import {collect_passage_books} from '@/services/blueprints'
 
 import type {Blueprint} from '@/services/types'
+import type {WizardStep} from '@/services/new_design'
 
 
 // General state
@@ -39,6 +40,11 @@ export const state = reactive({
     // Whether the new-design wizard dialog is open — set by AppNavbar's "New" button and by
     // DisplaySplash for brand-new users, rendered by DialogNewDesign (mounted in AppRoot)
     new_design: false,
+    // Reopens DialogNewDesign in "edit" mode, seeded from the open design's wizard_draft and
+    // landing on the given step — set by ViewDesignSimple's Type row (the one wizard step whose
+    // change can invalidate another step, so it needs the full stepper's cross-step validation
+    // rather than the single-step EditorWizardStep sidebar editor)
+    wizard_edit: null as null|{step:WizardStep},
     // Message for a brief snackbar toast (e.g. link copied confirmation), null when hidden
     toast: null as string|null,
     // Pending confirm-dialog request, rendered by DialogConfirm — null hides it (see confirm_dialog())

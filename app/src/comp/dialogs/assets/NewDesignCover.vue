@@ -17,6 +17,7 @@ import {computed, watch} from 'vue'
 import {useI18n} from 'vue-i18n'
 
 import NewDesignCard from '@/comp/dialogs/assets/NewDesignCard.vue'
+import {wizard_cover_label} from '@/services/new_design'
 
 import type {NewDesignDraft, NewDesignCover} from '@/services/new_design'
 
@@ -29,18 +30,20 @@ const draft = props.draft
 const {t} = useI18n()
 
 
-// The offered cover styles (minimal ink only when printing at home)
+// The offered cover styles (minimal ink only when printing at home) — labels shared with the
+// simple-mode summary row via wizard_cover_label()
 const covers = computed(() => {
     const items:{id:NewDesignCover, image:string, label:string, subtitle:string}[] = [
-        {id: 'photo', image: '/wizard/cover_photo.webp', label: t("Photo"),
+        {id: 'photo', image: '/wizard/cover_photo.webp', label: wizard_cover_label('photo', t),
             subtitle: t("A full cover photo (add your own image later)")},
-        {id: 'pattern', image: '/wizard/cover_pattern.webp', label: t("Pattern"),
+        {id: 'pattern', image: '/wizard/cover_pattern.webp', label: wizard_cover_label('pattern', t),
             subtitle: t("A decorative repeating pattern")},
-        {id: 'icon', image: '/wizard/cover_icon.webp', label: t("Icon"),
+        {id: 'icon', image: '/wizard/cover_icon.webp', label: wizard_cover_label('icon', t),
             subtitle: t("A simple icon design")},
     ]
     if (draft.service_id === 'home'){
-        items.push({id: 'minimal', image: '/wizard/cover_minimal.webp', label: t("Minimal ink"),
+        items.push({id: 'minimal', image: '/wizard/cover_minimal.webp',
+            label: wizard_cover_label('minimal', t),
             subtitle: t("A title page instead of a cover, to save ink")})
     }
     return items

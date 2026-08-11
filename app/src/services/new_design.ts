@@ -117,6 +117,92 @@ export const TYPE_PRESETS:{id:NewDesignType, image:string, diff:Partial<Blueprin
 ]
 
 
+// Step ids of the wizard, in order — shared between DialogNewDesign.vue's stepper and the
+// single-step sidebar editor (EditorWizardStep.vue) so both drive from one source of truth
+export const WIZARD_STEPS = ['type', 'books', 'bibles', 'print', 'cover'] as const
+export type WizardStep = typeof WIZARD_STEPS[number]
+
+
+// Whether a given step's choices in the draft are complete enough to move on/save — hoisted out
+// of DialogNewDesign.vue so EditorWizardStep.vue's single-step Save button can reuse the exact
+// same check
+export function is_wizard_step_valid(draft:NewDesignDraft, step:WizardStep):boolean{
+    if (step === 'type'){
+        return draft.type !== null
+    }
+    if (step === 'books'){
+        if (draft.book_mode === 'passages'){
+            return draft.passages.some(passage => passage.book !== null)
+        }
+        return draft.type === 'picture_story' ? draft.stories.length >= 1 : draft.books.length >= 1
+    }
+    if (step === 'bibles'){
+        const bibles = draft.bibles.filter(id => id)
+        const distinct = new Set(bibles).size === bibles.length
+        const two_if_bilingual = draft.type !== 'bilingual' || bibles.length === 2
+        return bibles.length >= 1 && distinct && two_if_bilingual
+    }
+    if (step === 'print'){
+        return draft.service_id !== null && draft.size_id !== null
+    }
+    return draft.cover !== null
+}
+
+
+// Whether every step of the draft is complete (required before a create/edit-mode "type" save,
+// since the stepper allows jumping between steps out of order)
+export function all_wizard_steps_valid(draft:NewDesignDraft):boolean{
+    return WIZARD_STEPS.every(step => is_wizard_step_valid(draft, step))
+}
+
+
+// Display label/subtitle per design type — hoisted out of NewDesignType.vue so the simple-mode
+// summary row can show the same text as the wizard step itself
+export function wizard_type_label(id:NewDesignType, t:(key:string) => string):
+        {label:string, subtitle:string}{
+    const labels:Record<NewDesignType, {label:string, subtitle:string}> = {
+        regular: {
+            label: t("Regular Bible"),
+            subtitle: t("How most bibles look, with verse numbers and headings"),
+        },
+        reading: {
+            label: t("Reading Bible"),
+            subtitle: t("No verse numbers, like a normal book"),
+        },
+        notes: {
+            label: t("Notes Bible"),
+            subtitle: t("Lots of space to write notes"),
+        },
+        study: {
+            label: t("Study Bible"),
+            subtitle: t("Extensive footnotes to guide readers"),
+        },
+        bilingual: {
+            label: t("Bilingual Bible"),
+            subtitle: t("Two translations side by side"),
+        },
+        picture_story: {
+            label: t("Picture Story"),
+            subtitle: t("Illustrated Bible stories, one image per page"),
+        },
+    }
+    return labels[id]
+}
+
+
+// Display label per cover style — hoisted out of NewDesignCover.vue for the same reason as
+// wizard_type_label() above
+export function wizard_cover_label(id:NewDesignCover, t:(key:string) => string):string{
+    const labels:Record<NewDesignCover, string> = {
+        photo: t("Photo"),
+        pattern: t("Pattern"),
+        icon: t("Icon"),
+        minimal: t("Minimal ink"),
+    }
+    return labels[id]
+}
+
+
 // A decorative title page for the "minimal ink" cover choice, matching the shape the editor's
 // own "Title page" button creates (title from the first passage, its book's icon)
 function make_wizard_title_item(blueprint:Blueprint):ContentTitle{

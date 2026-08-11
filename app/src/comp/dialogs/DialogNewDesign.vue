@@ -1,7 +1,7 @@
 
 <template lang='pug'>
 
-v-dialog(:model-value='state.new_design' @update:model-value='cancel' :fullscreen='fullscreen'
+v-dialog(:model-value='mode !== null' @update:model-value='cancel' :fullscreen='fullscreen'
         :max-width='fullscreen ? undefined : 800' height='1000' max-height='1000' scrollable no-click-animation)
     v-card.wizard(:class='{fullscreen}')
 
@@ -33,14 +33,17 @@ v-dialog(:model-value='state.new_design' @update:model-value='cancel' :fullscree
         v-divider
 
         v-card-actions(v-if='!busy')
-            v-btn(v-if='step_index === 0' @click='cancel' color='')
+            v-btn(v-if='mode === "edit" || step_index === 0' @click='cancel' color='')
                 | {{ $t("Cancel") }}
             v-btn(v-else @click='back' color='')
                 | {{ $t("Prev") }}
             v-spacer
             span.text-medium-emphasis(v-if='step === "books"') {{ books_selected_label }}
             v-spacer
-            v-btn(v-if='step !== "type"' @click='next'
+            v-btn(v-if='mode === "edit"' @click='finish' :disabled='!all_steps_valid'
+                    :loading='creating' color='secondary' variant='flat')
+                | {{ $t("Save") }}
+            v-btn(v-else-if='step !== "type"' @click='next'
                     :disabled='step === "cover" ? !all_steps_valid : !step_valid'
                     :loading='creating' color='secondary' variant='flat')
                 | {{ step === 'cover' ? $t("Create") : $t("Next") }}
@@ -51,13 +54,16 @@ v-dialog(:model-value='state.new_design' @update:model-value='cancel' :fullscree
 <script lang='ts' setup>
 
 import {computed, reactive, ref, watch} from 'vue'
+import {cloneDeep} from 'lodash-es'
 import {useI18n} from 'vue-i18n'
 import {useRouter} from 'vue-router'
 import {useDisplay} from 'vuetify'
 
 import {state} from '@/services/state'
-import {create_design} from '@/services/designs'
-import {get_default_draft, build_new_blueprint} from '@/services/new_design'
+import {create_design, design_wizard, apply_wizard_edit, current_design_id}
+    from '@/services/designs'
+import {get_default_draft, build_new_blueprint, WIZARD_STEPS, is_wizard_step_valid,
+    all_wizard_steps_valid} from '@/services/new_design'
 import {report_error} from '@/services/errors'
 import NewDesignType from '@/comp/dialogs/assets/NewDesignType.vue'
 import NewDesignBooks from '@/comp/dialogs/assets/NewDesignBooks.vue'
@@ -66,23 +72,42 @@ import NewDesignBibles from '@/comp/dialogs/assets/NewDesignBibles.vue'
 import NewDesignPrint from '@/comp/dialogs/assets/NewDesignPrint.vue'
 import NewDesignCover from '@/comp/dialogs/assets/NewDesignCover.vue'
 
+import type {WizardStep} from '@/services/new_design'
 
-// The new-design wizard: five steps that build up a draft of selections, only turned into an
-// actual design (Firestore doc) when the final step's "Create" is confirmed — cancelling at
-// any point creates nothing. Opened via state.new_design (navbar "New" / first-run splash)
+
+// The new-design wizard: five steps that build up a draft of selections. In "create" mode
+// (state.new_design), the draft only becomes an actual design (Firestore doc) once the final
+// step's "Create" is confirmed — cancelling at any point creates nothing. In "edit" mode
+// (state.wizard_edit, opened from ViewDesignSimple's Type row — the one wizard step whose change
+// can invalidate another step), it reopens the same stepper seeded from the open design's
+// existing wizard_draft, letting the stepper's own cross-step validation surface anything that
+// needs fixing before "Save" applies the changes back to the open design
 const {t} = useI18n()
 const router = useRouter()
 
 
-// Steps in order
-const STEPS = ['type', 'books', 'bibles', 'print', 'cover'] as const
+// Steps in order (STEPS/is_step_valid alias the hoisted new_design.ts exports so template calls
+// below don't need to change)
+const STEPS = WIZARD_STEPS
 
 
 // State
-const step = ref<typeof STEPS[number]>('type')
+const step = ref<WizardStep>('type')
 const draft = reactive(get_default_draft())
 const busy = ref(false)  // A step subview (e.g. translation picker) is covering navigation
 const creating = ref(false)
+
+
+// Whether the dialog is creating a new design, editing the open design's wizard draft, or closed
+const mode = computed<'create'|'edit'|null>(() => {
+    if (state.new_design){
+        return 'create'
+    }
+    if (state.wizard_edit){
+        return 'edit'
+    }
+    return null
+})
 
 
 // Fullscreen below the app's own mobile breakpoint (where AppRoot stops width-capping
@@ -108,27 +133,10 @@ const step_labels = computed(() => {
 })
 
 
-// Whether a given step's choices are complete enough to move on
-const is_step_valid = (id:typeof STEPS[number]):boolean => {
-    if (id === 'type'){
-        return draft.type !== null
-    }
-    if (id === 'books'){
-        if (draft.book_mode === 'passages'){
-            return draft.passages.some(passage => passage.book !== null)
-        }
-        return draft.type === 'picture_story' ? draft.stories.length >= 1 : draft.books.length >= 1
-    }
-    if (id === 'bibles'){
-        const bibles = draft.bibles.filter(id => id)
-        const distinct = new Set(bibles).size === bibles.length
-        const two_if_bilingual = draft.type !== 'bilingual' || bibles.length === 2
-        return bibles.length >= 1 && distinct && two_if_bilingual
-    }
-    if (id === 'print'){
-        return draft.service_id !== null && draft.size_id !== null
-    }
-    return draft.cover !== null
+// Whether a given step's choices are complete enough to move on (hoisted to new_design.ts so
+// EditorWizardStep.vue's single-step Save button can reuse the exact same check)
+const is_step_valid = (id:WizardStep):boolean => {
+    return is_wizard_step_valid(draft, id)
 }
 
 
@@ -150,31 +158,39 @@ const books_selected_label = computed(() => {
 })
 
 
-// Whether every step is complete (required before the final "Create" is enabled, since the
-// stepper header allows jumping between steps out of order)
+// Whether every step is complete (required before the final "Create"/"Save" is enabled, since
+// the stepper header allows jumping between steps out of order)
 const all_steps_valid = computed(() => {
-    return STEPS.every(is_step_valid)
+    return all_wizard_steps_valid(draft)
 })
 
 
-// Reset to a fresh draft every time the wizard opens (each run is a brand new design)
-watch(() => state.new_design, opened => {
-    if (opened){
+// Reset (create mode) or seed from the open design's existing draft (edit mode) every time the
+// dialog opens. cloneDeep is essential in edit mode — design_wizard.draft is the same object
+// read from the last Firestore snapshot, so assigning its arrays in by reference would let
+// in-progress (uncommitted) edits here mutate it directly, corrupting the "cancel discards
+// changes" guarantee and the ViewDesignSimple summary before Save is ever clicked
+watch(mode, m => {
+    if (m === 'create'){
         Object.assign(draft, get_default_draft())
         step.value = 'type'
-        busy.value = false
+    } else if (m === 'edit'){
+        Object.assign(draft, cloneDeep(design_wizard.draft) ?? get_default_draft())
+        step.value = state.wizard_edit!.step
     }
+    busy.value = false
 })
 
 
 // Methods
 
-// Close without creating anything (disabled while the design is being created)
+// Close without applying anything (disabled while create/save is in progress)
 const cancel = () => {
     if (creating.value){
         return
     }
     state.new_design = false
+    state.wizard_edit = null
 }
 
 
@@ -190,22 +206,43 @@ const set_step = (value:number) => {
 }
 
 
-// Advance to the next step, or create the design from the completed draft on the last one
-const next = async () => {
-    if (step.value !== 'cover'){
-        step.value = STEPS[step_index.value + 1]!
-        return
-    }
+// Create the new design (create mode) or apply the edited draft back to the currently open one
+// (edit mode)
+const finish = async () => {
     creating.value = true
     try {
-        const id = await create_design(await build_new_blueprint(draft))
-        state.new_design = false
-        await router.push({name: 'design', params: {id}})
+        if (mode.value === 'edit'){
+            await apply_wizard_edit(current_design_id.value!, draft)
+            state.wizard_edit = null
+        } else {
+            const id = await create_design(await build_new_blueprint(draft), cloneDeep(draft))
+            state.new_design = false
+            await router.push({name: 'design', params: {id}})
+        }
     } catch (error){
         report_error('banner', error)
     } finally {
         creating.value = false
     }
+}
+
+
+// Advance to the next step (create mode's "Next" button), or finish (create mode's "Create" on
+// the last step). In edit mode, the only auto-navigation is the type step's auto-select emit
+// jumping to "books" — every other step's own action is the explicit "Save" button, not a forced
+// march through the rest of the steps
+const next = async () => {
+    if (mode.value === 'edit'){
+        if (step.value === 'type'){
+            step.value = STEPS[step_index.value + 1]!
+        }
+        return
+    }
+    if (step.value !== 'cover'){
+        step.value = STEPS[step_index.value + 1]!
+        return
+    }
+    await finish()
 }
 
 
