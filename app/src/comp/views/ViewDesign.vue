@@ -58,6 +58,7 @@ const ready = ref(false)
 
 watch(id, async new_id => {
     ready.value = false
+    state.editor = null
     state.forced_editor = route.query['edit'] === '1'
     if (state.forced_editor){
         // One-shot flag — strip it so it doesn't linger in the address bar
