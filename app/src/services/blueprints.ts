@@ -1,5 +1,5 @@
 
-import {PassageReference} from '@gracious.tech/fetch-client'
+import {PassageReference, books_ordered} from '@gracious.tech/fetch-client'
 import {cloneDeep} from 'lodash-es'
 import {make_blueprint_schema} from 'paper-bible-typst'
 import {get_service, get_common_sizes} from 'printing-services'
@@ -216,10 +216,13 @@ export function has_missing_books(book_ids:string[], bibles:readonly string[]):b
 }
 
 
-// Generate name for content item
-export function gen_content_name(item:ContentItem):string{
+// Generate name for content item. `bible` defaults to the currently-open design's first bible
+// (for use while editing `blue`) but callers summarising a *different* design (e.g. a list row)
+// should pass that design's own bible instead. `abbreviate` shortens passage references (e.g.
+// "Gen 1-3"), for compact previews
+export function gen_content_name(item:ContentItem, bible=blue.bibles[0], abbreviate=false):string{
     if (item.type === 'passage'){
-        return content.collection.reference_to_string(new PassageReference(item), blue.bibles[0])
+        return content.collection.reference_to_string(new PassageReference(item), bible, abbreviate)
     } else if (item.type === 'custom' && item.name){
         return item.name
     } else if (item.type === 'title'){
@@ -228,6 +231,67 @@ export function gen_content_name(item:ContentItem):string{
         return item.title || "Picture story"
     }
     return "Nameless"
+}
+
+
+// Whether a content item is a passage selecting an entire book (all 4 range fields null) — the
+// convention the new-design wizard's book picker uses (see new_design.ts) for "whole book"
+function is_whole_book(item:ContentItem):item is ContentPassage{
+    return item.type === 'passage' && item.start_chapter === null && item.start_verse === null
+        && item.end_chapter === null && item.end_verse === null
+}
+
+
+// Abbreviated passage-only preview of a design's content, for a compact list-row subtitle —
+// custom/title items (copyright notices, section titles, etc.) are deliberately omitted, since
+// they're not what a user scans for when picking a design. Picture stories collapse to a single
+// reference spanning their first to last referenced passage, or "Custom text" if they reference
+// none at all. Whole-book passages that together cover an entire testament (or the whole canon)
+// collapse further into a single "OT"/"NT"/"Whole bible" label rather than listing every book
+export function content_preview(items:ContentItem[], bible=blue.bibles[0]):string{
+    const whole_books = new Set(items.filter(is_whole_book).map(item => item.book))
+    const ot_ids = books_ordered.slice(0, 39)
+    const nt_ids = books_ordered.slice(39)
+    if (books_ordered.every(id => whole_books.has(id))){
+        return "Whole bible"
+    }
+    const whole_ot = ot_ids.every(id => whole_books.has(id))
+    const whole_nt = nt_ids.every(id => whole_books.has(id))
+    const covered = new Set([...(whole_ot ? ot_ids : []), ...(whole_nt ? nt_ids : [])])
+
+    // Items still needing their own reference label after any OT/NT collapsing above —
+    // abbreviating (e.g. "Gen" instead of "Genesis") only earns its keep once several
+    // references have to be packed onto one line, so skip it when there's just one
+    const remaining = items.filter(item => {
+        if (item.type === 'passage'){
+            return !(is_whole_book(item) && covered.has(item.book))
+        }
+        return item.type === 'picture_story'
+    })
+    const abbreviate = (whole_ot ? 1 : 0) + (whole_nt ? 1 : 0) + remaining.length > 1
+
+    const parts:string[] = []
+    if (whole_ot){
+        parts.push("OT")
+    }
+    if (whole_nt){
+        parts.push("NT")
+    }
+    for (const item of remaining){
+        if (item.type === 'passage'){
+            parts.push(gen_content_name(item, bible, abbreviate))
+        } else if (item.type === 'picture_story'){
+            const passages = item.slides.filter(slide => slide.mode === 'passage' && slide.book)
+            if (!passages.length){
+                parts.push("Custom text")
+                continue
+            }
+            const range = PassageReference.from_refs(
+                new PassageReference(passages[0]!), new PassageReference(passages.at(-1)!))
+            parts.push(content.collection.reference_to_string(range, bible, abbreviate))
+        }
+    }
+    return parts.join(', ')
 }
 
 
@@ -275,8 +339,12 @@ export function binding_page_issue(blueprint:Blueprint, pages:number):BindingPag
 }
 
 
-// Resolve a blueprint's trim size (named or custom) to a display label, e.g. "A4 (210 × 297 mm)"
-export function format_paper_size(blueprint:Blueprint):string{
+// Resolve a blueprint's trim size (named or custom) to a display label, e.g. "A4 (210 × 297 mm)".
+// `short` drops the dimensions when a named size is found (e.g. just "A4"), for compact chips —
+// custom sizes have no name to fall back to, so they always show dimensions regardless
+export function format_paper_size(
+        blueprint:Pick<Blueprint, 'service_id'|'size_id'|'custom_unit'|'custom_trim_width'
+            |'custom_trim_height'>, short=false):string{
     if (blueprint.size_id === ''){
         return format_dims(blueprint.custom_trim_width, blueprint.custom_trim_height,
             blueprint.custom_unit)
@@ -291,6 +359,9 @@ export function format_paper_size(blueprint:Blueprint):string{
         return format_dims(blueprint.custom_trim_width, blueprint.custom_trim_height,
             blueprint.custom_unit)
     }
+    if (short){
+        return size.name
+    }
     return `${size.name} (${format_dims(size.width, size.height, size.unit)})`
 }
 
@@ -298,4 +369,42 @@ export function format_paper_size(blueprint:Blueprint):string{
 // The passage content items in a blueprint, for summarising what's included
 export function get_passages(blueprint:Blueprint):ContentPassage[]{
     return blueprint.content.filter((item):item is ContentPassage => item.type === 'passage')
+}
+
+
+// Printing service pill label, e.g. a real service's name, or "Booklet (fold at home)"/"Home"/
+// "Custom…" for the service-less modes. `t` is the caller's own useI18n() translator (see
+// missing_book_warnings() above for why these helpers take it rather than importing vue-i18n).
+// `short` drops the explanatory parenthetical/ellipsis, for compact chips
+export function format_service_label(blueprint:Pick<Blueprint, 'service_id'|'booklet'>,
+        t:(key:string) => string, short=false):string{
+    const {service_id, booklet} = blueprint
+    if (service_id === 'home'){
+        if (booklet){
+            return short ? t("Booklet") : t("Booklet (fold at home)")
+        }
+        return t("Home")
+    }
+    if (service_id === 'custom'){
+        return short ? t("Custom") : t("Custom…")
+    }
+    return get_service(service_id as Parameters<typeof get_service>[0]).name
+}
+
+
+// Page-count pill label, only once a version has finished rendering (null pages = not yet
+// rendered). Booklets store the imposed sheet-side count (2 content pages per side), so double
+// it back to the number of pages the reader actually sees once printed/folded, with the physical
+// sheet count alongside
+export function format_pages_label(pages:number|null, booklet:boolean,
+        t:(key:string) => string):string|null{
+    if (pages == null){
+        return null
+    }
+    if (!booklet){
+        return `${pages} ${t("pages")}`
+    }
+    const content_pages = pages * 2
+    const sheets = Math.ceil(pages / 2)
+    return `${content_pages} ${t("pages")} (${sheets} ${t("sheets")})`
 }

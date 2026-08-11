@@ -20,6 +20,18 @@ export interface DesignMeta {
     save_token:string
     created:Date
     modified:Date
+    category:string|null
+    // Abbreviated, comma-joined preview of the design's content items (e.g. "Gen 1-3, Psalm 23"),
+    // for a subtitle on the list row — empty string if the design has no content yet
+    content_summary:string
+    // Denormalized summary of the design's newest version (null before any version exists),
+    // kept in sync by every compile path — see versions.ts/compile.ts/share.ts
+    latest_version:{status:'pending'|'available'|'failed', pages:number|null, save_token:string}|null
+    // Scalar blueprint fields needed for the list's stat chips — a raw slice of the doc's
+    // `blueprint`, not the fully reassembled Blueprint (no need for join_blueprint_doc()/
+    // clean_blueprint() just to read a few display fields)
+    paper:{service_id:string, size_id:string, custom_unit:'mm'|'inch', custom_trim_width:number,
+        custom_trim_height:number, booklet:boolean, bibles:string[]}
 }
 
 

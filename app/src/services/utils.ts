@@ -52,3 +52,30 @@ export function debounce<T>(fn:T, ms=500){
     // @ts-ignore -- Lodash uses 'any' types and can't work out how to declare unknown args fn
     return lodash_debounce(fn, ms) as unknown as T
 }
+
+
+export function format_relative_time(date:Date):string{
+    // Human-friendly "time ago" (e.g. "3 hours ago", "2 weeks ago") for recent dates, falling
+    // back to a plain date once a relative count stops being useful
+    const seconds = (Date.now() - date.getTime()) / 1000
+    const rtf = new Intl.RelativeTimeFormat(undefined, {numeric: 'auto'})
+    const minutes = seconds / 60
+    const hours = minutes / 60
+    const days = hours / 24
+    const weeks = days / 7
+    const months = days / 30
+    if (seconds < 60){
+        return rtf.format(0, 'second')
+    } else if (minutes < 60){
+        return rtf.format(-Math.round(minutes), 'minute')
+    } else if (hours < 24){
+        return rtf.format(-Math.round(hours), 'hour')
+    } else if (days < 7){
+        return rtf.format(-Math.round(days), 'day')
+    } else if (weeks < 8){
+        return rtf.format(-Math.round(weeks), 'week')
+    } else if (months < 12){
+        return date.toLocaleDateString(undefined, {month: 'short', day: 'numeric'})
+    }
+    return date.toLocaleDateString()
+}

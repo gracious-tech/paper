@@ -22,7 +22,7 @@ import {generate_token} from '@/services/utils'
 import {report_error, error_to_string} from '@/services/errors'
 
 import type {CustomFont} from 'typst-fonts'
-import type {Blueprint, Version} from '@/services/types'
+import type {Blueprint, DesignMeta, Version} from '@/services/types'
 
 
 let unsub_list:Unsubscribe|null = null
@@ -49,6 +49,15 @@ export const design_needs_editor = computed(() => {
     }
     return !latest_version.value || design.save_token !== latest_version.value.save_token
 })
+
+
+// Same condition as design_needs_editor, but usable for any row in the /designs list (not just
+// the currently-open design) — reads the denormalized `latest_version` summary on the design doc
+// instead of the live per-design `versions` subscription, which is only ever populated for the
+// open design
+export function design_needs_version(design:DesignMeta):boolean{
+    return !design.latest_version || design.save_token !== design.latest_version.save_token
+}
 
 
 // --- List sync ------------------------------------------------------------------------------
@@ -143,6 +152,10 @@ export async function create_pending_version(design_id:string, blueprint:Bluepri
         error: null,
         error_id: null,
     })
+    // Denormalized onto the parent design doc so the /designs list can show status/needs-
+    // attention chips without an N+1 per-design version query — see design_needs_version()
+    await updateDoc(doc(firestore, 'designs', design_id),
+        {latest_version: {status: 'pending', pages: null, save_token}})
     // Font/image bytes may only be uploaded once the doc exists (Storage rules resolve the
     // owner via the doc)
     await upload_version_fonts(fonts.uploads)
@@ -154,14 +167,16 @@ export async function create_pending_version(design_id:string, blueprint:Bluepri
 }
 
 
-export async function compile_and_upload(id:string, blueprint:Blueprint,
-        fonts?:CustomFont[]):Promise<void>{
+export async function compile_and_upload(id:string, design_id:string, blueprint:Blueprint,
+        is_latest:boolean, fonts?:CustomFont[]):Promise<void>{
     // Compile a version's PDF in-browser and upload it, updating the doc's status. If the
     // in-browser compile fails (e.g. device lacks memory for large docs) fall back to compiling
     // server-side, which updates the doc itself.
     // `fonts` supplies a version's snapshotted custom fonts when regenerating (the live library
-    // is used otherwise).
+    // is used otherwise). `is_latest` gates the parent design's denormalized `latest_version`
+    // summary — regenerating an older version must never clobber it with a stale status/pages
     const doc_ref = doc(firestore, 'versions', id)
+    const design_ref = doc(firestore, 'designs', design_id)
     try {
         try {
             // Resolve the frozen blueprint to a full request (fetches uncached Bible content)
@@ -214,6 +229,10 @@ export async function compile_and_upload(id:string, blueprint:Blueprint,
                 pdf_expires: Timestamp.fromMillis(Date.now() + PDF_LIFETIME_MS),
                 error: null,
             })
+            if (is_latest){
+                await updateDoc(design_ref,
+                    {'latest_version.status': 'available', 'latest_version.pages': pages})
+            }
         } catch (wasm_error){
             // In-browser path failed — hand over to the server (status updates then arrive
             // via the versions Firestore sync). Not critical yet as the fallback usually works
@@ -231,6 +250,12 @@ export async function compile_and_upload(id:string, blueprint:Blueprint,
             .catch((update_error:unknown) => {
                 report_error('banner', update_error)
             })
+        if (is_latest){
+            await updateDoc(design_ref, {'latest_version.status': 'failed'})
+                .catch((update_error:unknown) => {
+                    report_error('banner', update_error)
+                })
+        }
     }
 }
 
@@ -249,8 +274,15 @@ export async function regenerate_version(version:Version):Promise<void>{
         return
     }
     const fonts = await Promise.all(version.custom_fonts.map(meta => load_font_from_meta(meta)))
+    // Only the design's actual latest version may update its denormalized summary — regenerating
+    // an older/expired one must never clobber it with a stale status/pages
+    const is_latest = latest_version.value?.id === version.id
     await updateDoc(doc(firestore, 'versions', version.id), {status: 'pending', error: null})
-    await compile_and_upload(version.id, version.blueprint, fonts)
+    if (is_latest){
+        await updateDoc(doc(firestore, 'designs', version.design_id),
+            {'latest_version.status': 'pending'})
+    }
+    await compile_and_upload(version.id, version.design_id, version.blueprint, is_latest, fonts)
 }
 
 

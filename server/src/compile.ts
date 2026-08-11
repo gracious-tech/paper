@@ -103,6 +103,16 @@ export async function handle_compile(uid:string, version_id:string, client_ip:st
         return {status: 409, body: {error: 'not_pending'}}
     }
 
+    // Whether this version is still its design's actual latest one — regenerating an older
+    // version must never clobber the design's denormalized `latest_version` summary (used by the
+    // /designs list) with a stale status/pages. A newer version created since would have
+    // overwritten the design's latest_version.save_token with its own, so comparing this
+    // version's own save_token against it tells them apart
+    const design_ref = admin_db.doc(`designs/${data['design_id'] as string}`)
+    const design_data = (await design_ref.get()).data()
+    const is_latest = (design_data?.['latest_version'] as {save_token?:string}|undefined)
+        ?.save_token === data['save_token']
+
     // Storage paths are always derived from the version id, never read from the doc — doc
     // fields are client-written, and trusting them would let a crafted doc make the Admin SDK
     // read/overwrite arbitrary bucket objects
@@ -181,6 +191,10 @@ export async function handle_compile(uid:string, version_id:string, client_ip:st
             pdf_expires: Timestamp.fromMillis(Date.now() + PDF_LIFETIME_MS),
             error: null,
         })
+        if (is_latest){
+            await design_ref.update(
+                {'latest_version.status': 'available', 'latest_version.pages': pages})
+        }
         return {status: 200, body: {ok: true, pages}}
 
     } catch (error){
@@ -204,6 +218,9 @@ export async function handle_compile(uid:string, version_id:string, client_ip:st
         })
         await doc_ref.update({status: 'failed', error: message, error_id})
             .catch(() => undefined)
+        if (is_latest){
+            await design_ref.update({'latest_version.status': 'failed'}).catch(() => undefined)
+        }
         return {status: 500, body: {error: 'compile_failed'}}
 
     } finally {

@@ -83,7 +83,7 @@ const generate = async () => {
 
         // Compile the final PDF in-browser via Typst and upload it (status updates arrive via the
         // versions Firestore sync)
-        await compile_and_upload(version_id, blueprint)
+        await compile_and_upload(version_id, design_id, blueprint, true)
     } finally {
         generating.value = false
     }

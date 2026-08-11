@@ -2,7 +2,8 @@
 import {reactive, ref, watch} from 'vue'
 import {cloneDeep, isEqual, debounce} from 'lodash-es'
 import {collection, doc, query, where, orderBy, onSnapshot, getDoc, getDocs, setDoc, updateDoc,
-    deleteDoc, deleteField, arrayRemove, serverTimestamp, FieldPath, Timestamp} from 'firebase/firestore'
+    deleteDoc, deleteField, arrayRemove, serverTimestamp, FieldPath, Timestamp, writeBatch}
+    from 'firebase/firestore'
 import type {DocumentData, Unsubscribe} from 'firebase/firestore'
 import {split_blueprint_doc, join_blueprint_doc, SCHEMA_VERSION} from 'paper-bible-typst'
 
@@ -10,7 +11,8 @@ import {firestore} from '@/services/firebase'
 import {api} from '@/services/api'
 import {user} from '@/services/auth'
 import {blue, state} from '@/services/state'
-import {clean_blueprint, gen_content_name, get_default_blueprint} from '@/services/blueprints'
+import {clean_blueprint, gen_content_name, content_preview, get_default_blueprint}
+    from '@/services/blueprints'
 import {generate_token} from '@/services/utils'
 import {report_error} from '@/services/errors'
 
@@ -75,6 +77,18 @@ function design_name(blueprint:Blueprint):string{
         return blueprint.title.trim()
     }
     return blueprint.content.length ? gen_content_name(blueprint.content[0]!) : ''
+}
+
+
+function content_summary(data:DocumentData, bible:string|undefined):string{
+    // Abbreviated, passage-only preview of a design's content, straight off the raw doc fields
+    // (no need for join_blueprint_doc()/clean_blueprint() just to list item names for a list row)
+    const content_items = (data['content_items'] ?? {}) as Record<string, ContentItem>
+    const content_order = (data['content_order'] ?? []) as string[]
+    const items = content_order
+        .map(id => content_items[id])
+        .filter((item):item is ContentItem => !!item)
+    return content_preview(items, bible)
 }
 
 
@@ -278,6 +292,8 @@ export async function create_design(from?:Blueprint):Promise<string>{
         save_token: generate_token(),
         created: serverTimestamp(),
         modified: serverTimestamp(),
+        category: null,
+        latest_version: null,
         ...split_blueprint_doc(blueprint),
     })
     await open_design(id)
@@ -319,6 +335,34 @@ export async function rename_design(id:string, title:string):Promise<void>{
         save_token: generate_token(),
         modified: serverTimestamp(),
     })
+}
+
+
+export async function set_design_category(id:string, category:string|null):Promise<void>{
+    // Assign (or clear) a design's category — deliberately doesn't touch modified/save_token,
+    // since recategorizing isn't a content edit and shouldn't flip design_needs_version()
+    await updateDoc(doc(firestore, 'designs', id), {category})
+}
+
+
+export async function rename_category(old_name:string, new_name:string):Promise<void>{
+    // Rename a category across every design currently in it (categories aren't their own
+    // collection — just a string field on each design — so renaming is a bulk field update)
+    const batch = writeBatch(firestore)
+    for (const design of designs.filter(item => item.category === old_name)){
+        batch.update(doc(firestore, 'designs', design.id), {category: new_name})
+    }
+    await batch.commit()
+}
+
+
+export async function clear_category(name:string):Promise<void>{
+    // Ungroup a category, moving every design in it back to Uncategorized
+    const batch = writeBatch(firestore)
+    for (const design of designs.filter(item => item.category === name)){
+        batch.update(doc(firestore, 'designs', design.id), {category: null})
+    }
+    await batch.commit()
 }
 
 
@@ -395,6 +439,8 @@ export async function fetch_design_editors_info(id:string):Promise<DesignEditorI
 
 function meta_from_doc(id:string, data:DocumentData):DesignMeta{
     // Build a DesignMeta list entry from a Firestore doc
+    const blueprint = (data['blueprint'] ?? {}) as Record<string, unknown>
+    const bibles = (blueprint['bibles'] ?? []) as string[]
     return {
         id,
         name: data['name'] as string,
@@ -405,6 +451,18 @@ function meta_from_doc(id:string, data:DocumentData):DesignMeta{
         save_token: data['save_token'] as string,
         created: ((data['created'] ?? Timestamp.now()) as Timestamp).toDate(),
         modified: ((data['modified'] ?? Timestamp.now()) as Timestamp).toDate(),
+        category: (data['category'] ?? null) as string|null,
+        content_summary: content_summary(data, bibles[0]),
+        latest_version: (data['latest_version'] ?? null) as DesignMeta['latest_version'],
+        paper: {
+            service_id: (blueprint['service_id'] ?? '') as string,
+            size_id: (blueprint['size_id'] ?? '') as string,
+            custom_unit: (blueprint['custom_unit'] ?? 'mm') as 'mm'|'inch',
+            custom_trim_width: (blueprint['custom_trim_width'] ?? 0) as number,
+            custom_trim_height: (blueprint['custom_trim_height'] ?? 0) as number,
+            booklet: (blueprint['booklet'] ?? false) as boolean,
+            bibles,
+        },
     }
 }
 

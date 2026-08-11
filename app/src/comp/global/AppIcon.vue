@@ -35,6 +35,8 @@ import description from '@material-symbols/svg-400/outlined/description.svg?comp
 import print from '@material-symbols/svg-400/outlined/print.svg?component'
 import warning from '@material-symbols/svg-400/outlined/warning.svg?component'
 import check from '@material-symbols/svg-400/outlined/check.svg?component'
+import search from '@material-symbols/svg-400/outlined/search.svg?component'
+import edit from '@material-symbols/svg-400/outlined/edit.svg?component'
 
 import planner_banner from '@/assets/planner_banner.svg?component'
 import donate from '@/assets/icons/donate.svg?component'
@@ -52,7 +54,7 @@ const icons = {
     drag_indicator, close, arrow_back, expand_more, planner_banner, copyright, auto_stories,
     subject, download, upload, error, more_vert, more_horiz, lists, history_toggle_off, donate,
     add, content_copy, 'delete': delete_icon, group, share, account_circle, straighten,
-    menu_book, description, print, warning, check,
+    menu_book, description, print, warning, check, search, edit,
 } as Record<string, FunctionalComponent>
 
 

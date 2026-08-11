@@ -157,6 +157,8 @@ export async function handle_copy_version(uid:string, version_id:string)
         save_token,
         created: Timestamp.now(),
         modified: Timestamp.now(),
+        category: null,
+        latest_version: {status: data['status'], pages: data['pages'], save_token},
         ...split_blueprint_doc(blueprint),
     })
 

@@ -53,10 +53,10 @@ template(v-else)
 import {computed} from 'vue'
 import {useI18n} from 'vue-i18n'
 import {PassageReference} from '@gracious.tech/fetch-client'
-import {get_service} from 'printing-services'
 
 import {versions, latest_version, design_needs_editor} from '@/services/versions'
-import {format_paper_size, get_passages} from '@/services/blueprints'
+import {format_paper_size, format_service_label, format_pages_label, get_passages}
+    from '@/services/blueprints'
 import {content} from '@/services/content'
 import DesignVersionItem from './DesignVersionItem.vue'
 
@@ -103,20 +103,12 @@ const content_label = computed(() => {
 })
 
 
-// Page count pill, only once the latest version has finished rendering. Booklets store the
-// imposed sheet-side count (2 content pages per side), so double it back to the number of
-// pages the reader actually sees once printed/folded, with the physical sheet count alongside
+// Page count pill, only once the latest version has finished rendering (see format_pages_label())
 const pages_label = computed(() => {
-    const pages = latest_version.value?.pages
-    if (pages == null){
+    if (!latest_version.value){
         return null
     }
-    if (!latest_version.value!.blueprint.booklet){
-        return `${pages} ${t("pages")}`
-    }
-    const content_pages = pages * 2
-    const sheets = Math.ceil(pages / 2)
-    return `${content_pages} ${t("pages")} (${sheets} ${t("sheets")})`
+    return format_pages_label(latest_version.value.pages, latest_version.value.blueprint.booklet, t)
 })
 
 
@@ -143,17 +135,7 @@ const sheets_warning = computed(() => {
 // Printing service pill, e.g. a real service's name, or "Booklet (fold at home)"/"Home"/"Custom…"
 // for the service-less modes
 const service_label = computed(() => {
-    if (!latest_version.value){
-        return ''
-    }
-    const {service_id, booklet} = latest_version.value.blueprint
-    if (service_id === 'home'){
-        return booklet ? t("Booklet (fold at home)") : t("Home")
-    }
-    if (service_id === 'custom'){
-        return t("Custom…")
-    }
-    return get_service(service_id as Parameters<typeof get_service>[0]).name
+    return latest_version.value ? format_service_label(latest_version.value.blueprint, t) : ''
 })
 
 </script>
