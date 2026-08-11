@@ -357,8 +357,8 @@ export async function build_new_blueprint(draft:NewDesignDraft):Promise<Blueprin
         blueprint.cover = null
         blueprint.content.unshift(make_wizard_title_item(blueprint))
     } else {
-        blueprint.cover = seed_cover_preset(draft.cover as Exclude<NewDesignCover, 'minimal'>,
-            blueprint)
+        blueprint.cover = await seed_cover_preset(
+            draft.cover as Exclude<NewDesignCover, 'minimal'>, blueprint)
     }
 
     return blueprint

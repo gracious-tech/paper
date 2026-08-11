@@ -8,7 +8,7 @@ import {PassageReference} from '@gracious.tech/fetch-client'
 import {cloneDeep} from 'lodash-es'
 import {toRaw} from 'vue'
 import {ref as storage_ref, uploadBytes, getBytes} from 'firebase/storage'
-import {make_blank_form_values, list_patterns} from 'bookcover-core'
+import {make_blank_form_values, list_patterns, asset_path, BACKGROUNDS_DIR} from 'bookcover-core'
 import {cover_form_for_render, cover_render_key} from 'paper-bible-typst'
 import {PDFDocument} from 'pdf-lib'
 
@@ -42,6 +42,16 @@ const BG_MIME_EXT:Record<string, string> = {
 }
 const BG_EXT_MIME = Object.fromEntries(
     Object.entries(BG_MIME_EXT).map(([mime, ext]) => [ext, mime]))
+
+
+// Stock photos in the assets bucket's backgrounds/ dir, offered as the wizard's "photo" preset
+// (no listing API exists for them — see BACKGROUNDS_DIR — so the set is hardcoded here)
+const STOCK_BG_PHOTOS = [
+    'black_hills_trees.jpg',
+    'black_hills.jpg',
+    'black_snow_trees.jpg',
+    'white_stars.jpg',
+]
 
 
 // Client for the cover Web Worker (cover_worker.ts): a minimal id-tagged request/response
@@ -275,23 +285,33 @@ export function default_cover_preset(blueprint:Blueprint):Record<string, unknown
 
 // Seed a cover config for the new-design wizard's Photo / Pattern / Icon presets — a complete
 // form the user refines later in the cover widget (DialogCoverEditor round-trips cover.form
-// through cover_form_for_render on open, so any full form shape here reopens cleanly there)
-export function seed_cover_preset(kind:'photo'|'pattern'|'icon', blueprint:Blueprint)
-        :CoverConfig{
+// through cover_form_for_render on open, so any full form shape here reopens cleanly there).
+// Async because the photo preset fetches + uploads a random stock background
+export async function seed_cover_preset(kind:'photo'|'pattern'|'icon', blueprint:Blueprint)
+        :Promise<CoverConfig>{
 
     // Base: blank values plus the title from the first passage, its book's icon and a credit
     // blurb (icon preset uses this as-is)
     const form = default_cover_preset(blueprint)
+    let bg_image_path:string|null = null
+    let bg_image_hash:string|null = null
     if (kind === 'pattern'){
         // Swap the icon for a default pattern (first of bookcover's built-ins)
         form['icon_id'] = null
         form['pattern_id'] = list_patterns()[0]!.id
     } else if (kind === 'photo'){
-        // Full-spread photo mode without an image yet — the widget's upload flow fills it in
+        // Full-spread photo mode with a random stock background, re-uploaded to the user's own
+        // library (content-addressed) the same way the widget's own upload flow would
         form['icon_id'] = null
         form['bg_image_coverage'] = 'full'
+        const filename = STOCK_BG_PHOTOS[Math.floor(Math.random() * STOCK_BG_PHOTOS.length)]!
+        const url = asset_path(ASSETS_PREFIX, BACKGROUNDS_DIR, filename)
+        const bytes = new Uint8Array(await (await fetch(url)).arrayBuffer())
+        const ext = filename.slice(filename.lastIndexOf('.') + 1).toLowerCase()
+        ;({path: bg_image_path, hash: bg_image_hash} =
+            await upload_cover_bg(bytes, BG_EXT_MIME[ext] ?? 'image/jpeg'))
     }
-    return {form, bg_image_path: null, bg_image_hash: null, font_families: []}
+    return {form, bg_image_path, bg_image_hash, font_families: []}
 }
 
 
