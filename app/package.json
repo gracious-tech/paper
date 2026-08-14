@@ -19,7 +19,7 @@
     },
     "dependencies": {
         "@gracious.tech/bible-references": "^1.2.1",
-        "@gracious.tech/fetch-client": "^2.3.0",
+        "@gracious.tech/fetch-client": "^2.4.0",
         "@myriaddreamin/typst-ts-web-compiler": "^0.7.0-rc2",
         "@myriaddreamin/typst.ts": "^0.7.0-rc2",
         "@tiptap/extension-subscript": "^3.27.1",

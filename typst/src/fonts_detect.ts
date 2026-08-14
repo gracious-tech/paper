@@ -10,7 +10,7 @@
 
 import {resolve_fallback_chain, detect_cjk_variant, font_style, script_family} from 'typst-fonts'
 
-import type {FontStyle} from 'typst-fonts'
+import type {CjkVariant, FontStyle} from 'typst-fonts'
 import type {TypstContentItem} from './types.js'
 
 
@@ -46,42 +46,65 @@ function first_paragraph(text:string):string {
     return text.slice(0, Math.min(end, FIRST_PARA_CAP))
 }
 
-// Gather the text samples worth scanning for script detection: passages are sampled by their
-// first paragraph only (full books are too large to scan cheaply and the language mix rarely
-// changes mid-book), while title and custom content is small enough to scan in full
-function gather_samples(items:TypstContentItem[]):string[] {
+// Gather the text samples worth scanning for script detection, for one translation "slot" (0 =
+// primary, 1 = second translation). Passages/picture-story slides carry one sample per slot
+// (sampled by first paragraph only — full books are too large to scan cheaply and the language
+// mix rarely changes mid-book); title and custom content have no per-translation slot of their
+// own, so they're only sampled for slot 0 (they render under the document's primary font scope,
+// see preamble.ts, never the second-translation scope in gen_multi_bible_grids)
+function gather_samples(items:TypstContentItem[], slot:0|1):string[] {
     const samples:string[] = []
     for (const item of items) {
         if (item.type === 'passage') {
-            for (const bible of item.bibles) {
+            const bible = item.bibles[slot]
+            if (bible) {
                 samples.push(first_paragraph(bible.content))
             }
-        } else if (item.type === 'title') {
+        } else if (item.type === 'picture_story') {
+            for (const slide of item.slides) {
+                const body = slot === 0 ? slide.body : slide.body2
+                if (body) {
+                    samples.push(first_paragraph(body))
+                }
+            }
+        } else if (slot === 0 && item.type === 'title') {
             samples.push(`${item.title} ${item.subtitle}`)
-        } else if (item.type === 'custom') {
+        } else if (slot === 0 && item.type === 'custom') {
             samples.push(item.content)
         }
     }
     return samples
 }
 
-// Detect the full set of Noto fallback families a request's content needs: the always-needed
-// set plus whatever resolve_fallback_chain finds in the sampled text, matched in style to the
-// document's chosen body font. `explicit_style` overrides curated-manifest lookup entirely —
-// pass it when font_text is a custom (user-uploaded) font, whose style a caller already knows
-// but which get_bundled_font() can never resolve on its own.
+// Detect the full set of Noto fallback families one translation slot's content needs: the
+// always-needed set (slot 0 only — Greek/Hebrew glosses belong to the primary content flow) plus
+// whatever resolve_fallback_chain finds in the sampled text, matched in style to the document's
+// chosen body font. `explicit_style` overrides curated-manifest lookup entirely — pass it when
+// font_text is a custom (user-uploaded) font, whose style a caller already knows but which
+// get_bundled_font() can never resolve on its own. `declared_variant` overrides the sampled-text
+// CJK region guess entirely — pass it when the translation's manifest metadata (fetch.bible's
+// `script`/`region` fields) already states the region unambiguously (e.g. Hong Kong vs Taiwan
+// Traditional Chinese, which share the same characters and so can never be told apart from the
+// text alone).
 export function detect_font_fallbacks(
-    items:TypstContentItem[], font_text:string, explicit_style?:FontStyle,
+    items:TypstContentItem[], font_text:string, explicit_style?:FontStyle, slot:0|1 = 0,
+    declared_variant?:CjkVariant,
 ):string[] {
     const style = safe_font_style(font_text, explicit_style)
-    const always = ALWAYS_SCRIPTS
-        .map(script => script_family(script, style))
-        .filter((family):family is string => family !== null)
+    const always = slot === 0
+        ? ALWAYS_SCRIPTS
+            .map(script => script_family(script, style))
+            .filter((family):family is string => family !== null)
+        : []
     const families = new Set(always)
-    const samples = gather_samples(items)
+    const samples = gather_samples(items, slot)
+    if (samples.length === 0) {
+        return [...families]
+    }
 
-    // One shared han_variant tiebreaker for the whole document, detected from all sampled text
-    const han_variant = detect_cjk_variant(samples.join('\n'))
+    // One shared han_variant tiebreaker for this slot, from its own declared metadata if known,
+    // else detected from all its sampled text
+    const han_variant = declared_variant ?? detect_cjk_variant(samples.join('\n'))
 
     for (const sample of samples) {
         for (const family of resolve_fallback_chain(sample, han_variant, style)) {

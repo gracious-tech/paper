@@ -83,6 +83,12 @@ export interface TypographyConfig {
     // one explicitly (headings stay consistent across both translations), else font_text2
     font_headings2:string
     font_fallbacks:string[]
+    // Fallback families for the second translation's own font scope (see gen_multi_bible_grids
+    // in content_passage.ts) — detected/declared independently of font_fallbacks so two
+    // translations in different CJK scripts each get their own region's glyphs, rather than
+    // whichever script was detected first winning for both (Noto's regional CJK fonts largely
+    // share the same Han repertoire, so Typst's per-glyph fallback can't tell them apart itself)
+    font_fallbacks2:string[]
     font_size:string        // e.g. "10pt"
     // Font size for the second translation, when 2 bibles are selected (defaults to font_size)
     font_size2:string

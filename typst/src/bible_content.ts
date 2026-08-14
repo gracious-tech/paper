@@ -16,7 +16,7 @@ import {PATTERNS} from './generated/patterns.js'
 import {inject_study_notes} from './content_notes.js'
 import {detect_font_fallbacks} from './fonts_detect.js'
 
-import type {FontStyle} from 'typst-fonts'
+import type {CjkVariant, FontStyle} from 'typst-fonts'
 import type {QuoteState} from './helpers.js'
 import type {BibleCollection, BibleBookTypst, BibleBookTxt, GetResourcesItem,
     } from '@gracious.tech/fetch-client'
@@ -67,6 +67,36 @@ function convert_unit(value:number, from:'mm'|'in', to:'mm'|'in'):number {
         return value
     }
     return from === 'mm' ? value / 25.4 : value * 25.4
+}
+
+
+// Resolve a translation's declared CJK region variant from its fetch.bible manifest metadata
+// (script:'Hans'|'Hant' + optional region:'HK', both ISO 15924/3166-1), when the manifest
+// states it unambiguously — undefined falls through to sampled-text detection in
+// detect_font_fallbacks. Japanese/Korean are resolved from the language code alone (kana/hangul
+// already make them unambiguous to detect from text, so there's nothing for script/region to
+// disambiguate); Hong Kong vs Taiwan Traditional Chinese share the same characters and so can
+// never be told apart from sampled text alone — 'Hant' without a declared 'HK' region defaults
+// to 'TC', matching resolve_fallback_chain's own default when no manifest tag exists at all.
+export function resolve_declared_cjk_variant(
+    resource:GetResourcesItem|undefined,
+):CjkVariant|undefined {
+    if (!resource) {
+        return undefined
+    }
+    if (resource.language === 'jpn') {
+        return 'JP'
+    }
+    if (resource.language === 'kor') {
+        return 'KR'
+    }
+    if (resource.script === 'Hans') {
+        return 'SC'
+    }
+    if (resource.script === 'Hant') {
+        return resource.region === 'HK' ? 'HK' : 'TC'
+    }
+    return undefined
 }
 
 
@@ -324,7 +354,12 @@ export class BibleContent {
                 font_headings: blue.font_headings ?? blue.font_text,
                 font_headings2: blue.font_headings ?? font_text2,
                 font_fallbacks: detect_font_fallbacks(
-                    items, blue.font_text, custom_font_styles?.[blue.font_text]),
+                    items, blue.font_text, custom_font_styles?.[blue.font_text], 0,
+                    resolve_declared_cjk_variant(resources[blue.bibles[0]])),
+                font_fallbacks2: detect_font_fallbacks(
+                    items, font_text2, custom_font_styles?.[font_text2], 1,
+                    blue.bibles[1] ? resolve_declared_cjk_variant(resources[blue.bibles[1]])
+                        : undefined),
                 font_size: `${blue.font_size}pt`,
                 font_size2: `${font_size2}pt`,
                 line_height: blue.line_height,

@@ -20,9 +20,13 @@ export function collect_fonts(request:TypstRequest):string[] {
 
     // Body font and any fallbacks — curated (get_bundled_font) or Noto script/region fallback
     // families (get_noto_font, e.g. "Noto Sans Hebrew") set by BibleContent.resolve()'s script
-    // detection; only families actually resolvable to a font source are kept
+    // detection; only families actually resolvable to a font source are kept. font_fallbacks2
+    // covers the second translation's own font scope (see gen_multi_bible_grids in
+    // content_passage.ts) — it can need CJK regions font_fallbacks never detected, e.g. a
+    // Simplified + Traditional Chinese bilingual document
     needed.add(request.typography.font_text)
-    for (const fallback of request.typography.font_fallbacks){
+    for (const fallback of [...request.typography.font_fallbacks,
+        ...request.typography.font_fallbacks2]){
         if (get_bundled_font(fallback) || get_noto_font(fallback)){
             needed.add(fallback)
         }

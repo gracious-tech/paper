@@ -26,6 +26,7 @@ const TEST_TYPOGRAPHY:TypographyConfig = {
     font_text: 'serif',
     font_text2: 'serif',
     font_fallbacks: [],
+    font_fallbacks2: [],
     font_size: '10pt',
     line_height: 1.5,
     justify: true,

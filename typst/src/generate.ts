@@ -194,7 +194,7 @@ export function generate_typst_facing(
 #state("running-chapter", 0).update(${passage.start_chapter})`)
     parts.push(gen_passage_facing(passage, page, request.image_style,
         typography.font_size, typography.font_text2,
-        typography.font_headings2, typography.font_size2, typography.font_fallbacks,
+        typography.font_headings2, typography.font_size2, typography.font_fallbacks2,
         `2 * ${page.margin_left}`,
         `${page.width} - ${page.margin_left} - ${page.margin_right}`))
     return parts.join('\n\n')
@@ -286,7 +286,7 @@ function gen_content_item(item:TypstContentItem, request:TypstRequest):string {
             return gen_passage(item, request.page, request.image_style,
                 request.typography.font_size,
                 request.typography.font_text2, request.typography.font_headings2,
-                request.typography.font_size2, request.typography.font_fallbacks)
+                request.typography.font_size2, request.typography.font_fallbacks2)
         case 'title':
             return gen_title(item, request.page, request.titlepage.font,
                 request.titlepage.frame_svg, request.titlepage.color_text,
@@ -299,6 +299,6 @@ function gen_content_item(item:TypstContentItem, request:TypstRequest):string {
             return gen_picture_story(item, request.page, request.image_style,
                 request.story_layout, request.story_alternate, request.typography.line_height,
                 request.typography.font_size, request.typography.font_text2,
-                request.typography.font_size2, request.typography.font_fallbacks)
+                request.typography.font_size2, request.typography.font_fallbacks2)
     }
 }

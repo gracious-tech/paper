@@ -38,13 +38,13 @@ function gen_passage_image(
 
 
 // Generate Typst markup for a Bible passage content item. font_size is the document text size
-// (used to anchor heading sizes). font_text2/font_headings2/font_size2/font_fallbacks are only
+// (used to anchor heading sizes). font_text2/font_headings2/font_size2/font_fallbacks2 are only
 // used when a second translation is actually rendered side-by-side (grid layout with 2 bibles)
 // — see gen_multi_bible_grids
 export function gen_passage(
     passage:TypstPassage, page:PageConfig, image_style:ImageStyle,
     font_size:string, font_text2:string, font_headings2:string, font_size2:string,
-    font_fallbacks:string[],
+    font_fallbacks2:string[],
 ):string {
     const parts:string[] = []
 
@@ -77,7 +77,7 @@ export function gen_passage(
 
     // Build the scoped block with passage-specific function definitions and show rules
     const inner = gen_passage_inner(passage, use_grid, font_size, font_text2, font_headings2,
-        font_size2, font_fallbacks, passage.column_gap, null)
+        font_size2, font_fallbacks2, passage.column_gap, null)
 
     // Wrap in a scoped block so settings don't leak to other content
     parts.push(`#[
@@ -96,7 +96,7 @@ ${inner}
 export function gen_passage_facing(
     passage:TypstPassage, page:PageConfig, image_style:ImageStyle,
     font_size:string, font_text2:string, font_headings2:string, font_size2:string,
-    font_fallbacks:string[], gutter:string, entry_width:string,
+    font_fallbacks2:string[], gutter:string, entry_width:string,
 ):string {
     const parts:string[] = []
 
@@ -126,7 +126,7 @@ export function gen_passage_facing(
 
     // Same scoped block as gen_passage, with the facing gutter and footnote width constraint
     const inner = gen_passage_inner(passage, true, font_size, font_text2, font_headings2,
-        font_size2, font_fallbacks, gutter, entry_width)
+        font_size2, font_fallbacks2, gutter, entry_width)
     parts.push(`#[
 ${inner}
 ]`)
@@ -161,7 +161,7 @@ export function passage_columns(passage:TypstPassage):1|2 {
 function gen_passage_inner(
     passage:TypstPassage, use_grid:boolean,
     font_size:string, font_text2:string, font_headings2:string, font_size2:string,
-    font_fallbacks:string[], gutter:string, entry_width:string|null,
+    font_fallbacks2:string[], gutter:string, entry_width:string|null,
 ):string {
     const lines:string[] = []
 
@@ -192,7 +192,7 @@ function gen_passage_inner(
     // Render the content (any 2-column layout comes from the page setting, not a block)
     if (use_grid) {
         lines.push(gen_multi_bible_grids(
-            passage, gutter, font_text2, font_headings2, font_size2, font_fallbacks))
+            passage, gutter, font_text2, font_headings2, font_size2, font_fallbacks2))
     } else {
         lines.push(passage.bibles[0]!.content)
     }
@@ -293,9 +293,9 @@ function gen_footnote_rules(passage:TypstPassage, entry_width:string|null):strin
 // render once, from the primary translation only.
 function gen_multi_bible_grids(
     passage:TypstPassage, gutter:string,
-    font_text2:string, font_headings2:string, font_size2:string, font_fallbacks:string[],
+    font_text2:string, font_headings2:string, font_size2:string, font_fallbacks2:string[],
 ):string {
-    const fonts2 = [font_text2, ...font_fallbacks].map(f => `"${escape_typst_str(f)}"`).join(', ')
+    const fonts2 = [font_text2, ...font_fallbacks2].map(f => `"${escape_typst_str(f)}"`).join(', ')
 
     // set/let bindings scope to their own content block, so every second cell repeats this
     // prelude (shadowing #footnote in an outer scope wouldn't reach markup evaluated here)

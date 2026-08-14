@@ -64,6 +64,37 @@ describe('detect_font_fallbacks', () => {
         expect(result.filter(f => f === 'Noto Serif JP').length).toBe(1)
     })
 
+    it('resolves each translation slot\'s CJK region independently from its own text', () => {
+        // 们 is simplified-only, 氣 is traditional-only (see noto.js's HAN_HINTS comment) — a
+        // bilingual Simplified + Traditional passage should get each side its own Noto region,
+        // not have one script's detection bleed into the other's font scope
+        const items = [make_passage({bibles: [
+            {content: '他们说的话'}, {content: '他氣說的話'},
+        ]})]
+        const primary = detect_font_fallbacks(items, 'Crimson Pro', undefined, 0)
+        expect(primary).toContain('Noto Serif SC')
+        expect(primary).not.toContain('Noto Serif TC')
+
+        const secondary = detect_font_fallbacks(items, 'Crimson Pro', undefined, 1)
+        expect(secondary).toContain('Noto Serif TC')
+        expect(secondary).not.toContain('Noto Serif SC')
+    })
+
+    it('a declared_variant override wins over sampled-text detection', () => {
+        // Plain shared characters (identical in every Chinese region) are genuinely ambiguous
+        // from text alone — this is exactly the case fetch.bible's script/region manifest tags
+        // exist for (e.g. Hong Kong vs Taiwan Traditional, which share the same characters)
+        const items = [make_passage({bibles: [{content: '你好'}]})]
+        const result = detect_font_fallbacks(items, 'Crimson Pro', undefined, 0, 'HK')
+        expect(result).toContain('Noto Serif HK')
+        expect(result).not.toContain('Noto Serif SC')
+    })
+
+    it('slot 1 gets no samples (and no always-scripts) when there\'s no second translation', () => {
+        const result = detect_font_fallbacks([make_passage()], 'Crimson Pro', undefined, 1)
+        expect(result).toEqual([])
+    })
+
     // Placed last: init_fonts() sets module-level state in typst-fonts for the rest of this
     // file's run, which would change the default-serif assumption the tests above rely on
     it('matches fallback style to a sans-serif chosen font once fonts are initialised', () => {

@@ -1,9 +1,20 @@
 
 import {describe, it, expect, vi, beforeEach, afterEach} from 'vitest'
 
-import {BibleContent} from '../src/bible_content.js'
+import {BibleContent, resolve_declared_cjk_variant} from '../src/bible_content.js'
 
-import type {BibleCollection} from '@gracious.tech/fetch-client'
+import type {BibleCollection, GetResourcesItem} from '@gracious.tech/fetch-client'
+
+
+// Minimal fake resource, overridden per test — only language/script/region matter here
+function make_resource(overrides:Partial<GetResourcesItem> = {}):GetResourcesItem {
+    return {
+        id: 'fake', language: 'eng', script: undefined, region: undefined, direction: 'ltr',
+        year: 2000, attribution: '', attribution_url: '', licenses: [], tags: [], name: '',
+        name_abbrev: '', name_english: '', name_english_abbrev: '', name_local: '',
+        name_local_abbrev: '', name_bilingual: '', name_bilingual_abbrev: '', ...overrides,
+    }
+}
 
 
 // Track fetch_collection calls without any network (hoisted so the module mock can use it)
@@ -72,5 +83,35 @@ describe('BibleContent.init collection TTL', () => {
         await content.init()
         expect(fetch_collection).not.toHaveBeenCalled()
         expect(content.collection).toEqual({fake: true})
+    })
+})
+
+
+describe('resolve_declared_cjk_variant', () => {
+
+    it('returns undefined for an untagged resource, so callers fall back to text detection', () => {
+        expect(resolve_declared_cjk_variant(undefined)).toBeUndefined()
+        expect(resolve_declared_cjk_variant(make_resource({language: 'cmn'}))).toBeUndefined()
+    })
+
+    it('resolves Japanese/Korean from the language code alone, ignoring script/region', () => {
+        expect(resolve_declared_cjk_variant(make_resource({language: 'jpn'}))).toBe('JP')
+        expect(resolve_declared_cjk_variant(make_resource({language: 'kor'}))).toBe('KR')
+    })
+
+    it('resolves Simplified Chinese from script alone', () => {
+        expect(resolve_declared_cjk_variant(make_resource({language: 'cmn', script: 'Hans'})))
+            .toBe('SC')
+    })
+
+    it('defaults Traditional Chinese to TC when no region is declared', () => {
+        expect(resolve_declared_cjk_variant(make_resource({language: 'cmn', script: 'Hant'})))
+            .toBe('TC')
+    })
+
+    it('resolves Traditional Chinese to HK when the region is declared', () => {
+        expect(resolve_declared_cjk_variant(
+            make_resource({language: 'cmn', script: 'Hant', region: 'HK'})))
+            .toBe('HK')
     })
 })
