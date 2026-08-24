@@ -223,6 +223,52 @@ function make_wizard_title_item(blueprint:Blueprint):ContentTitle{
 }
 
 
+// A minimal-but-real Blueprint built straight from the wizard's draft, for the cover step's
+// live preview cards to feed into seed_cover_preset()/cover_form_for_render() before a real
+// Blueprint exists (that only happens at build_new_blueprint(), the wizard's last step). Only
+// the print/translation fields plus a single representative content item are needed — those are
+// the only fields the cover form-builder reads (title, bibles[0], service_id/size_id/binding_
+// type/ink_type/paper_type). Picture-story stories aren't tied to a single book id, so content
+// stays empty in that mode (the cover preset falls back to an untitled/unthemed preview)
+export function wizard_preview_blueprint(draft:NewDesignDraft):Blueprint{
+    const blueprint = get_default_blueprint()
+    blueprint.service_id = draft.service_id ?? blueprint.service_id
+    blueprint.size_id = draft.size_id ?? blueprint.size_id
+    blueprint.binding_type = draft.binding_type
+    blueprint.ink_type = draft.ink_type
+    blueprint.paper_type = draft.paper_type
+    if (draft.bibles.length){
+        blueprint.bibles = [...draft.bibles] as [string, ...string[]]
+    }
+
+    let ref_args:{book:string, start_chapter:number|null, start_verse:number|null,
+        end_chapter:number|null, end_verse:number|null}|null = null
+    if (draft.book_mode === 'passages'){
+        const passage = draft.passages.find(item => item.book !== null)
+        if (passage){
+            ref_args = {book: passage.book!, start_chapter: passage.start_chapter,
+                start_verse: passage.start_verse, end_chapter: passage.end_chapter,
+                end_verse: passage.end_verse}
+        }
+    } else if (draft.type !== 'picture_story'){
+        const selected = new Set(draft.books)
+        const canonical = content.collection
+            .get_books(content.collection.get_preferred_resource().id, {whole: true})
+            .map(book => book.id)
+            .find(id => selected.has(id))
+        if (canonical){
+            ref_args = {book: canonical, start_chapter: null, start_verse: null,
+                end_chapter: null, end_verse: null}
+        }
+    }
+    if (ref_args){
+        blueprint.content = [{type: 'passage', id: 'wizard-preview', ...ref_args,
+            title: '', title_subtitle: '', title_icon: null} as ContentPassage]
+    }
+    return blueprint
+}
+
+
 // Assemble the final Blueprint from a completed draft: defaults, then the type preset's diff,
 // then each step's selections. Content becomes whole-book passages in canonical order plus the
 // auto-copyright statement (translations nearly always require attribution), with a title page

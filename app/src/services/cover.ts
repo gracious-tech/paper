@@ -253,31 +253,41 @@ export async function upload_cover_bg(bytes:Uint8Array, mime:string)
 }
 
 
-// Render a blueprint's cover via the worker, with a single-entry cache keyed by everything that
-// affects the output (resolved form incl. size fields, bg image, font set) — so book-only edits
-// reuse the previous render untouched. The worker always splits the wraparound PDF into its
-// individual panels too (cheap CropBox post-process, not a second compile), so one render serves
-// both the full cover (Print preview, stored versions) and the front/back-only pages (Reading
-// preview, which never shows the spine as its own page).
+// Render a blueprint's cover via the worker, with a small bounded cache keyed by everything
+// that affects the output (resolved form incl. size fields, bg image, font set, output format)
+// — so book-only edits reuse a previous render untouched. Bounded (rather than the single slot
+// this used to be) because the wizard now keeps several preview variants (photo/pattern/icon)
+// warm simultaneously alongside the one real active cover. The worker always splits the
+// wraparound render into its individual panels too (cheap post-process, not a second compile),
+// so one render serves the full cover (Print preview, stored versions) and the front/back-only
+// pages (Reading preview, and the wizard's front-only previews).
 // `page_count` drives the spine width for real printing services — the interior PDF's actual
 // count at version creation, the shared estimate during preview (see state.ts).
 // `fonts` supplies a version's snapshotted custom fonts when regenerating (the live library
-// is used otherwise, mirroring compile_and_upload in versions.ts)
-let render_cache:{key:string, result:CoverRenderResult}|null = null
+// is used otherwise, mirroring compile_and_upload in versions.ts).
+// `opts.format`/`opts.image_override` exist only for the wizard's live preview cards (SVG
+// output, a thumbnail image instead of an uploaded one) — real callers never pass them, so
+// their output is byte-for-byte what it always was
+const RENDER_CACHE_SIZE = 6
+const render_cache:{key:string, result:CoverRenderResult}[] = []
 
-async function render_cover(blueprint:Blueprint, page_count:number, fonts?:CustomFont[])
+async function render_cover(blueprint:Blueprint, page_count:number, fonts?:CustomFont[],
+        opts?:{format?:'pdf'|'svg', image_override?:{data:Uint8Array, type:string}})
         :Promise<CoverRenderResult> {
     const cover = blueprint.cover
     if (!cover){
         throw new Error('render_cover called without a cover configured')
     }
+    const format = opts?.format ?? 'pdf'
     const cover_fonts = (fonts ?? toRaw(custom_fonts))
         .filter(font => cover.font_families.includes(font.family))
     const fonts_key = (fonts ? 'snapshot:' : 'library:')
         + cover_fonts.map(font => font.family).join(',')
-    const key = cover_render_key(cover, blueprint, page_count) + '|' + fonts_key
-    if (render_cache?.key === key){
-        return render_cache.result
+    const key = cover_render_key(cover, blueprint, page_count) + '|' + fonts_key + '|' + format
+        + (opts?.image_override ? '|preview' : '')
+    const cached = render_cache.find(entry => entry.key === key)
+    if (cached){
+        return cached.result
     }
 
     const client = get_cover_generator()
@@ -290,7 +300,7 @@ async function render_cover(blueprint:Blueprint, page_count:number, fonts?:Custo
         sent_fonts_key = fonts_key
     }
 
-    const image = await load_cover_bg(cover)
+    const image = opts?.image_override ?? await load_cover_bg(cover)
     // Deep-clone: `cover.form` is Vue-reactive, and a shallow spread (cover_form_for_render)
     // leaves nested values (e.g. the blurb doc) wrapped in Proxies — postMessage's structured
     // clone rejects Proxy objects outright, so the worker call must get plain data only
@@ -298,8 +308,12 @@ async function render_cover(blueprint:Blueprint, page_count:number, fonts?:Custo
         action: 'generate',
         form: cloneDeep(cover_form_for_render(cover, blueprint, page_count)),
         image,
+        format,
     }) as CoverRenderResult
-    render_cache = {key, result}
+    render_cache.push({key, result})
+    if (render_cache.length > RENDER_CACHE_SIZE){
+        render_cache.shift()
+    }
     return result
 }
 
@@ -308,7 +322,7 @@ async function render_cover(blueprint:Blueprint, page_count:number, fonts?:Custo
 // preview and as the stored version's cover.pdf
 export async function render_cover_pdf(blueprint:Blueprint, page_count:number,
         fonts?:CustomFont[]):Promise<Uint8Array> {
-    return (await render_cover(blueprint, page_count, fonts)).data
+    return (await render_cover(blueprint, page_count, fonts)).data as Uint8Array
 }
 
 
@@ -317,7 +331,7 @@ export async function render_cover_pdf(blueprint:Blueprint, page_count:number,
 export async function render_cover_pages(blueprint:Blueprint, page_count:number,
         fonts?:CustomFont[]):Promise<{front:Uint8Array, back:Uint8Array}> {
     const {front, back} = await render_cover(blueprint, page_count, fonts)
-    return {front, back}
+    return {front: front as Uint8Array, back: back as Uint8Array}
 }
 
 
@@ -356,38 +370,74 @@ export function default_cover_preset(blueprint:Blueprint):Record<string, unknown
 }
 
 
-// Seed a cover config for the new-design wizard's Photo / Pattern / Icon presets — a complete
-// form the user refines later in the cover widget (DialogCoverEditor round-trips cover.form
-// through cover_form_for_render on open, so any full form shape here reopens cleanly there).
-// Async because the photo preset fetches + uploads a random stock background
-export async function seed_cover_preset(kind:'photo'|'pattern'|'icon', blueprint:Blueprint)
-        :Promise<CoverConfig>{
+// Build the form (and, for the photo preset, the bg image bytes) for the new-design wizard's
+// Photo / Pattern / Icon presets — shared by both the real seed_cover_preset() (uploads the
+// image to the user's library) and render_wizard_cover_preview() (renders it straight to SVG,
+// no upload). `image_variant` is the only thing that differs between those two callers: the
+// wizard preview asks for the lightweight `previews/` copy to keep the compile fast, real
+// creation asks for the full-resolution original
+async function build_cover_preset_form(kind:'photo'|'pattern'|'icon', blueprint:Blueprint,
+        image_variant:'full'|'thumbnail'):Promise<{form:Record<string, unknown>,
+        image:{data:Uint8Array, mime:string}|null}> {
 
     // Base: blank values plus the title from the first passage, its book's icon and a credit
     // blurb (icon preset uses this as-is)
     const form = default_cover_preset(blueprint)
-    let bg_image_path:string|null = null
-    let bg_image_hash:string|null = null
     if (kind === 'pattern'){
         // Swap the icon for a default pattern (first of bookcover's built-ins)
         form['icon_id'] = null
         form['pattern_id'] = list_patterns()[0]!.id
-    } else if (kind === 'photo'){
-        // Full-spread photo mode, re-uploaded to the user's own library (content-addressed) the
-        // same way the widget's own upload flow would. Prefer a background themed to the first
-        // included passage's book, falling back to a random stock photo when there isn't one
+        return {form, image: null}
+    }
+    if (kind === 'photo'){
+        // Full-spread photo mode. Prefer a background themed to the first included passage's
+        // book, falling back to a random stock photo when there isn't one
         form['icon_id'] = null
         form['bg_image_coverage'] = 'full'
         const passage = get_passages(blueprint)[0]
         const filename = (passage && BOOK_BG_PHOTO[passage.book])
             || STOCK_BG_PHOTOS[Math.floor(Math.random() * STOCK_BG_PHOTOS.length)]!
-        const url = asset_path(ASSETS_PREFIX, BACKGROUNDS_DIR, filename)
+        const url = image_variant === 'thumbnail'
+            ? asset_path(ASSETS_PREFIX, BACKGROUNDS_DIR, 'previews', filename)
+            : asset_path(ASSETS_PREFIX, BACKGROUNDS_DIR, filename)
         const bytes = new Uint8Array(await (await fetch(url)).arrayBuffer())
         const ext = filename.slice(filename.lastIndexOf('.') + 1).toLowerCase()
-        ;({path: bg_image_path, hash: bg_image_hash} =
-            await upload_cover_bg(bytes, BG_EXT_MIME[ext] ?? 'image/jpeg'))
+        return {form, image: {data: bytes, mime: BG_EXT_MIME[ext] ?? 'image/jpeg'}}
+    }
+    return {form, image: null}
+}
+
+
+// Seed a cover config for the new-design wizard's Photo / Pattern / Icon presets — a complete
+// form the user refines later in the cover widget (DialogCoverEditor round-trips cover.form
+// through cover_form_for_render on open, so any full form shape here reopens cleanly there).
+// Async because the photo preset fetches + uploads a full-resolution stock background
+export async function seed_cover_preset(kind:'photo'|'pattern'|'icon', blueprint:Blueprint)
+        :Promise<CoverConfig>{
+    const {form, image} = await build_cover_preset_form(kind, blueprint, 'full')
+    let bg_image_path:string|null = null
+    let bg_image_hash:string|null = null
+    if (image){
+        // Re-uploaded to the user's own library (content-addressed) the same way the widget's
+        // own upload flow would
+        ;({path: bg_image_path, hash: bg_image_hash} = await upload_cover_bg(image.data, image.mime))
     }
     return {form, bg_image_path, bg_image_hash, font_families: []}
+}
+
+
+// Render one of the wizard's Photo / Pattern / Icon presets straight to an SVG string (front
+// panel only, no Storage upload — this is a disposable preview, not a saved cover) for the
+// wizard's cover-selection cards. Goes through the exact same build_cover_preset_form() +
+// render_cover() as real creation/compiling; only the image variant (thumbnail) and output
+// format (svg) differ, both passed as plain parameters
+export async function render_wizard_cover_preview(kind:'photo'|'pattern'|'icon',
+        blueprint:Blueprint):Promise<string> {
+    const {form, image} = await build_cover_preset_form(kind, blueprint, 'thumbnail')
+    const cover:CoverConfig = {form, bg_image_path: null, bg_image_hash: null, font_families: []}
+    const result = await render_cover({...blueprint, cover}, page_count_guess(), undefined,
+        {format: 'svg', ...image && {image_override: {data: image.data, type: image.mime}}})
+    return result.front as string
 }
 
 

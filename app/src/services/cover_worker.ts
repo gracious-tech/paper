@@ -4,6 +4,7 @@
 // with book compiles. Driven by the CoverWorkerClient in cover.ts via id-tagged messages.
 
 import {version as compiler_version} from '@myriaddreamin/typst-ts-web-compiler/package.json'
+import {version as renderer_version} from '@myriaddreamin/typst-ts-renderer/package.json'
 import {init as init_bookcover, build_schema} from 'bookcover-web'
 
 import type {CoverGenerator, EmbedFormState} from 'bookcover-web'
@@ -16,15 +17,18 @@ import type {CustomFont} from 'typst-fonts'
 export type CoverWorkerAction =
     | {action:'init', assets_prefix:string}
     | {action:'set_custom_fonts', fonts:CustomFont[]}
-    | {action:'generate', form:Record<string, unknown>, image:{data:Uint8Array, type:string}|null}
+    | {action:'generate', form:Record<string, unknown>, image:{data:Uint8Array, type:string}|null,
+        format?:'pdf'|'svg'}
 
-// A generate always also asks bookcover to split the full wraparound PDF into its individual
-// panels (a cheap CropBox post-process, not a second compile) — the front/back panels are what
-// the "Reading" preview shows, ignoring the spine, since a reader never sees the spine as a page
+// A generate always also asks bookcover to split the full wraparound render into its individual
+// panels (a cheap post-process, not a second compile) — the front/back panels are what the
+// "Reading" preview (and the wizard's front-only previews) show, ignoring the spine, since a
+// reader never sees the spine as a page. `data`/`front`/`back` are strings for `format:'svg'`
+// (bookcover-web renders SVG as text), Uint8Array bytes for `format:'pdf'` (the default)
 export interface CoverRenderResult {
-    data:Uint8Array
-    front:Uint8Array
-    back:Uint8Array
+    data:Uint8Array|string
+    front:Uint8Array|string
+    back:Uint8Array|string
 }
 
 // Every request carries an id, echoed back in the matching response
@@ -58,8 +62,12 @@ async function handle_action(message:CoverWorkerRequest):Promise<CoverRenderResu
         // docs/ and frames/, and the fonts collection under fonts/
         const assets = message.assets_prefix.replace(/\/+$/, '')
         const wasm_url = `${assets}/typst/${compiler_version}/typst_ts_web_compiler_bg.wasm`
+        // The renderer WASM is only needed for svg/png output (the wizard's live preview
+        // cards) — small next to the compiler, so always loading it costs little either way
+        const renderer_wasm_url = `${assets}/typst/${renderer_version}/typst_ts_renderer_bg.wasm`
         generator = await init_bookcover({
             wasm_url,
+            renderer_wasm_url,
             assets_prefix: message.assets_prefix,
             fonts_prefix: `${assets}/fonts`,
         })
@@ -72,17 +80,18 @@ async function handle_action(message:CoverWorkerRequest):Promise<CoverRenderResu
         custom_fonts = message.fonts
         return null
     }
-    // Derive the renderable schema from the (size-overlaid) form, then generate the PDF —
+    // Derive the renderable schema from the (size-overlaid) form, then generate —
     // build_schema needs each custom font's sniffed style to pick correct Noto fallbacks
     const schema = build_schema(message.form as unknown as EmbedFormState,
         custom_fonts.map(font => ({family: font.family, style: font.style})))
     const image = message.image
         ? new Blob([message.image.data as unknown as BlobPart], {type: message.image.type})
         : undefined
-    const result = await generator.generate({schema, ...image && {image}, format: 'pdf',
+    const format = message.format ?? 'pdf'
+    const result = await generator.generate({schema, ...image && {image}, format,
         split: true, custom_fonts: custom_fonts.flatMap(font => font.files)})
-    const split = result.split as {front:Uint8Array, back:Uint8Array}
-    return {data: result.data as Uint8Array, front: split.front, back: split.back}
+    const split = result.split as {front:Uint8Array|string, back:Uint8Array|string}
+    return {data: result.data, front: split.front, back: split.back}
 }
 
 
