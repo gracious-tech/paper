@@ -20,6 +20,7 @@
     "dependencies": {
         "@gracious.tech/bible-references": "^1.2.1",
         "@gracious.tech/fetch-client": "^2.4.0",
+        "@myriaddreamin/typst-ts-renderer": "^0.7.0",
         "@myriaddreamin/typst-ts-web-compiler": "^0.7.0-rc2",
         "@myriaddreamin/typst.ts": "^0.7.0-rc2",
         "@tiptap/extension-subscript": "^3.27.1",
@@ -29,8 +30,8 @@
         "@tiptap/starter-kit": "^3.27.1",
         "@tiptap/vue-3": "^3.27.1",
         "@vueuse/integrations": "^14.4.0",
-        "bookcover-core": "^0.6.0",
-        "bookcover-web": "^0.6.0",
+        "bookcover-core": "^0.7.0",
+        "bookcover-web": "^0.7.0",
         "core-js": "^3.40.0",
         "firebase": "^12.16.0",
         "lodash-es": "^4.17.21",
