@@ -54,6 +54,79 @@ const STOCK_BG_PHOTOS = [
 ]
 
 
+// Thematic default background per Bible book (fetch.bible book id -> backgrounds/ filename),
+// used to seed the wizard's "photo" preset with an image matching the design's first passage
+// rather than a random stock photo
+const BOOK_BG_PHOTO:Record<string, string> = {
+    'gen': 'earth_whole.jpg',
+    'exo': 'israel.jpg',
+    'lev': 'stars.jpg',
+    'num': 'wilderness.jpg',
+    'deu': 'lost_sheep.jpg',
+    'jos': 'sword.jpg',
+    'jdg': 'wasteland.jpg',
+    'rut': 'crops.jpg',
+    '1sa': 'crown.jpg',
+    '2sa': 'crown.jpg',
+    '1ki': 'crown.jpg',
+    '2ki': 'crown.jpg',
+    '1ch': 'crown.jpg',
+    '2ch': 'crown.jpg',
+    'ezr': 'growing.jpg',
+    'neh': 'growing.jpg',
+    'est': 'sunset.jpg',
+    'job': 'wasteland.jpg',
+    'psa': 'lake.jpg',
+    'pro': 'hills_trees.jpg',
+    'ecc': 'mist.jpg',
+    'sng': 'flowers.jpg',
+    'isa': 'israel_lake.jpg',
+    'jer': 'israel_lake.jpg',
+    'lam': 'wasteland.jpg',
+    'ezk': 'israel_lake.jpg',
+    'dan': 'lion.jpg',
+    'hos': 'desert.jpg',
+    'jol': 'crops.jpg',
+    'amo': 'israel.jpg',
+    'oba': 'israel.jpg',
+    'jon': 'sea.jpg',
+    'mic': 'israel.jpg',
+    'nam': 'israel.jpg',
+    'hab': 'israel.jpg',
+    'zep': 'israel.jpg',
+    'hag': 'israel.jpg',
+    'zec': 'israel.jpg',
+    'mal': 'israel.jpg',
+    'mat': 'cross_sun.jpg',
+    'mrk': 'cross_sun.jpg',
+    'luk': 'cross_sun.jpg',
+    'jhn': 'cross_sun.jpg',
+    'act': 'church.jpg',
+    'rom': 'opening.jpg',
+    '1co': 'growing.jpg',
+    '2co': 'growing.jpg',
+    'gal': 'tomb.jpg',
+    'eph': 'tomb.jpg',
+    'php': 'tomb.jpg',
+    'col': 'tomb.jpg',
+    '1th': 'tomb.jpg',
+    '2th': 'tomb.jpg',
+    '1ti': 'church.jpg',
+    '2ti': 'church.jpg',
+    'tit': 'church.jpg',
+    'phm': 'awe.jpg',
+    'heb': 'hills.jpg',
+    'jas': 'grass.jpg',
+    '1pe': 'sheep.jpg',
+    '2pe': 'burning.jpg',
+    '1jn': 'green.jpg',
+    '2jn': 'green.jpg',
+    '3jn': 'green.jpg',
+    'jud': 'cross.jpg',
+    'rev': 'earth.jpg',
+}
+
+
 // Client for the cover Web Worker (cover_worker.ts): a minimal id-tagged request/response
 // relay. Unlike the book's TypstWorkerClient there's no recycle logic — covers are single
 // pages, and the worker is only spawned at all for designs that actually have one
@@ -300,11 +373,14 @@ export async function seed_cover_preset(kind:'photo'|'pattern'|'icon', blueprint
         form['icon_id'] = null
         form['pattern_id'] = list_patterns()[0]!.id
     } else if (kind === 'photo'){
-        // Full-spread photo mode with a random stock background, re-uploaded to the user's own
-        // library (content-addressed) the same way the widget's own upload flow would
+        // Full-spread photo mode, re-uploaded to the user's own library (content-addressed) the
+        // same way the widget's own upload flow would. Prefer a background themed to the first
+        // included passage's book, falling back to a random stock photo when there isn't one
         form['icon_id'] = null
         form['bg_image_coverage'] = 'full'
-        const filename = STOCK_BG_PHOTOS[Math.floor(Math.random() * STOCK_BG_PHOTOS.length)]!
+        const passage = get_passages(blueprint)[0]
+        const filename = (passage && BOOK_BG_PHOTO[passage.book])
+            || STOCK_BG_PHOTOS[Math.floor(Math.random() * STOCK_BG_PHOTOS.length)]!
         const url = asset_path(ASSETS_PREFIX, BACKGROUNDS_DIR, filename)
         const bytes = new Uint8Array(await (await fetch(url)).arrayBuffer())
         const ext = filename.slice(filename.lastIndexOf('.') + 1).toLowerCase()
