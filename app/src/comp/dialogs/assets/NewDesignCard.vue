@@ -3,7 +3,7 @@
 
 v-card(:class='{selected}' variant='outlined' @click='emit("select")')
     img(:src='image' alt='' :style='ratio ? {aspectRatio: String(ratio)} : undefined')
-    div.text(:class='tint')
+    div.text(v-if='!hide_label' :class='tint')
         strong {{ label }}
         div.subtitle(v-if='subtitle') {{ subtitle }}
 
@@ -16,9 +16,10 @@ v-card(:class='{selected}' variant='outlined' @click='emit("select")')
 // A selectable image card for the new-design wizard's choice grids (type/print/cover steps)
 // `tint` optionally colors the text area to distinguish sub-categories (e.g. text vs picture
 // designs in the type step). `ratio` overrides the default 2:1 box (width/height) — used by the
-// cover step's live previews, which must match the actual chosen book size's cover proportions
+// cover step's live previews, which must match the actual chosen book size's cover proportions.
+// `hide_label` drops the text area entirely (the cover step's previews speak for themselves)
 defineProps<{image:string, label:string, subtitle?:string, selected:boolean, tint?:'blue'|'yellow',
-    ratio?:number|undefined}>()
+    ratio?:number|undefined, hide_label?:boolean}>()
 const emit = defineEmits<{(e:'select'):void}>()
 
 

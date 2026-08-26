@@ -5,7 +5,7 @@ div
     p(class='mb-3 text-body-medium text-medium-emphasis') {{ $t("What do you want the cover to look like?") }}
     div.grid
         NewDesignCard(v-for='item of covers' :key='item.id' :image='item.image' :label='item.label'
-            :subtitle='item.subtitle' :selected='draft.cover === item.id' :ratio='item.ratio'
+            :selected='draft.cover === item.id' :ratio='item.ratio' hide_label
             @select='draft.cover = item.id')
 
 </template>
@@ -104,22 +104,18 @@ onBeforeUnmount(() => {
 // The offered cover styles (minimal ink only when printing at home) — labels shared with the
 // simple-mode summary row via wizard_cover_label()
 const covers = computed(() => {
-    const items:{id:NewDesignCover, image:string, label:string, subtitle:string,
+    const items:{id:NewDesignCover, image:string, label:string,
         ratio?:number|undefined}[] = [
         {id: 'photo', image: preview_images.photo ?? PLACEHOLDER_IMAGES.photo,
-            label: wizard_cover_label('photo', t), ratio: preview_ratios.photo,
-            subtitle: t("A full cover photo (add your own image later)")},
+            label: wizard_cover_label('photo', t), ratio: preview_ratios.photo},
         {id: 'pattern', image: preview_images.pattern ?? PLACEHOLDER_IMAGES.pattern,
-            label: wizard_cover_label('pattern', t), ratio: preview_ratios.pattern,
-            subtitle: t("A decorative repeating pattern")},
+            label: wizard_cover_label('pattern', t), ratio: preview_ratios.pattern},
         {id: 'icon', image: preview_images.icon ?? PLACEHOLDER_IMAGES.icon,
-            label: wizard_cover_label('icon', t), ratio: preview_ratios.icon,
-            subtitle: t("A simple icon design")},
+            label: wizard_cover_label('icon', t), ratio: preview_ratios.icon},
     ]
     if (draft.service_id === 'home'){
         items.push({id: 'minimal', image: PLACEHOLDER_IMAGES.minimal,
-            label: wizard_cover_label('minimal', t),
-            subtitle: t("A title page instead of a cover, to save ink")})
+            label: wizard_cover_label('minimal', t)})
     }
     return items
 })
