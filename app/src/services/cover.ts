@@ -393,6 +393,10 @@ export function default_cover_preset(blueprint:Blueprint):Record<string, unknown
     form['blurb'] = {type: 'doc', content: [{type: 'paragraph', content: [
         {type: 'text', text: "Created with paper.bible"}]}]}
 
+    // Home printers can't reach the paper edge, so default the white-margin matte on for
+    // home printing (the user can still turn it off in the cover widget)
+    form['home_print_margin'] = blueprint.service_id === 'home'
+
     // Size fields always mirror the blueprint (the widget's size UI is hidden when embedded),
     // with the current page-count guess standing in for the not-yet-compiled interior
     return cover_form_for_render(
