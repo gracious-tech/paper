@@ -2,6 +2,8 @@
 import {z} from 'zod'
 
 import type {PmDoc} from 'pm-to-typst'
+import {KNOWN_BUILTIN_BACKGROUNDS} from './cover.js'
+
 import type {Blueprint, ContentItem, ContentPassageImage, CoverConfig,
     PictureStorySlide} from './types.js'
 
@@ -104,11 +106,16 @@ const content_picture_story_schema = z.object({
 
 // Cover config — the widget form is only validated shallowly; the cover renderer re-parses
 // the derived schema with bookcover's own zod schema, so a bad co-editor value can only
-// break its own cover render (never the book compile)
-const cover_config_schema = z.object({
+// break its own cover render (never the book compile). bg_image.id is checked against the
+// known-builtin allowlist here too (defense in depth alongside the server's own check in
+// compile.ts, which is the actual security boundary — this schema only runs app-side)
+const cover_bg_image_schema = z.discriminatedUnion('kind', [
+    z.object({kind: z.literal('builtin'), id: z.string().refine(id => KNOWN_BUILTIN_BACKGROUNDS.has(id))}),
+    z.object({kind: z.literal('custom'), path: z.string(), hash: z.string()}),
+])
+export const cover_config_schema = z.object({
     form: z.record(z.string(), z.unknown()),
-    bg_image_path: z.string().nullable(),
-    bg_image_hash: z.string().nullable(),
+    bg_image: cover_bg_image_schema.nullable(),
     font_families: z.array(z.string()),
 }) satisfies z.ZodType<CoverConfig>
 

@@ -31,10 +31,12 @@ export type {BlueprintDocFields} from './blueprint_doc.js'
 export {SCHEMA_VERSION, PDF_LIFETIME_MS} from './consts.js'
 
 // Blueprint shape validation (schema factory — callers supply the defaults to fall back to)
-export {make_blueprint_schema, clean_content_items} from './blueprint_schema.js'
+export {make_blueprint_schema, clean_content_items, cover_config_schema} from './blueprint_schema.js'
 
-// Cover render helpers (blueprint size overlay + render cache key)
-export {cover_form_for_render, cover_render_key} from './cover.js'
+// Cover render helpers (blueprint size overlay + render cache key) and the shared allowlist
+// of known builtin background photos
+export {cover_form_for_render, cover_render_key, STOCK_BG_PHOTOS, KNOWN_BUILTIN_BACKGROUNDS}
+    from './cover.js'
 
 // Bundled title-page decorative pattern SVGs (name → corner SVG), used by the resolver and the
 // app's title-page editor
@@ -66,6 +68,7 @@ export type {
     ProgressEvent,
     Blueprint,
     CoverConfig,
+    CoverBgImage,
     ContentItem,
     ContentTitle,
     ContentPassage,

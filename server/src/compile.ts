@@ -5,7 +5,7 @@ import {mkdtemp, writeFile, readFile, rm} from 'node:fs/promises'
 
 import {Timestamp} from 'firebase-admin/firestore'
 import {PDFDocument} from 'pdf-lib'
-import {PDF_LIFETIME_MS, cover_form_for_render} from 'paper-bible-typst'
+import {PDF_LIFETIME_MS, cover_form_for_render, KNOWN_BUILTIN_BACKGROUNDS} from 'paper-bible-typst'
 import {compile_pdf_from_blueprint} from 'paper-bible-typst-node'
 import {generate as generate_cover, build_schema} from 'bookcover-node'
 
@@ -57,18 +57,33 @@ async function render_cover(blueprint:Blueprint, custom_fonts:CustomFont[], page
         cover_form_for_render(cover, blueprint, page_count) as unknown as EmbedFormState,
         cover_fonts.map(font => ({family: font.family, style: font.style})))
 
-    // bookcover-node works on disk: it discovers background.<ext> in the input dir and writes
-    // the output file (the temp dir is always cleaned up, even on failure)
+    // bookcover-node works on disk: it discovers a background image in the input dir (or, for
+    // a builtin, an explicit filename set via schema.images.background — a side channel
+    // bookcover-node reads even though CoverSchema's own type has no `images` field) and
+    // writes the output file (the temp dir is always cleaned up, even on failure)
     const tmp_dir = await mkdtemp(path.join(tmpdir(), 'cover_'))
     try {
-        if (cover.bg_image_path){
-            const ext = cover.bg_image_path.slice(cover.bg_image_path.lastIndexOf('.'))
-            const [bg_bytes] = await admin_bucket.file(cover.bg_image_path).download()
+        let images:{background:string}|undefined
+        if (cover.bg_image?.kind === 'custom'){
+            const ext = cover.bg_image.path.slice(cover.bg_image.path.lastIndexOf('.'))
+            const [bg_bytes] = await admin_bucket.file(cover.bg_image.path).download()
             await writeFile(path.join(tmp_dir, `background${ext}`), bg_bytes)
+        } else if (cover.bg_image?.kind === 'builtin'){
+            // id is already validated against KNOWN_BUILTIN_BACKGROUNDS in handle_compile()
+            // before this ever runs — required, since it's client-controlled and used to build
+            // a filesystem path against the assets mount
+            const id = cover.bg_image.id
+            const bg_bytes = await readFile(path.join(config.assets_dir, 'backgrounds', id))
+            // Written under its real filename (not a generic one) — load-bearing: this is
+            // exactly the name that must match schema.images.background below, and
+            // bookcover-node's file lookup has no fallback discovery when an explicit name
+            // is given
+            await writeFile(path.join(tmp_dir, id), bg_bytes)
+            images = {background: id}
         }
         const output_path = path.join(tmp_dir, 'cover.pdf')
         await generate_cover({
-            schema,
+            schema: {...schema, ...images && {images}},
             input_path: tmp_dir,
             output_path,
             format: 'pdf',
@@ -124,14 +139,31 @@ export async function handle_compile(uid:string, version_id:string, client_ip:st
         return {status: 400, body: {error: 'bad_font_path'}}
     }
 
-    // The cover's snapshotted bg image must sit under the version's own prefix too (its path
-    // lives inside the client-written blueprint, so it gets the same distrust as font paths —
-    // including its type, since nothing validates the doc's shape server-side)
+    // The cover's bg image reference lives inside the client-written blueprint, so it gets
+    // the same distrust as font paths (including its type, since nothing validates the doc's
+    // shape server-side): a 'custom' snapshot must sit under the version's own prefix, a
+    // 'builtin' id must be one of the known assets-bucket filenames — required since it's
+    // used to build a filesystem path against the assets mount (render_cover() above)
     const blueprint = data['blueprint'] as Blueprint
-    const cover_bg_path = (blueprint.cover?.bg_image_path ?? null) as unknown
-    if (cover_bg_path !== null && (typeof cover_bg_path !== 'string'
-            || !cover_bg_path.startsWith(`versions/${version_id}/cover/`))){
-        return {status: 400, body: {error: 'bad_cover_path'}}
+    const bg_image = (blueprint.cover?.bg_image ?? null) as unknown
+    if (bg_image !== null){
+        if (typeof bg_image !== 'object'){
+            return {status: 400, body: {error: 'bad_cover_image'}}
+        }
+        const rec = bg_image as Record<string, unknown>
+        if (rec['kind'] === 'custom'){
+            const p = rec['path']
+            if (typeof p !== 'string' || !p.startsWith(`versions/${version_id}/cover/`)){
+                return {status: 400, body: {error: 'bad_cover_path'}}
+            }
+        } else if (rec['kind'] === 'builtin'){
+            const id = rec['id']
+            if (typeof id !== 'string' || !KNOWN_BUILTIN_BACKGROUNDS.has(id)){
+                return {status: 400, body: {error: 'bad_cover_image'}}
+            }
+        } else {
+            return {status: 400, body: {error: 'bad_cover_image'}}
+        }
     }
 
     // Throttle

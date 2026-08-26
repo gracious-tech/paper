@@ -30,6 +30,7 @@ import {cover_form_for_render} from 'paper-bible-typst'
 
 import type {EmbedFormState} from 'bookcover-core'
 import type {InitMessage, WidgetMessage} from 'bookcover-web'
+import type {CoverConfig} from '@/services/types'
 
 
 const {locale} = useI18n()
@@ -40,6 +41,11 @@ const frame = ref<HTMLIFrameElement|null>(null)
 
 // Whether the widget has completed the 'ready' handshake (hides the fallback close button)
 const loaded = ref(false)
+
+// Content hash of the bg image bytes last sent to the widget via send_init(), so
+// handle_finished() can tell an unchanged image (echoed back byte-for-byte) from a genuinely
+// new one without needing a stored hash — builtins have none of their own
+let sent_bg_hash:string|null = null
 
 
 // Answer the widget's 'ready' with the full init message: a complete form preset (stored
@@ -59,12 +65,17 @@ const send_init = async () => {
         ? cover_form_for_render(cover, blue, page_count_guess())
         : default_cover_preset(blue)
 
-    // Restore the stored bg image as a File beside the pure-JSON preset
+    // Restore the stored bg image as a File beside the pure-JSON preset, named after the
+    // builtin id when applicable so the widget's own fast color lookup can match it too
     let bg_image:File|null = null
-    if (cover){
+    sent_bg_hash = null
+    if (cover?.bg_image){
         const image = await load_cover_bg(cover)
         if (image){
-            bg_image = new File([image.data as BlobPart], 'background', {type: image.type})
+            const name = cover.bg_image.kind === 'builtin' ? cover.bg_image.id : 'background'
+            bg_image = new File([image.data as BlobPart], name, {type: image.type})
+            sent_bg_hash = cover.bg_image.kind === 'custom' ? cover.bg_image.hash
+                : await hash_bytes(image.data)
         }
     }
 
@@ -96,24 +107,23 @@ const handle_finished = async (
             await add_custom_fonts(message.custom_fonts)
         }
 
-        // Upload the bg image only when its content actually changed (content-addressed)
-        let bg_image_path:string|null = null
-        let bg_image_hash:string|null = null
+        // Upload the bg image only when its content actually changed (content-addressed) —
+        // an unchanged image (matching what send_init() sent) keeps its prior identity as-is,
+        // builtin or custom, with no upload
+        let bg_image:CoverConfig['bg_image'] = null
         if (message.bg_image){
             const bytes = new Uint8Array(await message.bg_image.arrayBuffer())
             const hash = await hash_bytes(bytes)
-            if (hash === blue.cover?.bg_image_hash && blue.cover.bg_image_path){
-                bg_image_path = blue.cover.bg_image_path
-                bg_image_hash = hash
+            if (hash === sent_bg_hash && blue.cover?.bg_image){
+                bg_image = blue.cover.bg_image
             } else {
-                ({path: bg_image_path, hash: bg_image_hash} =
-                    await upload_cover_bg(bytes, message.bg_image.type))
+                const {path, hash: new_hash} = await upload_cover_bg(bytes, message.bg_image.type)
+                bg_image = {kind: 'custom', path, hash: new_hash}
             }
         }
 
         const form = message.data as unknown as Record<string, unknown>
-        blue.cover = {form, bg_image_path, bg_image_hash,
-            font_families: cover_font_families(form)}
+        blue.cover = {form, bg_image, font_families: cover_font_families(form)}
     } catch (error){
         report_error('banner', error)
     }

@@ -9,7 +9,8 @@ import {cloneDeep} from 'lodash-es'
 import {toRaw} from 'vue'
 import {ref as storage_ref, uploadBytes, getBytes} from 'firebase/storage'
 import {make_blank_form_values, list_patterns, asset_path, BACKGROUNDS_DIR} from 'bookcover-core'
-import {cover_form_for_render, cover_render_key} from 'paper-bible-typst'
+import {cover_form_for_render, cover_render_key, STOCK_BG_PHOTOS, KNOWN_BUILTIN_BACKGROUNDS}
+    from 'paper-bible-typst'
 import {PDFDocument} from 'pdf-lib'
 
 import {firebase_storage} from '@/services/firebase'
@@ -21,6 +22,7 @@ import {custom_fonts} from '@/services/custom_fonts'
 import {book_icon} from '@/services/icons'
 import {get_passages} from '@/services/blueprints'
 
+import type {ImageRegions} from 'bookcover-web'
 import type {CustomFont} from 'typst-fonts'
 import type {Blueprint, CoverConfig} from '@/services/types'
 import type {CoverWorkerRequest, CoverWorkerResponse, CoverRenderResult, DistributiveOmit}
@@ -42,16 +44,6 @@ const BG_MIME_EXT:Record<string, string> = {
 }
 const BG_EXT_MIME = Object.fromEntries(
     Object.entries(BG_MIME_EXT).map(([mime, ext]) => [ext, mime]))
-
-
-// Stock photos in the assets bucket's backgrounds/ dir, offered as the wizard's "photo" preset
-// (no listing API exists for them — see BACKGROUNDS_DIR — so the set is hardcoded here)
-const STOCK_BG_PHOTOS = [
-    'black_hills_trees.jpg',
-    'black_hills.jpg',
-    'black_snow_trees.jpg',
-    'white_stars.jpg',
-]
 
 
 // Thematic default background per Bible book (fetch.bible book id -> backgrounds/ filename),
@@ -126,6 +118,17 @@ const BOOK_BG_PHOTO:Record<string, string> = {
     'rev': 'earth.jpg',
 }
 
+// Dev-only guard: every BOOK_BG_PHOTO value must be a filename the shared package's
+// KNOWN_BUILTIN_BACKGROUNDS allowlist also recognises, or that book's cover would silently
+// fail schema validation and reset to no-cover on the next Firestore round-trip
+if (import.meta.env.DEV){
+    for (const filename of Object.values(BOOK_BG_PHOTO)){
+        if (!KNOWN_BUILTIN_BACKGROUNDS.has(filename)){
+            console.error(`BOOK_BG_PHOTO references unknown builtin background: ${filename}`)
+        }
+    }
+}
+
 
 // Client for the cover Web Worker (cover_worker.ts): a minimal id-tagged request/response
 // relay. Unlike the book's TypstWorkerClient there's no recycle logic — covers are single
@@ -135,7 +138,7 @@ class CoverWorkerClient {
     private worker:Worker
     private next_id = 0
     private pending = new Map<number,
-        {resolve:(result:CoverRenderResult|null)=>void, reject:(error:Error)=>void}>()
+        {resolve:(result:CoverRenderResult|ImageRegions|null)=>void, reject:(error:Error)=>void}>()
 
     constructor(){
         this.worker = new Worker(new URL('./cover_worker.ts', import.meta.url), {type: 'module'})
@@ -167,7 +170,7 @@ class CoverWorkerClient {
     }
 
     // Post one request to the worker and await its matching result
-    send(action:DistributiveOmit<CoverWorkerRequest, 'id'>):Promise<CoverRenderResult|null> {
+    send(action:DistributiveOmit<CoverWorkerRequest, 'id'>):Promise<CoverRenderResult|ImageRegions|null> {
         const id = this.next_id++
         return new Promise((resolve, reject) => {
             this.pending.set(id, {resolve, reject})
@@ -210,24 +213,30 @@ export function cover_font_families(form:Record<string, unknown>):string[] {
 }
 
 
-// Download a cover's bg image bytes from Storage, memoised by content hash (the same image is
-// re-used across renders, editor re-opens and version freezing)
+// Download a cover's bg image bytes — from the public assets bucket for a builtin (keyed by
+// filename), from the user's Storage library for a custom upload (keyed by content hash).
+// Both share one memoisation map: filenames and 64-char hex hashes can't realistically collide
 const bg_cache = new Map<string, Promise<Uint8Array>>()
 
 export async function load_cover_bg(cover:CoverConfig)
         :Promise<{data:Uint8Array, type:string}|null> {
-    if (!cover.bg_image_path || !cover.bg_image_hash){
+    const bg = cover.bg_image
+    if (!bg){
         return null
     }
-    const path = cover.bg_image_path
-    let bytes = bg_cache.get(cover.bg_image_hash)
+    const [key, ext, fetch_bytes] = bg.kind === 'builtin'
+        ? [bg.id, bg.id.slice(bg.id.lastIndexOf('.') + 1).toLowerCase(),
+            () => fetch(asset_path(ASSETS_PREFIX, BACKGROUNDS_DIR, bg.id))
+                .then(res => res.arrayBuffer()).then(buf => new Uint8Array(buf))]
+        : [bg.hash, bg.path.slice(bg.path.lastIndexOf('.') + 1).toLowerCase(),
+            () => getBytes(storage_ref(firebase_storage, bg.path)).then(buf => new Uint8Array(buf))]
+    let bytes = bg_cache.get(key)
     if (!bytes){
-        bytes = getBytes(storage_ref(firebase_storage, path)).then(buf => new Uint8Array(buf))
-        bg_cache.set(cover.bg_image_hash, bytes)
+        bytes = fetch_bytes()
+        bg_cache.set(key, bytes)
         // Don't cache failures — a later call should retry the download
-        bytes.catch(() => bg_cache.delete(cover.bg_image_hash!))
+        bytes.catch(() => bg_cache.delete(key))
     }
-    const ext = path.slice(path.lastIndexOf('.') + 1).toLowerCase()
     return {data: await bytes, type: BG_EXT_MIME[ext] ?? 'image/jpeg'}
 }
 
@@ -265,14 +274,17 @@ export async function upload_cover_bg(bytes:Uint8Array, mime:string)
 // count at version creation, the shared estimate during preview (see state.ts).
 // `fonts` supplies a version's snapshotted custom fonts when regenerating (the live library
 // is used otherwise, mirroring compile_and_upload in versions.ts).
-// `opts.format`/`opts.image_override` exist only for the wizard's live preview cards (SVG
-// output, a thumbnail image instead of an uploaded one) — real callers never pass them, so
-// their output is byte-for-byte what it always was
+// `opts.format`/`opts.image_override`/`opts.image_regions` exist only for the wizard's live
+// preview cards (SVG output, a thumbnail image instead of an uploaded one, and precomputed
+// regions since the thumbnail's bytes can never match bookcover's own builtin lookup by
+// design — see get_bg_regions()) — real callers never pass them, so their output is
+// byte-for-byte what it always was
 const RENDER_CACHE_SIZE = 6
 const render_cache:{key:string, result:CoverRenderResult}[] = []
 
 async function render_cover(blueprint:Blueprint, page_count:number, fonts?:CustomFont[],
-        opts?:{format?:'pdf'|'svg', image_override?:{data:Uint8Array, type:string}})
+        opts?:{format?:'pdf'|'svg', image_override?:{data:Uint8Array, type:string, name?:string},
+            image_regions?:ImageRegions|null})
         :Promise<CoverRenderResult> {
     const cover = blueprint.cover
     if (!cover){
@@ -284,7 +296,7 @@ async function render_cover(blueprint:Blueprint, page_count:number, fonts?:Custo
     const fonts_key = (fonts ? 'snapshot:' : 'library:')
         + cover_fonts.map(font => font.family).join(',')
     const key = cover_render_key(cover, blueprint, page_count) + '|' + fonts_key + '|' + format
-        + (opts?.image_override ? '|preview' : '')
+        + (opts?.image_override ? '|preview:' + (opts.image_override.name ?? '') : '')
     const cached = render_cache.find(entry => entry.key === key)
     if (cached){
         return cached.result
@@ -301,13 +313,18 @@ async function render_cover(blueprint:Blueprint, page_count:number, fonts?:Custo
     }
 
     const image = opts?.image_override ?? await load_cover_bg(cover)
+    // Real (non-preview) images are named after the builtin id when applicable, so bookcover's
+    // own fast color lookup can match filename+bytes instead of falling back to a live decode
+    const name = opts?.image_override?.name
+        ?? (cover.bg_image?.kind === 'builtin' ? cover.bg_image.id : undefined)
     // Deep-clone: `cover.form` is Vue-reactive, and a shallow spread (cover_form_for_render)
     // leaves nested values (e.g. the blurb doc) wrapped in Proxies — postMessage's structured
     // clone rejects Proxy objects outright, so the worker call must get plain data only
     const result = await client.send({
         action: 'generate',
         form: cloneDeep(cover_form_for_render(cover, blueprint, page_count)),
-        image,
+        image: image && {data: image.data, type: image.type, ...name !== undefined && {name}},
+        ...opts?.image_regions !== undefined && {image_regions: opts.image_regions},
         format,
     }) as CoverRenderResult
     render_cache.push({key, result})
@@ -365,20 +382,17 @@ export function default_cover_preset(blueprint:Blueprint):Record<string, unknown
     // Size fields always mirror the blueprint (the widget's size UI is hidden when embedded),
     // with the current page-count guess standing in for the not-yet-compiled interior
     return cover_form_for_render(
-        {form, bg_image_path: null, bg_image_hash: null, font_families: []}, blueprint,
+        {form, bg_image: null, font_families: []}, blueprint,
         page_count_guess())
 }
 
 
-// Build the form (and, for the photo preset, the bg image bytes) for the new-design wizard's
-// Photo / Pattern / Icon presets — shared by both the real seed_cover_preset() (uploads the
-// image to the user's library) and render_wizard_cover_preview() (renders it straight to SVG,
-// no upload). `image_variant` is the only thing that differs between those two callers: the
-// wizard preview asks for the lightweight `previews/` copy to keep the compile fast, real
-// creation asks for the full-resolution original
-async function build_cover_preset_form(kind:'photo'|'pattern'|'icon', blueprint:Blueprint,
-        image_variant:'full'|'thumbnail'):Promise<{form:Record<string, unknown>,
-        image:{data:Uint8Array, mime:string}|null}> {
+// Build the form for the new-design wizard's Photo / Pattern / Icon presets, plus the builtin
+// background id for the photo preset — shared by seed_cover_preset() and
+// render_wizard_cover_preview(). No I/O: the photo preset only picks a filename here, bytes
+// (thumbnail for preview, full-res on demand for a real render) are fetched by the caller
+function build_cover_preset_form(kind:'photo'|'pattern'|'icon', blueprint:Blueprint)
+        :{form:Record<string, unknown>, bg_image_id:string|null} {
 
     // Base: blank values plus the title from the first passage, its book's icon and a credit
     // blurb (icon preset uses this as-is)
@@ -387,7 +401,7 @@ async function build_cover_preset_form(kind:'photo'|'pattern'|'icon', blueprint:
         // Swap the icon for a default pattern (first of bookcover's built-ins)
         form['icon_id'] = null
         form['pattern_id'] = list_patterns()[0]!.id
-        return {form, image: null}
+        return {form, bg_image_id: null}
     }
     if (kind === 'photo'){
         // Full-spread photo mode. Prefer a background themed to the first included passage's
@@ -397,32 +411,49 @@ async function build_cover_preset_form(kind:'photo'|'pattern'|'icon', blueprint:
         const passage = get_passages(blueprint)[0]
         const filename = (passage && BOOK_BG_PHOTO[passage.book])
             || STOCK_BG_PHOTOS[Math.floor(Math.random() * STOCK_BG_PHOTOS.length)]!
-        const url = image_variant === 'thumbnail'
-            ? asset_path(ASSETS_PREFIX, BACKGROUNDS_DIR, 'previews', filename)
-            : asset_path(ASSETS_PREFIX, BACKGROUNDS_DIR, filename)
-        const bytes = new Uint8Array(await (await fetch(url)).arrayBuffer())
-        const ext = filename.slice(filename.lastIndexOf('.') + 1).toLowerCase()
-        return {form, image: {data: bytes, mime: BG_EXT_MIME[ext] ?? 'image/jpeg'}}
+        return {form, bg_image_id: filename}
     }
-    return {form, image: null}
+    return {form, bg_image_id: null}
 }
 
 
 // Seed a cover config for the new-design wizard's Photo / Pattern / Icon presets — a complete
 // form the user refines later in the cover widget (DialogCoverEditor round-trips cover.form
 // through cover_form_for_render on open, so any full form shape here reopens cleanly there).
-// Async because the photo preset fetches + uploads a full-resolution stock background
-export async function seed_cover_preset(kind:'photo'|'pattern'|'icon', blueprint:Blueprint)
-        :Promise<CoverConfig>{
-    const {form, image} = await build_cover_preset_form(kind, blueprint, 'full')
-    let bg_image_path:string|null = null
-    let bg_image_hash:string|null = null
-    if (image){
-        // Re-uploaded to the user's own library (content-addressed) the same way the widget's
-        // own upload flow would
-        ;({path: bg_image_path, hash: bg_image_hash} = await upload_cover_bg(image.data, image.mime))
+// The photo preset references a builtin stock/thematic background directly — no fetch, no
+// upload, it's already durably hosted in the public assets bucket
+export function seed_cover_preset(kind:'photo'|'pattern'|'icon', blueprint:Blueprint)
+        :CoverConfig{
+    const {form, bg_image_id} = build_cover_preset_form(kind, blueprint)
+    return {form, bg_image: bg_image_id ? {kind: 'builtin', id: bg_image_id} : null,
+        font_families: []}
+}
+
+
+// Sample a builtin background's dominant colors once (full-resolution original, so it can hit
+// bookcover's own fast lookup table), cached forever per filename — the known builtin set is
+// small (~35 filenames) so no bound/eviction is needed. Only ever consumed by the wizard
+// preview below: it's sampled with dims:null, so front_top_full/back/spine come back null —
+// fine for a front-only preview, not safe to reuse for a full wraparound render
+const bg_regions_cache = new Map<string, Promise<ImageRegions>>()
+
+async function get_bg_regions(id:string):Promise<ImageRegions> {
+    let cached = bg_regions_cache.get(id)
+    if (!cached){
+        cached = (async () => {
+            const ext = id.slice(id.lastIndexOf('.') + 1).toLowerCase()
+            const url = asset_path(ASSETS_PREFIX, BACKGROUNDS_DIR, id)
+            const data = new Uint8Array(await (await fetch(url)).arrayBuffer())
+            const client = get_cover_generator()
+            await generator_ready
+            return await client.send({action: 'analyze_regions',
+                image: {data, type: BG_EXT_MIME[ext] ?? 'image/jpeg', name: id}}) as ImageRegions
+        })()
+        bg_regions_cache.set(id, cached)
+        // Don't cache failures — a later call should retry
+        cached.catch(() => bg_regions_cache.delete(id))
     }
-    return {form, bg_image_path, bg_image_hash, font_families: []}
+    return cached
 }
 
 
@@ -430,21 +461,36 @@ export async function seed_cover_preset(kind:'photo'|'pattern'|'icon', blueprint
 // panel only, no Storage upload — this is a disposable preview, not a saved cover) for the
 // wizard's cover-selection cards. Goes through the exact same build_cover_preset_form() +
 // render_cover() as real creation/compiling; only the image variant (thumbnail) and output
-// format (svg) differ, both passed as plain parameters
+// format (svg) differ
 export async function render_wizard_cover_preview(kind:'photo'|'pattern'|'icon',
         blueprint:Blueprint):Promise<string> {
-    const {form, image} = await build_cover_preset_form(kind, blueprint, 'thumbnail')
-    const cover:CoverConfig = {form, bg_image_path: null, bg_image_hash: null, font_families: []}
+    const {form, bg_image_id} = build_cover_preset_form(kind, blueprint)
+    const cover:CoverConfig = {form,
+        bg_image: bg_image_id ? {kind: 'builtin', id: bg_image_id} : null, font_families: []}
+    let image_override:{data:Uint8Array, type:string, name:string}|undefined
+    let image_regions:ImageRegions|undefined
+    if (bg_image_id){
+        const ext = bg_image_id.slice(bg_image_id.lastIndexOf('.') + 1).toLowerCase()
+        const thumb_url = asset_path(ASSETS_PREFIX, BACKGROUNDS_DIR, 'previews', bg_image_id)
+        const [thumb_bytes, regions] = await Promise.all([
+            fetch(thumb_url).then(res => res.arrayBuffer()).then(buf => new Uint8Array(buf)),
+            get_bg_regions(bg_image_id),
+        ])
+        image_override = {data: thumb_bytes, type: BG_EXT_MIME[ext] ?? 'image/jpeg', name: bg_image_id}
+        image_regions = regions
+    }
     const result = await render_cover({...blueprint, cover}, page_count_guess(), undefined,
-        {format: 'svg', ...image && {image_override: {data: image.data, type: image.mime}}})
+        {format: 'svg', ...image_override && {image_override}, ...image_regions && {image_regions}})
     return result.front as string
 }
 
 
-// Snapshot a blueprint's cover for an immutable version: the bg image is re-uploaded under the
-// version's own Storage prefix (mirroring plan_version_fonts), so regeneration never depends
-// on the user's mutable image library. Returns the CoverConfig to freeze on the version doc
-// plus the upload to send once the doc exists (Storage rules require that ordering)
+// Snapshot a blueprint's cover for an immutable version: a custom bg image is re-uploaded
+// under the version's own Storage prefix (mirroring plan_version_fonts), so regeneration
+// never depends on the user's mutable image library. A builtin needs no snapshot at all — it's
+// an immutable, publicly-hosted asset already, referenced by id rather than any mutable path.
+// Returns the CoverConfig to freeze on the version doc plus the upload to send once the doc
+// exists (Storage rules require that ordering)
 export async function plan_version_cover(version_id:string, blueprint:Blueprint)
         :Promise<{frozen:CoverConfig|null, uploads:[string, Uint8Array, string][]}> {
     const cover = blueprint.cover
@@ -452,16 +498,16 @@ export async function plan_version_cover(version_id:string, blueprint:Blueprint)
         return {frozen: null, uploads: []}
     }
     const frozen = cloneDeep(toRaw(cover))
-    if (!cover.bg_image_path){
+    if (!cover.bg_image || cover.bg_image.kind === 'builtin'){
         return {frozen, uploads: []}
     }
     const image = await load_cover_bg(cover)
     if (!image){
         return {frozen, uploads: []}
     }
-    const ext = cover.bg_image_path.slice(cover.bg_image_path.lastIndexOf('.') + 1)
+    const ext = cover.bg_image.path.slice(cover.bg_image.path.lastIndexOf('.') + 1)
     const path = `versions/${version_id}/cover/bg.${ext}`
-    frozen.bg_image_path = path
+    frozen.bg_image = {kind: 'custom', path, hash: cover.bg_image.hash}
     return {frozen, uploads: [[path, image.data, image.type]]}
 }
 
