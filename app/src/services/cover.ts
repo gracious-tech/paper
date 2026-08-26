@@ -8,7 +8,7 @@ import {PassageReference} from '@gracious.tech/fetch-client'
 import {cloneDeep} from 'lodash-es'
 import {toRaw} from 'vue'
 import {ref as storage_ref, uploadBytes, getBytes} from 'firebase/storage'
-import {make_blank_form_values, list_patterns, asset_path, BACKGROUNDS_DIR} from 'bookcover-core'
+import {make_blank_form_values, asset_path, BACKGROUNDS_DIR} from 'bookcover-core'
 import {cover_form_for_render, cover_render_key, STOCK_BG_PHOTOS, KNOWN_BUILTIN_BACKGROUNDS}
     from 'paper-bible-typst'
 import {PDFDocument} from 'pdf-lib'
@@ -117,6 +117,26 @@ const BOOK_BG_PHOTO:Record<string, string> = {
     'jud': 'cross.jpg',
     'rev': 'earth.jpg',
 }
+
+// Light background tint per Bible book grouping, used to tint the wizard's "pattern" preset
+// (Material Design's "100" pastel shades — light but distinct enough to tell groups apart)
+const BOOK_COLOR_GROUPS:{books:string[], color:string}[] = [
+    {books: ['gen', 'exo', 'lev', 'num', 'deu'], color: '#c8e6c9'}, // Gen-Deu: light green
+    {books: ['jos', 'jdg', 'rut', '1sa', '2sa', '1ki', '2ki', '1ch', '2ch', 'ezr', 'neh', 'est'],
+        color: '#ffcdd2'}, // Josh-Esther: light red
+    {books: ['job', 'psa', 'pro', 'ecc', 'sng'], color: '#e1bee7'}, // Job-Song: light purple
+    {books: ['isa', 'jer', 'lam', 'ezk', 'dan'], color: '#ffe0b2'}, // Isa-Dan: light orange
+    {books: ['hos', 'jol', 'amo', 'oba', 'jon', 'mic', 'nam', 'hab', 'zep', 'hag', 'zec', 'mal'],
+        color: '#fff9c4'}, // Hosea-Malachi: light yellow
+    {books: ['mat', 'mrk', 'luk', 'jhn'], color: '#bbdefb'}, // Matt-John: light blue
+    {books: ['act'], color: '#b2dfdb'}, // Acts: light teal
+    {books: ['rom', '1co', '2co', 'gal', 'eph', 'php', 'col', '1th', '2th', '1ti', '2ti', 'tit',
+        'phm'], color: '#d7ccc8'}, // Rom-Philemon: light brown
+    {books: ['heb', 'jas', '1pe', '2pe', '1jn', '2jn', '3jn', 'jud', 'rev'],
+        color: '#f8bbd0'}, // Heb-Rev: light pink
+]
+const BOOK_BG_COLOR:Record<string, string> = Object.fromEntries(
+    BOOK_COLOR_GROUPS.flatMap(group => group.books.map(book => [book, group.color])))
 
 // Dev-only guard: every BOOK_BG_PHOTO value must be a filename the shared package's
 // KNOWN_BUILTIN_BACKGROUNDS allowlist also recognises, or that book's cover would silently
@@ -369,12 +389,6 @@ export function default_cover_preset(blueprint:Blueprint):Record<string, unknown
     }
     form['title1'] = title
 
-    // Default background design: the icon of the first included Bible book
-    if (passage && book_icon[passage.book]){
-        form['icon_id'] = book_icon[passage.book]
-        form['icon_mode'] = 'center'
-    }
-
     // Minimal rear blurb crediting the app
     form['blurb'] = {type: 'doc', content: [{type: 'paragraph', content: [
         {type: 'text', text: "Created with paper.bible"}]}]}
@@ -397,10 +411,31 @@ function build_cover_preset_form(kind:'photo'|'pattern'|'icon', blueprint:Bluepr
     // Base: blank values plus the title from the first passage, its book's icon and a credit
     // blurb (icon preset uses this as-is)
     const form = default_cover_preset(blueprint)
+    const passage = get_passages(blueprint)[0]
     if (kind === 'pattern'){
-        // Swap the icon for a default pattern (first of bookcover's built-ins)
-        form['icon_id'] = null
-        form['pattern_id'] = list_patterns()[0]!.id
+        // Full-cover vector background with an offset icon overlay, tinted per the first
+        // included passage's book grouping
+        form['bg_vector_id'] = 'facet-corner'
+        form['pattern_id'] = 'morphing-diamonds'
+        form['icon_id'] = 'builtin:cross'
+        form['icon_mode'] = 'offset'
+        form['icon_size'] = 0.8
+        const bg_color = passage && BOOK_BG_COLOR[passage.book]
+        if (bg_color){
+            // Icon matches the background exactly, so it reads as part of the pattern rather
+            // than a separate overlay
+            form['bg_color'] = bg_color
+            form['icon_color'] = bg_color
+        }
+        return {form, bg_image_id: null}
+    }
+    if (kind === 'icon'){
+        form['icon_id'] = passage?.book ? book_icon[passage.book] : 'game-icons:open-book'
+        form['pattern_id'] = 'diagonal-lines'
+        // Tint the background to match the first included passage's book grouping
+        if (passage && BOOK_BG_COLOR[passage.book]){
+            form['bg_color'] = BOOK_BG_COLOR[passage.book]
+        }
         return {form, bg_image_id: null}
     }
     if (kind === 'photo'){
@@ -408,7 +443,6 @@ function build_cover_preset_form(kind:'photo'|'pattern'|'icon', blueprint:Bluepr
         // book, falling back to a random stock photo when there isn't one
         form['icon_id'] = null
         form['bg_image_coverage'] = 'full'
-        const passage = get_passages(blueprint)[0]
         const filename = (passage && BOOK_BG_PHOTO[passage.book])
             || STOCK_BG_PHOTOS[Math.floor(Math.random() * STOCK_BG_PHOTOS.length)]!
         return {form, bg_image_id: filename}
