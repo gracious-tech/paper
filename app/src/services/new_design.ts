@@ -7,7 +7,6 @@ import {PassageReference} from '@gracious.tech/fetch-client'
 import {content} from '@/services/content'
 import {get_default_blueprint} from '@/services/blueprints'
 import {seed_cover_preset} from '@/services/cover'
-import {book_icon} from '@/services/icons'
 import {generate_token} from '@/services/utils'
 import {fetch_stories, story_to_slides, story_reference_label, story_canonical_cmp}
     from '@/services/stories'
@@ -17,7 +16,7 @@ import img_type_notes from '@/assets/images/design_types/type_notes.avif'
 import img_type_study from '@/assets/images/design_types/type_study.avif'
 import img_type_bilingual from '@/assets/images/design_types/type_bilingual.avif'
 
-import type {Blueprint, ContentPassage, ContentPictureStory, ContentTitle} from '@/services/types'
+import type {Blueprint, ContentPassage, ContentPictureStory} from '@/services/types'
 
 
 // The design types offered by the wizard's first step
@@ -203,26 +202,6 @@ export function wizard_cover_label(id:NewDesignCover, t:(key:string) => string):
 }
 
 
-// A decorative title page for the "minimal ink" cover choice, matching the shape the editor's
-// own "Title page" button creates (title from the first passage, its book's icon)
-function make_wizard_title_item(blueprint:Blueprint):ContentTitle{
-    const passage = blueprint.content.find(
-        (item):item is ContentPassage => item.type === 'passage')
-    let title = ''
-    if (passage){
-        title = content.collection.reference_to_string(
-            new PassageReference(passage), blueprint.bibles[0])
-    }
-    return {
-        type: 'title',
-        id: generate_token(),
-        title,
-        title_subtitle: "",
-        title_icon: passage ? book_icon[passage.book]! : 'mdi:cross',
-    }
-}
-
-
 // A minimal-but-real Blueprint built straight from the wizard's draft, for the cover step's
 // live preview cards to feed into seed_cover_preset()/cover_form_for_render() before a real
 // Blueprint exists (that only happens at build_new_blueprint(), the wizard's last step). Only
@@ -397,15 +376,8 @@ export async function build_new_blueprint(draft:NewDesignDraft):Promise<Blueprin
         position: 'bottom',
     })
 
-    // Cover: either a seeded preset the user refines later in the cover widget, or the
-    // minimal-ink choice (no cover at all, a title page as the first page instead)
-    if (draft.cover === 'minimal'){
-        blueprint.cover = null
-        blueprint.content.unshift(make_wizard_title_item(blueprint))
-    } else {
-        blueprint.cover = seed_cover_preset(
-            draft.cover as Exclude<NewDesignCover, 'minimal'>, blueprint)
-    }
+    // Cover: a seeded preset the user refines later in the cover widget
+    blueprint.cover = seed_cover_preset(draft.cover!, blueprint)
 
     return blueprint
 }

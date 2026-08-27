@@ -25,15 +25,14 @@ import type {NewDesignDraft, NewDesignCover} from '@/services/new_design'
 
 
 // Wizard step 5: pick a cover style (seeded as a starting point; refined later in the cover
-// editor). Home printing additionally offers "minimal ink" — a title page instead of a cover
+// editor). Home printing additionally offers "minimal ink" — a plain black-icon cover
 const props = defineProps<{draft:NewDesignDraft}>()
 const draft = props.draft
 
 const {t} = useI18n()
 
 
-// Static fallback images, shown until each card's live render resolves (and forever for
-// 'minimal', which has no cover to render)
+// Static fallback images, shown until each card's live render resolves
 const PLACEHOLDER_IMAGES:Record<NewDesignCover, string> = {
     photo: '/wizard/cover_photo.webp',
     pattern: '/wizard/cover_pattern.webp',
@@ -41,15 +40,15 @@ const PLACEHOLDER_IMAGES:Record<NewDesignCover, string> = {
     minimal: '/wizard/cover_minimal.webp',
 }
 
-// Live-rendered front-panel SVGs (as blob URLs) for photo/pattern/icon, filled in as they
-// resolve — reactive so `covers` picks up each one as soon as it's ready. Kept outside the
-// `covers` computed so a debounced re-render doesn't have to fight a computed's own caching
-const preview_images = reactive<Partial<Record<'photo'|'pattern'|'icon', string>>>({})
+// Live-rendered front-panel SVGs (as blob URLs) for each preset, filled in as they resolve —
+// reactive so `covers` picks up each one as soon as it's ready. Kept outside the `covers`
+// computed so a debounced re-render doesn't have to fight a computed's own caching
+const preview_images = reactive<Partial<Record<NewDesignCover, string>>>({})
 
 // Each card's real width/height ratio, read straight off its rendered SVG (the front panel's
 // own <svg width/height> — see split_svg in bookcover-core) so the card matches the actual
 // proportions of the chosen book size/service rather than a generic placeholder box
-const preview_ratios = reactive<Partial<Record<'photo'|'pattern'|'icon', number>>>({})
+const preview_ratios = reactive<Partial<Record<NewDesignCover, number>>>({})
 
 // Pull the front panel's own width/height (in pt) off its root <svg> tag
 function svg_ratio(svg:string):number|null {
@@ -64,7 +63,7 @@ function svg_ratio(svg:string):number|null {
 // card's previous blob URL is revoked once its replacement is ready, so re-renders don't leak
 async function render_previews(){
     const blueprint = wizard_preview_blueprint(draft)
-    const kinds:('photo'|'pattern'|'icon')[] = ['photo', 'pattern', 'icon']
+    const kinds:NewDesignCover[] = ['photo', 'pattern', 'icon', 'minimal']
     await Promise.all(kinds.map(async kind => {
         try {
             const svg = await render_wizard_cover_preview(kind, blueprint)
@@ -114,8 +113,8 @@ const covers = computed(() => {
             label: wizard_cover_label('icon', t), ratio: preview_ratios.icon},
     ]
     if (draft.service_id === 'home'){
-        items.push({id: 'minimal', image: PLACEHOLDER_IMAGES.minimal,
-            label: wizard_cover_label('minimal', t)})
+        items.push({id: 'minimal', image: preview_images.minimal ?? PLACEHOLDER_IMAGES.minimal,
+            label: wizard_cover_label('minimal', t), ratio: preview_ratios.minimal})
     }
     return items
 })
