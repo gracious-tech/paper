@@ -9,8 +9,8 @@ import {cloneDeep} from 'lodash-es'
 import {toRaw} from 'vue'
 import {ref as storage_ref, uploadBytes, getBytes} from 'firebase/storage'
 import {make_blank_form_values, asset_path, BACKGROUNDS_DIR} from 'bookcover-core'
-import {cover_form_for_render, cover_render_key, STOCK_BG_PHOTOS, KNOWN_BUILTIN_BACKGROUNDS}
-    from 'paper-bible-typst'
+import {cover_form_for_render, cover_render_key, STOCK_BG_PHOTOS, KNOWN_BUILTIN_BACKGROUNDS,
+    doc_has_copyright, gen_copyright_typst, COPYRIGHT_MARKER} from 'paper-bible-typst'
 import {PDFDocument} from 'pdf-lib'
 
 import {firebase_storage} from '@/services/firebase'
@@ -24,6 +24,7 @@ import {get_passages} from '@/services/blueprints'
 
 import type {ImageRegions} from 'bookcover-web'
 import type {CustomFont} from 'typst-fonts'
+import type {PmDoc} from 'paper-bible-typst'
 import type {Blueprint, CoverConfig} from '@/services/types'
 import type {CoverWorkerRequest, CoverWorkerResponse, CoverRenderResult, DistributiveOmit}
     from './cover_worker'
@@ -315,8 +316,19 @@ async function render_cover(blueprint:Blueprint, page_count:number, fonts?:Custo
         .filter(font => cover.font_families.includes(font.family))
     const fonts_key = (fonts ? 'snapshot:' : 'library:')
         + cover_fonts.map(font => font.family).join(',')
+
+    // The default cover blurb carries the AUTO-COPYRIGHT marker (see default_cover_preset) —
+    // resolve it to the design's full attribution statement here, where the blueprint and
+    // translation licensing metadata live, and hand the finished Typst block to the worker to
+    // splice into the rendered blurb (the cover-side counterpart to bible_content's interior
+    // handling). Covers whose blurb has no marker send nothing extra
+    const copyright_block = doc_has_copyright(cover.form['blurb'] as PmDoc | undefined)
+        ? gen_copyright_typst(blueprint, content.translations)
+        : undefined
+
     const key = cover_render_key(cover, blueprint, page_count) + '|' + fonts_key + '|' + format
         + (opts?.image_override ? '|preview:' + (opts.image_override.name ?? '') : '')
+        + (copyright_block ? '|copyright:' + copyright_block : '')
     const cached = render_cache.find(entry => entry.key === key)
     if (cached){
         return cached.result
@@ -345,6 +357,7 @@ async function render_cover(blueprint:Blueprint, page_count:number, fonts?:Custo
         form: cloneDeep(cover_form_for_render(cover, blueprint, page_count)),
         image: image && {data: image.data, type: image.type, ...name !== undefined && {name}},
         ...opts?.image_regions !== undefined && {image_regions: opts.image_regions},
+        ...copyright_block !== undefined && {copyright_block},
         format,
     }) as CoverRenderResult
     render_cache.push({key, result})
@@ -389,9 +402,12 @@ export function default_cover_preset(blueprint:Blueprint):Record<string, unknown
     }
     form['title1'] = title
 
-    // Minimal rear blurb crediting the app
+    // Rear blurb: the AUTO-COPYRIGHT marker (same one the interior "Copyright" page uses),
+    // resolved to the design's full attribution statement at render time (render_cover here,
+    // the server compile in compile.ts). gen_copyright_typst appends its own "Created with
+    // paper.bible" line when the blueprint's app_link is set
     form['blurb'] = {type: 'doc', content: [{type: 'paragraph', content: [
-        {type: 'text', text: "Created with paper.bible"}]}]}
+        {type: 'text', text: COPYRIGHT_MARKER}]}]}
 
     // Home printers can't reach the paper edge, so default the white-margin matte on for
     // home printing (the user can still turn it off in the cover widget)

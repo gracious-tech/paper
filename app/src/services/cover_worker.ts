@@ -6,6 +6,7 @@
 import {version as compiler_version} from '@myriaddreamin/typst-ts-web-compiler/package.json'
 import {version as renderer_version} from '@myriaddreamin/typst-ts-renderer/package.json'
 import {init as init_bookcover, build_schema, analyze_image_regions} from 'bookcover-web'
+import {replace_copyright_marker} from 'paper-bible-typst'
 
 import type {CoverGenerator, EmbedFormState, ImageRegions} from 'bookcover-web'
 import type {CustomFont} from 'typst-fonts'
@@ -17,13 +18,15 @@ import type {CustomFont} from 'typst-fonts'
 // own fast builtin-color lookup match a known stock photo by filename+bytes instead of falling
 // back to a live pixel decode; `image_regions`, when set, skips that analysis entirely (used
 // for previews rendering a thumbnail whose bytes can never match the lookup by design — see
-// 'analyze_regions' below and get_bg_regions() in cover.ts)
+// 'analyze_regions' below and get_bg_regions() in cover.ts). `copyright_block`, when set, is
+// pre-built Typst markup that replaces the AUTO-COPYRIGHT marker in the rendered blurb (the
+// default cover seeds that marker into its rear text — see default_cover_preset in cover.ts)
 export type CoverWorkerAction =
     | {action:'init', assets_prefix:string}
     | {action:'set_custom_fonts', fonts:CustomFont[]}
     | {action:'generate', form:Record<string, unknown>,
         image:{data:Uint8Array, type:string, name?:string}|null,
-        image_regions?:ImageRegions|null, format?:'pdf'|'svg'}
+        image_regions?:ImageRegions|null, copyright_block?:string, format?:'pdf'|'svg'}
     | {action:'analyze_regions', image:{data:Uint8Array, type:string, name:string}}
 
 // A generate always also asks bookcover to split the full wraparound render into its individual
@@ -100,6 +103,13 @@ async function handle_action(message:CoverWorkerRequest)
     // build_schema needs each custom font's sniffed style to pick correct Noto fallbacks
     const schema = build_schema(message.form as unknown as EmbedFormState,
         custom_fonts.map(font => ({family: font.family, style: font.style})))
+    // Splice the generated copyright block into the blurb wherever the AUTO-COPYRIGHT marker
+    // sits — build_schema has already rendered the blurb ProseMirror doc to Typst markup, so
+    // this mirrors bible_content's interior handling (cover.ts builds the block)
+    const blurb = schema['blurb']
+    if (message.copyright_block !== undefined && typeof blurb === 'string'){
+        schema['blurb'] = replace_copyright_marker(blurb, message.copyright_block)
+    }
     // Named File (not a bare Blob) so bookcover's own fast builtin-color lookup can match a
     // known stock photo by filename+bytes; falls back to its own live decode otherwise
     const image = message.image

@@ -43,8 +43,13 @@ export {cover_form_for_render, cover_render_key, STOCK_BG_PHOTOS, KNOWN_BUILTIN_
 export {PATTERNS} from './generated/patterns.js'
 
 // Custom-page prose helpers (ProseMirror → Typst + the auto-copyright marker)
-export {prose_to_typst, doc_has_copyright, COPYRIGHT_MARKER} from './prose.js'
+export {prose_to_typst, doc_has_copyright, replace_copyright_marker, COPYRIGHT_MARKER}
+    from './prose.js'
 export type {PmDoc} from 'pm-to-typst'
+
+// Copyright/attribution statement builder — shared by the interior compile (bible_content) and
+// the cover blurb (the default cover seeds the AUTO-COPYRIGHT marker into its rear text)
+export {gen_copyright_typst} from './copyright.js'
 
 // All types
 export type {

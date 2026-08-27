@@ -5,7 +5,8 @@ import {mkdtemp, writeFile, readFile, rm} from 'node:fs/promises'
 
 import {Timestamp} from 'firebase-admin/firestore'
 import {PDFDocument} from 'pdf-lib'
-import {PDF_LIFETIME_MS, cover_form_for_render, KNOWN_BUILTIN_BACKGROUNDS} from 'paper-bible-typst'
+import {PDF_LIFETIME_MS, cover_form_for_render, KNOWN_BUILTIN_BACKGROUNDS, doc_has_copyright,
+    replace_copyright_marker, gen_copyright_typst} from 'paper-bible-typst'
 import {compile_pdf_from_blueprint} from 'paper-bible-typst-node'
 import {generate as generate_cover, build_schema} from 'bookcover-node'
 
@@ -15,6 +16,7 @@ import {shared_content} from './content.ts'
 import {save_error, generate_error_id} from './errors.ts'
 
 import type {EmbedFormState} from 'bookcover-node'
+import type {PmDoc} from 'paper-bible-typst'
 import type {Blueprint, CustomFont} from 'paper-bible-typst-node'
 
 
@@ -56,6 +58,16 @@ async function render_cover(blueprint:Blueprint, custom_fonts:CustomFont[], page
     const schema = build_schema(
         cover_form_for_render(cover, blueprint, page_count) as unknown as EmbedFormState,
         cover_fonts.map(font => ({family: font.family, style: font.style})))
+
+    // Resolve the AUTO-COPYRIGHT marker the blurb may carry (the default cover seeds it into
+    // its rear text) into the design's full attribution statement — mirrors the interior
+    // compile and the in-browser cover path (see cover.ts / cover_worker.ts in the app)
+    const blurb = schema['blurb']
+    if (doc_has_copyright(cover.form['blurb'] as PmDoc | undefined) && typeof blurb === 'string'){
+        await shared_content.init()
+        const resources = shared_content.collection.get_resources({object: true})
+        schema['blurb'] = replace_copyright_marker(blurb, gen_copyright_typst(blueprint, resources))
+    }
 
     // bookcover-node works on disk: it discovers a background image in the input dir (or, for
     // a builtin, an explicit filename set via schema.images.background — a side channel
