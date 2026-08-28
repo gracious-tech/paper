@@ -307,15 +307,18 @@ export function gen_preamble(request:TypstRequest, overrides:PreambleOverrides =
 ${chapter}
 ${verse}
 ${wj}
-// Poetry — hanging indent that deepens with level
+// Poetry — a 1em grid: each level indents one more step. A wrapped ("turn") line hangs
+// two steps, so it never lands on the next structural level's position and can't be
+// mistaken for one — the standard print-Bible treatment. Relative to the line's own
+// indent, so it stays modest on narrow columns unlike the old fixed deep runover
 #let q(n, c) = pad(
-    left: 0.25in + (n - 1) * 0.125in,
-    par(hanging-indent: 0.75in - (0.25in + (n - 1) * 0.125in), c),
+    left: 1em * n,
+    par(hanging-indent: 2em, c),
 )
-// Embedded poetry
+// Embedded poetry — one step deeper than the equivalent q level so it stays distinct
 #let qm(n, c) = pad(
-    left: 0.25in + (n - 1) * 0.25in,
-    par(hanging-indent: 1in - (0.25in + (n - 1) * 0.25in), c),
+    left: 1em * (n + 1),
+    par(hanging-indent: 2em, c),
 )
 // List entry
 #let li(n, c) = pad(
