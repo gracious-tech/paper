@@ -120,10 +120,22 @@ describe('gen_preamble', () => {
             }))
             expect(result).toContain('if n > 1')
             expect(result).toContain('line(length: 100%, stroke: 0.5pt)')
+            // The visual is factored out so the bilingual columns layout can draw it once at
+            // full grid width (see gen_multi_bible_grids)
+            expect(result).toContain('#let ch_divider(n) =')
             // No font: override — inherits font_text + its fallbacks, same as regular body text
             const divider_source = result.slice(
-                result.indexOf('#let ch(n)'), result.indexOf('#let vn(n)'))
+                result.indexOf('#let ch_divider(n)'), result.indexOf('#let vn(n)'))
             expect(divider_source).not.toContain('font:')
+        })
+
+        it('always defines a state-only #ch_quiet for the bilingual columns layout', () => {
+            for (const style of ['divider', 'float', 'heading'] as const) {
+                const result = gen_preamble(make_request({
+                    features: {...TEST_FEATURES, show_chapters: true, show_chapters_style: style},
+                }))
+                expect(result).toContain('#let ch_quiet(n) = state("running-chapter", 0).update(n)')
+            }
         })
 
         it('generates float chapter style', () => {

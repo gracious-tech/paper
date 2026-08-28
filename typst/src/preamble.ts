@@ -145,16 +145,21 @@ export function gen_preamble(request:TypstRequest, overrides:PreambleOverrides =
         // Centered divider with the number flanked by solid drawn rules (rather than dashes,
         // which can leave font-dependent gaps), hidden for chapter 1. Each rule is a fixed-width
         // box with its baseline raised so the line sits centred on the number rather than at the
-        // text baseline. No font: override — see footer
-        chapter = `#let ch(n) = {
+        // text baseline. No font: override — see footer. The visual is factored into #ch_divider
+        // so the bilingual columns layout can draw one divider across both translations at full
+        // grid width rather than one inside each cell (see gen_multi_bible_grids)
+        chapter = `#let ch_divider(n) = {
+    v(0.5em)
+    align(center, text(size: 0.8em, weight: "regular", {
+        let rule = box(width: 2em, baseline: -0.28em, line(length: 100%, stroke: 0.5pt))
+        [#rule #str(n) #rule]
+    }))
+    v(0.5em)
+}
+#let ch(n) = {
     state("running-chapter", 0).update(n)
     if n > 1 {
-        v(1em)
-        align(center, text(size: 0.8em, weight: "regular", {
-            let rule = box(width: 2em, baseline: -0.28em, line(length: 100%, stroke: 0.5pt))
-            [#rule #str(n) #rule]
-        }))
-        v(1em)
+        ch_divider(n)
     }
 }`
     } else if (features.show_chapters_style === 'float') {
@@ -198,6 +203,13 @@ export function gen_preamble(request:TypstRequest, overrides:PreambleOverrides =
     heading(level: 1, "Chapter " + str(n))
 }`
     }
+
+    // Quiet chapter marker — advances the running-chapter state without drawing anything. The
+    // bilingual columns layout swaps the in-cell #ch for this so the marker isn't drawn once per
+    // translation: the divider style draws a single divider at full grid width and the drop-cap
+    // style keeps only the primary translation's margin numeral (see gen_multi_bible_grids in
+    // content_passage.ts)
+    chapter += '\n#let ch_quiet(n) = state("running-chapter", 0).update(n)'
 
     // Verse marker (#vn) — superscript bold number glued to the next word with a narrow
     // no-break space (U+202F) so it can't be stranded at a line end when the text wraps

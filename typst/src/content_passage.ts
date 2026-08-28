@@ -7,6 +7,12 @@ import {build_aligned_rows} from './bilingual.js'
 import type {ImageStyle, PageConfig, TypstPassage, TypstPassageImage} from './types.js'
 
 
+// How chapter markers are drawn document-wide (Blueprint show_chapters_style, or 'none' when
+// chapter numbers are hidden). Only consulted for the bilingual columns layout, where the
+// marker otherwise renders once inside each translation's cell — see gen_multi_bible_grids
+export type ChapterStyle = 'divider' | 'float' | 'heading' | 'none'
+
+
 // Generate Typst markup for a passage's image, shown in the top half of its first page before
 // any headings/content. 'borderless' bleeds to the true page edge (place()'d outside the margin
 // box, with a #v() spacer to reserve the same vertical space in the flow so subsequent content
@@ -44,7 +50,7 @@ function gen_passage_image(
 export function gen_passage(
     passage:TypstPassage, page:PageConfig, image_style:ImageStyle,
     font_size:string, font_text2:string, font_headings2:string, font_size2:string,
-    font_fallbacks2:string[], line_height:number,
+    font_fallbacks2:string[], line_height:number, chapter_style:ChapterStyle,
 ):string {
     const parts:string[] = []
 
@@ -81,7 +87,7 @@ export function gen_passage(
 
     // Build the scoped block with passage-specific function definitions and show rules
     const inner = gen_passage_inner(passage, use_grid, font_size, font_text2, font_headings2,
-        font_size2, font_fallbacks2, line_height, passage.column_gap, null)
+        font_size2, font_fallbacks2, line_height, passage.column_gap, null, chapter_style)
 
     // Wrap in a scoped block so settings don't leak to other content
     parts.push(`#[
@@ -130,9 +136,12 @@ export function gen_passage_facing(
         parts.push('')
     }
 
-    // Same scoped block as gen_passage, with the facing gutter and footnote width constraint
+    // Same scoped block as gen_passage, with the facing gutter and footnote width constraint.
+    // Chapter markers stay per-translation here: each half is split into its own physical page,
+    // so a full-width divider would be cut in two and the second half's margin numeral lands in
+    // a real inside margin — both already correct without the columns-layout adjustment.
     const inner = gen_passage_inner(passage, true, font_size, font_text2, font_headings2,
-        font_size2, font_fallbacks2, line_height, gutter, entry_width)
+        font_size2, font_fallbacks2, line_height, gutter, entry_width, 'none')
     parts.push(`#[
 ${inner}
 ]`)
@@ -168,6 +177,7 @@ function gen_passage_inner(
     passage:TypstPassage, use_grid:boolean,
     font_size:string, font_text2:string, font_headings2:string, font_size2:string,
     font_fallbacks2:string[], line_height:number, gutter:string, entry_width:string|null,
+    chapter_style:ChapterStyle,
 ):string {
     const lines:string[] = []
 
@@ -198,7 +208,8 @@ function gen_passage_inner(
     // Render the content (any 2-column layout comes from the page setting, not a block)
     if (use_grid) {
         lines.push(gen_multi_bible_grids(
-            passage, gutter, font_text2, font_headings2, font_size2, font_fallbacks2, line_height))
+            passage, gutter, font_text2, font_headings2, font_size2, font_fallbacks2, line_height,
+            chapter_style))
     } else {
         lines.push(passage.bibles[0]!.content)
     }
@@ -339,7 +350,7 @@ function gen_footnote_rules(passage:TypstPassage, entry_width:string|null):strin
 function gen_multi_bible_grids(
     passage:TypstPassage, gutter:string,
     font_text2:string, font_headings2:string, font_size2:string, font_fallbacks2:string[],
-    line_height:number,
+    line_height:number, chapter_style:ChapterStyle,
 ):string {
     const fonts2 = [font_text2, ...font_fallbacks2].map(f => `"${escape_typst_str(f)}"`).join(', ')
 
@@ -378,19 +389,51 @@ function gen_multi_bible_grids(
     const row_lead = `#v(${row_lead_em}em, weak: true)\n`
 
     return rows.map(([a, b], i) => {
-        const before = i > 0 && (heading_row.test(a) || heading_row.test(b)) ? row_lead : ''
-        return `${before}#grid(
+        // The chapter marker sits in the pre-rendered markup of *both* translations, so left
+        // alone it renders twice — once per column. For the 'divider' style, quiet both in-cell
+        // markers and draw one divider across the full grid width instead; for the 'float'
+        // (drop-cap) style, keep the primary translation's margin numeral and quiet the second's
+        // (it would otherwise land in the column gutter). 'heading' and 'none' are left as-is.
+        let cell_a = a
+        let cell_b = b
+        let full_divider = ''
+        if (chapter_style === 'divider') {
+            // The primary translation's boundaries drive the split, so its chunk carries the
+            // #ch on every chapter-opening row; fall back to the second's just in case
+            const match = /#ch\((\d+)\)/.exec(a) ?? /#ch\((\d+)\)/.exec(b)
+            if (match) {
+                cell_a = quiet_chapter_markers(a)
+                cell_b = quiet_chapter_markers(b)
+                // Chapter 1's divider is suppressed anyway (see #ch in preamble.ts)
+                if (Number(match[1]) > 1) {
+                    full_divider = `#ch_divider(${match[1]})\n`
+                }
+            }
+        } else if (chapter_style === 'float') {
+            cell_b = quiet_chapter_markers(b)
+        }
+
+        const lead = i > 0 && (heading_row.test(a) || heading_row.test(b)) ? row_lead : ''
+        return `${full_divider}${lead}#grid(
     columns: (1fr, 1fr),
     column-gutter: ${gutter},
     align: top,
 [
 ${cell_open}
-${a}
+${cell_a}
 ],
 [
 ${prelude2}
-${b}
+${cell_b}
 ],
 )`
     }).join('\n\n')
+}
+
+
+// Swap every chapter marker in a chunk of pre-rendered markup for the state-only #ch_quiet
+// (see preamble.ts) — it advances the running chapter without drawing anything, used where the
+// bilingual columns layout draws the marker itself rather than once per translation cell
+function quiet_chapter_markers(markup:string):string {
+    return markup.replace(/#ch\((\d+)\)/g, '#ch_quiet($1)')
 }

@@ -288,7 +288,8 @@ function gen_content_item(item:TypstContentItem, request:TypstRequest):string {
                 request.typography.font_size,
                 request.typography.font_text2, request.typography.font_headings2,
                 request.typography.font_size2, request.typography.font_fallbacks2,
-                request.typography.line_height)
+                request.typography.line_height,
+                request.features.show_chapters ? request.features.show_chapters_style : 'none')
         case 'title':
             return gen_title(item, request.page, request.titlepage.font,
                 request.titlepage.frame_svg, request.titlepage.color_text,

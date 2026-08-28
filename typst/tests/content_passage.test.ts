@@ -4,6 +4,7 @@ import {describe, it, expect} from 'vitest'
 import {gen_passage, passage_columns} from '../src/content_passage.js'
 import {make_passage, TEST_PAGE} from './fixtures.js'
 
+import type {ChapterStyle} from '../src/content_passage.js'
 import type {TypstPassage} from '../src/types.js'
 
 
@@ -19,9 +20,10 @@ const LINE_HEIGHT = 1.75
 function call(
     passage:TypstPassage, font_text2 = FONT_TEXT2, font_headings2 = FONT_HEADINGS2,
     font_fallbacks = FONT_FALLBACKS, font_size2 = FONT_SIZE2, line_height = LINE_HEIGHT,
+    chapter_style:ChapterStyle = 'none',
 ):string {
     return gen_passage(passage, TEST_PAGE, 'padded', FONT_SIZE, font_text2, font_headings2,
-        font_size2, font_fallbacks, line_height)
+        font_size2, font_fallbacks, line_height, chapter_style)
 }
 
 
@@ -208,6 +210,51 @@ describe('gen_passage', () => {
             expect((result.match(/#grid\(/g) ?? []).length).toBe(2)
         })
 
+        // --- Bilingual chapter markers ---
+        // The chapter marker sits in both translations' markup, so left alone it draws twice.
+
+        const bilingual_chapters = (chapter_style:ChapterStyle) => {
+            const content = (name:string) =>
+                `#ch(1)\n\n#vn(1)${name} one.\n\n#ch(2)\n\n#vn(1)${name} two.`
+            return call(make_passage({
+                bibles: [{content: content('A')}, {content: content('B')}],
+                multi_layout: 'columns',
+                multi_align: 'chapter',
+            }), FONT_TEXT2, FONT_HEADINGS2, FONT_FALLBACKS, FONT_SIZE2, LINE_HEIGHT, chapter_style)
+        }
+
+        it('divider style: one full-width divider per chapter, no in-cell markers', () => {
+            const result = bilingual_chapters('divider')
+            // A single divider drawn at grid width for chapter 2 (chapter 1's is suppressed)
+            expect((result.match(/#ch_divider\(/g) ?? []).length).toBe(1)
+            expect(result).toContain('#ch_divider(2)')
+            expect(result).not.toContain('#ch_divider(1)')
+            // Both translations fall back to the state-only marker
+            expect(result).not.toMatch(/#ch\(\d+\)/)
+            expect(result).toContain('#ch_quiet(1)')
+            expect(result).toContain('#ch_quiet(2)')
+        })
+
+        it('drop-cap (float) style: quiets only the second translation\'s marker', () => {
+            const result = bilingual_chapters('float')
+            // Primary keeps its real marker (draws the margin numeral); second is quieted so it
+            // doesn't repeat the numeral into the column gutter
+            expect(result).toContain('#ch(1)')
+            expect(result).toContain('#ch(2)')
+            expect(result).toContain('#ch_quiet(1)')
+            expect(result).toContain('#ch_quiet(2)')
+            expect(result.indexOf('#ch(1)')).toBeLessThan(result.indexOf('#ch_quiet(1)'))
+            expect(result).not.toContain('#ch_divider(')
+        })
+
+        it('heading style: leaves both translations\' markers untouched', () => {
+            const result = bilingual_chapters('heading')
+            expect(result).toContain('#ch(1)')
+            expect(result).toContain('#ch(2)')
+            expect(result).not.toContain('#ch_quiet(')
+            expect(result).not.toContain('#ch_divider(')
+        })
+
         it('scopes the second cell to font_text2/font_headings2, leaving the first untouched', () => {
             const result = gen_passage(make_passage({
                 bibles: [
@@ -216,7 +263,7 @@ describe('gen_passage', () => {
                 ],
                 multi_layout: 'columns',
             }), TEST_PAGE, 'padded', FONT_SIZE, 'Second Font', 'Second Heading Font', FONT_SIZE2,
-                ['Fallback Font'])
+                ['Fallback Font'], LINE_HEIGHT, 'none')
 
             // First cell carries no font override — the override sits ahead of the second only
             const second_cell_start = result.indexOf('#set text(font: ("Second Font"')
