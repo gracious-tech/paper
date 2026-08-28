@@ -1,7 +1,7 @@
 
 import {escape_typst_str} from 'typst-utils'
 
-import {escape_typst, parse_unit} from './helpers.js'
+import {escape_typst, escape_svg_for_typst, parse_unit} from './helpers.js'
 
 import type {PageConfig, TypstTitlePage} from './types.js'
 
@@ -72,12 +72,4 @@ export function gen_title(
     parts.push(`]`)
 
     return parts.join('\n')
-}
-
-
-// Escape an SVG string for embedding in Typst bytes() literal
-function escape_svg_for_typst(svg:string):string {
-    // Typst bytes("...") accepts a string that is encoded to UTF-8 bytes
-    // Need to escape backslashes and double quotes
-    return svg.replace(/\\/g, '\\\\').replace(/"/g, '\\"')
 }

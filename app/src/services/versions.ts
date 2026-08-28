@@ -177,6 +177,11 @@ export async function compile_and_upload(id:string, design_id:string, blueprint:
     // summary — regenerating an older version must never clobber it with a stale status/pages
     const doc_ref = doc(firestore, 'versions', id)
     const design_ref = doc(firestore, 'designs', design_id)
+
+    // Production URL for this exact version — woven into any auto-copyright block as a link + QR
+    // code when the blueprint opts in (blueprint.design_link)
+    const share_url = `${location.origin}/designs/${design_id}/${id}`
+
     try {
         try {
             // Resolve the frozen blueprint to a full request (fetches uncached Bible content)
@@ -187,7 +192,8 @@ export async function compile_and_upload(id:string, design_id:string, blueprint:
             const font_styles = fonts
                 ? Object.fromEntries(fonts.map(f => [f.family, f.style]))
                 : get_custom_font_styles()
-            const request = await bible_content.resolve(blueprint, font_styles)
+            const request = await bible_content.resolve(
+                blueprint, font_styles, undefined, share_url)
 
             // Compile in the worker (temporarily adding snapshotted fonts when regenerating),
             // then count pages for the history badge
@@ -218,7 +224,7 @@ export async function compile_and_upload(id:string, design_id:string, blueprint:
             // just compiled. A failure throws into the server fallback below, which compiles
             // both
             if (blueprint.cover){
-                const cover_bytes = await render_cover_pdf(blueprint, pages, fonts)
+                const cover_bytes = await render_cover_pdf(blueprint, pages, fonts, share_url)
                 await uploadBytes(storage_ref(firebase_storage, `versions/${id}/cover.pdf`),
                     cover_bytes, {contentType: 'application/pdf', contentDisposition: 'inline'})
             }

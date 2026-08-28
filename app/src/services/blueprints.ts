@@ -106,6 +106,7 @@ export function get_default_blueprint():Blueprint{
         // Legal
         public_domain: true,
         app_link: true,
+        design_link: true,
     }
 }
 

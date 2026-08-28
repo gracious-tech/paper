@@ -5,6 +5,13 @@ export function escape_typst(text:string):string {
 }
 
 
+// Escape an SVG string for embedding in a Typst bytes("...") literal (encoded to UTF-8 bytes) —
+// only backslashes and double quotes need escaping
+export function escape_svg_for_typst(svg:string):string {
+    return svg.replace(/\\/g, '\\\\').replace(/"/g, '\\"')
+}
+
+
 // Quote-opening characters treated as a sentence boundary in their own right (see
 // split_sentences) — straight quote/apostrophe chars are ambiguous (contractions, possessives,
 // closing quotes) so only unambiguous curly/angle openers count. Also doubles as the pairing used

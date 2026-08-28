@@ -262,9 +262,12 @@ export class BibleContent {
     // detected — only blue.font_text's entry (if any) is actually used, since font_fallbacks
     // detection is keyed off the body font's style. on_progress overrides the instance's own (set
     // via the constructor), letting a single shared BibleContent report progress per-call rather
-    // than only for whichever callback it was constructed with
+    // than only for whichever callback it was constructed with. share_url is this document's
+    // production design/version URL, woven into any auto-copyright block as a link + QR code when
+    // the blueprint opts in (blue.design_link)
     async resolve(
         blue:Blueprint, custom_font_styles?:Record<string, FontStyle>, on_progress?:ProgressFn,
+        share_url?:string,
     ):Promise<TypstRequest> {
         const progress = on_progress ?? this.on_progress
         progress?.({stage: 'start'})
@@ -317,7 +320,7 @@ export class BibleContent {
             } else if (item.type === 'title') {
                 items.push(await this.gen_title_page(item, titlepage_color_icon))
             } else if (item.type === 'custom') {
-                items.push(this.gen_custom_item(blue, item, resources))
+                items.push(this.gen_custom_item(blue, item, resources, share_url))
             } else if (item.type === 'picture_story') {
                 // Auto title page before the story, same rule as passages
                 if (blue.passage_title === 'titlepage' && item.title.trim()) {
@@ -620,11 +623,12 @@ export class BibleContent {
     // Convert a custom (rich text) content item to its Typst equivalent
     private gen_custom_item(
         blue:Blueprint, custom:ContentCustom, resources:Record<string, GetResourcesItem>,
+        share_url?:string,
     ):TypstCustomPage {
         let markup = prose_to_typst(custom.doc)
 
         // Replace the AUTO-COPYRIGHT marker with the generated copyright block
-        markup = replace_copyright_marker(markup, gen_copyright_typst(blue, resources))
+        markup = replace_copyright_marker(markup, gen_copyright_typst(blue, resources, share_url))
 
         // Position is applied by the renderer (top/middle/bottom of the page)
         return {

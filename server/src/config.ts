@@ -15,4 +15,7 @@ export const config = {
     fonts_dir: process.env['FONTS_DIR'] ?? `${assets_dir}/fonts`,
     endpoint: process.env['FETCH_ENDPOINT'] ?? 'https://v1.fetch.bible/',
     roles: (process.env['SERVER_ROLES'] ?? 'light,compile').split(','),
+    // Public origin of the web app — used to build the "customise this design" link + QR code
+    // baked into a document's attribution block (see compile.ts)
+    app_url: 'https://paper.bible',
 }

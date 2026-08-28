@@ -239,6 +239,7 @@ export function make_blueprint_schema(defaults:Blueprint):z.ZodType<Blueprint>{
         // Legal
         public_domain: z.boolean().catch(defaults.public_domain),
         app_link: z.boolean().catch(defaults.app_link),
+        design_link: z.boolean().catch(defaults.design_link),
 
     }).catch(() => defaults)
 }

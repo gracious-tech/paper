@@ -46,7 +46,8 @@ async function compile_quota_allows(uid:string):Promise<boolean>{
 }
 
 
-async function render_cover(blueprint:Blueprint, custom_fonts:CustomFont[], page_count:number)
+async function render_cover(blueprint:Blueprint, custom_fonts:CustomFont[], page_count:number,
+        share_url?:string)
         :Promise<Uint8Array>{
     // Render a frozen blueprint's cover to PDF bytes via the bookcover-node package (Typst
     // CLI + the same mounted fonts tree the book compile uses). The renderable schema is
@@ -66,7 +67,8 @@ async function render_cover(blueprint:Blueprint, custom_fonts:CustomFont[], page
     if (doc_has_copyright(cover.form['blurb'] as PmDoc | undefined) && typeof blurb === 'string'){
         await shared_content.init()
         const resources = shared_content.collection.get_resources({object: true})
-        schema['blurb'] = replace_copyright_marker(blurb, gen_copyright_typst(blueprint, resources))
+        schema['blurb'] = replace_copyright_marker(
+            blurb, gen_copyright_typst(blueprint, resources, share_url))
     }
 
     // bookcover-node works on disk: it discovers a background image in the input dir (or, for
@@ -135,10 +137,15 @@ export async function handle_compile(uid:string, version_id:string, client_ip:st
     // /designs list) with a stale status/pages. A newer version created since would have
     // overwritten the design's latest_version.save_token with its own, so comparing this
     // version's own save_token against it tells them apart
-    const design_ref = admin_db.doc(`designs/${data['design_id'] as string}`)
+    const design_id = data['design_id'] as string
+    const design_ref = admin_db.doc(`designs/${design_id}`)
     const design_data = (await design_ref.get()).data()
     const is_latest = (design_data?.['latest_version'] as {save_token?:string}|undefined)
         ?.save_token === data['save_token']
+
+    // Production URL for this exact version — woven into the attribution block (link + QR code)
+    // when the blueprint opts in (see gen_copyright_typst)
+    const share_url = `${config.app_url}/designs/${design_id}/${version_id}`
 
     // Storage paths are always derived from the version id, never read from the doc — doc
     // fields are client-written, and trusting them would let a crafted doc make the Admin SDK
@@ -206,6 +213,7 @@ export async function handle_compile(uid:string, version_id:string, client_ip:st
             fonts_dir: config.fonts_dir,
             content: shared_content,
             custom_fonts,
+            share_url,
         })
         const pages = (await PDFDocument.load(bytes)).getPageCount()
 
@@ -223,7 +231,7 @@ export async function handle_compile(uid:string, version_id:string, client_ip:st
         // actual page count just compiled. A cover failure fails the whole compile — same
         // error surface as the book
         if (blueprint.cover){
-            const cover_bytes = await render_cover(blueprint, custom_fonts, pages)
+            const cover_bytes = await render_cover(blueprint, custom_fonts, pages, share_url)
             await admin_bucket.file(`versions/${version_id}/cover.pdf`).save(
                 Buffer.from(cover_bytes),
                 {contentType: 'application/pdf', metadata: {contentDisposition: 'inline'}})

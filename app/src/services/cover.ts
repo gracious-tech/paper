@@ -305,7 +305,7 @@ const render_cache:{key:string, result:CoverRenderResult}[] = []
 
 async function render_cover(blueprint:Blueprint, page_count:number, fonts?:CustomFont[],
         opts?:{format?:'pdf'|'svg', image_override?:{data:Uint8Array, type:string, name?:string},
-            image_regions?:ImageRegions|null})
+            image_regions?:ImageRegions|null, share_url?:string})
         :Promise<CoverRenderResult> {
     const cover = blueprint.cover
     if (!cover){
@@ -323,7 +323,7 @@ async function render_cover(blueprint:Blueprint, page_count:number, fonts?:Custo
     // splice into the rendered blurb (the cover-side counterpart to bible_content's interior
     // handling). Covers whose blurb has no marker send nothing extra
     const copyright_block = doc_has_copyright(cover.form['blurb'] as PmDoc | undefined)
-        ? gen_copyright_typst(blueprint, content.translations)
+        ? gen_copyright_typst(blueprint, content.translations, opts?.share_url)
         : undefined
 
     const key = cover_render_key(cover, blueprint, page_count) + '|' + fonts_key + '|' + format
@@ -371,16 +371,18 @@ async function render_cover(blueprint:Blueprint, page_count:number, fonts?:Custo
 // The full wraparound cover PDF (front + spine + back as one page) — used for the Print
 // preview and as the stored version's cover.pdf
 export async function render_cover_pdf(blueprint:Blueprint, page_count:number,
-        fonts?:CustomFont[]):Promise<Uint8Array> {
-    return (await render_cover(blueprint, page_count, fonts)).data as Uint8Array
+        fonts?:CustomFont[], share_url?:string):Promise<Uint8Array> {
+    return (await render_cover(blueprint, page_count, fonts,
+        share_url !== undefined ? {share_url} : undefined)).data as Uint8Array
 }
 
 
 // The cover's front and back panels only, each already cropped to its own page — used for the
 // Reading preview, which simulates opening the book and never shows the spine as a page
 export async function render_cover_pages(blueprint:Blueprint, page_count:number,
-        fonts?:CustomFont[]):Promise<{front:Uint8Array, back:Uint8Array}> {
-    const {front, back} = await render_cover(blueprint, page_count, fonts)
+        fonts?:CustomFont[], share_url?:string):Promise<{front:Uint8Array, back:Uint8Array}> {
+    const {front, back} = await render_cover(blueprint, page_count, fonts,
+        share_url !== undefined ? {share_url} : undefined)
     return {front: front as Uint8Array, back: back as Uint8Array}
 }
 

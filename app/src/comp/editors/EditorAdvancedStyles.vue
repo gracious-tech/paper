@@ -131,10 +131,14 @@ v-card-text(class='overflow-y-auto')
 
     h2(class='mb-4') {{$t("Copyright")}}
 
-    v-checkbox(v-model='blue.public_domain' :label='$t("Dedicate your own content to the public domain")')
-    p(class='text-body-medium text-medium-emphasis') {{$t("It's recommended to leave this checked so anyone can copy and share your creation without any further restrictions than the Bible translations themselves require. This has no effect on the licenses of third-party material you use, such as Bible translations.")}}
-
     v-checkbox(v-model='blue.app_link' :label='$t(`Include "Created with /paper.bible/"`)' class='mt-4')
+
+    v-checkbox(v-model='blue.design_link' :label='$t("Include link to copy design")' class='mt-4')
+    p(class='text-body-medium text-medium-emphasis mb-4') {{$t("This allows others to print additional copies of your design and/or customize it (they won't be able to modify your copy).")}}
+
+    v-checkbox(v-model='blue.public_domain' :label='$t("Dedicate your own content to the public domain")' class='mt-4' hide-details)
+    p(class='text-body-medium text-medium-emphasis mt-2') {{$t("This ensures your creation will be able to be shared and printed by others without restriction.")}} #[a(href='https://freely.giving/questions/public-domain' target='_blank' rel='noopener') {{$t("Learn more about public domain dedication.")}}]
+    p(v-if='!blue.public_domain' class='text-body-medium text-error mt-2') {{$t("Disabling this will prevent people from sharing the design, printing additional copies, and using it in other useful ways. We do not recommend disabling it unless you are including material from third-parties that is not openly licensed.")}}
 
     v-divider(class='my-8')
 

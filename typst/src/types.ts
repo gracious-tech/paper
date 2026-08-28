@@ -396,6 +396,9 @@ export interface Blueprint {
     // Legal
     public_domain:boolean
     app_link:boolean
+    // Add a "customise and print this yourself" link + QR code (to the design/version's
+    // production URL) to the attribution block
+    design_link:boolean
 }
 
 

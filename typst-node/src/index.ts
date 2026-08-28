@@ -43,6 +43,9 @@ export interface BlueprintCompileOptions extends NodeCompileOptions {
     // (endpoint/patterns above are ignored when set — they belong to the instance). init() is
     // still awaited each compile, which is a no-op unless the instance's TTL has lapsed
     content?:BibleContent
+    // Production design/version URL for this document — rendered as a link + QR code in any
+    // auto-copyright block when the blueprint opts in (blueprint.design_link)
+    share_url?:string
 }
 
 
@@ -87,7 +90,8 @@ export async function compile_pdf_from_blueprint(
         (options?.custom_fonts ?? []).map(f => [f.family, f.style]))
     // on_progress passed per-call (not via the constructor) so a shared instance reports to
     // whichever compile is running
-    const request = await content.resolve(blueprint, custom_font_styles, options?.on_progress)
+    const request = await content.resolve(
+        blueprint, custom_font_styles, options?.on_progress, options?.share_url)
     const font_paths = await resolve_font_paths(request, options)
     return generate_pdf(request, make_compile_fn(options, font_paths), options?.on_progress)
 }

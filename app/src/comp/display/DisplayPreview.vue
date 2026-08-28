@@ -52,6 +52,7 @@ import BtnGenerate from '@/comp/views/assets/BtnGenerate.vue'
 import {blue, estimated_pages} from '@/services/state'
 import {content, bible_content} from '@/services/content'
 import {collect_passage_books, missing_book_warnings} from '@/services/blueprints'
+import {current_design_id} from '@/services/designs'
 import {typst_generator} from '@/services/typst'
 import {get_custom_font_styles} from '@/services/custom_fonts'
 import {resolve_content_for_style} from '@/services/content_images'
@@ -173,11 +174,18 @@ async function compile(){
         // styles) — see content_images.ts for why this can't just happen inside resolve() itself
         const styled_content = await resolve_content_for_style(blue.content, blue.image_style)
 
+        // The design's production URL, for the "customise this design" link + QR code in any
+        // auto-copyright block (a created version uses its own version URL instead — see
+        // versions.ts). Omitted if no design is open yet
+        const share_url = current_design_id.value
+            ? `${location.origin}/designs/${current_design_id.value}`
+            : undefined
+
         // 'reading' lays out the pages as facing-page book spreads (as if the book were opened);
         // 'print' produces the final PDF layout (booklet fold order, or sequential if not a
         // booklet) with print-only blank padding relaxed for the screen (preview flag below)
         const request = await bible_content.resolve(
-            {...blue, content: styled_content}, get_custom_font_styles(), on_progress)
+            {...blue, content: styled_content}, get_custom_font_styles(), on_progress, share_url)
 
         // Large documents are cut down to a fast-compiling ~50 page window (positioned by the
         // Start|Middle|End toggle), with a notice page wherever content was cut short
@@ -232,9 +240,10 @@ async function compile(){
             try {
                 if (mode.value === 'print'){
                     bytes = await prepend_cover_page(
-                        await render_cover_pdf(blue, page_estimate), bytes)
+                        await render_cover_pdf(blue, page_estimate, undefined, share_url), bytes)
                 } else {
-                    const {front, back} = await render_cover_pages(blue, page_estimate)
+                    const {front, back} = await render_cover_pages(
+                        blue, page_estimate, undefined, share_url)
                     bytes = await wrap_cover_reading_pages(front, back, bytes)
                 }
             } catch (error){
@@ -330,7 +339,7 @@ function discrete_signature():string {
         blue.running_pages, blue.running_headings, blue.running_position, blue.running_align,
         blue.show_footnotes, blue.show_wj, blue.show_wj_bold,
         blue.show_wj_italic, blue.show_lines, blue.notes, blue.crossref,
-        blue.margin_unit, blue.public_domain, blue.app_link,
+        blue.margin_unit, blue.public_domain, blue.app_link, blue.design_link,
         blue.titlepage_frame, blue.titlepage_always, blue.passage_title, blue.story_emphasis,
         // The whole cover config — it only ever changes atomically (editor Finished / Remove)
         blue.cover,

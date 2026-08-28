@@ -3,7 +3,10 @@
 // conditions are computed from the selected translations (+ study notes + the creator's own
 // material), then rendered into a small footer-style block.
 
+import {escape_typst_str} from 'typst-utils'
+
 import {escape_typst} from './helpers.js'
+import {gen_qr_typst} from './qr.js'
 
 import type {Blueprint} from './types.js'
 import type {GetResourcesItem, RuntimeLicense} from '@gracious.tech/fetch-client'
@@ -19,19 +22,20 @@ interface CopyrightResource {
 
 // Format-agnostic copyright details computed from the current blueprint
 interface CopyrightData {
-    // 'forbidden' = needs permission, 'free' = no restrictions, 'conditional' = with conditions
-    mode:'forbidden'|'free'|'conditional'
-    conditions:string[]             // Human-readable phrases (only for 'conditional' mode)
+    // Blanket copying statement to show: 'none' = something isn't openly licensed (the creator
+    // reserved rights, or a translation needs permission) so no blanket claim is made;
+    // 'modify' = everything permits modification/translation (share-alike included);
+    // 'share' = free to copy and share but at least one resource forbids modification outright
+    statement:'none'|'modify'|'share'
     resources:CopyrightResource[]   // Attribution rows
     app_link:boolean                // Whether to add the "Created with paper.bible" line
 }
 
 
-// Intro sentence for each copyright mode
-const MODE_INTRO:Record<CopyrightData['mode'], string> = {
-    forbidden: "This resource cannot be copied without permission.",
-    free: "This resource can be copied and shared without restriction.",
-    conditional: "This resource can be copied and shared as long as:",
+// The blanket copying statement for each non-'none' outcome
+const STATEMENT:Record<'modify'|'share', string> = {
+    modify: "This material can be freely copied, modified, and translated.",
+    share: "This material can be freely copied and shared.",
 }
 
 
@@ -47,11 +51,13 @@ function compute_copyright(
     // Bible translations
     for (const bible of blue.bibles) {
         const meta = resources[bible]!
-        conditions.push(meta.licenses[0]!.restrictions)
+        const license = meta.licenses[0]!
+        conditions.push(license.restrictions)
         resource_rows.push({
             text: `${meta.name_local || meta.name_english} — ${meta.attribution}`,
-            license: meta.licenses[0]!.name,
-            url: meta.licenses[0]!.url,
+            license: license.name,
+            // Only show url if not creative commons or public domain
+            url: license.id ? '' : license.url,
         })
     }
 
@@ -68,12 +74,13 @@ function compute_copyright(
         resource_rows.push({
             text: "Study notes — Tyndale House Publishers",
             license: "CC BY-SA",
-            url: 'https://creativecommons.org/licenses/by-sa/4.0/',
+            url: '',
         })
     }
 
-    // Conditions + attribution for the creator's own material: either dedicated to the public
-    // domain (no restrictions) or all-rights-reserved (copying requires permission)
+    // Conditions for the creator's own material: either dedicated to the public domain (no
+    // restrictions) or all-rights-reserved (copying requires permission). Its attribution is
+    // rendered as a closing line, not a list row (see gen_copyright_typst)
     const custom:RuntimeLicense['restrictions'] = {
         forbid_attributionless: !blue.public_domain,
         forbid_commercial: !blue.public_domain,
@@ -82,70 +89,73 @@ function compute_copyright(
         forbid_other: !blue.public_domain,
     }
     conditions.push(custom)
-    resource_rows.push({
-        text: "All other material",
-        license: blue.public_domain ? "Public Domain" : "permission required",
-        url: blue.public_domain ? 'https://freely.giving/free' : '',
-    })
 
-    // Work out what permissions remain across all resources
+    // Reduce to a single blanket statement (or none). Anything that forbids "other" uses — a
+    // translation needing permission, or the creator keeping rights (public_domain off) — means
+    // no blanket claim is made. Otherwise the only distinction that matters is whether
+    // modification (and thus translation) is allowed — share-alike still counts as modifiable,
+    // only an outright no-derivatives term downgrades to 'share'.
     const forbid_other = conditions.some(c => c.forbid_other)
-    const forbid_attributionless = conditions.some(c => c.forbid_attributionless)
-    const forbid_commercial = conditions.some(c => c.forbid_commercial)
-    let forbid_derivatives:boolean|'same-license'
-        = conditions.some(c => c.forbid_derivatives === true)
-    if (!forbid_derivatives && conditions.some(c => c.forbid_derivatives === 'same-license')) {
-        forbid_derivatives = 'same-license'
-    }
+    const forbid_derivatives = conditions.some(c => c.forbid_derivatives === true)
+    const statement:CopyrightData['statement'] =
+        forbid_other ? 'none' : forbid_derivatives ? 'share' : 'modify'
 
-    // Reduce to a display mode and list of conditions
-    let mode:CopyrightData['mode']
-    const display_conditions:string[] = []
-    if (forbid_other) {
-        mode = 'forbidden'
-    } else if (!forbid_attributionless && !forbid_commercial && !forbid_derivatives) {
-        mode = 'free'
-    } else {
-        mode = 'conditional'
-        if (forbid_attributionless) {
-            display_conditions.push("Attribution is given (as below)")
-        }
-        if (forbid_commercial) {
-            display_conditions.push("This is not used for commercial purposes")
-        }
-        if (forbid_derivatives === true) {
-            display_conditions.push("This is not modified")
-        } else if (forbid_derivatives === 'same-license') {
-            display_conditions.push("Modifications use the same license")
-        }
-    }
-
-    return {mode, conditions: display_conditions, resources: resource_rows, app_link: blue.app_link}
+    return {statement, resources: resource_rows, app_link: blue.app_link}
 }
 
 
-// Generate the copyright statement as Typst markup
+// Generate the copyright statement as Typst markup. `share_url` (when given, and when the
+// blueprint opts in via design_link) is the production URL of this document's design or version
+// — rendered as a link plus a QR code so a reader can open, tweak and reprint it themselves
 export function gen_copyright_typst(
-    blue:Blueprint, resources:Record<string, GetResourcesItem>,
+    blue:Blueprint, resources:Record<string, GetResourcesItem>, share_url?:string,
 ):string {
     const data = compute_copyright(blue, resources)
 
     // Build paragraphs/lists, separated by blank lines
     const parts:string[] = []
-    parts.push(escape_typst(MODE_INTRO[data.mode]))
-    if (data.mode === 'conditional') {
-        parts.push(data.conditions.map(c => `- ${escape_typst(c)}`).join('\n'))
+    if (data.app_link) {
+        parts.push('#align(center)[#text(weight: "bold", size: 1.3em)[Created with '
+            + '#link("https://paper.bible")[/paper.bible/]]]')
+    }
+
+    // Link + QR code back to this design/version so a reader can customise and reprint it —
+    // sits right below the "Created with" line, above the licensing detail; a centered 2-column
+    // grid with the QR on the left and the instruction + link on the right
+    if (blue.design_link && share_url) {
+        const qr = gen_qr_typst(share_url)
+        const invite = escape_typst("Customize and print this yourself")
+        const link = `#link("${escape_typst_str(share_url)}")[${escape_typst(share_url)}]`
+        parts.push('#align(center, grid(\n'
+            + '    columns: 2,\n'
+            + '    column-gutter: 4mm,\n'
+            + '    align: (center + horizon, left + horizon),\n'
+            + `    ${qr},\n`
+            + `    [#text(weight: "bold")[${invite}] #linebreak() ${link}],\n`
+            + '))')
+    }
+
+    if (data.statement !== 'none') {
+        parts.push(escape_typst(STATEMENT[data.statement]))
     }
     parts.push(escape_typst("Resources used:"))
     parts.push(data.resources
-        .map(r => `- ${escape_typst(r.text)} (${escape_typst(r.license)})`
-            + ` #linebreak() ${escape_typst(r.url)}`)
+        .map(r => {
+            // Surface any license URL except Creative Commons (its terms are widely known)
+            const row = `- ${escape_typst(r.text)} (${escape_typst(r.license)})`
+            return r.url ? `${row} #linebreak() ${escape_typst(r.url)}` : row
+        })
         .join('\n'))
-    if (data.app_link) {
-        parts.push('Created with #link("https://paper.bible")[paper.bible]')
+
+    // Closing line for the creator's own material
+    if (blue.public_domain) {
+        parts.push(escape_typst(
+            "All other material is dedicated to the public domain (freely.giving/free)"))
     }
 
-    // Render in a smaller font so it fits as a footer-style block
-    const body = parts.filter(Boolean).join('\n\n')
-    return `#block[\n#set text(size: 8pt)\n\n${body}\n]`
+    // Attribution text — block content so the overrides stay scoped to the copyright block:
+    // no first-line indent, and forced 1.5 line/paragraph spacing (leading is the whole
+    // baseline-to-baseline advance here — see the leading note in preamble.ts)
+    return `#[\n#set par(first-line-indent: 0em, leading: 1.5em, spacing: 1.5em)\n\n`
+        + `${parts.filter(Boolean).join('\n\n')}\n]`
 }

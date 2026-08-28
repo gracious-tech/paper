@@ -22,6 +22,7 @@
         "printing-services": "^1.5.1",
         "typst-fonts": "^0.1.1",
         "typst-utils": "^0.2.0",
+        "uqr": "^0.1.3",
         "zod": "^4.4.3"
     },
     "devDependencies": {
