@@ -71,12 +71,25 @@ export function gen_preamble(request:TypstRequest, overrides:PreambleOverrides =
     const {page, typography, features} = request
 
     // Calculate leading from line_height. Typst's "leading" is only the *added* gap between
-    // lines — the rest of a line's advance comes from the font's own ascent/descent metrics,
-    // which are font-dependent and usually well under 1em, so `(line_height - 1) * font_size`
-    // (the naive approach) undershoots badly and line_height stops behaving like a multiplier
-    // of font_size at all. Forcing top-edge/bottom-edge to 0 (below) collapses that font-metric
-    // contribution to nothing, making leading the *entire* baseline-to-baseline advance — so
-    // line_height * font_size is the whole line height, matching what the UI promises
+    // lines — the rest of a line's advance normally comes from each line's own content: the
+    // font's ascent/descent metrics, and crucially the tallest run on the line. Paired with the
+    // top-edge/bottom-edge: 0 show rules below, that content contribution is collapsed to zero,
+    // so leading alone is the entire baseline-to-baseline advance. Two reasons this matters:
+    //
+    //   1. Uniform grid regardless of inline content. A verse number, a raised footnote marker
+    //      (#super), a superscript, an inline drop of a taller fallback font — with metric-based
+    //      spacing any of these makes its line taller than its neighbours, so paragraph lines
+    //      visibly breathe unevenly wherever a verse or note falls. Zeroing the edges means
+    //      nothing on the line can push it open: every line sits on the same rhythm. Typst has
+    //      no baseline-grid feature, so a constant line-box height is the only way to get this.
+    //   2. line_height behaves as a literal multiplier. font-metric ascent/descent is usually
+    //      well under 1em, so `(line_height - 1) * font_size` (the naive formula) undershoots
+    //      badly; here line_height * font_size *is* the whole line height, matching the UI.
+    //
+    // Tradeoff: the tallest-run contribution is what would otherwise give stacked-mark scripts
+    // (Thai, Khmer, Devanagari, Vietnamese diacritics, ...) extra headroom automatically. With
+    // it gone, that headroom has to come from a large enough line_height instead — a single
+    // global value, so the grid stays uniform (see the line_height floor / default).
     const font = parse_unit(typography.font_size)
     const leading = `${(typography.line_height * font.num).toFixed(2)}${font.unit}`
 
@@ -249,12 +262,28 @@ export function gen_preamble(request:TypstRequest, overrides:PreambleOverrides =
     justify: ${justify},
     first-line-indent: (amount: 1.5em, all: false),
 )
-// Scoped (not global) so only body paragraphs are affected — headings, footnotes, and running
-// headers/footers keep Typst's own font-metric-based spacing untouched. Zeroing top-edge/
-// bottom-edge makes the font's own ascent/descent contribute nothing to a paragraph line's
-// natural height, so leading (above) becomes the whole baseline-to-baseline advance, which is
-// what makes line_height a literal multiple of font_size rather than font-metric-dependent
+// Bring the list body (not the marker) to roughly the paragraph first-line indent. Typst only
+// exposes indent (before the marker) and body-indent (marker to body), so the marker hangs in
+// the indent space and indent is reduced to absorb the marker width + body-indent, leaving the
+// text near 1.5em. Inter-item and outer spacing are pinned to leading so the list keeps the
+// body-paragraph rhythm and still tracks the user's line_height setting
+#set list(indent: 0.6em, spacing: ${leading})
+#set enum(indent: 0.6em, spacing: ${leading})
+#show list: set block(above: ${leading}, below: ${leading})
+#show enum: set block(above: ${leading}, below: ${leading})
+// Collapse every line's own height to zero so leading (above) is the whole baseline-to-baseline
+// advance — see the long note by the leading calc for the full rationale. In short: Bible body
+// text is dense with verse numbers and footnote markers, and with normal font-metric spacing
+// each of those would make its line a little taller than the ones around it, so paragraph
+// leading would visibly wobble line to line. Zeroing top-edge/bottom-edge means no glyph on a
+// line — verse number, raised marker, tall fallback font — can push it open: uniform grid.
+// Scoped (not global) so headings and the running header/footer keep Typst's metric-based
+// spacing. list/enum/terms need their own rules — the par rule doesn't reach their item bodies,
+// so without these their wrapped lines keep the font edges on top of leading and sit looser
 #show par: set text(top-edge: 0pt, bottom-edge: 0pt)
+#show list: set text(top-edge: 0pt, bottom-edge: 0pt)
+#show enum: set text(top-edge: 0pt, bottom-edge: 0pt)
+#show terms: set text(top-edge: 0pt, bottom-edge: 0pt)
 
 // Heading font — applies document-wide to any heading (chapter markers, section headings)
 #show heading: set text(font: "${escape_typst_str(typography.font_headings)}")
