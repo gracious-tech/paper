@@ -72,6 +72,23 @@ describe('cut_at_verses', () => {
         // A raw cut at the #vn(2) offset would split `#q(1)[` from its closing bracket
         expect(chunks).toEqual(['#vn(1)Prose line.\n', '#q(1)[#vn(2)Poetry line]'])
     })
+
+    it('carries a section heading into the row of the verse it introduces', () => {
+        const text = '#vn(1)One.\n\n== A Section\n#vn(2)Two.'
+        const chunks = cut_at_verses(text, [1, 2])
+        // The `== A Section` line belongs above verse 2, not stranded at the foot of verse 1
+        expect(chunks[0]).toBe('#vn(1)One.\n\n')
+        expect(chunks[1]).toBe('== A Section\n#vn(2)Two.')
+    })
+
+    it('gives trailing prose to a missing boundary past the last verse, not the row before', () => {
+        const text = '#vn(13)Thirteen. #vn(14)Fourteen.\n\nPeace to you.\n\nA closing line.\n\n'
+        const chunks = cut_at_verses(text, [13, 15])
+        // Verse 15 doesn't exist here (merged away): its row gets the closing prose, while the
+        // verse 13-14 row keeps only its own paragraph
+        expect(chunks[0]).toBe('#vn(13)Thirteen. #vn(14)Fourteen.\n\n')
+        expect(chunks[1]).toBe('Peace to you.\n\nA closing line.\n\n')
+    })
 })
 
 

@@ -55,6 +55,41 @@ function verse_offsets(text:string):Map<number, number> {
 }
 
 
+// End of the paragraph block that holds this text's last verse marker — the first blank line
+// after it, or end of text. Used as the cut point for a boundary verse that lies past every
+// verse this translation actually has, so any trailing prose (a closing greeting, a verse the
+// translation merges away) lands in that boundary's row instead of being piled onto the row
+// before it.
+function end_of_last_verse_block(text:string):number {
+    let last = -1
+    for (const match of text.matchAll(/#vn\(\d+\)/g)) {
+        last = match.index
+    }
+    if (last === -1) {
+        return text.length
+    }
+    const brk = text.indexOf('\n\n', last)
+    return brk === -1 ? text.length : brk + 2
+}
+
+
+// Pull a cut position back over any heading line(s) (`==`, `===`, …) that directly precede it,
+// so a section heading travels into the row of the verses it introduces rather than being
+// stranded at the foot of the previous row (the primary translation keeps its own headings
+// attached this way — this makes the forced cut of the second translation match).
+function widen_cut_over_headings(text:string, pos:number):number {
+    let cut = pos
+    while (cut > 0 && text[cut - 1] === '\n') {
+        const line_start = text.lastIndexOf('\n', cut - 2) + 1
+        if (!/^\s*={1,6}\s+\S/.test(text.slice(line_start, cut - 1))) {
+            break
+        }
+        cut = line_start
+    }
+    return cut
+}
+
+
 // Cut markup at the given boundary start-verses (ascending), returning one chunk per boundary
 // — used to force the second translation's breaks to match the primary's structure. A boundary
 // verse missing in this text falls through to the next verse that does exist (its content then
@@ -67,9 +102,9 @@ export function cut_at_verses(text:string, boundaries:number[]):string[] {
         if (pos === undefined) {
             const later = [...offsets.entries()].filter(([v]) => v > verse)
                 .sort((x, y) => x[0] - y[0])[0]
-            pos = later?.[1]
+            pos = later ? later[1] : end_of_last_verse_block(text)
         }
-        positions.push(pos ?? text.length)
+        positions.push(widen_cut_over_headings(text, pos))
     }
     const chunks:string[] = []
     let start = 0

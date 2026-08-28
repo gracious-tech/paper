@@ -44,7 +44,7 @@ function gen_passage_image(
 export function gen_passage(
     passage:TypstPassage, page:PageConfig, image_style:ImageStyle,
     font_size:string, font_text2:string, font_headings2:string, font_size2:string,
-    font_fallbacks2:string[],
+    font_fallbacks2:string[], line_height:number,
 ):string {
     const parts:string[] = []
 
@@ -67,7 +67,11 @@ export function gen_passage(
         if (passage_columns(passage) === 2) {
             parts.push(`#place(top + center, scope: "parent", float: true, ${block})`)
         } else {
-            parts.push(`#${block}`)
+            // Generous bottom margin so the book title stands clearly apart from the passage
+            // (a bare paragraph break would leave it only one line's gap above the first verse).
+            // width: 100% so the inner align(center) centres across the page, not the block's
+            // shrink-wrapped content width
+            parts.push(`#block(width: 100%, below: 2.8em, ${block})`)
         }
         parts.push('')
     }
@@ -77,7 +81,7 @@ export function gen_passage(
 
     // Build the scoped block with passage-specific function definitions and show rules
     const inner = gen_passage_inner(passage, use_grid, font_size, font_text2, font_headings2,
-        font_size2, font_fallbacks2, passage.column_gap, null)
+        font_size2, font_fallbacks2, line_height, passage.column_gap, null)
 
     // Wrap in a scoped block so settings don't leak to other content
     parts.push(`#[
@@ -96,7 +100,7 @@ ${inner}
 export function gen_passage_facing(
     passage:TypstPassage, page:PageConfig, image_style:ImageStyle,
     font_size:string, font_text2:string, font_headings2:string, font_size2:string,
-    font_fallbacks2:string[], gutter:string, entry_width:string,
+    font_fallbacks2:string[], line_height:number, gutter:string, entry_width:string,
 ):string {
     const parts:string[] = []
 
@@ -118,15 +122,17 @@ export function gen_passage_facing(
             ? `align(center, text(size: 1em, [${escape_typst(passage.passage_subtitle)}]))`
             : null
         const block = subtitle ? `stack(spacing: 0.3em, ${title}, ${subtitle})` : title
-        parts.push(`#grid(columns: (1fr, 1fr), column-gutter: ${gutter},
+        // Generous bottom margin so the book title stands clearly apart from the passage (a
+        // bare paragraph break would leave it only one line's gap above the first verse)
+        parts.push(`#block(width: 100%, below: 2.8em, grid(columns: (1fr, 1fr), column-gutter: ${gutter},
     ${block},
-    ${block})`)
+    ${block}))`)
         parts.push('')
     }
 
     // Same scoped block as gen_passage, with the facing gutter and footnote width constraint
     const inner = gen_passage_inner(passage, true, font_size, font_text2, font_headings2,
-        font_size2, font_fallbacks2, gutter, entry_width)
+        font_size2, font_fallbacks2, line_height, gutter, entry_width)
     parts.push(`#[
 ${inner}
 ]`)
@@ -161,13 +167,13 @@ export function passage_columns(passage:TypstPassage):1|2 {
 function gen_passage_inner(
     passage:TypstPassage, use_grid:boolean,
     font_size:string, font_text2:string, font_headings2:string, font_size2:string,
-    font_fallbacks2:string[], gutter:string, entry_width:string|null,
+    font_fallbacks2:string[], line_height:number, gutter:string, entry_width:string|null,
 ):string {
     const lines:string[] = []
 
 
     // Heading show rules
-    lines.push(gen_heading_rules(passage, font_size))
+    lines.push(gen_heading_rules(passage, font_size, line_height))
 
     // Footnote show rules
     lines.push(gen_footnote_rules(passage, entry_width))
@@ -192,7 +198,7 @@ function gen_passage_inner(
     // Render the content (any 2-column layout comes from the page setting, not a block)
     if (use_grid) {
         lines.push(gen_multi_bible_grids(
-            passage, gutter, font_text2, font_headings2, font_size2, font_fallbacks2))
+            passage, gutter, font_text2, font_headings2, font_size2, font_fallbacks2, line_height))
     } else {
         lines.push(passage.bibles[0]!.content)
     }
@@ -201,8 +207,27 @@ function gen_passage_inner(
 }
 
 
-// Generate heading show rules
-function gen_heading_rules(passage:TypstPassage, font_size:string):string {
+// Heading margins, expressed as fractions of one body line's advance (the `line_height` setting
+// × font size — the same unit the body uses for its own leading/paragraph spacing) so a user's
+// line_height opens up or tightens the space around headings in step with the text. The values
+// are picked to land on the previous fixed ems at the default line_height (1.75).
+const HEADING_MARGIN_LINES = {
+    1: {before: 0.91, after: 0.51},
+    2: {before: 1.09, after: 0.49},  // == Section: the common subheading
+    3: {before: 0.54, after: 0.34},
+}
+// The two-column grid can't use a heading's own leading `v()` for its top margin (a heading
+// that opens a grid cell has that `v()` suppressed — see gen_heading_rules); it puts
+// `HEADING_MARGIN_LINES[2].before + GRID_LEAD_EXTRA_LINES` on the whole row instead. The extra
+// compensates for the single-column heading keeping its font ascent above the baseline while
+// the grid heading's top-edge is flattened level with the other translation — without it the
+// grid gap reads noticeably tighter.
+const GRID_LEAD_EXTRA_LINES = 0.4
+
+
+// Generate heading show rules. line_height is the body line advance multiplier (Blueprint
+// line_height) — heading margins scale with it, see HEADING_MARGIN_LINES.
+function gen_heading_rules(passage:TypstPassage, font_size:string, line_height:number):string {
     if (!passage.show_headings) {
         return '#show heading: none'
     }
@@ -215,32 +240,52 @@ function gen_heading_rules(passage:TypstPassage, font_size:string):string {
     const style = passage.headings_italic ? '"italic"' : '"normal"'
     const size = (mult:number) => `${(passage.headings_size * mult).toFixed(2)}em`
 
+    // A vertical gap of `lines` body-line advances, as an em of the body text size
+    const gap = (lines:number) => `${(lines * line_height).toFixed(3)}em`
+
     // Reset the heading base size to the document text size (absolute, so Typst's built-in
     // per-level em scaling — 1.4em/1.2em/1em — can't compound with the em sizes below).
     // Wrap each heading body in a `block` so it isn't treated as a continuation
     // paragraph — otherwise the document's first-line-indent would indent it.
     //
-    // Each rule drops its leading `v()` when the "ch-float-open" flag is set — i.e. when the
-    // heading immediately follows a 'float'-style chapter marker (see preamble.ts). That lets the
-    // heading rise to sit level with the big margin numeral instead of being pushed below it. The
-    // flag is read then cleared here, so it only affects the chapter's first heading; it is never
-    // set under the other chapter styles, so those keep their normal leading unconditionally.
-    // `block(above: 0pt)` keeps that suppression clean — the (kept) `v()` is then the only
-    // leading space, matching the previous rendering for non-chapter-opening headings.
-    const lead = (space:string, mult:number) => `it => context {
+    // Each rule drops its leading `v()` in two cases, so a heading doesn't get pushed below
+    // where it should sit:
+    //   - "ch-float-open": the heading immediately follows a 'float'-style chapter marker (see
+    //     preamble.ts), so it should rise to sit level with the big margin numeral.
+    //   - "bilingual-cell-top": the heading is the first thing in its side-by-side grid cell
+    //     (see gen_multi_bible_grids). With no content above it in the cell there's nothing to
+    //     separate from, and the leading space would drop it a whole line below the other
+    //     translation's first line (which opens straight into text).
+    // Both flags are read then cleared here, so only the first heading of the chapter/cell is
+    // affected. On top of dropping the leading `v()`, the cell-top case also flattens the
+    // heading's top-edge to the baseline (`block(above: 0pt)` alone still leaves the font's
+    // ascent as a visible gap above the glyphs) so the heading baseline lands level with the
+    // other side's first text line, whose paragraph top-edge is likewise collapsed to 0. The
+    // float-chapter case keeps the natural top-edge — its target is the big margin numeral, not
+    // a text baseline.
+    const lead = (before:number, mult:number) => `it => context {
     let open = state("ch-float-open", false).get()
     state("ch-float-open", false).update(false)
-    if not open { v(${space}) }
-    block(above: 0pt, text(weight: ${weight}, style: ${style}, size: ${size(mult)}, it.body))`
+    let cell_top = state("bilingual-cell-top", false).get()
+    state("bilingual-cell-top", false).update(false)
+    if not open and not cell_top { v(${gap(before)}) }
+    block(above: 0pt, {
+        set text(top-edge: 0pt) if cell_top
+        text(weight: ${weight}, style: ${style}, size: ${size(mult)}, it.body)
+    })`
+    // The `v()` before (via lead()) and after each heading are its top and bottom margins —
+    // enough space that a subheading reads as a clear break from the preceding text and as
+    // attached to (not crammed against) the text it introduces
+    const m = HEADING_MARGIN_LINES
     return `#show heading: set text(size: ${font_size})
-#show heading.where(level: 1): ${lead('1.2em', 1.2)}
-    v(0.25em)
+#show heading.where(level: 1): ${lead(m[1].before, 1.2)}
+    v(${gap(m[1].after)})
 }
-#show heading.where(level: 2): ${lead('1.5em', 1)}
-    v(0.2em)
+#show heading.where(level: 2): ${lead(m[2].before, 1)}
+    v(${gap(m[2].after)})
 }
-#show heading.where(level: 3): ${lead('0.6em', 0.9)}
-    v(0.15em)
+#show heading.where(level: 3): ${lead(m[3].before, 0.9)}
+    v(${gap(m[3].after)})
 }`
 }
 
@@ -294,27 +339,58 @@ function gen_footnote_rules(passage:TypstPassage, entry_width:string|null):strin
 function gen_multi_bible_grids(
     passage:TypstPassage, gutter:string,
     font_text2:string, font_headings2:string, font_size2:string, font_fallbacks2:string[],
+    line_height:number,
 ):string {
     const fonts2 = [font_text2, ...font_fallbacks2].map(f => `"${escape_typst_str(f)}"`).join(', ')
 
+    // Every cell opens with this:
+    //   - A zero-height block, so the cell's first paragraph counts as following a block —
+    //     that's what makes the document's `#show par: set text(top-edge/bottom-edge: 0)`
+    //     (uniform leading) and first-line-indent suppression apply to it. Without it a cell
+    //     starting straight into a paragraph renders that paragraph with metric-based line
+    //     height, so its leading visibly differs from sibling rows (most obvious with tall
+    //     stacked-diacritic scripts). Same trick as gen_passage_inner.
+    //   - The "bilingual-cell-top" flag, so a heading that's the first thing in the cell drops
+    //     its leading space and sits level with the other translation's first line rather than
+    //     a line lower (see the heading rules in gen_heading_rules).
+    const cell_open = '#block(below: 0pt, height: 0pt)\n'
+        + '#state("bilingual-cell-top", false).update(true)'
+
     // set/let bindings scope to their own content block, so every second cell repeats this
     // prelude (shadowing #footnote in an outer scope wouldn't reach markup evaluated here)
-    const prelude2 = `#let footnote(..args) = none
+    const prelude2 = `${cell_open}
+#let footnote(..args) = none
 #set text(font: (${fonts2}), size: ${font_size2})
 #show heading: set text(font: "${escape_typst_str(font_headings2)}")`
 
     const rows = build_aligned_rows(
         passage.bibles[0]!.content, passage.bibles[1]?.content ?? '', passage.multi_align)
-    return rows.map(([a, b]) => `#grid(
+
+    // A row whose chunk opens with a section heading (after an optional #ch marker). The
+    // heading's own leading v() is suppressed at a cell top (see gen_heading_rules), so the
+    // margin before it has to be added at the row level instead — on the whole grid, so both
+    // columns shift together and stay aligned. Matches the single-column heading's top margin
+    // (see the HEADING_MARGIN_LINES / GRID_LEAD_EXTRA_LINES notes) and scales with line_height
+    // the same way. Weak so it collapses away at a page top.
+    const heading_row = /^\s*(#ch\(\d+\)\s*)?={1,6}\s/
+    const row_lead_em =
+        ((HEADING_MARGIN_LINES[2].before + GRID_LEAD_EXTRA_LINES) * line_height).toFixed(3)
+    const row_lead = `#v(${row_lead_em}em, weak: true)\n`
+
+    return rows.map(([a, b], i) => {
+        const before = i > 0 && (heading_row.test(a) || heading_row.test(b)) ? row_lead : ''
+        return `${before}#grid(
     columns: (1fr, 1fr),
     column-gutter: ${gutter},
     align: top,
 [
+${cell_open}
 ${a}
 ],
 [
 ${prelude2}
 ${b}
 ],
-)`).join('\n\n')
+)`
+    }).join('\n\n')
 }

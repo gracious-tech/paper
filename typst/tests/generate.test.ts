@@ -148,7 +148,7 @@ describe('page-level columns', () => {
         const one_col = generate_typst(make_request({
             content: [make_passage({columns: 1, passage_title: 'Psalms'})],
         }))
-        expect(one_col).toContain('#align(center,')
+        expect(one_col).toContain('#block(width: 100%, below: 2.8em, align(center,')
         expect(one_col).not.toContain('scope: "parent"')
     })
 

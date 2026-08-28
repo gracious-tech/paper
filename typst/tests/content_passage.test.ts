@@ -14,13 +14,14 @@ const FONT_TEXT2 = 'Crimson Pro'
 const FONT_HEADINGS2 = 'Crimson Pro'
 const FONT_SIZE2 = '10pt'
 const FONT_FALLBACKS:string[] = []
+const LINE_HEIGHT = 1.75
 
 function call(
     passage:TypstPassage, font_text2 = FONT_TEXT2, font_headings2 = FONT_HEADINGS2,
-    font_fallbacks = FONT_FALLBACKS, font_size2 = FONT_SIZE2,
+    font_fallbacks = FONT_FALLBACKS, font_size2 = FONT_SIZE2, line_height = LINE_HEIGHT,
 ):string {
     return gen_passage(passage, TEST_PAGE, 'padded', FONT_SIZE, font_text2, font_headings2,
-        font_size2, font_fallbacks)
+        font_size2, font_fallbacks, line_height)
 }
 
 
@@ -54,12 +55,14 @@ describe('gen_passage', () => {
             expect(level2_match).not.toBeNull()
         })
 
-        it('drops heading leading space when a float chapter just opened', () => {
-            // A heading immediately after a 'float' #ch reads the shared flag and skips its
-            // leading v() so it rises level with the margin numeral (see gen_heading_rules)
+        it('drops heading leading space when a float chapter just opened or at a cell top', () => {
+            // A heading immediately after a 'float' #ch, or first in a side-by-side grid cell,
+            // reads the shared flag(s) and skips its leading v() (see gen_heading_rules)
             const result = call(make_passage({show_headings: true}))
-            expect(result).toContain('if not open { v(1.2em) }')
+            expect(result).toContain('if not open and not cell_top { v(')
+            expect(result).toContain('set text(top-edge: 0pt) if cell_top')
             expect(result).toContain('state("ch-float-open", false).get()')
+            expect(result).toContain('state("bilingual-cell-top", false).get()')
         })
     })
 
@@ -164,6 +167,34 @@ describe('gen_passage', () => {
                 multi_align: 'paragraph',
             }))
             expect((result.match(/#grid\(/g) ?? []).length).toBe(4)
+        })
+
+        it('adds a top margin before a heading-initial row, but not the first row', () => {
+            // Primary opens straight into a verse; a later paragraph starts with a section
+            // heading. The heading's own leading v() is suppressed at a cell top, so the row
+            // gets a weak spacer instead — and the opening row never does.
+            const a = '#ch(1)\n\n#vn(1)Alpha one.\n\n== A Section\n#vn(2)Alpha two.'
+            const b = '#ch(1)\n\n#vn(1)Beta one.\n\n#vn(2)Beta two.'
+            const result = call(make_passage({
+                bibles: [{content: a}, {content: b}],
+                multi_layout: 'columns',
+                multi_align: 'paragraph',
+            }))
+            // Exactly one row-level spacer, and it sits before the second grid (not the first)
+            const spacers = result.match(/#v\([\d.]+em, weak: true\)/g) ?? []
+            expect(spacers.length).toBe(1)
+            const first_grid = result.indexOf('#grid(')
+            expect(result.indexOf(spacers[0]!)).toBeGreaterThan(first_grid)
+        })
+
+        it('scales heading margins with line_height', () => {
+            const tight = call(make_passage({show_headings: true}), FONT_TEXT2, FONT_HEADINGS2,
+                FONT_FALLBACKS, FONT_SIZE2, 1.5)
+            const loose = call(make_passage({show_headings: true}), FONT_TEXT2, FONT_HEADINGS2,
+                FONT_FALLBACKS, FONT_SIZE2, 3.0)
+            // Level-2 leading gap: 1.09 lines × line_height
+            expect(tight).toContain(`v(${(1.09 * 1.5).toFixed(3)}em)`)
+            expect(loose).toContain(`v(${(1.09 * 3.0).toFixed(3)}em)`)
         })
 
         it('chapter alignment yields one grid per chapter', () => {
