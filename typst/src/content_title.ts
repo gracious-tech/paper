@@ -37,7 +37,7 @@ export function gen_title(
         parts.push('')
     }
 
-    // Vertical spacing before title (proportional to page height)
+    // Vertical spacing (proportional to page height) — only used by the icon layout below
     const top_space = `${(page_h.num / 6).toFixed(2)}${page_h.unit}`
     const mid_space = `${(page_h.num / 5).toFixed(2)}${page_h.unit}`
 
@@ -47,35 +47,39 @@ export function gen_title(
     const subtitle_pt = (page_h_mm / 210 * 15).toFixed(1)
     const sub_gap = (Number(title_pt) * 1).toFixed(1)
 
-    // Title text
-    parts.push(`#align(center)[`)
-    parts.push(`    #v(${top_space})`)
-    parts.push(`    #text(`)
-    parts.push(`        font: "${font_escaped}",`)
-    parts.push(`        weight: 700,`)
-    parts.push(`        size: ${title_pt}pt,`)
-    parts.push(`        fill: rgb("${color_text}"),`)
-    parts.push(`    )[${escape_typst(title.title)}]`)
+    // A styled text run — title and subtitle differ only in size
+    const text_run = (size:string, body:string):string[] => [
+        `#text(`,
+        `    font: "${font_escaped}",`,
+        `    weight: 700,`,
+        `    size: ${size}pt,`,
+        `    fill: rgb("${color_text}"),`,
+        `)[${escape_typst(body)}]`,
+    ]
 
-    // Subtitle
-    parts.push(`    #v(${sub_gap}pt)`)
-    parts.push(`    #text(`)
-    parts.push(`        font: "${font_escaped}",`)
-    parts.push(`        weight: 700,`)
-    parts.push(`        size: ${subtitle_pt}pt,`)
-    parts.push(`        fill: rgb("${color_text}"),`)
-    parts.push(`    )[${escape_typst(title.subtitle)}]`)
-
-    // Icon (recolored SVG, embedded as an image and scaled to a fraction of the page width,
-    // adjusted by the user's size multiplier)
     if (title.icon) {
+        // With an icon the text sits in the upper third and the icon hangs below it (recolored
+        // SVG embedded as an image, scaled to a fraction of the page width by the user's size
+        // multiplier)
         const icon_w = `${(page_w.num / 4 * icon_size).toFixed(2)}${page_w.unit}`
         const icon_bytes = `bytes("${escape_svg_for_typst(title.icon)}")`
+        parts.push(`#align(center)[`)
+        parts.push(`    #v(${top_space})`)
+        parts.push(...text_run(title_pt, title.title))
+        parts.push(`    #v(${sub_gap}pt)`)
+        parts.push(...text_run(subtitle_pt, title.subtitle))
         parts.push(`    #v(${mid_space})`)
         parts.push(`    #image.decode(${icon_bytes}, width: ${icon_w})`)
+        parts.push(`]`)
+    } else {
+        // No icon: centre the title + subtitle as one group on the page (full-height block so
+        // horizon alignment has the whole page to centre within)
+        parts.push(`#block(width: 100%, height: 100%, align(center + horizon)[`)
+        parts.push(...text_run(title_pt, title.title))
+        parts.push(`#v(${sub_gap}pt)`)
+        parts.push(...text_run(subtitle_pt, title.subtitle))
+        parts.push(`])`)
     }
-
-    parts.push(`]`)
 
     return parts.join('\n')
 }

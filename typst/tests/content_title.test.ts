@@ -102,6 +102,24 @@ describe('gen_title', () => {
     it('centers content', () => {
         const result = gen_title(make_title(), TEST_PAGE, DEFAULTS.font, DEFAULTS.frame_svg,
             DEFAULTS.color_text, DEFAULTS.color_frame, DEFAULTS.icon_size)
-        expect(result).toContain('#align(center)')
+        expect(result).toContain('align(center')
+    })
+
+    it('vertically centers the title group as one block when there is no icon', () => {
+        const result = gen_title(make_title({icon: null}), TEST_PAGE, DEFAULTS.font,
+            DEFAULTS.frame_svg, DEFAULTS.color_text, DEFAULTS.color_frame, DEFAULTS.icon_size)
+        expect(result).toContain('#block(width: 100%, height: 100%, align(center + horizon)[')
+        // Only the title/subtitle gap remains — no fixed top spacer pushing the group down
+        expect((result.match(/#v\(/g) || []).length).toBe(1)
+    })
+
+    it('top-weights the text and keeps the icon below it when an icon is present', () => {
+        const result = gen_title(make_title({icon: '<svg/>'}), TEST_PAGE, DEFAULTS.font,
+            DEFAULTS.frame_svg, DEFAULTS.color_text, DEFAULTS.color_frame, DEFAULTS.icon_size)
+        expect(result).not.toContain('horizon')
+        // Leading spacer then title, subtitle, mid spacer, icon in order
+        expect(result.indexOf('#v(')).toBeLessThan(result.indexOf('Holy Bible'))
+        expect(result.indexOf('New International Version'))
+            .toBeLessThan(result.indexOf('#image.decode('))
     })
 })
