@@ -28,16 +28,17 @@ function gen_page_furniture_row(request:TypstRequest):string {
     }
 
     // Page number cell. No font: override — inherits the document-wide #set text(font: (...))
-    // below (font_text + its regular fallbacks), same as any other text
+    // below (font_text + its regular fallbacks), same as any other text. Size is 0.7em so the
+    // running furniture tracks the user's body font_size instead of a frozen point size
     const number = request.running_pages
-        ? 'text(size: 7pt, counter(page).display())'
+        ? 'text(size: 0.7em, counter(page).display())'
         : 'none'
 
     // Running heading cell — only shows once a passage is the active content item (title/
     // custom/lines/picture-story pages have no book/chapter to show)
     const heading = request.running_headings
         ? `if state("running-active", false).at(here()) {
-            text(size: 7pt, state("running-book", "").at(here()) + " "
+            text(size: 0.7em, state("running-book", "").at(here()) + " "
                 + str(state("running-chapter", 0).at(here())))
         } else { none }`
         : 'none'
@@ -325,22 +326,25 @@ ${wj}
 )
 #let q(n, c) = q_base(n, c)
 #let qm(n, c) = qm_base(n, c)
-// List entry
+// List entry (USFM \li) — same 1em grid as poetry: one step per level, and a wrapped
+// line hangs two steps so it can't be mistaken for a deeper-level item
 #let li(n, c) = pad(
-    left: (n - 1) * 0.25in + 0.125in,
-    par(hanging-indent: 0.375in, c),
+    left: 1em * n,
+    par(hanging-indent: 2em, c),
 )
-// Embedded list entry
+// Embedded list entry — one step deeper than the equivalent li level
 #let lim(n, c) = pad(
-    left: (n - 1) * 0.25in + 0.375in,
-    par(hanging-indent: 0.375in, c),
+    left: 1em * (n + 1),
+    par(hanging-indent: 2em, c),
 )
 // Stanza break (USFM \b) — a deliberate blank line between poetry stanzas
 #let b() = v(1em)
 // Non-leveled wrapped paragraphs
 #let qc(c) = align(center, c)
 #let qr(c) = align(right, c)
-#let qd(c) = pad(left: 0.25in, emph(c))
+// Poetic descriptor (USFM \qd) — a rare Hebrew musical postscript; just italicise it
+// like the other paratextual notes (\qs etc.), no bespoke indent for now
+#let qd(c) = emph(c)
 #let lh(c) = strong(c)
 #let lf(c) = c
 // Character styles with no native Typst equivalent

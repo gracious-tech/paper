@@ -1,7 +1,7 @@
 
 import {escape_typst_str} from 'typst-utils'
 
-import {escape_typst, escape_svg_for_typst, parse_unit} from './helpers.js'
+import {escape_typst, escape_svg_for_typst, parse_unit, to_mm} from './helpers.js'
 
 import type {PageConfig, TypstTitlePage} from './types.js'
 
@@ -41,22 +41,28 @@ export function gen_title(
     const top_space = `${(page_h.num / 6).toFixed(2)}${page_h.unit}`
     const mid_space = `${(page_h.num / 5).toFixed(2)}${page_h.unit}`
 
+    // Display type scaled to the trim
+    const page_h_mm = to_mm(page_h.num, page_h.unit)
+    const title_pt = (page_h_mm / 210 * 30).toFixed(1)
+    const subtitle_pt = (page_h_mm / 210 * 15).toFixed(1)
+    const sub_gap = (Number(title_pt) * 1).toFixed(1)
+
     // Title text
     parts.push(`#align(center)[`)
     parts.push(`    #v(${top_space})`)
     parts.push(`    #text(`)
     parts.push(`        font: "${font_escaped}",`)
     parts.push(`        weight: 700,`)
-    parts.push(`        size: 55pt,`)
+    parts.push(`        size: ${title_pt}pt,`)
     parts.push(`        fill: rgb("${color_text}"),`)
     parts.push(`    )[${escape_typst(title.title)}]`)
 
     // Subtitle
-    parts.push(`    #v(0.5cm)`)
+    parts.push(`    #v(${sub_gap}pt)`)
     parts.push(`    #text(`)
     parts.push(`        font: "${font_escaped}",`)
     parts.push(`        weight: 700,`)
-    parts.push(`        size: 20pt,`)
+    parts.push(`        size: ${subtitle_pt}pt,`)
     parts.push(`        fill: rgb("${color_text}"),`)
     parts.push(`    )[${escape_typst(title.subtitle)}]`)
 

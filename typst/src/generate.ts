@@ -226,13 +226,14 @@ function gen_facing_furniture(request:TypstRequest, start_page:number, gutter:st
         return 'none'
     }
 
-    // Same running heading text on both halves
+    // Same running heading text on both halves. 0.7em (not a fixed point size) so the running
+    // furniture tracks the user's body font_size — matches gen_page_furniture_row in preamble.ts
     const heading = request.running_headings
-        ? `text(size: 7pt, state("running-book", "").at(here()) + " "
+        ? `text(size: 0.7em, state("running-book", "").at(here()) + " "
             + str(state("running-chapter", 0).at(here())))`
         : 'none'
     const number = (expr:string) => request.running_pages
-        ? `text(size: 7pt, str(${expr}))`
+        ? `text(size: 0.7em, str(${expr}))`
         : 'none'
     const number_left = number(`${start_page} + 2 * (n - 1)`)
     const number_right = number(`${start_page} + 2 * n - 1`)
