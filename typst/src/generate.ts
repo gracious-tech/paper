@@ -197,7 +197,8 @@ export function generate_typst_facing(
         typography.font_headings2, typography.font_size2, typography.font_fallbacks2,
         typography.line_height,
         `2 * ${page.margin_left}`,
-        `${page.width} - ${page.margin_left} - ${page.margin_right}`))
+        `${page.width} - ${page.margin_left} - ${page.margin_right}`,
+        typography.poetry_outdent))
     return parts.join('\n\n')
 }
 
@@ -289,7 +290,8 @@ function gen_content_item(item:TypstContentItem, request:TypstRequest):string {
                 request.typography.font_text2, request.typography.font_headings2,
                 request.typography.font_size2, request.typography.font_fallbacks2,
                 request.typography.line_height,
-                request.features.show_chapters ? request.features.show_chapters_style : 'none')
+                request.features.show_chapters ? request.features.show_chapters_style : 'none',
+                request.typography.poetry_outdent)
         case 'title':
             return gen_title(item, request.page, request.titlepage.font,
                 request.titlepage.frame_svg, request.titlepage.color_text,

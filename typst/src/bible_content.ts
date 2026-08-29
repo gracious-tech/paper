@@ -368,6 +368,7 @@ export class BibleContent {
                 line_height: blue.line_height,
                 justify: blue.justify,
                 hyphenate: blue.hyphenate,
+                poetry_outdent: blue.poetry_outdent,
                 text_color: blue.text_color,
             },
             titlepage: this.gen_titlepage_config(blue),

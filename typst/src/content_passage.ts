@@ -51,6 +51,7 @@ export function gen_passage(
     passage:TypstPassage, page:PageConfig, image_style:ImageStyle,
     font_size:string, font_text2:string, font_headings2:string, font_size2:string,
     font_fallbacks2:string[], line_height:number, chapter_style:ChapterStyle,
+    poetry_outdent:boolean,
 ):string {
     const parts:string[] = []
 
@@ -87,7 +88,8 @@ export function gen_passage(
 
     // Build the scoped block with passage-specific function definitions and show rules
     const inner = gen_passage_inner(passage, use_grid, font_size, font_text2, font_headings2,
-        font_size2, font_fallbacks2, line_height, passage.column_gap, null, chapter_style)
+        font_size2, font_fallbacks2, line_height, passage.column_gap, null, chapter_style,
+        poetry_outdent)
 
     // Wrap in a scoped block so settings don't leak to other content
     parts.push(`#[
@@ -107,6 +109,7 @@ export function gen_passage_facing(
     passage:TypstPassage, page:PageConfig, image_style:ImageStyle,
     font_size:string, font_text2:string, font_headings2:string, font_size2:string,
     font_fallbacks2:string[], line_height:number, gutter:string, entry_width:string,
+    poetry_outdent:boolean,
 ):string {
     const parts:string[] = []
 
@@ -141,7 +144,7 @@ export function gen_passage_facing(
     // so a full-width divider would be cut in two and the second half's margin numeral lands in
     // a real inside margin — both already correct without the columns-layout adjustment.
     const inner = gen_passage_inner(passage, true, font_size, font_text2, font_headings2,
-        font_size2, font_fallbacks2, line_height, gutter, entry_width, 'none')
+        font_size2, font_fallbacks2, line_height, gutter, entry_width, 'none', poetry_outdent)
     parts.push(`#[
 ${inner}
 ]`)
@@ -177,7 +180,7 @@ function gen_passage_inner(
     passage:TypstPassage, use_grid:boolean,
     font_size:string, font_text2:string, font_headings2:string, font_size2:string,
     font_fallbacks2:string[], line_height:number, gutter:string, entry_width:string|null,
-    chapter_style:ChapterStyle,
+    chapter_style:ChapterStyle, poetry_outdent:boolean,
 ):string {
     const lines:string[] = []
 
@@ -188,9 +191,15 @@ function gen_passage_inner(
     // Footnote show rules
     lines.push(gen_footnote_rules(passage, entry_width))
 
-    // Disable first-line-indent for poetry-heavy books
-    if (LOTS_OF_POETRY.includes(passage.book)) {
+    // Flatten the baseline indent for poetry-heavy books (opt-out via the poetry_outdent
+    // setting): drop the prose first-line indent, and re-bind #q/#qm so every poetry level
+    // shifts one step left — a first-level line then sits flush at the margin like normal
+    // text rather than permanently indented (nearly every line in these books is poetry, so
+    // the standard "quoted stanza" indent just wastes the measure)
+    if (poetry_outdent && LOTS_OF_POETRY.includes(passage.book)) {
         lines.push('#set par(first-line-indent: 0em)')
+        lines.push('#let q(n, c) = q_base(n, c, base: 1)')
+        lines.push('#let qm(n, c) = qm_base(n, c, base: 1)')
     }
 
     // A heading (or the 'float' chapter marker's own block(), see chapter in preamble.ts)

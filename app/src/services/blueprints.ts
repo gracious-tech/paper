@@ -76,6 +76,7 @@ export function get_default_blueprint():Blueprint{
 
         justify: null,
         hyphenate: true,
+        poetry_outdent: true,
         text_color: null,
         columns: null,
         story_emphasis: true,

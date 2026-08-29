@@ -20,10 +20,10 @@ const LINE_HEIGHT = 1.75
 function call(
     passage:TypstPassage, font_text2 = FONT_TEXT2, font_headings2 = FONT_HEADINGS2,
     font_fallbacks = FONT_FALLBACKS, font_size2 = FONT_SIZE2, line_height = LINE_HEIGHT,
-    chapter_style:ChapterStyle = 'none',
+    chapter_style:ChapterStyle = 'none', poetry_outdent = true,
 ):string {
     return gen_passage(passage, TEST_PAGE, 'padded', FONT_SIZE, font_text2, font_headings2,
-        font_size2, font_fallbacks, line_height, chapter_style)
+        font_size2, font_fallbacks, line_height, chapter_style, poetry_outdent)
 }
 
 
@@ -135,6 +135,24 @@ describe('gen_passage', () => {
         it('keeps default indent for non-poetry books', () => {
             const result = call(make_passage({book: 'gen'}))
             expect(result).not.toContain('first-line-indent: 0em')
+        })
+
+        it('outdents poetry levels for poetry books', () => {
+            const result = call(make_passage({book: 'psa'}))
+            expect(result).toContain('#let q(n, c) = q_base(n, c, base: 1)')
+            expect(result).toContain('#let qm(n, c) = qm_base(n, c, base: 1)')
+        })
+
+        it('leaves poetry levels alone for non-poetry books', () => {
+            const result = call(make_passage({book: 'gen'}))
+            expect(result).not.toContain('q_base(n, c, base: 1)')
+        })
+
+        it('respects poetry_outdent = false even for poetry books', () => {
+            const result = call(make_passage({book: 'psa'}), undefined, undefined, undefined,
+                undefined, undefined, 'none', false)
+            expect(result).not.toContain('first-line-indent: 0em')
+            expect(result).not.toContain('q_base(n, c, base: 1)')
         })
     })
 

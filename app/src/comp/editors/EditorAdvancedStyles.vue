@@ -62,6 +62,9 @@ v-card-text(class='overflow-y-auto')
     v-checkbox(v-model='blue.hyphenate' :label='$t("Hyphenate")' hide-details)
     p(class='text-body-medium text-medium-emphasis mt-2') {{$t("Break long words across lines with a hyphen where needed.")}}
 
+    v-checkbox(v-model='blue.poetry_outdent' :label='$t("Skip initial indent in poetry books")' class='mt-4' hide-details)
+    p(class='text-body-medium text-medium-emphasis mt-2') {{$t("Skip the first level of indentation of poetry when the whole book is mostly poetry (Psalms, Proverbs, Isaiah…). Reduces line wrapping and improves readability.")}}
+
     v-divider(class='my-8')
 
     h2(class='mb-4') {{$t("Text color")}}

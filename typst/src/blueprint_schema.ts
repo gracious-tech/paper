@@ -209,6 +209,7 @@ export function make_blueprint_schema(defaults:Blueprint):z.ZodType<Blueprint>{
         line_height: z.number().catch(defaults.line_height),
         justify: z.boolean().nullable().catch(defaults.justify),
         hyphenate: z.boolean().catch(defaults.hyphenate),
+        poetry_outdent: z.boolean().catch(defaults.poetry_outdent),
         text_color: z.string().nullable().catch(defaults.text_color),
         columns: z.boolean().nullable().catch(defaults.columns),
         story_emphasis: z.boolean().catch(defaults.story_emphasis),

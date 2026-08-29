@@ -310,16 +310,21 @@ ${wj}
 // Poetry — a 1em grid: each level indents one more step. A wrapped ("turn") line hangs
 // two steps, so it never lands on the next structural level's position and can't be
 // mistaken for one — the standard print-Bible treatment. Relative to the line's own
-// indent, so it stays modest on narrow columns unlike the old fixed deep runover
-#let q(n, c) = pad(
-    left: 1em * n,
+// indent, so it stays modest on narrow columns unlike the old fixed deep runover.
+// q_base/qm_base take a base offset that drops every level by that many steps; a
+// mainly-poetry book re-binds q/qm to pass base: 1 (see gen_passage_inner) so a
+// first-level line sits flush at the margin instead of always indented
+#let q_base(n, c, base: 0) = pad(
+    left: 1em * calc.max(n - base, 0),
     par(hanging-indent: 2em, c),
 )
 // Embedded poetry — one step deeper than the equivalent q level so it stays distinct
-#let qm(n, c) = pad(
-    left: 1em * (n + 1),
+#let qm_base(n, c, base: 0) = pad(
+    left: 1em * calc.max(n + 1 - base, 0),
     par(hanging-indent: 2em, c),
 )
+#let q(n, c) = q_base(n, c)
+#let qm(n, c) = qm_base(n, c)
 // List entry
 #let li(n, c) = pad(
     left: (n - 1) * 0.25in + 0.125in,

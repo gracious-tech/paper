@@ -28,6 +28,8 @@ export const TEST_TYPOGRAPHY:TypographyConfig = {
     font_size2: '10pt',
     line_height: 1.75,
     justify: true,
+    hyphenate: true,
+    poetry_outdent: true,
     text_color: null,
 }
 
