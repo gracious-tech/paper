@@ -397,7 +397,17 @@ export class BibleContent {
 
     // Resolve the chosen trim size + margins to a concrete PageConfig of Typst unit strings
     private gen_page(blue:Blueprint):PageConfig {
-        const trim = this.resolve_trim(blue)
+        let trim = this.resolve_trim(blue)
+
+        // Booklet: the chosen size is the sheet that gets folded in half, so each reading page
+        // is half of it. Fold across the sheet's longer axis and rotate the result upright —
+        // an A4 sheet yields A5 reading pages, US Letter yields half-Letter. apply_booklet()
+        // (pdf_postprocess.ts) then places two of these side by side to rebuild the full sheet
+        if (blue.booklet) {
+            const longer = Math.max(trim.width, trim.height)
+            const shorter = Math.min(trim.width, trim.height)
+            trim = {width: longer / 2, height: shorter, unit: trim.unit}
+        }
 
         // Clamp each margin to 50% of the corresponding trim dimension (in the margin's own
         // unit, since trim/margin units can differ) so a bad/extreme value can't collapse or
@@ -410,7 +420,8 @@ export class BibleContent {
         const margin_outer = Math.min(blue.margin_outer, max_horizontal)
 
         return {
-            // Trim/page size; booklet imposition is handled downstream
+            // Reading-page size (already halved above for booklets); the 2-up sheet is
+            // reassembled in apply_booklet()
             width: `${trim.width}${trim.unit}`,
             height: `${trim.height}${trim.unit}`,
             margin_top: `${margin_top}${blue.margin_unit}`,
