@@ -41,7 +41,6 @@ v-card-text(class='overflow-y-auto')
 
     v-slider(v-model='blue.show_headings_size' :label='$t("Size")' :min='0.8' :max='2'
         :step='0.05' thumb-label class='my-4' color='')
-    p(class='text-body-medium text-medium-emphasis') {{$t("Size is relative to normal text, with 1 being the same size.")}}
 
     template(v-if='blue.bibles.length > 1')
 
@@ -147,7 +146,7 @@ v-card-text(class='overflow-y-auto')
 
     h2(class='mb-4') {{$t("Workarounds")}}
 
-    v-switch(v-model='blue.booklet_portrait' color='primary' :label="$t(`My printer doesn't allow \"flip on short edge\"`)" class='mt-4' :disabled='!blue.booklet')
+    v-switch(v-model='blue.booklet_portrait' color='primary' :label="$t(`My printer doesn't allow \"flip on short edge\"`)" class='mt-4' :disabled='!blue.booklet' hide-details)
     p(class='text-body-medium text-medium-emphasis') {{$t("If your printer can only flip on long edge (which is the default for double-sided portrait documents) then this setting will output a portrait PDF with alternating rotation which will look correct once printed double-sided.")}}
 
 </template>
