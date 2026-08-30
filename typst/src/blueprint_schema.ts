@@ -223,6 +223,7 @@ export function make_blueprint_schema(defaults:Blueprint):z.ZodType<Blueprint>{
         titlepage_color_icon: z.string().nullable().catch(defaults.titlepage_color_icon),
         titlepage_color_frame: z.string().nullable().catch(defaults.titlepage_color_frame),
         titlepage_font: z.string().nullable().catch(defaults.titlepage_font),
+        titlepage_text_size: z.number().catch(defaults.titlepage_text_size),
         titlepage_icon_size: z.number().catch(defaults.titlepage_icon_size),
         titlepage_always: z.enum(['left', 'right']).nullable().catch(defaults.titlepage_always),
 

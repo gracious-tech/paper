@@ -112,6 +112,7 @@ export interface TitlepageConfig {
     frame_svg:string|null       // Resolved corner-pattern SVG (raw, "#000000" placeholder), or null
     color_text:string           // Hex color for title/subtitle text
     color_frame:string          // Hex color for the corner pattern
+    text_size:number            // Size multiplier for the title + subtitle text (1 = default)
     icon_size:number            // Size multiplier for the icon (1 = default)
     // Force every title page to start on this side (null = no forcing)
     always:'left'|'right'|null
@@ -385,6 +386,7 @@ export interface Blueprint {
     titlepage_color_icon:string|null   // null = default black
     titlepage_color_frame:string|null  // null = default black
     titlepage_font:string|null         // null = auto (matches font_text)
+    titlepage_text_size:number         // Size multiplier for the title + subtitle text (1 = default)
     titlepage_icon_size:number         // Size multiplier for the icon (1 = default)
     // Force every title page to start on this side; null = no forcing
     titlepage_always:'left'|'right'|null

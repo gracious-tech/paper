@@ -92,6 +92,9 @@ v-card-text(class='overflow-y-auto')
     div(class='mb-4')
         AppColor(v-model='blue.titlepage_color_frame' :label='$t("Color of frame")')
 
+    v-slider(v-model='blue.titlepage_text_size' :label='$t("Text size")' :min='0.5' :max='2'
+        :step='0.1' thumb-label class='my-4' color='')
+
     v-slider(v-model='blue.titlepage_icon_size' :label='$t("Icon size")' :min='0.4' :max='2'
         :step='0.1' thumb-label class='my-4' color='')
 

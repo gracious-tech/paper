@@ -40,6 +40,7 @@ export const TEST_TITLEPAGE:TitlepageConfig = {
     frame_svg: null,
     color_text: '#333333',
     color_frame: '#666666',
+    text_size: 1,
     icon_size: 1,
     always: null,
 }

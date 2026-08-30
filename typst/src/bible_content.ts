@@ -601,6 +601,7 @@ export class BibleContent {
             frame_svg: blue.titlepage_frame ? (this.patterns[blue.titlepage_frame] ?? null) : null,
             color_text: blue.titlepage_color_text ?? '#000000',
             color_frame: blue.titlepage_color_frame ?? '#000000',
+            text_size: blue.titlepage_text_size,
             icon_size: blue.titlepage_icon_size,
             always: blue.titlepage_always,
         }

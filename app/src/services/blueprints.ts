@@ -90,6 +90,7 @@ export function get_default_blueprint():Blueprint{
         titlepage_color_icon: null,
         titlepage_color_frame: null,
         titlepage_font: null,
+        titlepage_text_size: 1,
         titlepage_icon_size: 1,
         titlepage_always: 'right',
 

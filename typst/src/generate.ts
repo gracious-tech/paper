@@ -296,7 +296,8 @@ function gen_content_item(item:TypstContentItem, request:TypstRequest):string {
         case 'title':
             return gen_title(item, request.page, request.titlepage.font,
                 request.titlepage.frame_svg, request.titlepage.color_text,
-                request.titlepage.color_frame, request.titlepage.icon_size)
+                request.titlepage.color_frame, request.titlepage.text_size,
+                request.titlepage.icon_size)
         case 'custom':
             return gen_custom(item)
         case 'lines':
