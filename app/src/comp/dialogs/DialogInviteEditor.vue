@@ -2,7 +2,19 @@
 <template lang='pug'>
 
 v-dialog(:model-value='modelValue' @update:model-value='close' max-width='520')
-    v-card
+
+    //- Guests can't invite editors — a design shared from a guest account would be lost with
+    //-     the session, so prompt them to sign in first
+    v-card(v-if='is_anonymous')
+        v-card-title {{$t("Invite an editor")}}
+        v-card-text
+            p {{$t("You must first sign in to be able to invite other editors.")}}
+        v-card-actions
+            v-spacer
+            v-btn(@click='close') {{$t("Cancel")}}
+            v-btn(@click='sign_in' color='secondary' variant='tonal') {{$t("Sign in")}}
+
+    v-card(v-else)
         v-card-title {{ is_owner ? $t("Invite an editor") : $t("People with access") }}
         v-card-text
             template(v-if='is_owner')
@@ -46,7 +58,8 @@ import {computed, ref, watch} from 'vue'
 
 import {designs, reset_design_share_token, remove_design_editor, fetch_design_editors_info}
     from '@/services/designs'
-import {user} from '@/services/auth'
+import {user, is_anonymous} from '@/services/auth'
+import {state} from '@/services/state'
 import {report_error} from '@/services/errors'
 
 import type {DesignEditorInfo} from '@/services/types'
@@ -91,7 +104,7 @@ const loading_editors = ref(false)
 // Sharing is always on — generate a link immediately for any design that predates this. Also
 // (re)fetch the participant list every time the dialog opens
 watch(() => props.modelValue, async open => {
-    if (!open){
+    if (!open || is_anonymous.value){
         return
     }
     if (is_owner.value && !share_token.value){
@@ -135,6 +148,12 @@ const copy_link = async () => {
 // Select the whole link when its field is focused (easy manual copy)
 const select_all = (event:FocusEvent) => {
     (event.target as HTMLInputElement).select()
+}
+
+// Close this dialog and open the account dialog so the guest can sign in
+const sign_in = () => {
+    close()
+    state.account = true
 }
 
 const close = () => {

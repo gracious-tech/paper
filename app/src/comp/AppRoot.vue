@@ -11,7 +11,7 @@ v-app.app(v-else)
                     BrandIcon.brand
                     span Paper Bible
                 v-spacer
-                VBtn.account(@click='show_account = true' color='' icon variant='text'
+                VBtn.account(@click='state.account = true' color='' icon variant='text'
                         v-tooltip:left='$t("Account")')
                     AppIcon(name='account_circle')
                 v-menu
@@ -39,7 +39,7 @@ div.display(v-if='!state.splash')
 
 DialogViewedDesign
 DialogAcceptInvite
-DialogAccount(v-model='show_account')
+DialogAccount(v-model='state.account')
 DialogConfirm
 DialogPrompt
 DialogCoverEditor
@@ -53,7 +53,7 @@ v-snackbar(:model-value='!!state.toast' @update:model-value='state.toast = null'
 
 <script lang='ts' setup>
 
-import {computed, ref} from 'vue'
+import {computed} from 'vue'
 import {useRoute} from 'vue-router'
 import {useI18n} from 'vue-i18n'
 
@@ -89,10 +89,6 @@ const showing_editor = computed(() => {
     return route.name === 'design' && !route.params['version']
         && (design_needs_editor.value || state.forced_editor)
 })
-
-
-// Whether the account dialog is open
-const show_account = ref(false)
 
 </script>
 

@@ -426,5 +426,7 @@
   "Disabling this will prevent people from sharing the design, printing additional copies, and using it in other useful ways. We do not recommend disabling it unless you are including material from third-parties that is not openly licensed.": "",
   "Skip initial indent in poetry books": "",
   "Skip the first level of indentation of poetry when the whole book is mostly poetry (Psalms, Proverbs, Isaiah…). Reduces line wrapping and improves readability.": "",
-  "Text size": ""
+  "Text size": "",
+  "You must first sign in to be able to invite other editors.": "",
+  "Sign in": ""
 }

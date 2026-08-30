@@ -40,6 +40,9 @@ export const state = reactive({
     // Whether the new-design wizard dialog is open — set by AppNavbar's "New" button and by
     // DisplaySplash for brand-new users, rendered by DialogNewDesign (mounted in AppRoot)
     new_design: false,
+    // Whether the account dialog is open — set by the header's account button and by any flow
+    // that needs a guest to sign in first (e.g. inviting an editor), rendered by DialogAccount
+    account: false,
     // Reopens DialogNewDesign in "edit" mode, seeded from the open design's wizard_draft and
     // landing on the given step — set by ViewDesignSimple's Type row (the one wizard step whose
     // change can invalidate another step, so it needs the full stepper's cross-step validation
