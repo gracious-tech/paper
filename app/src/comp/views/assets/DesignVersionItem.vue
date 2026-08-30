@@ -9,9 +9,10 @@ v-list-item(@click='select' :active='version.id === selected_version_id' color='
         template(v-if='expired') &nbsp;— {{$t("Expired")}}
     template(#append)
         div.status
-            v-progress-circular(v-if='version.status === "pending"' indeterminate size='32'
-                color='secondary')
-            app-icon(v-else-if='version.status === "failed"' name='error' class='text-error')
+            v-progress-circular(v-if='version.status === "pending" && !stuck' indeterminate
+                size='32' color='secondary')
+            app-icon(v-else-if='version.status === "failed" || stuck' name='error'
+                class='text-error')
             //- The document compiled, but its actual page count broke its chosen binding
             //- (DisplayDesignVersion shows the full explanation when the version is viewed)
             app-icon(v-else-if='binding_issue' name='warning' class='text-warning'
@@ -30,6 +31,8 @@ v-list-item(@click='select' :active='version.id === selected_version_id' color='
                 template(v-if='editable')
                     v-list-item(v-if='expired || version.status === "failed"' @click='regen')
                         v-list-item-title {{$t("Regenerate")}}
+                    v-list-item(v-else-if='stuck' @click='retry')
+                        v-list-item-title {{$t("Try again")}}
                     v-list-item(@click='edit_in_place')
                         v-list-item-title {{$t("Edit")}}
                     v-list-item(@click='duplicate')
@@ -37,7 +40,7 @@ v-list-item(@click='select' :active='version.id === selected_version_id' color='
                 v-list-item(@click='share' :disabled='version.status === "pending"')
                     v-list-item-title {{$t("Share")}}
                 v-list-item(v-if='editable' @click='remove'
-                        :disabled='version.status === "pending"')
+                        :disabled='version.status === "pending" && !stuck')
                     v-list-item-title {{$t("Delete")}}
     DialogShareVersion(v-model='show_share' :design_id='design_id' :version_id='version.id')
 
@@ -46,16 +49,17 @@ v-list-item(@click='select' :active='version.id === selected_version_id' color='
 
 <script lang='ts' setup>
 
-import {computed, ref} from 'vue'
+import {computed, ref, watch, onUnmounted} from 'vue'
 import {useI18n} from 'vue-i18n'
 import {useRouter} from 'vue-router'
 
 import DialogShareVersion from '@/comp/dialogs/DialogShareVersion.vue'
 import {show_toast, confirm_dialog} from '@/services/state'
+import {report_error} from '@/services/errors'
 import {binding_page_issue} from '@/services/blueprints'
 import {create_design, restore_version_into_design} from '@/services/designs'
-import {get_pdf_url, get_cover_pdf_url, delete_version, regenerate_version, version_expired,
-    share_version, selected_version_id} from '@/services/versions'
+import {get_pdf_url, get_cover_pdf_url, delete_version, regenerate_version, retry_version,
+    version_expired, version_stuck, share_version, selected_version_id} from '@/services/versions'
 
 import type {Version} from '@/services/types'
 
@@ -70,6 +74,38 @@ const props = defineProps<{version:Version, design_id:string, is_latest?:boolean
 
 // Whether the share dialog is open
 const show_share = ref(false)
+
+
+// Ticking clock so `stuck` re-evaluates while a version sits pending; only runs while it's
+// actually pending (started/stopped by the watcher below)
+const now = ref(Date.now())
+let tick:ReturnType<typeof setInterval>|null = null
+
+watch(() => props.version.status, status => {
+    if (tick){
+        clearInterval(tick)
+        tick = null
+    }
+    if (status === 'pending'){
+        tick = setInterval(() => {
+            now.value = Date.now()
+        }, 5000)
+    }
+}, {immediate: true})
+
+onUnmounted(() => {
+    if (tick){
+        clearInterval(tick)
+    }
+})
+
+
+// Whether this pending version's compile was almost certainly abandoned (see version_stuck) —
+// swaps the spinner for a retry affordance instead of an indefinite one
+const stuck = computed(() => {
+    void now.value
+    return version_stuck(props.version)
+})
 
 
 // Whether the PDF has passed its 1-year Storage lifetime (metadata remains, can regenerate)
@@ -126,6 +162,16 @@ const download_cover = async () => {
 const regen = async () => {
     // Recompile the expired/failed PDF from the version's frozen blueprint
     await regenerate_version(props.version)
+}
+
+const retry = async () => {
+    // Re-drive a version stuck in 'pending' (its original compile never finished) back through
+    // the pipeline — see version_stuck / retry_version
+    try {
+        await retry_version(props.version)
+    } catch (error){
+        report_error('banner', error)
+    }
 }
 
 const duplicate = async () => {

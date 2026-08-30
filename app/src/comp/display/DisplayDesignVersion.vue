@@ -7,8 +7,15 @@ div.doc(v-if='iframe_src')
     v-alert(v-if='binding_warning' type='warning' variant='flat' density='compact' rounded='0'
         :text='binding_warning')
     iframe(:src='iframe_src')
-div.explain(v-else :class='{pending: status === "pending"}')
+div.explain(v-else :class='{pending: status === "pending" && !stuck}')
     template(v-if='status === undefined')
+    template(v-else-if='status === "pending" && stuck')
+        h3(class='mb-6') {{$t("This is taking longer than expected")}}
+        p(class='mb-6') {{$t("Its generation was likely interrupted. It can be started again.")}}
+        div(class='mb-6')
+            v-btn(@click='retry' color='secondary' :loading='retrying') {{$t("Try again")}}
+        div
+            v-btn(:href='contact_url' target='_blank' variant='text') {{$t("Contact Us")}}
     template(v-else-if='status === "pending"')
         h3(class='text-headline-large') {{$t("Preparing some good news") + '...'}}
         AnimatedBook
@@ -38,9 +45,10 @@ div.explain(v-else :class='{pending: status === "pending"}')
 import {computed, ref, watch, onUnmounted} from 'vue'
 import {useI18n} from 'vue-i18n'
 
-import {selected_version, get_pdf_url, regenerate_version, version_expired,
-    } from '@/services/versions'
+import {selected_version, get_pdf_url, regenerate_version, retry_version, version_expired,
+    version_stuck} from '@/services/versions'
 import {binding_page_issue} from '@/services/blueprints'
+import {report_error} from '@/services/errors'
 import AnimatedBook from '../reuseable/AnimatedBook.vue'
 
 
@@ -51,8 +59,20 @@ const time_since_request = ref('')
 let timer_interval:ReturnType<typeof setInterval>|null = null
 
 
+// Ticking wall clock, advanced by the pending timer below so `stuck` re-evaluates as time passes
+const now = ref(Date.now())
+
+
 const status = computed(() => {
     return selected_version.value?.status
+})
+
+
+// Whether a pending version has been sitting long enough that its compile was almost certainly
+// abandoned (tab reload/close/crash, killed server instance) — offer a retry, not an endless wait
+const stuck = computed(() => {
+    void now.value
+    return selected_version.value ? version_stuck(selected_version.value) : false
 })
 
 
@@ -107,6 +127,26 @@ const regen = () => {
 }
 
 
+// Whether a retry of a stuck pending version is in flight
+const retrying = ref(false)
+
+
+// Re-drive a stuck pending version through the compile pipeline (see version_stuck / retry_version)
+const retry = async () => {
+    if (!selected_version.value){
+        return
+    }
+    retrying.value = true
+    try {
+        await retry_version(selected_version.value)
+    } catch (error){
+        report_error('banner', error)
+    } finally {
+        retrying.value = false
+    }
+}
+
+
 const contact_url = computed(() => {
     return 'https://gracious.tech/contact?desc=' + encodeURIComponent(debug.value)
 })
@@ -138,8 +178,13 @@ watch(selected_version, version => {
                 return
             }
 
-            // Get difference in seconds
-            const diff = (new Date().getTime() - version.created.getTime()) / 1000
+            // Advance the shared clock so `stuck` re-evaluates
+            now.value = Date.now()
+
+            // Count from the current compile attempt (a regen/retry re-stamps compile_started),
+            // falling back to creation for older versions that predate the field
+            const started = version.compile_started ?? version.created
+            const diff = (new Date().getTime() - started.getTime()) / 1000
             const minutes = Math.floor(diff / 60).toString()
             const seconds = Math.floor(diff % 60).toString().padStart(2, '0')
             time_since_request.value = `${minutes}:${seconds}`

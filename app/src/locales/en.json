@@ -428,5 +428,7 @@
   "Skip the first level of indentation of poetry when the whole book is mostly poetry (Psalms, Proverbs, Isaiah…). Reduces line wrapping and improves readability.": "",
   "Text size": "",
   "You must first sign in to be able to invite other editors.": "",
-  "Sign in": ""
+  "Sign in": "",
+  "This is taking longer than expected": "",
+  "Its generation was likely interrupted. It can be started again.": ""
 }

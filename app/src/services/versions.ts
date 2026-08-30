@@ -9,7 +9,7 @@ import {PDFDocument} from 'pdf-lib'
 import {SCHEMA_VERSION, PDF_LIFETIME_MS} from 'paper-bible-typst'
 
 import {firestore, firebase_storage} from '@/services/firebase'
-import {api} from '@/services/api'
+import {api, ApiError} from '@/services/api'
 import {user} from '@/services/auth'
 import {designs, current_design_id} from '@/services/designs'
 import {bible_content} from '@/services/content'
@@ -60,6 +60,26 @@ export function design_needs_version(design:DesignMeta):boolean{
 }
 
 
+// A pending version is treated as stuck once it's sat this long past its latest compile attempt.
+// That's well beyond any realistic compile time (the server fallback is capped near 5 min by the
+// Cloud Run request timeout), so crossing it almost always means the compile's driver went away
+// — the tab that clicked "Create" reloaded/closed/crashed, or the server instance was killed.
+// `compile_and_upload` runs only in that one tab and nothing else ever advances a pending doc,
+// so past this the UI offers a retry instead of an unbounded progress screen
+export const STUCK_MS = 4 * 60 * 1000
+
+
+export function version_stuck(version:Version):boolean{
+    // Whether a pending version has been abandoned mid-compile (see STUCK_MS). Reads the wall
+    // clock directly, so components re-run it against a ticking ref to keep the result current
+    if (version.status !== 'pending'){
+        return false
+    }
+    const since = (version.compile_started ?? version.created).getTime()
+    return Date.now() - since > STUCK_MS
+}
+
+
 // --- List sync ------------------------------------------------------------------------------
 
 
@@ -70,6 +90,7 @@ function version_from_doc(id:string, data:DocumentData):Version{
         design_id: data['design_id'] as string,
         owner: data['owner'] as string,
         created: ((data['created'] ?? Timestamp.now()) as Timestamp).toDate(),
+        compile_started: ((data['compile_started'] ?? null) as Timestamp|null)?.toDate() ?? null,
         title: data['title'] as string,
         blueprint: data['blueprint'] as Blueprint,
         status: data['status'] as Version['status'],
@@ -140,6 +161,7 @@ export async function create_pending_version(design_id:string, blueprint:Bluepri
         design_id,
         owner: user.value!.uid,
         created: serverTimestamp(),
+        compile_started: serverTimestamp(),
         title: blueprint.title,
         blueprint: {...cloneDeep(blueprint), cover: cover.frozen, content: images.frozen},
         status: 'pending',
@@ -152,16 +174,25 @@ export async function create_pending_version(design_id:string, blueprint:Bluepri
         error: null,
         error_id: null,
     })
-    // Denormalized onto the parent design doc so the /designs list can show status/needs-
-    // attention chips without an N+1 per-design version query — see design_needs_version()
-    await updateDoc(doc(firestore, 'designs', design_id),
-        {latest_version: {status: 'pending', pages: null, save_token}})
-    // Font/image bytes may only be uploaded once the doc exists (Storage rules resolve the
-    // owner via the doc)
-    await upload_version_fonts(fonts.uploads)
-    for (const [path, bytes, content_type] of [...cover.uploads, ...images.uploads]){
-        await uploadBytes(storage_ref(firebase_storage, path), bytes,
-            {contentType: content_type})
+    // The version doc now exists but its asset uploads (and denormalized summary) haven't run —
+    // if any fail here, the caller never gets `id` and compile_and_upload never runs for it, so
+    // mark it failed rather than stranding it in 'pending' with nothing left to advance it
+    try {
+        // Denormalized onto the parent design doc so the /designs list can show status/needs-
+        // attention chips without an N+1 per-design version query — see design_needs_version()
+        await updateDoc(doc(firestore, 'designs', design_id),
+            {latest_version: {status: 'pending', pages: null, save_token}})
+        // Font/image bytes may only be uploaded once the doc exists (Storage rules resolve the
+        // owner via the doc)
+        await upload_version_fonts(fonts.uploads)
+        for (const [path, bytes, content_type] of [...cover.uploads, ...images.uploads]){
+            await uploadBytes(storage_ref(firebase_storage, path), bytes,
+                {contentType: content_type})
+        }
+    } catch (error){
+        await updateDoc(doc(firestore, 'versions', id),
+            {status: 'failed', error: error_to_string(error)}).catch(() => undefined)
+        throw error
     }
     return id
 }
@@ -181,6 +212,11 @@ export async function compile_and_upload(id:string, design_id:string, blueprint:
     // Production URL for this exact version — woven into any auto-copyright block as a link + QR
     // code when the blueprint opts in (blueprint.design_link)
     const share_url = `${location.origin}/designs/${design_id}/${id}`
+
+    // Stamp the start of this attempt so a reload/tab-close/crash mid-compile (or a killed
+    // server fallback) can be spotted as stuck rather than shown as forever-pending — see
+    // version_stuck(). Best-effort: a failed stamp write just means the older timestamp is used
+    await updateDoc(doc_ref, {compile_started: serverTimestamp()}).catch(() => undefined)
 
     try {
         try {
@@ -244,7 +280,18 @@ export async function compile_and_upload(id:string, design_id:string, blueprint:
             // via the versions Firestore sync). Not critical yet as the fallback usually works
             report_error('silent', wasm_error,
                 {context: {version_id: id, stage: 'wasm_compile'}})
-            await api('/api/compile', {version_id: id})
+            try {
+                await api('/api/compile', {version_id: id})
+            } catch (server_error){
+                // A concurrent compile (another tab, or a retry racing the original) already
+                // moved the version out of 'pending' — not a failure, the winner's status
+                // arrives via the versions sync
+                if (server_error instanceof ApiError
+                        && ['not_pending', 'compile_in_progress'].includes(server_error.code)){
+                    return
+                }
+                throw server_error
+            }
         }
     } catch (error){
         // Even the server fallback failed (it records its own failures — this catch covers
@@ -252,6 +299,12 @@ export async function compile_and_upload(id:string, design_id:string, blueprint:
         // view can offer a support link containing it
         const error_id = report_error('silent', error,
             {force: true, critical: true, context: {version_id: id, stage: 'compile_fallback'}})
+        // Only clobber the status if this version is still pending — a concurrent winner may
+        // have set it 'available' while this attempt was failing
+        const current = (await getDoc(doc_ref).catch(() => null))?.data()?.['status']
+        if (current !== undefined && current !== 'pending'){
+            return
+        }
         await updateDoc(doc_ref, {status: 'failed', error: error_to_string(error), error_id})
             .catch((update_error:unknown) => {
                 report_error('banner', update_error)
@@ -289,6 +342,84 @@ export async function regenerate_version(version:Version):Promise<void>{
             {'latest_version.status': 'pending'})
     }
     await compile_and_upload(version.id, version.design_id, version.blueprint, is_latest, fonts)
+}
+
+
+async function adopt_pending_pdf(version:Version, is_latest:boolean):Promise<boolean>{
+    // If a prior compile of this pending version already uploaded its PDF but died before
+    // recording the result, finish the job from the bytes that are already in Storage rather
+    // than recompiling — the client can't overwrite doc.pdf (create-once) anyway, so a re-upload
+    // would only 403 into the server fallback. Returns false if there's no PDF to adopt
+    let url:string
+    try {
+        url = await getDownloadURL(
+            storage_ref(firebase_storage, `versions/${version.id}/doc.pdf`))
+    } catch (error){
+        if ((error as {code?:string}).code === 'storage/object-not-found'){
+            return false
+        }
+        throw error
+    }
+    const bytes = new Uint8Array(await (await fetch(url)).arrayBuffer())
+    const pages = (await PDFDocument.load(bytes)).getPageCount()
+
+    // The cover PDF is uploaded after the interior, so it can be missing even when doc.pdf isn't
+    // — render + upload just the cover in that case (cover.pdf is also create-once, but absent)
+    if (version.blueprint.cover){
+        let cover_missing = false
+        try {
+            await getDownloadURL(
+                storage_ref(firebase_storage, `versions/${version.id}/cover.pdf`))
+        } catch (error){
+            if ((error as {code?:string}).code !== 'storage/object-not-found'){
+                throw error
+            }
+            cover_missing = true
+        }
+        if (cover_missing){
+            const fonts = await Promise.all(
+                version.custom_fonts.map(meta => load_font_from_meta(meta)))
+            const share_url = `${location.origin}/designs/${version.design_id}/${version.id}`
+            const cover_bytes = await render_cover_pdf(
+                version.blueprint, pages, fonts.length ? fonts : undefined, share_url)
+            await uploadBytes(
+                storage_ref(firebase_storage, `versions/${version.id}/cover.pdf`),
+                cover_bytes, {contentType: 'application/pdf', contentDisposition: 'inline'})
+        }
+    }
+
+    await updateDoc(doc(firestore, 'versions', version.id), {
+        status: 'available',
+        pages,
+        pdf_expires: Timestamp.fromMillis(Date.now() + PDF_LIFETIME_MS),
+        error: null,
+    })
+    if (is_latest){
+        await updateDoc(doc(firestore, 'designs', version.design_id),
+            {'latest_version.status': 'available', 'latest_version.pages': pages})
+    }
+    return true
+}
+
+
+export async function retry_version(version:Version):Promise<void>{
+    // Re-drive a version that's been stuck in 'pending' past STUCK_MS back through the compile
+    // pipeline (see version_stuck). Unlike regenerate_version this deliberately accepts a pending
+    // version — it's the recovery path for one whose original compile never finished (tab
+    // reload/close/crash, killed server instance)
+    if (version.status !== 'pending'){
+        return
+    }
+    const is_latest = latest_version.value?.id === version.id
+    // The PDF may already be sitting in Storage (upload landed but the status write didn't) —
+    // adopt it instead of recompiling
+    if (await adopt_pending_pdf(version, is_latest)){
+        return
+    }
+    const fonts = await Promise.all(version.custom_fonts.map(meta => load_font_from_meta(meta)))
+    await updateDoc(doc(firestore, 'versions', version.id), {error: null})
+    await compile_and_upload(version.id, version.design_id, version.blueprint, is_latest,
+        fonts.length ? fonts : undefined)
 }
 
 

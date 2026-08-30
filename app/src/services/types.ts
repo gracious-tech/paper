@@ -41,6 +41,7 @@ export interface Version {
     design_id:string
     owner:string
     created:Date
+    compile_started:Date|null  // Start of the latest compile attempt (stuck-pending detection)
     title:string
     blueprint:Blueprint
     status:'pending'|'failed'|'available'

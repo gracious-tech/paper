@@ -195,6 +195,11 @@ export async function handle_compile(uid:string, version_id:string, client_ip:st
     active_uids.add(uid)
 
     try {
+        // Re-stamp the attempt start so a compile killed here (instance termination, OOM on the
+        // largest docs, request timeout) reads as stuck rather than forever-pending on the
+        // client — see version_stuck() in the app
+        await doc_ref.update({compile_started: Timestamp.now()}).catch(() => undefined)
+
         // Download the version's snapshotted custom fonts (usually none)
         const custom_fonts:CustomFont[] = await Promise.all(
             fonts_meta.map(

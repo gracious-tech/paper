@@ -23,6 +23,7 @@ import {create_pending_version, compile_and_upload, selected_version_id, latest_
 import {typst_generator} from '@/services/typst'
 import {gen_content_name, collect_passage_books, has_missing_books} from '@/services/blueprints'
 import {resolve_content_for_style} from '@/services/content_images'
+import {report_error} from '@/services/errors'
 
 
 const router = useRouter()
@@ -84,6 +85,11 @@ const generate = async () => {
         // Compile the final PDF in-browser via Typst and upload it (status updates arrive via the
         // versions Firestore sync)
         await compile_and_upload(version_id, design_id, blueprint, true)
+    } catch (error){
+        // compile_and_upload handles its own failures; this covers the steps before it (freeze,
+        // asset snapshotting, navigation) so a throw there surfaces to the user instead of
+        // silently leaving them on the editor with a half-created version
+        report_error('banner', error)
     } finally {
         generating.value = false
     }
