@@ -55,6 +55,7 @@ v-snackbar(:model-value='!!state.toast' @update:model-value='state.toast = null'
 
 import {computed, ref} from 'vue'
 import {useRoute} from 'vue-router'
+import {useI18n} from 'vue-i18n'
 
 import AppNavbar from '@/comp/nav/AppNavbar.vue'
 import DialogViewedDesign from '@/comp/dialogs/DialogViewedDesign.vue'
@@ -71,9 +72,15 @@ import DisplayHelp from '@/comp/display/DisplayHelp.vue'
 import BrandIcon from '@/assets/icon.svg?component'
 import {state} from '@/services/state'
 import {design_needs_editor} from '@/services/versions'
+import {init_coloris} from '@/services/coloris'
 
 
 const route = useRoute()
+const {t} = useI18n()
+
+
+// Bind the Coloris color picker to every [data-coloris] input (AppColor), once, app-wide
+init_coloris(t("Used in this design"))
 
 
 // Whether the currently open design is showing its editor (vs. a rendered version) — mirrors
