@@ -257,6 +257,12 @@ export class LruCache<V> {
 }
 
 
+// Convert a value to PDF points (1/72 inch), for pdf-lib page geometry
+export function to_pt(value:number, unit:string):number {
+    return to_mm(value, unit) * 72 / 25.4
+}
+
+
 // Convert a value to mm for calculation purposes
 export function to_mm(value:number, unit:string):number {
     switch (unit) {

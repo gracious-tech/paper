@@ -7,12 +7,14 @@ div.preview
             density='compact' variant='elevated' color='' divided mandatory)
             v-btn(value='reading' size='small') {{ $t("display.preview.reading_view") }}
             v-btn(value='print' size='small') {{ $t("display.preview.print_view") }}
-        //- Which part of a large document to preview — only shown when the document exceeded
-        //- the preview size limit and had to be truncated
-        v-btn-toggle.sections(v-if='truncated' :model-value='section' @update:model-value='set_section'
+        //- Which part of a large document to preview — only shown when the document was
+        //- truncated and has more than one book/passage to window across
+        v-btn-toggle.sections(v-if='truncated && section_options.length > 1'
+            :model-value='effective_section' @update:model-value='set_section'
             density='compact' variant='elevated' color='' divided mandatory)
             v-btn(value='start' size='x-small') {{ $t("common.start") }}
-            v-btn(value='middle' size='x-small') {{ $t("common.middle") }}
+            v-btn(v-if="section_options.includes('middle')" value='middle' size='x-small')
+                | {{ $t("common.middle") }}
             v-btn(value='end' size='x-small') {{ $t("common.end") }}
         //- Pushed to the right end of the toolbar via margin-left:auto (see style below); the
         //- mobile floating equivalent lives in ViewDesignEditor.vue since this toolbar is hidden
@@ -59,7 +61,7 @@ import {resolve_content_for_style} from '@/services/content_images'
 import {render_cover_pdf, render_cover_pages, prepend_cover_page, wrap_cover_reading_pages}
     from '@/services/cover'
 import {report_error} from '@/services/errors'
-import {truncate_for_preview} from 'paper-bible-typst'
+import {truncate_for_preview, prepend_preview_banner} from 'paper-bible-typst'
 
 import type {ProgressEvent, PreviewSection} from 'paper-bible-typst'
 
@@ -100,6 +102,27 @@ const section = ref<PreviewSection>('start')
 
 // Whether the last compile had to truncate the document (shows the Start|Middle|End toggle)
 const truncated = ref(false)
+
+// Number of book/passage sections in the document — the window buttons only make sense with
+// more than one (1 = just "start", 2 = start/end, 3+ = all three, since with two books the
+// middle is one or the other)
+const passage_count = computed(() => blue.content.filter(item => item.type === 'passage').length)
+const section_options = computed<PreviewSection[]>(() => {
+    if (passage_count.value <= 1){
+        return ['start']
+    }
+    if (passage_count.value === 2){
+        return ['start', 'end']
+    }
+    return ['start', 'middle', 'end']
+})
+
+// The active section, clamped to what's currently offered (the document can shrink under the
+// selection, e.g. a passage is deleted) — used for both the toggle highlight and the compile.
+// A shrink recompiles via the normal blueprint watcher; the selection is remembered so it
+// comes back if passages are re-added.
+const effective_section = computed<PreviewSection>(() =>
+    section_options.value.includes(section.value) ? section.value : 'start')
 
 // Switch the previewed section and immediately recompile (no debounce for an explicit click)
 function set_section(value:PreviewSection){
@@ -191,7 +214,7 @@ async function compile(){
         // Start|Middle|End toggle) — whole books are dropped and only the last kept book's tail
         // is ever cut, never a book's start, so kept pages lay out exactly as in the real
         // document. A notice page marks each side where content was left out.
-        const truncation = truncate_for_preview(request, section.value, {
+        const truncation = truncate_for_preview(request, effective_section.value, {
             start_title: t("display.preview.start_of_preview"),
             end_title: t("display.preview.end_of_preview"),
             detail: t("display.preview.create_for_rest"),
@@ -276,6 +299,15 @@ async function compile(){
             if (run !== latest_run){
                 return
             }
+        }
+
+        // Always cap the preview with a short "this is only a preview" strip as page 1 — after
+        // every other step (cover included) so it's the first page in every view and section
+        bytes = await prepend_preview_banner(
+            bytes, truncation.request.page.width,
+            t("display.preview.banner_title"), t("display.preview.banner_subtitle"))
+        if (run !== latest_run){
+            return
         }
 
         // Swap in the new PDF and revoke the previous object URL

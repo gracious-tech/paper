@@ -2,7 +2,8 @@
 import {describe, it, expect} from 'vitest'
 import {PDFDocument} from 'pdf-lib'
 
-import {generate_pdf, generate_pdf_spread_preview} from '../src/pdf_postprocess.js'
+import {generate_pdf, generate_pdf_spread_preview, prepend_preview_banner}
+    from '../src/pdf_postprocess.js'
 import {make_request, make_passage, make_title, make_custom, TEST_TITLEPAGE} from './fixtures.js'
 
 
@@ -142,6 +143,50 @@ describe('generate_pdf_spread_preview', () => {
         expect(doc.getPage(0).getSize().width).toBe(100)
         expect(doc.getPage(1).getSize().width).toBe(200)
         expect(doc.getPage(2).getSize().width).toBe(100)
+    })
+
+})
+
+
+describe('prepend_preview_banner', () => {
+
+    const TITLE = 'This is only a preview'
+    const SUBTITLE = 'Create document to see the finished version'
+
+    it('adds an 80%-width, short-height page as page 1', async () => {
+        const source = await PDFDocument.create()
+        source.addPage([200, 400])
+        source.addPage([200, 400])
+        const before = await source.save()
+
+        const after = await prepend_preview_banner(before, '150mm', TITLE, SUBTITLE)
+
+        const doc = await PDFDocument.load(after)
+        expect(doc.getPageCount()).toBe(3)
+        const banner = doc.getPage(0)
+        // 80% of 150mm in points, and much shorter than a real page
+        expect(banner.getSize().width).toBeCloseTo(150 * 72 / 25.4 * 0.8, 1)
+        expect(banner.getSize().height).toBeLessThan(120)
+        // Original pages follow, untouched
+        expect(doc.getPage(1).getSize()).toEqual({width: 200, height: 400})
+    })
+
+    it('shrinks the text (and the strip) to fit a narrow page', async () => {
+        const wide_src = await PDFDocument.create()
+        wide_src.addPage([600, 800])
+        const narrow_src = await PDFDocument.create()
+        narrow_src.addPage([600, 800])
+
+        const wide = await PDFDocument.load(
+            await prepend_preview_banner(await wide_src.save(), '160mm', TITLE, SUBTITLE))
+        const narrow = await PDFDocument.load(
+            await prepend_preview_banner(await narrow_src.save(), '70mm', TITLE, SUBTITLE))
+
+        // Each banner is 80% of its own page width
+        expect(wide.getPage(0).getSize().width).toBeCloseTo(160 * 72 / 25.4 * 0.8, 1)
+        expect(narrow.getPage(0).getSize().width).toBeCloseTo(70 * 72 / 25.4 * 0.8, 1)
+        // The narrow page forced the type smaller, so its strip is shorter than the wide one's
+        expect(narrow.getPage(0).getSize().height).toBeLessThan(wide.getPage(0).getSize().height)
     })
 
 })

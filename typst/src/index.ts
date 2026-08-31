@@ -10,6 +10,9 @@ export {generate_pdf} from './pdf_postprocess.js'
 // Preview pipeline: lays out the printed pages as facing-page book spreads (preview only)
 export {generate_pdf_spread_preview} from './pdf_postprocess.js'
 
+// Prepends the short "this is only a preview" strip as page 1 of a preview PDF
+export {prepend_preview_banner} from './pdf_postprocess.js'
+
 // Preview truncation: cuts an over-long request down to a fast-compiling window of content
 export {truncate_for_preview, PREVIEW_CHAR_LIMIT} from './preview.js'
 export type {PreviewSection, PreviewMessages, PreviewTruncation} from './preview.js'

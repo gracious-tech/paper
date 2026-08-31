@@ -137,6 +137,8 @@
   "dialog.story_picker.write_own": "Write your own...",
   "dialog.viewed.invalid_link": "This share link is invalid or has been disabled.",
   "dialog.viewed.shared_notice": "Someone shared this document with you.",
+  "display.preview.banner_subtitle": "Create document to see the finished version",
+  "display.preview.banner_title": "This is only a preview",
   "display.preview.create_for_rest": "Create document to see the rest",
   "display.preview.downloading": "Downloading",
   "display.preview.end_of_preview": "End of preview",

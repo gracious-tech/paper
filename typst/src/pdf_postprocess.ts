@@ -4,6 +4,7 @@ import {PDFDocument, PDFFont, PDFPage, StandardFonts, degrees, rgb} from 'pdf-li
 import {generate_typst, generate_typst_facing, generate_typst_blank,
     generate_typst_lines, passage_is_alternate, half_blank_content_side} from './generate.js'
 import {optimize_pdf} from './pdf_optimize.js'
+import {parse_unit, to_pt} from './helpers.js'
 
 import type {MarginMode} from './generate.js'
 import type {TypstRequest, TypstContentItem, TypstPassage, CompileFn, ProgressFn,
@@ -382,6 +383,77 @@ async function assemble_pages(
     }
 
     return {final_doc, blank_doc, blank_flags}
+}
+
+
+// Preview banner geometry (points): base type sizes, the gap between the two lines, and the
+// padding around the text block. Type shrinks below the base sizes on narrow pages so the
+// longer line always fits; the strip height then follows the text.
+const PREVIEW_BANNER_TITLE_SIZE = 13
+const PREVIEW_BANNER_SUBTITLE_SIZE = 9.5
+const PREVIEW_BANNER_LINE_GAP = 6
+const PREVIEW_BANNER_PADDING = 11
+
+// Light orange fill so the strip reads as a notice rather than a page of content
+const PREVIEW_BANNER_FILL = rgb(0.996, 0.925, 0.82)
+
+
+// Prepend a short "this is only a preview" strip as the very first page of a preview PDF. It's
+// 80% of a trim page wide and only tall enough for its two lines of text plus padding, on a
+// light orange ground, so it reads as a header note rather than a page of content. Called
+// after every other assembly step (including cover merge) so it is always page 1, in every
+// view and section. Text is passed in already translated (this package has no i18n).
+export async function prepend_preview_banner(
+    pdf_bytes:Uint8Array, page_width:string, title:string, subtitle:string,
+):Promise<Uint8Array> {
+
+    const doc = await PDFDocument.load(pdf_bytes)
+    const {num, unit} = parse_unit(page_width)
+    const width = to_pt(num, unit) * 0.8
+
+    const bold = await doc.embedFont(StandardFonts.HelveticaBold)
+    const regular = await doc.embedFont(StandardFonts.Helvetica)
+
+    // Shrink the type if the wider of the two lines wouldn't fit within the padded width
+    let title_size = PREVIEW_BANNER_TITLE_SIZE
+    let subtitle_size = PREVIEW_BANNER_SUBTITLE_SIZE
+    let line_gap = PREVIEW_BANNER_LINE_GAP
+    const natural = Math.max(
+        bold.widthOfTextAtSize(title, title_size),
+        regular.widthOfTextAtSize(subtitle, subtitle_size),
+    )
+    const available = width - PREVIEW_BANNER_PADDING * 2
+    if (natural > available){
+        const shrink = available / natural
+        title_size *= shrink
+        subtitle_size *= shrink
+        line_gap *= shrink
+    }
+
+    const block_height = title_size + line_gap + subtitle_size
+    const height = block_height + PREVIEW_BANNER_PADDING * 2
+
+    const page = doc.insertPage(0, [width, height])
+    page.drawRectangle({x: 0, y: 0, width, height, color: PREVIEW_BANNER_FILL})
+
+    let y = height - PREVIEW_BANNER_PADDING - title_size
+    page.drawText(title, {
+        x: (width - bold.widthOfTextAtSize(title, title_size)) / 2,
+        y,
+        size: title_size,
+        font: bold,
+        color: rgb(0.1, 0.1, 0.1),
+    })
+    y -= line_gap + subtitle_size
+    page.drawText(subtitle, {
+        x: (width - regular.widthOfTextAtSize(subtitle, subtitle_size)) / 2,
+        y,
+        size: subtitle_size,
+        font: regular,
+        color: rgb(0.3, 0.3, 0.3),
+    })
+
+    return doc.save()
 }
 
 
