@@ -5,7 +5,7 @@
 import {PassageReference} from '@gracious.tech/fetch-client'
 
 import {content} from '@/services/content'
-import {get_default_blueprint} from '@/services/blueprints'
+import {get_default_blueprint, get_passages} from '@/services/blueprints'
 import {seed_cover_preset} from '@/services/cover'
 import {generate_token} from '@/services/utils'
 import {fetch_stories, story_to_slides, story_reference_label, story_canonical_cmp}
@@ -44,6 +44,7 @@ export interface DraftPassage {
 // so going back and changing e.g. the type never needs to un-apply a previous choice
 export interface NewDesignDraft {
     type:NewDesignType|null
+    title:string  // Cover/design title; blank falls back to the first passage's reference
     // Which of the two content sources below is used at build. For `picture_story`, 'books'
     // means the predefined story list (`stories`) rather than whole books
     book_mode:'books'|'passages'
@@ -69,6 +70,7 @@ export interface NewDesignDraft {
 export function get_default_draft():NewDesignDraft{
     return {
         type: null,
+        title: '',
         book_mode: 'books',
         books: [],
         stories: [],
@@ -216,6 +218,7 @@ export function wizard_preview_blueprint(draft:NewDesignDraft):Blueprint{
     blueprint.binding_type = draft.binding_type
     blueprint.ink_type = draft.ink_type
     blueprint.paper_type = draft.paper_type
+    blueprint.title = (draft.title ?? '').trim()
     if (draft.bibles.length){
         blueprint.bibles = [...draft.bibles] as [string, ...string[]]
     }
@@ -248,6 +251,21 @@ export function wizard_preview_blueprint(draft:NewDesignDraft):Blueprint{
 }
 
 
+// The title the cover falls back to when the wizard's title field is left blank: the first
+// included passage's reference (e.g. "Titus"), the same fallback default_cover_preset() uses.
+// Empty when there's no single representative passage (e.g. picture-story mode), in which case
+// the field simply has no placeholder text
+export function wizard_auto_title(draft:NewDesignDraft):string{
+    const blueprint = wizard_preview_blueprint(draft)
+    const passage = get_passages(blueprint)[0]
+    if (!passage){
+        return ''
+    }
+    return content.collection.reference_to_string(
+        new PassageReference(passage), blueprint.bibles[0])
+}
+
+
 // Assemble the final Blueprint from a completed draft: defaults, then the type preset's diff,
 // then each step's selections. Content becomes whole-book passages in canonical order plus the
 // auto-copyright statement (translations nearly always require attribution), with a title page
@@ -268,6 +286,10 @@ export async function build_new_blueprint(draft:NewDesignDraft):Promise<Blueprin
 
     // Translations (the wizard's step validation guarantees 1-2, and 2 for bilingual)
     blueprint.bibles = [...draft.bibles] as [string, ...string[]]
+
+    // Title: the wizard's optional title field — blank means the design/cover falls back to the
+    // first passage's reference (see design_name() and default_cover_preset())
+    blueprint.title = (draft.title ?? '').trim()
 
     // Content: either one whole-book passage per selected book (canonical order regardless of
     // the order the user clicked them in), or the user's own passage list (their order, since

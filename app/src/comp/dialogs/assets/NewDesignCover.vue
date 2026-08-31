@@ -2,10 +2,12 @@
 <template lang='pug'>
 
 div
-    p(class='mb-3 text-body-medium text-medium-emphasis') {{ $t("What do you want the cover to look like?") }}
+    p(class='mb-5 text-body-medium text-medium-emphasis') {{ $t("What do you want the cover to look like?") }}
+    v-text-field(v-model='draft.title' :label='$t("Title")' :placeholder='auto_title'
+        persistent-placeholder density='compact' variant='outlined' hide-details class='mb-6')
     div.grid
         NewDesignCard(v-for='item of covers' :key='item.id' :image='item.image' :label='item.label'
-            :selected='draft.cover === item.id' :ratio='item.ratio' hide_label
+            :selected='draft.cover === item.id' :ratio='item.ratio' hide_label square
             @select='draft.cover = item.id')
 
 </template>
@@ -18,7 +20,7 @@ import {useI18n} from 'vue-i18n'
 import {debounce} from 'lodash-es'
 
 import NewDesignCard from '@/comp/dialogs/assets/NewDesignCard.vue'
-import {wizard_cover_label, wizard_preview_blueprint} from '@/services/new_design'
+import {wizard_auto_title, wizard_cover_label, wizard_preview_blueprint} from '@/services/new_design'
 import {render_wizard_cover_preview} from '@/services/cover'
 
 import type {NewDesignDraft, NewDesignCover} from '@/services/new_design'
@@ -30,6 +32,11 @@ const props = defineProps<{draft:NewDesignDraft}>()
 const draft = props.draft
 
 const {t} = useI18n()
+
+
+// Placeholder for the title field: the value the cover auto-generates when the title is blank
+// (the first included passage's reference), reflecting the draft's current content/translation
+const auto_title = computed(() => wizard_auto_title(draft))
 
 
 // Static fallback images, shown until each card's live render resolves
@@ -88,9 +95,9 @@ async function render_previews(){
 // Re-render on every relevant draft change, debounced so a burst of edits (e.g. toggling many
 // books) only triggers one render pass
 const debounced_render = debounce(() => {void render_previews()}, 400)
-watch(() => [draft.book_mode, draft.books, draft.passages, draft.bibles, draft.service_id,
-    draft.size_id, draft.binding_type, draft.ink_type, draft.paper_type], debounced_render,
-    {deep: true, immediate: true})
+watch(() => [draft.title, draft.book_mode, draft.books, draft.passages, draft.bibles,
+    draft.service_id, draft.size_id, draft.binding_type, draft.ink_type, draft.paper_type],
+    debounced_render, {deep: true, immediate: true})
 
 onBeforeUnmount(() => {
     debounced_render.cancel()

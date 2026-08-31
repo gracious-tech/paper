@@ -339,11 +339,14 @@ export async function leave_simple_mode(id:string):Promise<void>{
 // later "Change" on another step still shows accurate values. Only valid while `id` is the open
 // design (blue is mutated directly, riding the existing debounced autosave in start_design_sync())
 export async function apply_wizard_edit(id:string, draft:NewDesignDraft):Promise<void>{
-    // build_new_blueprint() never sets `title` (it's not one of the wizard's steps) — preserve
-    // whatever's there (e.g. set via the /designs list rename action) rather than blanking it
-    const title = blue.title
+    // build_new_blueprint() sets `title` from the wizard's title field; when that field was left
+    // blank, keep whatever title was already there (e.g. set via the /designs list rename
+    // action) rather than blanking it
+    const previous_title = blue.title
     Object.assign(blue, await build_new_blueprint(draft))
-    blue.title = title
+    if (!(draft.title ?? '').trim()){
+        blue.title = previous_title
+    }
     design_wizard.draft = cloneDeep(draft)  // Optimistic, mirrors leave_simple_mode() above
     await updateDoc(doc(firestore, 'designs', id), {wizard_draft: cloneDeep(draft)})
 }

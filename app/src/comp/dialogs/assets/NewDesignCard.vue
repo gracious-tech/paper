@@ -1,7 +1,7 @@
 
 <template lang='pug'>
 
-v-card(:class='{selected}' variant='outlined' @click='emit("select")')
+v-card(:class='{selected, square}' variant='outlined' @click='emit("select")')
     img(:src='image' alt='' :style='ratio ? {aspectRatio: String(ratio)} : undefined')
     div.text(v-if='!hide_label' :class='tint')
         strong {{ label }}
@@ -17,9 +17,10 @@ v-card(:class='{selected}' variant='outlined' @click='emit("select")')
 // `tint` optionally colors the text area to distinguish sub-categories (e.g. text vs picture
 // designs in the type step). `ratio` overrides the default 2:1 box (width/height) — used by the
 // cover step's live previews, which must match the actual chosen book size's cover proportions.
-// `hide_label` drops the text area entirely (the cover step's previews speak for themselves)
+// `hide_label` drops the text area entirely (the cover step's previews speak for themselves).
+// `square` removes the corner rounding (cover step only — a book cover has square corners)
 defineProps<{image:string, label:string, subtitle?:string, selected:boolean, tint?:'blue'|'yellow',
-    ratio?:number|undefined, hide_label?:boolean}>()
+    ratio?:number|undefined, hide_label?:boolean, square?:boolean}>()
 const emit = defineEmits<{(e:'select'):void}>()
 
 
@@ -30,6 +31,9 @@ const emit = defineEmits<{(e:'select'):void}>()
 
 .v-card
     cursor: pointer
+
+    &.square
+        border-radius: 0
 
     &.selected
         border-color: rgb(var(--v-theme-secondary))
