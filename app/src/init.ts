@@ -74,6 +74,8 @@ app.use(createVuetify({
                 colors: {
                     primary: '#642b4c',  // 325deg
                     secondary: '#638cff',
+                    // Pale tint of primary — used for toggle-button active state on dark surfaces
+                    'primary-light': '#e3d3de',
                 },
             },
         },
@@ -92,6 +94,16 @@ app.use(createVuetify({
         },
         VCheckbox: {
             hideDetails: true,
+            color: 'primary',
+        },
+        VRadioGroup: {
+            color: 'primary',
+        },
+        VSlider: {
+            color: 'primary',
+        },
+        VBtnToggle: {
+            color: 'primary',
         },
     },
     icons: {

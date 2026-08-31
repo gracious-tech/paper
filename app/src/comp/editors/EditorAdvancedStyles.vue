@@ -40,7 +40,7 @@ v-card-text(class='overflow-y-auto')
     v-checkbox(v-model='blue.show_headings_italic' :label='$t("common.italic")')
 
     v-slider(v-model='blue.show_headings_size' :label='$t("common.size")' :min='0.8' :max='2'
-        :step='0.05' thumb-label class='my-4' color='')
+        :step='0.05' thumb-label class='my-4')
 
     template(v-if='blue.bibles.length > 1')
 
@@ -52,7 +52,7 @@ v-card-text(class='overflow-y-auto')
             example='verse' class='mb-4')
 
         v-slider(v-model='font_size2' :label='$t("common.font_size")' :min='6' :max='26' thumb-label
-            class='my-4' color='')
+            class='my-4')
 
     v-divider(class='my-8')
 
@@ -93,10 +93,10 @@ v-card-text(class='overflow-y-auto')
         AppColor(v-model='blue.titlepage_color_frame' :label='$t("editor.advanced.frame_color")')
 
     v-slider(v-model='blue.titlepage_text_size' :label='$t("editor.advanced.text_size")' :min='0.5' :max='2'
-        :step='0.1' thumb-label class='my-4' color='')
+        :step='0.1' thumb-label class='my-4')
 
     v-slider(v-model='blue.titlepage_icon_size' :label='$t("common.icon_size")' :min='0.4' :max='2'
-        :step='0.1' thumb-label class='my-4' color='')
+        :step='0.1' thumb-label class='my-4')
 
     v-radio-group(v-model='titlepage_always' inline
             :label='$t("editor.advanced.titlepage_side")' class='my-6')

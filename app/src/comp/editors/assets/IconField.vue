@@ -28,7 +28,7 @@ div.icon-field
         //- Size multiplier — inline, only when a caller binds a size model (some icons, e.g.
         //- title-page icons, use a single global size setting instead of a per-icon one)
         v-slider.icon-size(v-if='icon && !picker_open && size !== undefined' v-model='size'
-            :min='0.4' :max='2' :step='0.1' thumb-label color='' hide-details
+            :min='0.4' :max='2' :step='0.1' thumb-label hide-details
             :aria-label='$t("common.icon_size")')
             template(#thumb-label='{modelValue}')
                 | {{Number(modelValue).toFixed(1)}}x

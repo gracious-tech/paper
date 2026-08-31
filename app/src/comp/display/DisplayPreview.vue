@@ -4,14 +4,14 @@
 div.preview
     div.toolbar
         v-btn-toggle(:model-value='mode' @update:model-value='set_mode'
-            density='compact' variant='elevated' color='' divided mandatory)
+            density='compact' color='primary-light' divided mandatory)
             v-btn(value='reading' size='small') {{ $t("display.preview.reading_view") }}
             v-btn(value='print' size='small') {{ $t("display.preview.print_view") }}
         //- Which part of a large document to preview — only shown when the document was
         //- truncated and has more than one book/passage to window across
         v-btn-toggle.sections(v-if='truncated && section_options.length > 1'
             :model-value='effective_section' @update:model-value='set_section'
-            density='compact' variant='elevated' color='' divided mandatory)
+            density='compact' color='primary-light' divided mandatory)
             v-btn(value='start' size='x-small') {{ $t("common.start") }}
             v-btn(v-if="section_options.includes('middle')" value='middle' size='x-small')
                 | {{ $t("common.middle") }}
