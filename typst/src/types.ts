@@ -35,12 +35,6 @@ export interface TypstRequest {
     // Binary assets referenced by generated Typst source (virtual filename -> bytes), served via
     // the compiler's shadow filesystem — currently only passage images (see TypstPassageImage)
     assets:Record<string, Uint8Array>
-    // Preview-only notice pages placed before/after the arranged document ("Start of preview"
-    // when content before the window was cut, "End of preview" when content after was), kept
-    // out of content so booklet imposition doesn't fold them into the sheet pairing — the
-    // pipeline places them around the arranged pages instead (see truncate_for_preview)
-    preview_front?:TypstCustomPage
-    preview_rear?:TypstCustomPage
     // Preview-only label drawn centred on the "inside of front cover" gray slot of the reading
     // preview's first spread (see arrange_spreads) — translated text supplied by the app, since
     // this file has no access to i18n

@@ -61,7 +61,7 @@ import {resolve_content_for_style} from '@/services/content_images'
 import {render_cover_pdf, render_cover_pages, prepend_cover_page, wrap_cover_reading_pages}
     from '@/services/cover'
 import {report_error} from '@/services/errors'
-import {truncate_for_preview, prepend_preview_banner} from 'paper-bible-typst'
+import {truncate_for_preview, add_preview_strip} from 'paper-bible-typst'
 
 import type {ProgressEvent, PreviewSection} from 'paper-bible-typst'
 
@@ -213,19 +213,15 @@ async function compile(){
         // Large documents are trimmed to a fast-compiling ~50 page window (positioned by the
         // Start|Middle|End toggle) — whole books are dropped and only the last kept book's tail
         // is ever cut, never a book's start, so kept pages lay out exactly as in the real
-        // document. A notice page marks each side where content was left out.
-        const truncation = truncate_for_preview(request, effective_section.value, {
-            start_title: t("display.preview.start_of_preview"),
-            end_title: t("display.preview.end_of_preview"),
-            detail: t("display.preview.create_for_rest"),
-        })
+        // document. The dropped_before/dropped_after flags drive the start/end strips added
+        // around the compiled preview below.
+        const truncation = truncate_for_preview(request, effective_section.value)
 
         // A truncated preview only carries the cover panels for the ends it actually reaches:
-        // truncate_for_preview sets preview_front/preview_rear on any side where it dropped
-        // content, so a Start window keeps just the front cover, an End window just the back,
-        // and a Middle window neither
-        const show_front_cover = !!blue.cover && !truncation.request.preview_front
-        const show_rear_cover = !!blue.cover && !truncation.request.preview_rear
+        // a Start window keeps just the front cover, an End window just the back, a Middle
+        // window neither
+        const show_front_cover = !!blue.cover && !truncation.dropped_before
+        const show_rear_cover = !!blue.cover && !truncation.dropped_after
 
         // Label the "inside of front cover" gray slot on the reading preview's first spread so
         // it's clear it's not a missing/blank page — only when a front cover actually precedes
@@ -246,17 +242,15 @@ async function compile(){
 
         // Refresh the shared page-count estimate: the preview's own page count scaled by how
         // much of the document the preview window covered (exact when nothing was truncated).
-        // Reading spreads and booklet 2-up sheets hold two book pages per PDF page, and the
-        // truncation notice pages aren't content so they're excluded before scaling. Rounded
-        // to an even number since bound pages always come in twos
+        // Reading spreads and booklet 2-up sheets hold two book pages per PDF page. The
+        // start/end strips aren't in these bytes yet, so nothing to exclude. Rounded to an even
+        // number since bound pages always come in twos
         const pdf_pages = (await PDFDocument.load(bytes)).getPageCount()
         if (run !== latest_run){
             return
         }
-        const notice_pages = (truncation.request.preview_front ? 1 : 0)
-            + (truncation.request.preview_rear ? 1 : 0)
         const per_pdf_page = mode.value === 'print' && !blue.booklet ? 1 : 2
-        const window_pages = Math.max(1, (pdf_pages - notice_pages) * per_pdf_page)
+        const window_pages = Math.max(1, pdf_pages * per_pdf_page)
         const scale = truncation.window_chars > 0
             ? truncation.total_chars / truncation.window_chars
             : 1
@@ -301,11 +295,21 @@ async function compile(){
             }
         }
 
-        // Always cap the preview with a short "this is only a preview" strip as page 1 — after
-        // every other step (cover included) so it's the first page in every view and section
-        bytes = await prepend_preview_banner(
-            bytes, truncation.request.page.width,
-            t("display.preview.banner_title"), t("display.preview.banner_subtitle"))
+        // Cap the preview with short orange strips — after every other step (cover included) so
+        // they sit at the very edges in every view and section. The start strip is always
+        // present: it's the plain "this is only a preview" note, or the "Start of preview"
+        // marker when content before the window was dropped. The end strip is only added when
+        // content past the window was dropped.
+        const [start_title, start_subtitle] = truncation.dropped_before
+            ? [t("display.preview.start_of_preview"), t("display.preview.create_for_rest")]
+            : [t("display.preview.banner_title"), t("display.preview.banner_subtitle")]
+        bytes = await add_preview_strip(
+            bytes, truncation.request.page.width, start_title, start_subtitle, 'start')
+        if (truncation.dropped_after){
+            bytes = await add_preview_strip(
+                bytes, truncation.request.page.width,
+                t("display.preview.end_of_preview"), t("display.preview.create_for_rest"), 'end')
+        }
         if (run !== latest_run){
             return
         }
@@ -433,6 +437,11 @@ onUnmounted(() => {
 
     .create
         margin-left: auto
+
+    // Active toggle label in brand primary, over its primary-light fill (both toggles
+    // sit on the dark preview toolbar)
+    :deep(.v-btn-toggle .v-btn--active)
+        color: rgb(var(--v-theme-primary))
 
     // Vuetify forces a uniform group height from density, so the x-small child buttons alone
     // don't shrink the section toggle — override it directly to render it shorter.

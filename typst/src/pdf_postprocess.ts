@@ -47,13 +47,6 @@ export async function generate_pdf(
     request:TypstRequest, compile_fn:CompileFn, on_progress?:ProgressFn, preview = false,
 ):Promise<Uint8Array> {
 
-    // Preview notice pages read sequentially in non-booklet arrangements, so they simply join
-    // the content as the first/last items; booklets handle them after imposition below (fold
-    // order would otherwise pair the document's last page with page 1 on the first sheet)
-    if (request.arrangement !== 'booklet') {
-        request = {...request, content: content_with_notices(request)}
-    }
-
     // Assemble the printed page sequence (each section compiled separately, see assemble_pages),
     // then arrange for print
     const {final_doc, blank_doc, blank_flags} = await assemble_pages(
@@ -66,14 +59,9 @@ export async function generate_pdf(
     }
 
     if (request.arrangement === 'booklet') {
-        // Notice pages stay out of the fold order — compile each on its own (no page number,
-        // they sit outside the printed sequence) so apply_booklet can place them around the
-        // imposed sheets
-        const front_doc = await compile_notice(request, request.preview_front, compile_fn)
-        const rear_doc = await compile_notice(request, request.preview_rear, compile_fn)
         on_progress?.({stage: 'arrange', label: 'booklet'})
         on_progress?.({stage: 'finalize'})
-        return await apply_booklet(final_doc, request, blank_doc, preview, front_doc, rear_doc)
+        return await apply_booklet(final_doc, request, blank_doc, preview)
     }
 
     // Keep a trimmed book preview even so facing-page parity still reads correctly
@@ -97,11 +85,9 @@ export async function generate_pdf_spread_preview(
 ):Promise<Uint8Array> {
 
     // A folded booklet reads in the same sequential order as a book, so assemble either as a
-    // book (normal stays normal — it has no blank pages by design). Preview notice pages also
-    // read sequentially here, so they simply join the content as the first/last items
+    // book (normal stays normal — it has no blank pages by design)
     const arrangement = request.arrangement === 'booklet' ? 'book' : request.arrangement
-    const reading_request:TypstRequest = {
-        ...request, arrangement, content: content_with_notices(request)}
+    const reading_request:TypstRequest = {...request, arrangement}
 
     const {final_doc: reading_doc, blank_flags} = await assemble_pages(
         reading_request, compile_fn, on_progress)
@@ -113,32 +99,6 @@ export async function generate_pdf_spread_preview(
     on_progress?.({stage: 'arrange', label: 'spreads'})
     on_progress?.({stage: 'finalize'})
     return await arrange_spreads(reading_doc, reading_request)
-}
-
-
-// Splice the preview-only notice pages (if any) into the content list, for arrangements that
-// read sequentially — the notices just become the first/last pages
-function content_with_notices(request:TypstRequest):TypstContentItem[] {
-    const content = [...request.content]
-    if (request.preview_front) {
-        content.unshift(request.preview_front)
-    }
-    if (request.preview_rear) {
-        content.push(request.preview_rear)
-    }
-    return content
-}
-
-
-// Compile a preview notice page on its own, without a page number (it sits outside the
-// printed page sequence). Returns null when the page isn't set.
-async function compile_notice(
-    request:TypstRequest, notice:TypstContentItem|undefined, compile_fn:CompileFn,
-):Promise<PDFDocument|null> {
-    if (!notice) {
-        return null
-    }
-    return await compile_item({...request, running_pages: false}, notice, compile_fn, 1)
 }
 
 
@@ -166,9 +126,7 @@ function draw_slot_label(
 // A leading gray slot (the inside face of the front cover) is prepended only when the preview
 // actually has a front cover — request.preview_cover_label is set for exactly that case — so
 // page 1 then lands on the right; without a cover the pairing just starts at page 1 on the
-// left, with no synthetic page. The preview truncation notice pages (preview_front /
-// preview_rear, spliced in as the first / last page by content_with_notices) are each shown
-// alone on a single-width page rather than joined into a spread.
+// left, with no synthetic page.
 async function arrange_spreads(
     reading_doc:PDFDocument, request:TypstRequest,
 ):Promise<Uint8Array> {
@@ -187,31 +145,11 @@ async function arrange_spreads(
         ? await spread_doc.embedFont(StandardFonts.Helvetica)
         : null
 
-    // The truncation notice pages sit outside the spread pairing — the front notice is page 0
-    // and the rear notice is the last page (put there by content_with_notices)
-    const has_front_notice = !!request.preview_front
-    const has_rear_notice = !!request.preview_rear
-    const first_content = has_front_notice ? 1 : 0
-    const last_content = has_rear_notice ? total - 1 : total
-
-    // Copy one reading-order page onto its own single-width page (used for the notice pages so
-    // they read as a single page, not half of a spread)
-    const add_single_page = async (index:number) => {
-        const single = spread_doc.addPage([page_w, page_h])
-        const [embed] = await spread_doc.embedPages([reading_doc.getPage(index)])
-        single.drawPage(embed!, {x: 0, y: 0, width: page_w, height: page_h})
-    }
-
-    // "Start of preview" notice, on its own
-    if (has_front_notice) {
-        await add_single_page(0)
-    }
-
     // Slot order for the content pages: an optional leading gray slot (inside of front cover)
     // so page 1 lands on the right, then every content page in reading order. Pad to even so
     // the final spread has both sides.
     const slots:(number|null)[] = request.preview_cover_label ? [null] : []
-    for (let p = first_content; p < last_content; p++) {
+    for (let p = 0; p < total; p++) {
         slots.push(p)
     }
     if (slots.length % 2 === 1) {
@@ -253,11 +191,6 @@ async function arrange_spreads(
             thickness: 1,
             color: NOT_A_PAGE_FILL,
         })
-    }
-
-    // "End of preview" notice, on its own
-    if (has_rear_notice) {
-        await add_single_page(total - 1)
     }
 
     const pdf_bytes = await spread_doc.save()
@@ -386,25 +319,27 @@ async function assemble_pages(
 }
 
 
-// Preview banner geometry (points): base type sizes, the gap between the two lines, and the
+// Preview strip geometry (points): base type sizes, the gap between the two lines, and the
 // padding around the text block. Type shrinks below the base sizes on narrow pages so the
 // longer line always fits; the strip height then follows the text.
-const PREVIEW_BANNER_TITLE_SIZE = 13
-const PREVIEW_BANNER_SUBTITLE_SIZE = 9.5
-const PREVIEW_BANNER_LINE_GAP = 6
-const PREVIEW_BANNER_PADDING = 11
+const PREVIEW_STRIP_TITLE_SIZE = 13
+const PREVIEW_STRIP_SUBTITLE_SIZE = 9.5
+const PREVIEW_STRIP_LINE_GAP = 6
+const PREVIEW_STRIP_PADDING = 11
 
 // Light orange fill so the strip reads as a notice rather than a page of content
-const PREVIEW_BANNER_FILL = rgb(0.996, 0.925, 0.82)
+const PREVIEW_STRIP_FILL = rgb(0.996, 0.925, 0.82)
 
 
-// Prepend a short "this is only a preview" strip as the very first page of a preview PDF. It's
-// 80% of a trim page wide and only tall enough for its two lines of text plus padding, on a
-// light orange ground, so it reads as a header note rather than a page of content. Called
-// after every other assembly step (including cover merge) so it is always page 1, in every
-// view and section. Text is passed in already translated (this package has no i18n).
-export async function prepend_preview_banner(
+// Add a short two-line notice strip to a preview PDF — position 'start' prepends it as page 1
+// ("this is only a preview"), 'end' appends it as the last page ("end of preview"). The strip
+// is 80% of a trim page wide and only tall enough for its text plus padding, on a light orange
+// ground, so it reads as a note rather than a page of content. Called after every other
+// assembly step (cover merge included) so it always lands at the very edge of the document, in
+// every view and section. Text is passed in already translated (this package has no i18n).
+export async function add_preview_strip(
     pdf_bytes:Uint8Array, page_width:string, title:string, subtitle:string,
+    position:'start'|'end',
 ):Promise<Uint8Array> {
 
     const doc = await PDFDocument.load(pdf_bytes)
@@ -415,14 +350,14 @@ export async function prepend_preview_banner(
     const regular = await doc.embedFont(StandardFonts.Helvetica)
 
     // Shrink the type if the wider of the two lines wouldn't fit within the padded width
-    let title_size = PREVIEW_BANNER_TITLE_SIZE
-    let subtitle_size = PREVIEW_BANNER_SUBTITLE_SIZE
-    let line_gap = PREVIEW_BANNER_LINE_GAP
+    let title_size = PREVIEW_STRIP_TITLE_SIZE
+    let subtitle_size = PREVIEW_STRIP_SUBTITLE_SIZE
+    let line_gap = PREVIEW_STRIP_LINE_GAP
     const natural = Math.max(
         bold.widthOfTextAtSize(title, title_size),
         regular.widthOfTextAtSize(subtitle, subtitle_size),
     )
-    const available = width - PREVIEW_BANNER_PADDING * 2
+    const available = width - PREVIEW_STRIP_PADDING * 2
     if (natural > available){
         const shrink = available / natural
         title_size *= shrink
@@ -431,12 +366,14 @@ export async function prepend_preview_banner(
     }
 
     const block_height = title_size + line_gap + subtitle_size
-    const height = block_height + PREVIEW_BANNER_PADDING * 2
+    const height = block_height + PREVIEW_STRIP_PADDING * 2
 
-    const page = doc.insertPage(0, [width, height])
-    page.drawRectangle({x: 0, y: 0, width, height, color: PREVIEW_BANNER_FILL})
+    const page = position === 'start'
+        ? doc.insertPage(0, [width, height])
+        : doc.addPage([width, height])
+    page.drawRectangle({x: 0, y: 0, width, height, color: PREVIEW_STRIP_FILL})
 
-    let y = height - PREVIEW_BANNER_PADDING - title_size
+    let y = height - PREVIEW_STRIP_PADDING - title_size
     page.drawText(title, {
         x: (width - bold.widthOfTextAtSize(title, title_size)) / 2,
         y,
@@ -596,12 +533,9 @@ async function process_faced(
 }
 
 
-// Apply booklet imposition: reorder pages for fold-at-home 2-up printing. front_doc/rear_doc
-// are the pre-compiled preview notice pages (if any), placed before/after the imposed sheets
-// so they don't get folded into the sheet pairing.
+// Apply booklet imposition: reorder pages for fold-at-home 2-up printing.
 async function apply_booklet(
     assembled_doc:PDFDocument, request:TypstRequest, blank_doc:BlankVariants, preview = false,
-    front_doc:PDFDocument|null = null, rear_doc:PDFDocument|null = null,
 ):Promise<Uint8Array> {
 
     // Ensure page count is a multiple of 4 (a physical folded sheet holds 4 pages). Previews
@@ -672,17 +606,6 @@ async function apply_booklet(
         Duplex: request.booklet_portrait ? '/DuplexFlipLongEdge' : '/DuplexFlipShortEdge',
     })
     catalog.set(context.obj('ViewerPreferences') as any, prefs)
-
-    // Place the preview notice pages around the imposed sheets as standalone pages at their
-    // natural trim size — informational only, so they stay out of the fold order above
-    if (front_doc) {
-        const [page] = await booklet_doc.copyPages(front_doc, [0])
-        booklet_doc.insertPage(0, page as PDFPage)
-    }
-    if (rear_doc) {
-        const [page] = await booklet_doc.copyPages(rear_doc, [0])
-        booklet_doc.addPage(page as PDFPage)
-    }
 
     const pdf_bytes = await booklet_doc.save()
     return apply_metadata(pdf_bytes, request)

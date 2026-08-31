@@ -10,9 +10,7 @@
 // running page numbers change. Clipping a book's start or middle would reflow it and shift
 // every page after it.
 
-import {escape_typst} from './helpers.js'
-
-import type {TypstRequest, TypstContentItem, TypstCustomPage} from './types.js'
+import type {TypstRequest, TypstContentItem} from './types.js'
 
 
 // Very rough estimate of how many characters of markup fill one printed page
@@ -27,19 +25,16 @@ export const PREVIEW_CHAR_LIMIT = ROUGH_PAGE_CHARS * 50
 export type PreviewSection = 'start'|'middle'|'end'
 
 
-// Text for the truncation notice pages, provided by the caller so it can be translated
-export interface PreviewMessages {
-    start_title:string  // Title of the leading page when content before the window was cut
-    end_title:string    // Title of the trailing page when content after the window was cut
-    detail:string       // Explanatory line shown on both pages
-}
-
-
 // Result of truncating a request for preview. truncated is false when the document fit within
 // the budget and the original request was returned untouched.
 export interface PreviewTruncation {
     request:TypstRequest
     truncated:boolean
+    // Whether whole items were dropped before / after the kept window. dropped_after also
+    // covers the last kept passage having its tail cut. Neither adds a page inside the
+    // compiled PDF — the app surfaces both as short strips prepended/appended to the preview.
+    dropped_before:boolean
+    dropped_after:boolean
     // Rough character weight of the whole document and of the kept preview window (equal when
     // not truncated) — callers scale the preview's compiled page count by total/window to
     // estimate the full document's page count (e.g. for cover spine width)
@@ -77,18 +72,6 @@ function clip_markup_tail(content:string, limit:number):string {
         pos += block.length + 2  // Account for the removed '\n\n' separator
     }
     return kept.join('\n\n')
-}
-
-
-// A simple centred page telling the user the preview was cut short here and the full document
-// will have the rest
-function gen_notice_page(title:string, detail:string):TypstCustomPage {
-    const content = `#align(center)[
-#text(size: 1.5em)[*${escape_typst(title)}*]
-
-${escape_typst(detail)}
-]`
-    return {type: 'custom', content, position: 'middle'}
 }
 
 
@@ -139,11 +122,11 @@ function grow_backward(weights:number[], end:number, budget:number):number {
 // Reduce a request to a preview-sized window of its content. Small documents pass through
 // untouched. Larger ones keep a run of whole items positioned by `section` — 'start' from the
 // document start, 'end' the trailing items, 'middle' outward from the item holding the
-// midpoint — with only the last kept passage ever tail-clipped to hit the budget. A notice
-// page marks each side where whole items were dropped (or the tail was cut), set as
-// request.preview_front/preview_rear so the PDF pipeline can place them after page arrangement.
+// midpoint — with only the last kept passage ever tail-clipped to hit the budget. The result's
+// dropped_before/dropped_after flags say which sides lost content; the app renders each as a
+// short strip at the front/back of the preview (no page is added inside the compiled PDF).
 export function truncate_for_preview(
-    request:TypstRequest, section:PreviewSection, messages:PreviewMessages,
+    request:TypstRequest, section:PreviewSection,
 ):PreviewTruncation {
 
     const content = request.content
@@ -153,7 +136,10 @@ export function truncate_for_preview(
 
     // Whole document fits the budget — nothing to do
     if (total <= PREVIEW_CHAR_LIMIT) {
-        return {request, truncated: false, total_chars: total, window_chars: total}
+        return {
+            request, truncated: false, dropped_before: false, dropped_after: false,
+            total_chars: total, window_chars: total,
+        }
     }
 
     // Pick the kept run [lo, hi) of whole items, and whether content[hi - 1] is tail-clipped
@@ -208,18 +194,17 @@ export function truncate_for_preview(
         return {...item, bibles}
     })
 
-    // Notice pages: front when whole items were dropped before the window, rear when items
-    // were dropped after it or the last kept passage was cut short
+    // Both a cut before and a cut after the window are surfaced by the app as short strips
+    // added around the compiled preview — nothing is inserted into the content here
+    const dropped_before = lo > 0
+    const dropped_after = hi < count || clip_last
     const truncated_request:TypstRequest = {...request, content: kept}
-    if (lo > 0) {
-        truncated_request.preview_front = gen_notice_page(messages.start_title, messages.detail)
-    }
-    if (hi < count || clip_last) {
-        truncated_request.preview_rear = gen_notice_page(messages.end_title, messages.detail)
-    }
 
     // Recomputed from the kept items (a tail-clipped passage weighs less), so page-count
     // estimates scale by what actually got compiled
     const window_chars = kept.reduce((sum, item) => sum + item_weight(item), 0)
-    return {request: truncated_request, truncated: true, total_chars: total, window_chars}
+    return {
+        request: truncated_request, truncated: true, dropped_before, dropped_after,
+        total_chars: total, window_chars,
+    }
 }
