@@ -158,13 +158,16 @@ function draw_slot_label(
 }
 
 
-// Arrange a reading-order document into facing-page spreads: a leading blank so page 1 sits
-// on the right, then each subsequent pair side by side. Each spread is one landscape page
-// (2x width) with the two pages drawn left and right (same 2-up technique as apply_booklet).
-// Page 1 is always odd/recto by definition (there's no "page 0"), so the leading synthetic
-// blank is unconditional — it's needed even when page 1 itself already happens to be a real
-// blank page (e.g. assemble_pages's half-blank alignment padding), since that page is still a
-// real, printed, odd-numbered page that belongs on the right of its own spread
+// Arrange a reading-order document into facing-page spreads: pages shown two-up side by side
+// as if the book were open. Each spread is one landscape page (2x width) with the two pages
+// drawn left and right (same 2-up technique as apply_booklet).
+//
+// A leading gray slot (the inside face of the front cover) is prepended only when the preview
+// actually has a front cover — request.preview_cover_label is set for exactly that case — so
+// page 1 then lands on the right; without a cover the pairing just starts at page 1 on the
+// left, with no synthetic page. The preview truncation notice pages (preview_front /
+// preview_rear, spliced in as the first / last page by content_with_notices) are each shown
+// alone on a single-width page rather than joined into a spread.
 async function arrange_spreads(
     reading_doc:PDFDocument, request:TypstRequest,
 ):Promise<Uint8Array> {
@@ -183,10 +186,31 @@ async function arrange_spreads(
         ? await spread_doc.embedFont(StandardFonts.Helvetica)
         : null
 
-    // Slot order: a leading blank (null) so page 1 lands on the right, then every page in
-    // reading order. Pad to even so the final spread has both sides.
-    const slots:(number|null)[] = [null]
-    for (let p = 0; p < total; p++) {
+    // The truncation notice pages sit outside the spread pairing — the front notice is page 0
+    // and the rear notice is the last page (put there by content_with_notices)
+    const has_front_notice = !!request.preview_front
+    const has_rear_notice = !!request.preview_rear
+    const first_content = has_front_notice ? 1 : 0
+    const last_content = has_rear_notice ? total - 1 : total
+
+    // Copy one reading-order page onto its own single-width page (used for the notice pages so
+    // they read as a single page, not half of a spread)
+    const add_single_page = async (index:number) => {
+        const single = spread_doc.addPage([page_w, page_h])
+        const [embed] = await spread_doc.embedPages([reading_doc.getPage(index)])
+        single.drawPage(embed!, {x: 0, y: 0, width: page_w, height: page_h})
+    }
+
+    // "Start of preview" notice, on its own
+    if (has_front_notice) {
+        await add_single_page(0)
+    }
+
+    // Slot order for the content pages: an optional leading gray slot (inside of front cover)
+    // so page 1 lands on the right, then every content page in reading order. Pad to even so
+    // the final spread has both sides.
+    const slots:(number|null)[] = request.preview_cover_label ? [null] : []
+    for (let p = first_content; p < last_content; p++) {
         slots.push(p)
     }
     if (slots.length % 2 === 1) {
@@ -228,6 +252,11 @@ async function arrange_spreads(
             thickness: 1,
             color: NOT_A_PAGE_FILL,
         })
+    }
+
+    // "End of preview" notice, on its own
+    if (has_rear_notice) {
+        await add_single_page(total - 1)
     }
 
     const pdf_bytes = await spread_doc.save()

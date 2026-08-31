@@ -4,16 +4,16 @@
 div.preview
     div.toolbar
         v-btn-toggle(:model-value='mode' @update:model-value='set_mode'
-            density='compact' variant='elevated' color='primary' divided mandatory)
-            v-btn(value='reading' size='small') {{ $t("common.reading") }}
-            v-btn(value='print' size='small') {{ $t("common.print") }}
+            density='compact' variant='elevated' color='' divided mandatory)
+            v-btn(value='reading' size='small') {{ $t("display.preview.reading_view") }}
+            v-btn(value='print' size='small') {{ $t("display.preview.print_view") }}
         //- Which part of a large document to preview — only shown when the document exceeded
         //- the preview size limit and had to be truncated
-        v-btn-toggle(v-if='truncated' :model-value='section' @update:model-value='set_section'
-            density='compact' variant='elevated' color='primary' divided mandatory)
-            v-btn(value='start' size='small') {{ $t("common.start") }}
-            v-btn(value='middle' size='small') {{ $t("common.middle") }}
-            v-btn(value='end' size='small') {{ $t("common.end") }}
+        v-btn-toggle.sections(v-if='truncated' :model-value='section' @update:model-value='set_section'
+            density='compact' variant='elevated' color='' divided mandatory)
+            v-btn(value='start' size='x-small') {{ $t("common.start") }}
+            v-btn(value='middle' size='x-small') {{ $t("common.middle") }}
+            v-btn(value='end' size='x-small') {{ $t("common.end") }}
         //- Pushed to the right end of the toolbar via margin-left:auto (see style below); the
         //- mobile floating equivalent lives in ViewDesignEditor.vue since this toolbar is hidden
         //- on mobile (parent .display has display:none, see AppRoot.vue)
@@ -195,9 +195,17 @@ async function compile(){
             detail: t("display.preview.create_for_rest"),
         })
 
+        // A truncated preview only carries the cover panels for the ends it actually reaches:
+        // truncate_for_preview sets preview_front/preview_rear on any side where it dropped
+        // content, so a Start window keeps just the front cover, an End window just the back,
+        // and a Middle window neither
+        const show_front_cover = !!blue.cover && !truncation.request.preview_front
+        const show_rear_cover = !!blue.cover && !truncation.request.preview_rear
+
         // Label the "inside of front cover" gray slot on the reading preview's first spread so
-        // it's clear it's not a missing/blank page — print mode never shows that synthetic slot
-        if (mode.value === 'reading'){
+        // it's clear it's not a missing/blank page — only when a front cover actually precedes
+        // it (print mode never shows that synthetic slot)
+        if (mode.value === 'reading' && show_front_cover){
             truncation.request.preview_cover_label = t("display.preview.inside_cover")
         }
 
@@ -236,15 +244,19 @@ async function compile(){
         // front (page 1) and back (last page) panels, ignoring the spine. A cover failure is
         // surfaced the same way a book compile failure is, rather than silently showing a
         // preview that's missing its cover
-        if (blue.cover){
+        if (show_front_cover || show_rear_cover){
             try {
                 if (mode.value === 'print'){
-                    bytes = await prepend_cover_page(
-                        await render_cover_pdf(blue, page_estimate, undefined, share_url), bytes)
+                    if (show_front_cover){
+                        bytes = await prepend_cover_page(
+                            await render_cover_pdf(blue, page_estimate, undefined, share_url),
+                            bytes)
+                    }
                 } else {
                     const {front, back} = await render_cover_pages(
                         blue, page_estimate, undefined, share_url)
-                    bytes = await wrap_cover_reading_pages(front, back, bytes)
+                    bytes = await wrap_cover_reading_pages(
+                        show_front_cover ? front : null, show_rear_cover ? back : null, bytes)
                 }
             } catch (error){
                 if (run !== latest_run){
@@ -377,6 +389,9 @@ onUnmounted(() => {
 .toolbar
     flex-shrink: 0
     display: flex
+    // Vertically centre the toolbar items — without this the default stretch makes the
+    // shorter section toggle fill the toolbar height instead of sitting centred
+    align-items: center
     justify-content: center
     gap: 12px
     padding: 8px
@@ -384,6 +399,11 @@ onUnmounted(() => {
 
     .create
         margin-left: auto
+
+    // Vuetify forces a uniform group height from density, so the x-small child buttons alone
+    // don't shrink the section toggle — override it directly to render it shorter.
+    .sections
+        height: 28px
 
 .frame
     position: relative

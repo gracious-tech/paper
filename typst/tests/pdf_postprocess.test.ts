@@ -102,22 +102,46 @@ describe('generate_pdf', () => {
 describe('generate_pdf_spread_preview', () => {
 
     it('drops trailing blank pages before arranging spreads', async () => {
-        // A lone title (1 page, no titlepage_always forcing) previews as a single spread — the
-        // leading blank slot arrange_spreads always inserts puts the title on the right
+        // A lone title (1 page, no titlepage_always forcing) previews as a single spread —
+        // with no front cover there's no leading slot, so the title pairs onto the left
         const request = make_request({arrangement: 'booklet', content: [make_title()]})
         const bytes = await generate_pdf_spread_preview(request, fake_compile)
         expect(await page_count(bytes)).toBe(1)
     })
 
-    it('places preview notice pages as the first and last spread pages', async () => {
-        // Front notice + passage + rear notice read sequentially: leading blank slot + 3
-        // pages = 2 spreads
+    it('prepends the inside-of-cover slot only when the preview has a front cover', async () => {
+        // preview_cover_label set (a front cover is shown) — the leading gray slot puts page 1
+        // on the right, so a lone 1-page title needs its own spread with a blank right half
+        const with_cover = make_request({
+            arrangement: 'booklet', content: [make_title()],
+            preview_cover_label: 'Inside of cover',
+        })
+        expect(await page_count(await generate_pdf_spread_preview(with_cover, fake_compile)))
+            .toBe(1)
+        // 2-page content: with the leading slot that's [slot|p1] + [p2|blank] = 2 spreads,
+        // versus [p1|p2] = 1 spread without it
+        const two_pages = {arrangement: 'booklet' as const, content: [make_passage(), make_title()]}
+        expect(await page_count(await generate_pdf_spread_preview(
+            make_request({...two_pages, preview_cover_label: 'Inside of cover'}), fake_compile)))
+            .toBe(2)
+        expect(await page_count(await generate_pdf_spread_preview(
+            make_request(two_pages), fake_compile)))
+            .toBe(1)
+    })
+
+    it('shows each preview notice page on its own, outside the spread pairing', async () => {
+        // Front notice + 1 passage page + rear notice: notice(1) + spread(1) + notice(1) = 3,
+        // and the notice pages are single-width while the spread is double-width
         const request = make_request({
             arrangement: 'booklet', content: [make_passage()],
             preview_front: make_custom(), preview_rear: make_custom(),
         })
         const bytes = await generate_pdf_spread_preview(request, fake_compile)
-        expect(await page_count(bytes)).toBe(2)
+        const doc = await PDFDocument.load(bytes)
+        expect(doc.getPageCount()).toBe(3)
+        expect(doc.getPage(0).getSize().width).toBe(100)
+        expect(doc.getPage(1).getSize().width).toBe(200)
+        expect(doc.getPage(2).getSize().width).toBe(100)
     })
 
 })

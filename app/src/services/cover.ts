@@ -587,15 +587,23 @@ export async function prepend_cover_page(cover_bytes:Uint8Array, book_bytes:Uint
 
 
 // Wrap a book PDF with the cover's front and back panels for the Reading preview — front as
-// page 1, back as the last page, spine omitted (a reader never sees the spine as its own page)
-export async function wrap_cover_reading_pages(front_bytes:Uint8Array, back_bytes:Uint8Array,
-        book_bytes:Uint8Array):Promise<Uint8Array> {
+// page 1, back as the last page, spine omitted (a reader never sees the spine as its own
+// page). Either panel may be null to skip it, for a truncated preview whose window doesn't
+// reach that end of the document.
+export async function wrap_cover_reading_pages(front_bytes:Uint8Array|null,
+        back_bytes:Uint8Array|null, book_bytes:Uint8Array):Promise<Uint8Array> {
     const book = await PDFDocument.load(book_bytes)
-    const front_doc = await PDFDocument.load(front_bytes)
-    const back_doc = await PDFDocument.load(back_bytes)
-    const [front_page] = await book.copyPages(front_doc, [0])
-    const [back_page] = await book.copyPages(back_doc, [0])
-    book.insertPage(0, front_page!)
-    book.addPage(back_page!)
+    // Front panel as the new page 1
+    if (front_bytes){
+        const front_doc = await PDFDocument.load(front_bytes)
+        const [front_page] = await book.copyPages(front_doc, [0])
+        book.insertPage(0, front_page!)
+    }
+    // Back panel as the new last page
+    if (back_bytes){
+        const back_doc = await PDFDocument.load(back_bytes)
+        const [back_page] = await book.copyPages(back_doc, [0])
+        book.addPage(back_page!)
+    }
     return book.save()
 }
