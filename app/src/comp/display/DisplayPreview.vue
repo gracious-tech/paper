@@ -187,8 +187,10 @@ async function compile(){
         const request = await bible_content.resolve(
             {...blue, content: styled_content}, get_custom_font_styles(), on_progress, share_url)
 
-        // Large documents are cut down to a fast-compiling ~50 page window (positioned by the
-        // Start|Middle|End toggle), with a notice page wherever content was cut short
+        // Large documents are trimmed to a fast-compiling ~50 page window (positioned by the
+        // Start|Middle|End toggle) — whole books are dropped and only the last kept book's tail
+        // is ever cut, never a book's start, so kept pages lay out exactly as in the real
+        // document. A notice page marks each side where content was left out.
         const truncation = truncate_for_preview(request, section.value, {
             start_title: t("display.preview.start_of_preview"),
             end_title: t("display.preview.end_of_preview"),

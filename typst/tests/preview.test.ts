@@ -16,41 +16,44 @@ const MESSAGES = {
 
 
 // Build a passage whose content is `paragraphs` numbered paragraph blocks separated by blank
-// lines, so tests can tell which part of the document survived truncation
-function make_long_passage(paragraphs:number, prefix = 'para'):TypstPassage {
+// lines (~105 chars each), so tests can tell which part of the document survived truncation
+function make_book(paragraphs:number, prefix:string):TypstPassage {
     const blocks = []
     for (let i = 0; i < paragraphs; i++) {
         blocks.push(`${prefix}-${i} ` + 'x'.repeat(95))
     }
-    return make_passage({bibles: [{content: blocks.join('\n\n')}]})
+    return make_passage({bibles: [{content: blocks.join('\n\n')}], progress_label: prefix})
+}
+
+
+// First token of a kept passage's markup, e.g. 'gen' from 'gen-0 xxx...'
+function marker(item:TypstPassage):string {
+    return item.bibles[0]!.content.split('-')[0]!
 }
 
 
 describe('truncate_for_preview', () => {
 
     it('returns small documents untouched', () => {
-        const request = make_request({content: [make_title(), make_long_passage(10)]})
+        const request = make_request({content: [make_title(), make_book(10, 'gen')]})
         const result = truncate_for_preview(request, 'start', MESSAGES)
         expect(result.truncated).toBe(false)
         expect(result.request).toBe(request)
     })
 
-    it('truncates a large document and provides an end-of-preview page', () => {
-        // ~100 chars per paragraph, so 3x the limit worth of paragraphs
-        const paragraphs = Math.ceil(PREVIEW_CHAR_LIMIT * 3 / 100)
-        const request = make_request({content: [make_long_passage(paragraphs)]})
+    it('keeps a large book from its start and clips only the tail', () => {
+        const request = make_request({content: [make_book(3000, 'gen')]})
         const result = truncate_for_preview(request, 'start', MESSAGES)
         expect(result.truncated).toBe(true)
 
-        // Passage kept but cut down to roughly the budget
-        const passage = result.request.content[0] as TypstPassage
-        const content = passage.bibles[0]!.content
+        const content = (result.request.content[0] as TypstPassage).bibles[0]!.content
+        // Start is never disturbed; the end is dropped to roughly the budget
+        expect(content.startsWith('gen-0 ')).toBe(true)
+        expect(content).not.toContain('gen-2999 ')
         expect(content.length).toBeLessThan(PREVIEW_CHAR_LIMIT * 1.1)
-        expect(content.startsWith('para-0 ')).toBe(true)
 
-        // Notice pages set separately (the pipeline places them after page arrangement, so
-        // booklet imposition can't fold them into the sheets), never mixed into content.
-        // The start section begins at the document's start, so only the rear notice is set.
+        // Notice pages are set separately (the pipeline places them after arrangement), never
+        // mixed into content. Nothing was dropped before the window, so only the rear notice.
         expect(result.request.content.every(item => item.type === 'passage')).toBe(true)
         expect(result.request.preview_front).toBeUndefined()
         const rear = result.request.preview_rear as TypstCustomPage
@@ -59,63 +62,95 @@ describe('truncate_for_preview', () => {
         expect(rear.content).toContain('Create document to see the rest')
     })
 
-    it('shows the requested section of the document', () => {
-        const paragraphs = Math.ceil(PREVIEW_CHAR_LIMIT * 3 / 100)
-        const request = make_request({content: [make_long_passage(paragraphs)]})
-
-        // Middle: neither the first nor the last paragraph, cut short on both sides
+    it('never clips the start of a book, even for the middle section', () => {
+        // A single over-budget book has nowhere to window to — middle still shows it from
+        // its start (clipping the start is the one thing truncation must never do)
+        const request = make_request({content: [make_book(3000, 'gen')]})
         const middle = truncate_for_preview(request, 'middle', MESSAGES)
-        const middle_content = (middle.request.content[0] as TypstPassage).bibles[0]!.content
-        expect(middle_content).not.toContain('para-0 ')
-        expect(middle_content).not.toContain(`para-${paragraphs - 1} `)
-        expect((middle.request.preview_front as TypstCustomPage).content)
-            .toContain('Start of preview')
-        expect((middle.request.preview_rear as TypstCustomPage).content)
-            .toContain('End of preview')
+        const content = (middle.request.content[0] as TypstPassage).bibles[0]!.content
+        expect(content.startsWith('gen-0 ')).toBe(true)
+        expect(content).not.toContain('gen-2999 ')
+        expect(middle.request.preview_front).toBeUndefined()
+        expect(middle.request.preview_rear).toBeDefined()
+    })
 
-        // End: reaches the document's last paragraph, so only cut short at the start
+    it('drops whole leading items and tail-clips the last kept book for the start section', () => {
+        const request = make_request({content: [
+            make_title(),
+            make_book(2000, 'first'),
+            make_book(2000, 'second'),
+        ]})
+        const start = truncate_for_preview(request, 'start', MESSAGES)
+
+        expect(start.request.content[0]!.type).toBe('title')
+        const passages = start.request.content.filter(
+            (item):item is TypstPassage => item.type === 'passage')
+        expect(passages.length).toBe(1)
+        expect(passages[0]!.bibles[0]!.content.startsWith('first-0 ')).toBe(true)
+        expect(passages[0]!.bibles[0]!.content).not.toContain('first-1999 ')
+
+        // 'second' dropped whole -> rear notice; nothing before the window -> no front notice
+        expect(start.request.preview_front).toBeUndefined()
+        expect(start.request.preview_rear).toBeDefined()
+    })
+
+    it('shows trailing whole books for the end section, without clipping', () => {
+        const request = make_request({content: [
+            make_book(2000, 'first'),
+            make_book(2000, 'second'),
+            make_book(300, 'third'),
+            make_book(300, 'fourth'),
+        ]})
         const end = truncate_for_preview(request, 'end', MESSAGES)
-        const end_content = (end.request.content[0] as TypstPassage).bibles[0]!.content
-        expect(end_content).toContain(`para-${paragraphs - 1} `)
+
+        const kept = end.request.content as TypstPassage[]
+        expect(kept.map(marker)).toEqual(['third', 'fourth'])
+        // First kept book starts intact, last kept book ends intact — no clipping either side
+        expect(kept[0]!.bibles[0]!.content.startsWith('third-0 ')).toBe(true)
+        expect(kept.at(-1)!.bibles[0]!.content).toContain('fourth-299 ')
+
         expect(end.request.preview_front).toBeDefined()
         expect(end.request.preview_rear).toBeUndefined()
     })
 
-    it('drops whole items outside the window', () => {
-        const paragraphs = Math.ceil(PREVIEW_CHAR_LIMIT * 2 / 100)
+    it('keeps a large trailing book whole rather than clipping its end', () => {
         const request = make_request({content: [
-            make_title(),
-            make_long_passage(paragraphs, 'first'),
-            make_long_passage(paragraphs, 'second'),
+            make_book(300, 'intro'),
+            make_book(3000, 'big'),
         ]})
-
-        // Start window: keeps the title and the first passage only
-        const start = truncate_for_preview(request, 'start', MESSAGES)
-        expect(start.request.content[0]!.type).toBe('title')
-        const kept_passages = start.request.content.filter(
-            (item):item is TypstPassage => item.type === 'passage')
-        expect(kept_passages.length).toBe(1)
-        expect(kept_passages[0]!.bibles[0]!.content).toContain('first-0 ')
-
-        // End window: the title and first passage fall away
         const end = truncate_for_preview(request, 'end', MESSAGES)
-        expect(end.request.content.every(item => item.type !== 'title')).toBe(true)
-        const end_passages = end.request.content.filter(
-            (item):item is TypstPassage => item.type === 'passage')
-        expect(end_passages.length).toBe(1)
-        expect(end_passages[0]!.bibles[0]!.content).toContain(`second-${paragraphs - 1} `)
+
+        const kept = end.request.content as TypstPassage[]
+        expect(kept.length).toBe(1)
+        expect(kept[0]!.bibles[0]!.content.startsWith('big-0 ')).toBe(true)
+        expect(kept[0]!.bibles[0]!.content).toContain('big-2999 ')
+        expect(end.request.preview_front).toBeDefined()
+        expect(end.request.preview_rear).toBeUndefined()
     })
 
-    it('cuts at paragraph boundaries so blocks stay whole', () => {
-        const paragraphs = Math.ceil(PREVIEW_CHAR_LIMIT * 3 / 100)
-        const request = make_request({content: [make_long_passage(paragraphs)]})
-        const result = truncate_for_preview(request, 'middle', MESSAGES)
-        const content = (result.request.content[0] as TypstPassage).bibles[0]!.content
-
-        // Every kept block is a complete paragraph (marker at start, full padding retained)
-        for (const block of content.split('\n\n')) {
-            expect(block).toMatch(/^para-\d+ x{95}$/)
+    it('windows onto the middle book for the middle section', () => {
+        const books = []
+        for (let i = 0; i < 10; i++) {
+            books.push(make_book(600, `b${i}`))
         }
+        const request = make_request({content: books})
+        const middle = truncate_for_preview(request, 'middle', MESSAGES)
+
+        const kept = middle.request.content as TypstPassage[]
+        const first = marker(kept[0]!)
+        // Dropped books on both sides, and the window opens on a whole book's start
+        expect(first).not.toBe('b0')
+        expect(kept[0]!.bibles[0]!.content.startsWith(`${first}-0 `)).toBe(true)
+        expect(middle.request.preview_front).toBeDefined()
+        expect(middle.request.preview_rear).toBeDefined()
+    })
+
+    it('reports the kept window weight for page-count scaling', () => {
+        const request = make_request({content: [make_book(3000, 'gen')]})
+        const result = truncate_for_preview(request, 'start', MESSAGES)
+        expect(result.total_chars).toBeGreaterThan(PREVIEW_CHAR_LIMIT)
+        expect(result.window_chars).toBeLessThanOrEqual(PREVIEW_CHAR_LIMIT * 1.1)
+        expect(result.window_chars).toBeLessThan(result.total_chars)
     })
 
 })
