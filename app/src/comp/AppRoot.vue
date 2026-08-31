@@ -12,7 +12,7 @@ v-app.app(v-else)
                     span Paper Bible
                 v-spacer
                 VBtn.account(@click='state.account = true' color='' icon variant='text'
-                        v-tooltip:left='$t("Account")')
+                        v-tooltip:left='$t("common.account")')
                     AppIcon(name='account_circle')
                 v-menu
                     template(#activator='{props}')
@@ -22,11 +22,11 @@ v-app.app(v-else)
                         v-list-item(:to='{name: "help"}')
                             template(#prepend)
                                 AppIcon(name='auto_stories')
-                            v-list-item-title {{ $t("Guide") }}
+                            v-list-item-title {{ $t("common.guide") }}
                         v-list-item(href='https://gracious.tech/donate' target='_blank')
                             template(#prepend)
                                 AppIcon(name='donate')
-                            v-list-item-title {{ $t("Donate") }}
+                            v-list-item-title {{ $t("app.donate") }}
 
             AppNavbar(v-if='route.name !== "help"')
 
@@ -55,7 +55,7 @@ v-snackbar(:model-value='!!state.toast' @update:model-value='state.toast = null'
 
 import {computed} from 'vue'
 import {useRoute} from 'vue-router'
-import {useI18n} from 'vue-i18n'
+import {useI18n} from '@/services/i18n'
 
 import AppNavbar from '@/comp/nav/AppNavbar.vue'
 import DialogViewedDesign from '@/comp/dialogs/DialogViewedDesign.vue'
@@ -80,7 +80,7 @@ const {t} = useI18n()
 
 
 // Bind the Coloris color picker to every [data-coloris] input (AppColor), once, app-wide
-init_coloris(t("Used in this design"))
+init_coloris(t("app.used_in_design"))
 
 
 // Whether the currently open design is showing its editor (vs. a rendered version) — mirrors

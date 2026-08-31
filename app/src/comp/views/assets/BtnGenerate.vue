@@ -3,9 +3,9 @@
 
 v-btn-group(rounded='pill' divided color='secondary-darken-1' variant='elevated')
     v-btn(@click='generate' :disabled='!blue.content.length || !typst_generator || blocked'
-        :loading='generating') {{$t("Create")}}
+        :loading='generating') {{$t("common.create")}}
     v-btn(v-if='latest_version' @click='view_versions' icon
-            v-tooltip:top='$t("Versions")')
+            v-tooltip:top='$t("common.versions")')
         app-icon(name='history_toggle_off')
 
 </template>

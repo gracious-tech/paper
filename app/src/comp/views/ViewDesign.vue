@@ -18,10 +18,10 @@ div.view_design(v-else)
         DesignVersionsList(:design_id='id' :editable='is_editor')
             template(#after-latest)
                 v-btn(v-if='is_editor' @click='edit' variant='tonal' color='secondary')
-                    | {{ design_needs_editor ? $t("View changes") : $t("Make changes") }}
+                    | {{ design_needs_editor ? $t("view.design.view_changes") : $t("view.design.make_changes") }}
                 v-btn(v-else @click='keep_copy' variant='tonal' color='secondary'
                         :loading='keeping')
-                    | {{$t("Keep my own copy")}}
+                    | {{$t("view.design.keep_copy")}}
 
 </template>
 
@@ -30,7 +30,7 @@ div.view_design(v-else)
 
 import {computed, ref, watch} from 'vue'
 import {useRoute, useRouter} from 'vue-router'
-import {useI18n} from 'vue-i18n'
+import {useI18n} from '@/services/i18n'
 
 import TabEditor from './TabEditor.vue'
 import ViewDesignEditor from './ViewDesignEditor.vue'
@@ -164,7 +164,7 @@ const keep_copy = async () => {
     } catch (error){
         // A copy attempted while the version is still compiling is an expected case
         if (error instanceof ApiError && error.code === 'still_pending'){
-            show_toast(t("This document is still being generated — try again in a moment"))
+            show_toast(t("view.design.still_generating"))
         } else {
             report_error('banner', error)
         }

@@ -5,11 +5,11 @@
 //- not a v-dialog: those teleport inside the width-capped .v-application, while this must
 //- cover the whole viewport (the widget brings its own sidebar + preview)
 div.cover_editor(v-if='state.cover_editor')
-    iframe(ref='frame' :src='COVER_EDITOR_URL' :title='$t("Cover editor")')
+    iframe(ref='frame' :src='COVER_EDITOR_URL' :title='$t("dialog.cover.title")')
     //- Escape hatch for a wedged/failed iframe only — normal exits are the widget's own
     //- Finished/Cancel buttons
     v-btn.close(v-if='!loaded' @click='state.cover_editor = false' icon variant='text' color='white'
-            size='small' v-tooltip:left='$t("Close")')
+            size='small' v-tooltip:left='$t("common.close")')
         AppIcon(name='close')
 
 </template>
@@ -18,7 +18,7 @@ div.cover_editor(v-if='state.cover_editor')
 <script lang='ts' setup>
 
 import {ref, toRaw, watch} from 'vue'
-import {useI18n} from 'vue-i18n'
+import {useI18n} from '@/services/i18n'
 
 import AppIcon from '@/comp/global/AppIcon.vue'
 import {blue, state, page_count_guess} from '@/services/state'

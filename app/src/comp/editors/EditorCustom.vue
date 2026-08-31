@@ -2,23 +2,23 @@
 <template lang='pug'>
 
 v-card-title(class='d-flex align-center')
-    | {{$t("Edit text")}}
+    | {{$t("editor.custom.edit_text")}}
     v-spacer
-    v-btn(@click='cancel' size='large' variant='text') {{$t("Cancel")}}
-    v-btn(@click='done' size='large' variant='text' color='secondary') {{$t("Done")}}
+    v-btn(@click='cancel' size='large' variant='text') {{$t("common.cancel")}}
+    v-btn(@click='done' size='large' variant='text' color='secondary') {{$t("common.done")}}
 
 v-divider
 
 v-card-text(class='flex-grow-1 d-flex flex-column')
     div(class='mb-4')
-        v-text-field(v-model='item.name' :placeholder='$t("Label") + "..."')
+        v-text-field(v-model='item.name' :placeholder='$t("common.label") + "..."')
     app-prose(v-model='item.doc' class='flex-grow-1')
     div(class='mt-4 mb-4')
-        p(class='text-body-small') {{$t("Vertical position on page") + ":"}}
+        p(class='text-body-small') {{$t("editor.custom.vertical_position") + ":"}}
         v-radio-group(v-model='item.position' inline)
-            v-radio(value='top' :label='$t("Top")')
-            v-radio(value='middle' :label='$t("Middle")')
-            v-radio(value='bottom' :label='$t("Bottom")')
+            v-radio(value='top' :label='$t("common.top")')
+            v-radio(value='middle' :label='$t("common.middle")')
+            v-radio(value='bottom' :label='$t("common.bottom")')
 
 </template>
 

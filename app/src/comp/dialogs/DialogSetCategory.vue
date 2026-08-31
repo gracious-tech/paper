@@ -3,14 +3,14 @@
 
 v-dialog(:model-value='modelValue' @update:model-value='close' max-width='420')
     v-card
-        v-card-title {{$t("Category")}}
+        v-card-title {{$t("common.category")}}
         v-card-text
-            v-combobox(v-model='selected' :items='categories' :label='$t("Category")'
+            v-combobox(v-model='selected' :items='categories' :label='$t("common.category")'
                     autofocus clearable hide-details)
         v-card-actions
             v-spacer
-            v-btn(@click='close') {{$t("Cancel")}}
-            v-btn(@click='save' variant='tonal' color='primary') {{$t("Save")}}
+            v-btn(@click='close') {{$t("common.cancel")}}
+            v-btn(@click='save' variant='tonal' color='primary') {{$t("common.save")}}
 
 </template>
 

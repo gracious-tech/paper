@@ -7,45 +7,45 @@ div.cont(v-if='!trigger_rerender')
     div.generate
         BtnGenerate
 
-    v-text-field(v-model='blue.title' :label='$t("Title")' density='compact' hide-details
+    v-text-field(v-model='blue.title' :label='$t("common.title")' density='compact' hide-details
         class='mb-8')
 
-    h2 {{$t("Content")}}
+    h2 {{$t("common.content")}}
     OptionsContent
     v-divider(class='my-8')
 
-    h2 {{$t("Bible translations")}}
+    h2 {{$t("common.bible_translations")}}
     OptionsBibles
     v-divider(class='my-8')
 
-    h2 {{$t("Book size")}}
+    h2 {{$t("common.book_size")}}
     OptionsPaper
 
     v-divider(class='my-8')
 
-    h2 {{$t("Cover")}}
+    h2 {{$t("common.cover")}}
     OptionsCover
     v-divider(class='my-8')
 
-    h2 {{$t("Features")}}
+    h2 {{$t("common.features")}}
     OptionsFeatures
     v-divider(class='my-8')
 
-    h2 {{$t("Study")}}
+    h2 {{$t("common.study")}}
     OptionsStudy
     v-divider(class='my-8')
 
-    h2 {{$t("Style")}}
+    h2 {{$t("common.style")}}
     OptionsStyle
     v-divider(class='my-8')
 
-    h2 {{$t("Layout")}}
+    h2 {{$t("common.layout")}}
     OptionsLayout
 
     v-divider(class='my-8')
 
     div(class='d-flex justify-center')
-        v-btn(@click='advanced' variant='tonal' color='primary') {{$t("Advanced options")}}
+        v-btn(@click='advanced' variant='tonal' color='primary') {{$t("common.advanced_options")}}
 
 </template>
 

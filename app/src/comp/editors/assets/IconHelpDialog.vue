@@ -3,22 +3,22 @@
 //- Dialog explaining Iconify and how to find/enter a custom icon ID (controlled via v-model:open)
 v-dialog(v-model='open_model' max-width='450')
     v-card
-        template(#title) {{$t("Search more icons")}}
+        template(#title) {{$t("editor.icon_help.search_more")}}
         template(#text)
-            p {{$t("You can search Iconify for more icons, which is a free icon library with over 200,000 icons.")}}
-            p.mt-4.font-weight-medium {{$t("How to add a custom icon:")}}
+            p {{$t("editor.icon_help.about")}}
+            p.mt-4.font-weight-medium {{$t("editor.icon_help.title")}}
             ol.ms-4.mt-2
-                li {{$t("Visit the icon website below and search for any icon.")}}
-                li {{$t("Click an icon to open its detail page.")}}
+                li {{$t("editor.icon_help.step_visit")}}
+                li {{$t("editor.icon_help.step_open")}}
                 li
-                    | {{$t("Copy its ID — it looks like")}}
+                    | {{$t("editor.icon_help.step_copy")}}
                     code.mx-1 collection:icon-name
-                li {{$t("Paste or type the ID into the icon field.")}}
+                li {{$t("editor.icon_help.step_paste")}}
         template(#actions)
             v-btn(href='https://icon-sets.iconify.design' target='_blank' rel='noopener'
-                color='secondary') {{$t("Open Iconify")}}
+                color='secondary') {{$t("editor.icon_help.open_site")}}
             v-spacer
-            v-btn(@click='open_model = false') {{$t("Dismiss")}}
+            v-btn(@click='open_model = false') {{$t("common.dismiss")}}
 
 </template>
 

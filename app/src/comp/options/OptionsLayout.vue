@@ -1,50 +1,50 @@
 <template lang='pug'>
 
-v-radio-group(v-model='blue.bibles_layout' inline :label='$t("Layout for multiple translations")'
+v-radio-group(v-model='blue.bibles_layout' inline :label='$t("options.layout.multi_translation")'
         :disabled='blue.bibles.length < 2' class='my-6')
-    v-radio(value='columns' :label='$t("Separate columns")')
-    v-radio(value='alternate' :label='$t("Separate pages")')
+    v-radio(value='columns' :label='$t("options.layout.separate_columns")')
+    v-radio(value='alternate' :label='$t("options.layout.separate_pages")')
 
-v-radio-group(v-model='blue.bibles_align' inline :label='$t("Align translations by")'
+v-radio-group(v-model='blue.bibles_align' inline :label='$t("options.layout.align_by")'
         :disabled='blue.bibles.length < 2' class='my-6')
-    v-radio(value='verse' :label='$t("Verse")')
-    v-radio(value='paragraph' :label='$t("Paragraph")')
-    v-radio(value='chapter' :label='$t("Chapter")')
+    v-radio(value='verse' :label='$t("options.layout.verse")')
+    v-radio(value='paragraph' :label='$t("options.layout.paragraph")')
+    v-radio(value='chapter' :label='$t("options.layout.chapter")')
 
-v-radio-group(v-model='columns' inline :label='$t("Columns")' class='my-4'
+v-radio-group(v-model='columns' inline :label='$t("options.layout.columns")' class='my-4'
         :disabled='blue.bibles_layout === "columns" && blue.bibles.length > 1')
-    v-radio(value='null' :label='$t("Auto")')
-    v-radio(value='false' :label='$t("One")')
-    v-radio(value='true' :label='$t("Two")')
-p(class='text-body-medium text-disabled') {{ $t("Auto will use two columns only for poetic books") }}
+    v-radio(value='null' :label='$t("common.auto")')
+    v-radio(value='false' :label='$t("common.one")')
+    v-radio(value='true' :label='$t("common.two")')
+p(class='text-body-medium text-disabled') {{ $t("options.layout.columns_auto_note") }}
 
-v-radio-group(v-model='half_blank' inline :label='$t("Keep a side blank for notetaking")'
+v-radio-group(v-model='half_blank' inline :label='$t("options.layout.half_blank")'
         :disabled='blue.bibles.length > 1 && blue.bibles_layout === "alternate"' class='my-6')
-    v-radio(value='null' :label='$t("None")')
-    v-radio(value='left' :label='$t("Left")')
-    v-radio(value='right' :label='$t("Right")')
+    v-radio(value='null' :label='$t("common.none")')
+    v-radio(value='left' :label='$t("common.left")')
+    v-radio(value='right' :label='$t("common.right")')
 
 v-radio-group(v-model='passage_title' inline
-        :label='$t("Passage titles")' class='my-6')
-    v-radio(value='null' :label='$t("None")')
-    v-radio(value='heading' :label='$t("Show as heading")')
-    v-radio(value='titlepage' :label='$t("Show as title page")')
+        :label='$t("options.layout.passage_titles")' class='my-6')
+    v-radio(value='null' :label='$t("common.none")')
+    v-radio(value='heading' :label='$t("options.layout.show_as_heading")')
+    v-radio(value='titlepage' :label='$t("options.layout.show_as_title_page")')
 
 div(class='d-flex align-center ml-2')
-    span(class='mr-4 text-medium-emphasis') {{ $t("Margins") }}
+    span(class='mr-4 text-medium-emphasis') {{ $t("options.layout.margins") }}
 
 div(class='d-flex align-center ml-2 my-4')
     v-text-field(v-model.number='blue.margin_top' type='number' variant='underlined' density='compact'
-        :label='$t("Top")' class='mr-4')
+        :label='$t("common.top")' class='mr-4')
     v-text-field(v-model.number='blue.margin_bottom' type='number' variant='underlined' density='compact'
-        :label='$t("Bottom")' class='mr-4')
+        :label='$t("common.bottom")' class='mr-4')
     v-text-field(v-model.number='blue.margin_inner' type='number' variant='underlined' density='compact'
-        :label='$t("Inner")' class='mr-4')
+        :label='$t("options.layout.inner")' class='mr-4')
     v-text-field(v-model.number='blue.margin_outer' type='number' variant='underlined' density='compact'
-        :label='$t("Outer")' class='mr-4')
+        :label='$t("options.layout.outer")' class='mr-4')
 div(class='ml-2 my-6 d-flex')
     v-text-field(v-model.number='blue.column_gap' type='number' variant='underlined' density='compact'
-        :label='$t("Column gap")' class='mr-4' style='max-width: 90px'
+        :label='$t("options.layout.column_gap")' class='mr-4' style='max-width: 90px'
         :disabled='blue.columns === false')
     v-radio-group(v-model='margin_unit' inline)
         v-radio(value='mm' label="mm")

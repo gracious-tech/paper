@@ -12,7 +12,7 @@ v-select(v-model='model' :items='items' :label='label' :hint='hint')
         v-list-item
             template(#prepend)
                 AppIcon(name='upload')
-            template(#title) {{$t("Upload custom font...")}}
+            template(#title) {{$t("common.upload_font")}}
             DialogFontUpload(@font-added='model = $event')
 
 </template>
@@ -24,7 +24,7 @@ v-select(v-model='model' :items='items' :label='label' :hint='hint')
 // example text rendered in that font, with the family name captioned below
 
 import {computed} from 'vue'
-import {useI18n} from 'vue-i18n'
+import {useI18n} from '@/services/i18n'
 
 import {content} from '@/services/content'
 import {font_items, font_items_with_auto, DEFAULT_FONT_EXAMPLE} from '@/services/fonts'

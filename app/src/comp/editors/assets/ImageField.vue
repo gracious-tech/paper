@@ -3,23 +3,23 @@
 //- Passage image field: choose an external URL or upload an image, shown as a thumbnail with a
 //- clear button once set — mirrors IconField.vue's compact trigger+thumbnail pattern
 div.image-field
-    label.image-label {{$t("Image")}}
+    label.image-label {{$t("common.image")}}
     div.image-row
         template(v-if='image')
             img.thumb(:src='image.url ?? ""' alt='')
             span(class='text-body-small text-medium-emphasis') {{ status_text }}
-            v-btn(icon variant='text' size='small' :aria-label='$t("Remove image")' @click='clear')
+            v-btn(icon variant='text' size='small' :aria-label='$t("editor.image.remove")' @click='clear')
                 AppIcon(name='close')
         template(v-else)
             v-btn-toggle(v-model='mode' mandatory density='compact' variant='outlined')
-                v-btn(value='upload' size='small') {{$t("Upload")}}
-                v-btn(value='url' size='small') {{$t("URL")}}
+                v-btn(value='upload' size='small') {{$t("common.upload")}}
+                v-btn(value='url' size='small') {{$t("editor.image.url")}}
             label.upload-btn(v-if='mode === "upload"' :class='{uploading}')
                 AppIcon(name='upload')
-                span {{ uploading ? $t("Uploading...") : $t("Choose file...") }}
+                span {{ uploading ? $t("editor.image.uploading") : $t("editor.image.choose_file") }}
                 input(type='file' accept='image/jpeg,image/png,image/webp' class='d-none'
                     :disabled='uploading' @change='on_file_select')
-            v-text-field(v-else v-model='url_input' :label='$t("Image URL")' hide-details
+            v-text-field(v-else v-model='url_input' :label='$t("editor.image.url_label")' hide-details
                 density='compact' @keyup.enter='apply_url' @blur='apply_url')
     p(v-if='error' class='text-body-small text-error mt-1') {{ error }}
 
@@ -29,7 +29,7 @@ div.image-field
 <script lang='ts' setup>
 
 import {computed, ref} from 'vue'
-import {useI18n} from 'vue-i18n'
+import {useI18n} from '@/services/i18n'
 
 import {upload_passage_image} from '@/services/content_images'
 import AppIcon from '@/comp/global/AppIcon.vue'
@@ -52,7 +52,7 @@ const error = ref('')
 
 // Short label under the thumbnail, so it's clear where the current image came from
 const status_text = computed(() => {
-    return image.value?.source === 'url' ? t("From URL") : t("Uploaded")
+    return image.value?.source === 'url' ? t("editor.image.from_url") : t("editor.image.uploaded")
 })
 
 
@@ -71,7 +71,7 @@ async function on_file_select(event:Event):Promise<void> {
         image.value = await upload_passage_image(bytes, file.type)
     } catch (err){
         console.error(err)
-        error.value = t("Failed to upload image")
+        error.value = t("editor.image.upload_failed")
     } finally {
         uploading.value = false
     }

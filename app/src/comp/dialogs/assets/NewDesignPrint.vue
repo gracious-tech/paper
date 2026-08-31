@@ -1,20 +1,20 @@
 
 <template lang='pug'>
 
-p(class='mb-3 text-body-medium text-medium-emphasis') {{ $t("How would you like to print it?") }}
+p(class='mb-3 text-body-medium text-medium-emphasis') {{ $t("wizard.print.question") }}
 
 //- First decision: printing at home vs professionally
 div.grid
-    NewDesignCard(:image='img_btn_home' :label='$t("At home")'
-        :subtitle='$t("Your own printer, regular paper")'
+    NewDesignCard(:image='img_btn_home' :label='$t("wizard.print.at_home")'
+        :subtitle='$t("wizard.print.home_desc")'
         :selected='draft.service_id === "home"' @select='choose_home')
-    NewDesignCard(:image='img_btn_pro' :label='$t("Professionally")'
-        :subtitle='$t("A printing service that makes real books")'
+    NewDesignCard(:image='img_btn_pro' :label='$t("wizard.print.professionally")'
+        :subtitle='$t("wizard.print.pro_desc")'
         :selected='professional' @select='choose_professional')
 
 //- Home branch: just the printer's paper size (booklet folding is on by default, no option)
 template(v-if='draft.service_id === "home"')
-    div(class='mt-4 text-medium-emphasis') {{ $t("Printer's paper size") }}
+    div(class='mt-4 text-medium-emphasis') {{ $t("wizard.print.paper_size") }}
     v-radio-group(v-model='draft.size_id' inline hide-details)
         v-radio(value='a4' label="A4")
         v-radio(value='us_letter' label="US Letter")
@@ -22,7 +22,7 @@ template(v-if='draft.service_id === "home"')
 //- Professional branch: always Lulu, binding is implied by the design type — the only
 //- choice offered here is the book's trim size, with a comparison image for scale
 template(v-else-if='professional')
-    div(class='mt-4 text-medium-emphasis') {{ $t("Book size") }}
+    div(class='mt-4 text-medium-emphasis') {{ $t("common.book_size") }}
     div.grid_sizes.mt-2
         v-card.choice(v-for='item in SIZE_OPTIONS' :key='item.id' variant='outlined' density='compact'
                 :class='{selected: draft.size_id === item.id}' @click='draft.size_id = item.id')
@@ -37,7 +37,7 @@ template(v-else-if='professional')
 <script lang='ts' setup>
 
 import {computed, ref, watch} from 'vue'
-import {useI18n} from 'vue-i18n'
+import {useI18n} from '@/services/i18n'
 
 import NewDesignCard from '@/comp/dialogs/assets/NewDesignCard.vue'
 import img_btn_home from '@/assets/images/btn_home.avif'
@@ -60,10 +60,10 @@ const professional = ref(draft.service_id !== null && draft.service_id !== 'home
 
 // The only trim sizes offered, each an exact match to a Lulu size id
 const SIZE_OPTIONS = computed(() => [
-    {id: 'novella', label: t("Small"), dims: '5 × 8 inches', subtitle: t("Feels like a novel")},
-    {id: 'digest', label: t("Medium"), dims: '5.5 × 8.5 inches', subtitle: t("A good middle-ground")},
-    {id: 'us_trade', label: t("Large"), dims: '6 × 9 inches', subtitle: t("Feels like a non-fiction book")},
-    {id: 'executive', label: t("Extra Large"), dims: '7 × 10 inches', subtitle: t("Feels like a textbook")},
+    {id: 'novella', label: t("wizard.print.small"), dims: '5 × 8 inches', subtitle: t("wizard.print.size_small_desc")},
+    {id: 'digest', label: t("wizard.print.medium"), dims: '5.5 × 8.5 inches', subtitle: t("wizard.print.size_medium_desc")},
+    {id: 'us_trade', label: t("wizard.print.large"), dims: '6 × 9 inches', subtitle: t("wizard.print.size_large_desc")},
+    {id: 'executive', label: t("wizard.print.extra_large"), dims: '7 × 10 inches', subtitle: t("wizard.print.size_xl_desc")},
 ])
 
 

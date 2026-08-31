@@ -10,32 +10,32 @@ div.doc(v-if='iframe_src')
 div.explain(v-else :class='{pending: status === "pending" && !stuck}')
     template(v-if='status === undefined')
     template(v-else-if='status === "pending" && stuck')
-        h3(class='mb-6') {{$t("This is taking longer than expected")}}
-        p(class='mb-6') {{$t("Its generation was likely interrupted. It can be started again.")}}
+        h3(class='mb-6') {{$t("display.version.taking_long")}}
+        p(class='mb-6') {{$t("display.version.interrupted")}}
         div(class='mb-6')
-            v-btn(@click='retry' color='secondary' :loading='retrying') {{$t("Try again")}}
+            v-btn(@click='retry' color='secondary' :loading='retrying') {{$t("common.try_again")}}
         div
-            v-btn(:href='contact_url' target='_blank' variant='text') {{$t("Contact Us")}}
+            v-btn(:href='contact_url' target='_blank' variant='text') {{$t("display.version.contact")}}
     template(v-else-if='status === "pending"')
-        h3(class='text-headline-large') {{$t("Preparing some good news") + '...'}}
+        h3(class='text-headline-large') {{$t("display.version.preparing") + '...'}}
         AnimatedBook
         h1(class='my-10 text-display-large') {{ time_since_request }}
         div(class='mb-10')
-            | {{$t("Most docs")}} &nbsp;&nbsp;&nbsp;&nbsp; &lt; 1 {{$t("minute")}}&nbsp;&nbsp;&nbsp;&nbsp;<br>
+            | {{$t("display.version.typical_time")}}
     template(v-else-if='status === "failed"')
-        h3(class='mb-6') {{$t("An error occurred")}}
+        h3(class='mb-6') {{$t("display.version.error")}}
         div(class='mb-6')
-            v-btn(@click='regen' color='secondary') {{$t("Try again")}}
+            v-btn(@click='regen' color='secondary') {{$t("common.try_again")}}
         div
-            v-btn(:href='contact_url' target='_blank' variant='text') {{$t("Contact Us")}}
-        p(class='mt-12 mb-3') {{$t("Please include this code in your email:")}}
+            v-btn(:href='contact_url' target='_blank' variant='text') {{$t("display.version.contact")}}
+        p(class='mt-12 mb-3') {{$t("display.version.include_code")}}
         p
             strong {{ debug }}
     template(v-else-if='expired')
-        h3(class='mb-6') {{$t("This document's PDF has expired")}}
-        p(class='mb-6') {{$t("Its settings are still saved, so it can be generated again.")}}
+        h3(class='mb-6') {{$t("display.version.pdf_expired")}}
+        p(class='mb-6') {{$t("display.version.settings_saved")}}
         div
-            v-btn(@click='regen' color='secondary') {{$t("Regenerate")}}
+            v-btn(@click='regen' color='secondary') {{$t("common.regenerate")}}
 
 </template>
 
@@ -43,7 +43,7 @@ div.explain(v-else :class='{pending: status === "pending" && !stuck}')
 <script lang='ts' setup>
 
 import {computed, ref, watch, onUnmounted} from 'vue'
-import {useI18n} from 'vue-i18n'
+import {useI18n} from '@/services/i18n'
 
 import {selected_version, get_pdf_url, regenerate_version, retry_version, version_expired,
     version_stuck} from '@/services/versions'
@@ -96,12 +96,10 @@ const binding_warning = computed(() => {
     if (!issue){
         return null
     }
-    const requirement = issue.fewer
-        ? t("requires at least")
-        : t("allows at most")
-    let message = `${issue.name} ${t("binding")} ${requirement} ${issue.limit}`
-        + ` ${t("pages, but this document's final page count is")} ${version.pages}. `
-    return message
+    const key = issue.fewer
+        ? 'display.version.binding_min_warning'
+        : 'display.version.binding_max_warning'
+    return t(key, {name: issue.name, limit: issue.limit, final: version.pages})
 })
 
 

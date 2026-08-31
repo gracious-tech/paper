@@ -3,7 +3,7 @@
 //- Icon picker: sample/selected thumbnails + text input open a popover grid of suggestions,
 //- with an inline size slider and clear button once an icon is chosen
 div.icon-field
-    label.icon-label {{$t("Icon")}}
+    label.icon-label {{$t("common.icon")}}
     div.icon-row
         v-menu(v-model='picker_open' :close-on-content-click='false' location='bottom start')
             template(#activator='{props}')
@@ -14,27 +14,27 @@ div.icon-field
                                 :alt='ic.id')
                         img.thumb(v-else :src='selected_icon_url' :alt='icon')
                     input.icon-input(v-if='picker_open' ref='input_ref' :value='icon ?? ""'
-                        type='text' :placeholder='$t("Enter Iconify id...")'
+                        type='text' :placeholder='$t("editor.icon.enter_id")'
                         @input='on_input' @click.stop @mousedown.stop)
                     span.icon-placeholder(v-else-if='!icon'
-                        @click.stop='picker_open = true') {{$t("Choose an icon...")}}
+                        @click.stop='picker_open = true') {{$t("editor.icon.choose")}}
             //- Popover content: scrollable grid of all suggestions + a "More" button
             v-card.icon-menu
                 div.icon-grid
                     button.icon-cell(v-for='ic of icons' :key='ic.id' type='button'
                         :class='{active: icon === ic.id}' :title='ic.id' @click='select(ic.id)')
                         img(:src='ic.url' :alt='ic.id')
-                    button.icon-more(type='button' @click.stop='help_open = true') {{$t("More")}}
+                    button.icon-more(type='button' @click.stop='help_open = true') {{$t("common.more")}}
         //- Size multiplier — inline, only when a caller binds a size model (some icons, e.g.
         //- title-page icons, use a single global size setting instead of a per-icon one)
         v-slider.icon-size(v-if='icon && !picker_open && size !== undefined' v-model='size'
             :min='0.4' :max='2' :step='0.1' thumb-label color='' hide-details
-            :aria-label='$t("Icon size")')
+            :aria-label='$t("common.icon_size")')
             template(#thumb-label='{modelValue}')
                 | {{Number(modelValue).toFixed(1)}}x
         //- Clear button — only when an icon is selected and the popover is closed
         v-btn(v-if='icon && !picker_open' icon variant='text' size='small'
-            :aria-label='$t("Remove icon")' @click='icon = null')
+            :aria-label='$t("editor.icon.remove")' @click='icon = null')
             AppIcon(name='close')
     IconHelpDialog(v-model:open='help_open')
 

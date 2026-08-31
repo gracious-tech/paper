@@ -7,12 +7,12 @@ div
         p(v-else-if='error' class='text-body-small text-error my-4') {{ error }}
         template(v-else)
             p(class='mb-3 text-body-medium text-medium-emphasis')
-                | {{ $t("Choose the Bible stories you want included — each comes with its own illustrations.") }}
+                | {{ $t("wizard.stories.question") }}
             div.mode_switch
                 v-btn(size='small' variant='text' @click='draft.book_mode = "passages"')
-                    | {{ $t("Specify exact passages instead") }}
+                    | {{ $t("common.specify_passages") }}
             v-list(density='compact' bg-color='transparent')
-                v-list-subheader(v-if='significant.length') {{$t("Significant stories")}}
+                v-list-subheader(v-if='significant.length') {{$t("common.significant_stories")}}
                 v-list-item(v-for='story of significant' :key='"sig_" + story.id' density='compact'
                         :active='draft.stories.includes(story.id)' color='primary'
                         @click='toggle(story.id)')
@@ -34,7 +34,7 @@ div
         NewDesignPassages(:draft='draft' :hint='passages_hint')
             template(#switch)
                 v-btn(size='small' variant='text' @click='draft.book_mode = "books"')
-                    | {{ $t("Choose predefined stories instead") }}
+                    | {{ $t("wizard.stories.choose_predefined") }}
 
 </template>
 
@@ -42,7 +42,7 @@ div
 <script lang='ts' setup>
 
 import {ref, computed, onMounted} from 'vue'
-import {useI18n} from 'vue-i18n'
+import {useI18n} from '@/services/i18n'
 import {books_ordered} from '@gracious.tech/fetch-client'
 
 import {content} from '@/services/content'
@@ -65,11 +65,8 @@ const draft = props.draft
 const {t} = useI18n()
 
 
-// Kept as a script constant (rather than inline in the template) since Pug's attribute-value
-// parsing trips over the escaped quotes an inline $t(...) call here would need
-const passages_hint = t(
-    "List the passages you want, one per line, e.g. \"Genesis 1:1-5\" or \"Matthew 5\", " +
-    "then click Add. You can add images to each afterward from Advanced settings.")
+// Hint passed to <NewDesignPassages> for the "specify exact passages" input
+const passages_hint = t('wizard.passages.hint_with_images')
 
 
 // Loaded data (fetched once per mount; the wizard resets on every open so no need to cache
@@ -87,7 +84,7 @@ onMounted(async () => {
         significance.value = new Map(fetched_stories.map(
             story => [story.id, get_story_significance(story, sections)]))
     } catch (err){
-        error.value = t("Couldn't load the story list — try again")
+        error.value = t("common.story_list_failed")
         report_error('silent', err, {context: {stage: 'new_design_stories'}})
     } finally {
         loading.value = false

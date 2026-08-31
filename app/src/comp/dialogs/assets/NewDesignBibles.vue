@@ -3,7 +3,7 @@
 
 template(v-if='picking === null')
     p(class='mb-3 text-body-medium text-medium-emphasis')
-        | {{ $t("What Bible translation would you like to use?") }}
+        | {{ $t("wizard.bibles.question") }}
     v-list(bg-color='transparent')
         v-list-item(@click='picking = 0')
             v-list-item-title {{ primary_title }}
@@ -14,16 +14,16 @@ template(v-if='picking === null')
                         @click.stop='rm_secondary')
                     app-icon(name='close')
     p.hint(v-if='draft.type === "bilingual" && !draft.bibles[1]' class='text-body-medium mt-2')
-        | {{$t("Bilingual bibles need a second translation")}}
+        | {{$t("wizard.bibles.need_second")}}
     p.hint(v-if='duplicate' class='text-body-medium mt-2 text-error')
-        | {{$t("The two translations must be different")}}
+        | {{$t("wizard.bibles.must_differ")}}
     div(v-if='warnings.length' class='mt-2 text-error text-body-medium')
         div(v-for='warning of warnings') {{ warning }}
 
 BiblePicker(v-else :model-value='draft.bibles[picking] ?? draft.bibles[0] ?? null'
         @update:model-value='select')
     template(#actions)
-        v-btn(@click='picking = null' variant='text' size='large') {{$t("Cancel")}}
+        v-btn(@click='picking = null' variant='text' size='large') {{$t("common.cancel")}}
 
 </template>
 
@@ -31,7 +31,7 @@ BiblePicker(v-else :model-value='draft.bibles[picking] ?? draft.bibles[0] ?? nul
 <script lang='ts' setup>
 
 import {computed, ref, watch} from 'vue'
-import {useI18n} from 'vue-i18n'
+import {useI18n} from '@/services/i18n'
 
 import {content, ensure_bible_books_loaded} from '@/services/content'
 import {missing_book_warnings} from '@/services/blueprints'
@@ -80,7 +80,7 @@ const primary_title = computed(() => {
 })
 const secondary_title = computed(() => {
     if (!draft.bibles[1]){
-        return t("Add additional translation")
+        return t("common.add_translation")
     }
     const trans = content.translations[draft.bibles[1]]!
     return trans.name_local || trans.name_english

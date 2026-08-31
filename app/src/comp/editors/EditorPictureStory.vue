@@ -2,10 +2,10 @@
 <template lang='pug'>
 
 v-card-title(class='d-flex align-center')
-    | {{$t("Edit picture story")}}
+    | {{$t("editor.story.edit")}}
     v-spacer
-    v-btn(@click='cancel' size='large' variant='text') {{$t("Cancel")}}
-    v-btn(@click='done' size='large' variant='text' color='secondary') {{$t("Done")}}
+    v-btn(@click='cancel' size='large' variant='text') {{$t("common.cancel")}}
+    v-btn(@click='done' size='large' variant='text' color='secondary') {{$t("common.done")}}
 
 v-divider
 
@@ -13,9 +13,9 @@ v-card-text(class='flex-grow-1 d-flex flex-column overflow-y-auto')
     //- Story-level fields: the optional auto title page (same props as a passage); title also
     //- doubles as the item's label in the content list (see gen_content_name)
     div
-        v-text-field(v-model='item.title' :label='$t("Title")')
+        v-text-field(v-model='item.title' :label='$t("common.title")')
     div
-        v-text-field(v-model='item.title_subtitle' :label='$t("Subtitle")')
+        v-text-field(v-model='item.title_subtitle' :label='$t("common.subtitle")')
     IconField(v-model:icon='item.title_icon')
 
     v-divider(class='my-2')
@@ -25,7 +25,7 @@ v-card-text(class='flex-grow-1 d-flex flex-column overflow-y-auto')
         template(#item='{element: slide, index}')
             v-card.slide(variant='outlined' class='mb-3 pa-3')
                 div(class='d-flex align-center mb-2')
-                    strong {{$t("Slide") + " " + (index + 1)}}
+                    strong {{$t("editor.story.slide") + " " + (index + 1)}}
                     v-spacer
                     v-btn(icon variant='text' size='small' class='slide-handle')
                         app-icon(name='drag_indicator')
@@ -34,14 +34,14 @@ v-card-text(class='flex-grow-1 d-flex flex-column overflow-y-auto')
                 ImageField(v-model:image='slide.image')
                 v-btn-toggle(v-model='slide.mode' mandatory density='compact' variant='outlined'
                     class='mb-3')
-                    v-btn(value='passage' size='small') {{$t("Passage")}}
-                    v-btn(value='text' size='small') {{$t("Text")}}
+                    v-btn(value='passage' size='small') {{$t("common.passage")}}
+                    v-btn(value='text' size='small') {{$t("common.text")}}
                 PassageField(v-if='slide.mode === "passage"' :passage='slide_ref(slide)'
                     @update:passage='val => set_slide_ref(slide, val)')
                 app-prose(v-else v-model='slide.doc')
 
     div
-        v-btn(@click='add_slide' variant='outlined' size='small') {{$t("Add slide")}}
+        v-btn(@click='add_slide' variant='outlined' size='small') {{$t("editor.story.add_slide")}}
 
 </template>
 

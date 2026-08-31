@@ -1,22 +1,22 @@
 
 <template lang='pug'>
 
-AppFontSelect(v-model='blue.font_text' :label='$t("Font for text")' example='verse'
+AppFontSelect(v-model='blue.font_text' :label='$t("options.style.text_font")' example='verse'
     class='mb-4')
 
 //- NOTE Allow large font for users with poor eyesight
-v-slider(v-model='blue.font_size' :label='$t("Font size")' :min='6' :max='26' thumb-label
+v-slider(v-model='blue.font_size' :label='$t("common.font_size")' :min='6' :max='26' thumb-label
     class='my-4' color='')
-div(v-if='blue.font_size > 15' class='text-body-medium text-red') {{ $t("A large font size may result in too many pages, depending on the amount of text.") }}
+div(v-if='blue.font_size > 15' class='text-body-medium text-red') {{ $t("options.style.large_font_note") }}
 
-v-slider(v-model='blue.line_height' :label='$t("Line height")' :min='1' :max='4' thumb-label
+v-slider(v-model='blue.line_height' :label='$t("options.style.line_height")' :min='1' :max='4' thumb-label
     class='my-4' color='')
 
-v-radio-group(v-model='justify' inline :label='$t("Justify")' class='my-4')
-    v-radio(value='null' :label='$t("Auto")')
-    v-radio(value='true' :label='$t("Yes")')
-    v-radio(value='false' :label='$t("No")')
-p(class='text-body-medium text-disabled') {{$t("Auto will not justify when width is too narrow")}}
+v-radio-group(v-model='justify' inline :label='$t("options.style.justify")' class='my-4')
+    v-radio(value='null' :label='$t("common.auto")')
+    v-radio(value='true' :label='$t("common.yes")')
+    v-radio(value='false' :label='$t("common.no")')
+p(class='text-body-medium text-disabled') {{$t("options.style.justify_auto_note")}}
 
 </template>
 

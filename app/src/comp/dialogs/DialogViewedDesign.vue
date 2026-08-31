@@ -9,18 +9,18 @@ v-dialog(:model-value='!!state.viewed_version && !state.viewed_confirmed' persis
     v-card(v-if='version')
         v-card-title {{ version.title }}
         v-card-subtitle {{ version.created.toLocaleDateString() }}
-        v-card-text {{$t("Someone shared this document with you.")}}
+        v-card-text {{$t("dialog.viewed.shared_notice")}}
         v-card-actions
             v-spacer
-            v-btn(@click='cancel') {{$t("Cancel")}}
-            v-btn(@click='view' color='secondary') {{$t("View")}}
+            v-btn(@click='cancel') {{$t("common.cancel")}}
+            v-btn(@click='view' color='secondary') {{$t("common.view")}}
 
     //- Link didn't resolve (deleted)
     v-card(v-else-if='failed')
-        v-card-text {{$t("This share link is invalid or has been disabled.")}}
+        v-card-text {{$t("dialog.viewed.invalid_link")}}
         v-card-actions
             v-spacer
-            v-btn(@click='cancel') {{$t("Close")}}
+            v-btn(@click='cancel') {{$t("common.close")}}
 
     //- Still loading
     v-card(v-else)

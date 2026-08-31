@@ -4,19 +4,19 @@
 div
     template(v-if='draft.book_mode === "books"')
         p(class='mb-3 text-body-medium text-medium-emphasis')
-            | {{ $t("What books of the Bible do you want included? It can be as little as one passage or as large as the whole Bible.") }}
+            | {{ $t("wizard.books.question") }}
         div.mode_switch
             v-btn(size='small' variant='text' @click='draft.book_mode = "passages"')
-                | {{ $t("Specify exact passages instead") }}
+                | {{ $t("common.specify_passages") }}
         div.testaments
             section(v-for='group of groups' :key='group.label')
                 div.head
                     strong {{ group.label }}
                     div.bulk
                         v-btn(size='small' variant='tonal' color='primary'
-                            @click='select_all(group)') {{$t("All")}}
+                            @click='select_all(group)') {{$t("common.all")}}
                         v-btn(size='small' variant='tonal' color='primary'
-                            @click='select_none(group)') {{$t("None")}}
+                            @click='select_none(group)') {{$t("common.none")}}
                 v-list(density='compact' bg-color='transparent')
                     v-list-item(v-for='book of group.books' :key='book.id' density='compact'
                             :active='draft.books.includes(book.id)' color='primary'
@@ -29,7 +29,7 @@ div
         NewDesignPassages(:draft='draft' :hint='passages_hint')
             template(#switch)
                 v-btn(size='small' variant='text' @click='draft.book_mode = "books"')
-                    | {{ $t("Choose books instead") }}
+                    | {{ $t("wizard.books.choose_books") }}
 
 </template>
 
@@ -37,7 +37,7 @@ div
 <script lang='ts' setup>
 
 import {computed} from 'vue'
-import {useI18n} from 'vue-i18n'
+import {useI18n} from '@/services/i18n'
 
 import {content} from '@/services/content'
 import NewDesignPassages from '@/comp/dialogs/assets/NewDesignPassages.vue'
@@ -65,16 +65,13 @@ const books = content.collection.get_books(
 
 // The two testament columns
 const groups = computed(() => [
-    {label: t("Old Testament"), books: books.filter(book => book.ot)},
-    {label: t("New Testament"), books: books.filter(book => book.nt)},
+    {label: t("common.old_testament"), books: books.filter(book => book.ot)},
+    {label: t("common.new_testament"), books: books.filter(book => book.nt)},
 ])
 
 
-// Kept as a script constant (rather than inline in the template) since Pug's attribute-value
-// parsing trips over the escaped quotes an inline $t(...) call here would need
-const passages_hint = t(
-    "List the passages you want, one per line, e.g. \"Genesis 1:1-5\" or \"Matthew 5\", " +
-    "then click Add.")
+// Hint passed to <NewDesignPassages> for the "specify exact passages" input
+const passages_hint = t('wizard.passages.hint')
 
 
 // Toggle a single book in/out of the selection

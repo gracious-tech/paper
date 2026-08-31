@@ -2,7 +2,7 @@
 <template lang='pug'>
 
 div
-    p(class='mb-3 text-body-medium text-medium-emphasis') {{ $t("What do you want it to look like?") }}
+    p(class='mb-3 text-body-medium text-medium-emphasis') {{ $t("wizard.type.question") }}
     div.grid
         NewDesignCard(v-for='item of types' :key='item.id' :image='item.image' :label='item.label'
             :subtitle='item.subtitle' :selected='draft.type === item.id' :tint='item.tint'
@@ -14,7 +14,7 @@ div
 <script lang='ts' setup>
 
 import {computed} from 'vue'
-import {useI18n} from 'vue-i18n'
+import {useI18n} from '@/services/i18n'
 
 import {TYPE_PRESETS, wizard_type_label} from '@/services/new_design'
 import NewDesignCard from '@/comp/dialogs/assets/NewDesignCard.vue'

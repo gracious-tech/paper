@@ -6,8 +6,8 @@ v-dialog(:model-value='!!state.confirm' max-width='420' @update:model-value='val
         v-card-text {{ state.confirm.message }}
         v-card-actions
             v-spacer
-            v-btn(@click='cancel') {{$t("Cancel")}}
-            v-btn(@click='ok' color='primary') {{$t("OK")}}
+            v-btn(@click='cancel') {{$t("common.cancel")}}
+            v-btn(@click='ok' color='primary') {{$t("common.ok")}}
 
 </template>
 

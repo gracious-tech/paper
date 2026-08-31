@@ -6,48 +6,48 @@ v-dialog(:model-value='modelValue' @update:model-value='close' max-width='520')
     //- Guests can't invite editors — a design shared from a guest account would be lost with
     //-     the session, so prompt them to sign in first
     v-card(v-if='is_anonymous')
-        v-card-title {{$t("Invite an editor")}}
+        v-card-title {{$t("common.invite_editor")}}
         v-card-text
-            p {{$t("You must first sign in to be able to invite other editors.")}}
+            p {{$t("dialog.invite.signin_required")}}
         v-card-actions
             v-spacer
-            v-btn(@click='close') {{$t("Cancel")}}
-            v-btn(@click='sign_in' color='secondary' variant='tonal') {{$t("Sign in")}}
+            v-btn(@click='close') {{$t("common.cancel")}}
+            v-btn(@click='sign_in' color='secondary' variant='tonal') {{$t("dialog.invite.sign_in")}}
 
     v-card(v-else)
-        v-card-title {{ is_owner ? $t("Invite an editor") : $t("People with access") }}
+        v-card-title {{ is_owner ? $t("common.invite_editor") : $t("common.access_list") }}
         v-card-text
             template(v-if='is_owner')
                 p(class='text-body-small mb-4')
-                    | {{$t("Anyone with this link can join as an editor and make changes together with you.")}}
+                    | {{$t("dialog.invite.link_notice")}}
                 v-text-field(v-if='share_url' :model-value='share_url' readonly density='compact'
                         hide-details class='mb-2' @focus='select_all')
                     template(#append-inner)
                         v-btn(@click='copy_link' variant='text' size='small')
-                            | {{ copied ? $t("Copied!") : $t("Copy") }}
-                v-btn(@click='reset_link' variant='tonal' size='small') {{$t("Reset link")}}
+                            | {{ copied ? $t("common.copied") : $t("common.copy") }}
+                v-btn(@click='reset_link' variant='tonal' size='small') {{$t("dialog.invite.reset_link")}}
                 p(class='text-body-small mt-1')
-                    | {{$t("Disables the previous link so it can no longer be used to become an editor.")}}
+                    | {{$t("dialog.invite.reset_notice")}}
                 v-divider(class='my-4')
 
-            p(class='mb-2') {{$t("People with access:")}}
+            p(class='mb-2') {{$t("dialog.invite.access_list")}}
             v-progress-circular(v-if='loading_editors' indeterminate color='secondary'
                 size='24')
             v-list(v-else density='compact')
                 v-list-item(v-for='person of editors' :key='person.uid')
                     v-list-item-title
-                        | {{ person.name || person.email || $t("Guest") }}
+                        | {{ person.name || person.email || $t("dialog.invite.guest") }}
                         v-chip(v-if='person.owner' size='x-small' variant='tonal' class='ml-2')
-                            | {{$t("Owner")}}
+                            | {{$t("dialog.invite.owner")}}
                     v-list-item-subtitle(v-if='person.name && person.email') {{ person.email }}
                     template(#append)
                         v-btn(v-if='is_owner && !person.owner' @click='kick_editor(person.uid)'
                                 icon='mdi-close' variant='text' size='small' color='error')
             p(v-if='is_owner' class='text-body-small mt-1')
-                | {{$t("Removing someone also resets the invite link so they can't use it to rejoin.")}}
+                | {{$t("dialog.invite.remove_notice")}}
         v-card-actions
             v-spacer
-            v-btn(@click='close') {{$t("Close")}}
+            v-btn(@click='close') {{$t("common.close")}}
 
 </template>
 

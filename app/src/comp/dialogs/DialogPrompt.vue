@@ -9,8 +9,8 @@ v-dialog(:model-value='!!state.prompt' max-width='420' @update:model-value='val 
                     @keyup.enter='ok')
         v-card-actions
             v-spacer
-            v-btn(@click='cancel') {{$t("Cancel")}}
-            v-btn(@click='ok' color='primary') {{$t("OK")}}
+            v-btn(@click='cancel') {{$t("common.cancel")}}
+            v-btn(@click='ok' color='primary') {{$t("common.ok")}}
 
 </template>
 

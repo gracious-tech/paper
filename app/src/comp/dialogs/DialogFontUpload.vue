@@ -3,30 +3,30 @@
 
 v-dialog(v-model='dialog' activator='parent' max-width='420')
     v-card
-        template(#title) {{$t("Upload custom fonts")}}
+        template(#title) {{$t("dialog.fonts.upload")}}
         template(#text)
             div(class='d-flex flex-column ga-4 text-body-medium')
 
                 //- Instructions
                 div(class='d-flex flex-column ga-1')
-                    p(class='font-weight-bold') {{$t("How to get fonts from Google Fonts:")}}
+                    p(class='font-weight-bold') {{$t("dialog.fonts.google_howto")}}
                     ol(class='d-flex flex-column ga-1 pl-4')
                         li
-                            | {{$t("Visit")}}
+                            | {{$t("dialog.fonts.visit")}}
                             |
                             a(href='https://fonts.google.com' target='_blank'
                                 rel='noopener') fonts.google.com
                             |
-                            | {{$t("and find a font family.")}}
-                        li {{$t('Click "Get font", then "Download all".')}}
-                        li {{$t("Upload the .zip file below.")}}
+                            | {{$t("dialog.fonts.find_family")}}
+                        li {{$t('dialog.fonts.get_font_step')}}
+                        li {{$t("dialog.fonts.upload_zip")}}
 
                 //- Drop/click file upload area
                 label(class='drop-area' :class='{dragging: is_dragging}'
                     @dragenter.prevent='is_dragging = true' @dragover.prevent='is_dragging = true'
                     @dragleave.prevent='is_dragging = false' @drop.prevent='on_drop')
                     AppIcon(name='upload')
-                    span {{$t("Drop files here or click to browse")}}
+                    span {{$t("dialog.fonts.drop_files")}}
                     span(class='text-body-small text-medium-emphasis') .zip, .ttf, .otf
                     input(ref='file_input' type='file' accept='.zip,.ttf,.otf' multiple
                         class='d-none' @change='on_file_select')
@@ -37,7 +37,7 @@ v-dialog(v-model='dialog' activator='parent' max-width='420')
 
         template(#actions)
             v-spacer
-            v-btn(@click='dialog = false') {{$t("Close")}}
+            v-btn(@click='dialog = false') {{$t("common.close")}}
 
 </template>
 
@@ -49,7 +49,7 @@ v-dialog(v-model='dialog' activator='parent' max-width='420')
 // plain activator='parent' pattern
 
 import {ref} from 'vue'
-import {useI18n} from 'vue-i18n'
+import {useI18n} from '@/services/i18n'
 
 import {upload_custom_fonts} from '@/services/custom_fonts'
 
@@ -74,7 +74,7 @@ async function handle_files(files:File[]):Promise<void> {
     if (!files.length){
         return
     }
-    status.value = t("Processing fonts...")
+    status.value = t("dialog.fonts.processing")
     status_error.value = false
     try {
         const added = await upload_custom_fonts(files)
@@ -83,12 +83,12 @@ async function handle_files(files:File[]):Promise<void> {
             dialog.value = false
             status.value = ''
         } else {
-            status.value = t("No new font families found in the uploaded files")
+            status.value = t("dialog.fonts.none_found")
             status_error.value = true
         }
     } catch (error){
         console.error(error)
-        status.value = t("Failed to process fonts")
+        status.value = t("dialog.fonts.process_failed")
         status_error.value = true
     }
 }

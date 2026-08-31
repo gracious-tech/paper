@@ -1,7 +1,7 @@
 
 <template lang='pug'>
 
-div(v-if='!versions.length' class='pa-4 pt-10 text-center') {{$t("No versions (yet)")}}
+div(v-if='!versions.length' class='pa-4 pt-10 text-center') {{$t("view.version_list.none_yet")}}
 
 template(v-else)
     div.summary
@@ -37,11 +37,11 @@ template(v-else)
         div.after_latest
             v-chip(v-if='editable && design_needs_editor' size='small' variant='flat'
                     color='warning'
-                    :title='$t("This design has changes since this version was created")')
-                | {{ $t("Unapplied changes") }}
+                    :title='$t("view.version_list.unrendered_changes")')
+                | {{ $t("view.version_list.unapplied_changes") }}
             slot(name='after-latest')
         template(v-if='versions.length > 1')
-            v-list-subheader {{$t("Previous versions")}}
+            v-list-subheader {{$t("view.version_list.previous")}}
             DesignVersionItem(v-for='version of versions.slice(1)' :key='version.id'
                 :version='version' :design_id='design_id' :editable='editable')
 
@@ -51,7 +51,7 @@ template(v-else)
 <script lang='ts' setup>
 
 import {computed} from 'vue'
-import {useI18n} from 'vue-i18n'
+import {useI18n} from '@/services/i18n'
 import {PassageReference} from '@gracious.tech/fetch-client'
 
 import {versions, latest_version, design_needs_editor} from '@/services/versions'
@@ -93,13 +93,13 @@ const content_label = computed(() => {
     }
     const passages = get_passages(latest_version.value.blueprint)
     if (!passages.length){
-        return t("No passages")
+        return t("view.version_list.no_passages")
     }
     if (passages.length === 1){
         return content.collection.reference_to_string(new PassageReference(passages[0]!),
             latest_version.value.blueprint.bibles[0])
     }
-    return `${passages.length} ${t("passages")}`
+    return `${passages.length} ${t("view.version_list.passages")}`
 })
 
 
@@ -122,11 +122,11 @@ const sheets_warning = computed(() => {
     const sheets = Math.ceil(pages / 2)
     if (sheets > 20){
         return {color: 'error',
-            text: `${sheets} ${t("sheets is a lot to fold and staple by hand — a printing service may work better")}`}
+            text: t("view.version_list.sheets_hard", {sheets})}
     }
     if (sheets > 15){
         return {color: 'warning',
-            text: `${sheets} ${t("sheets may be tricky to fold and staple neatly by hand")}`}
+            text: t("view.version_list.sheets_tricky", {sheets})}
     }
     return null
 })

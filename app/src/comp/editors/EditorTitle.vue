@@ -1,16 +1,16 @@
 <template lang='pug'>
 
 v-card-title(class='d-flex justify-space-between align-center')
-    | {{$t("Edit title page")}}
-    v-btn(@click='done' size='large' variant='text' color='secondary') {{$t("Done")}}
+    | {{$t("editor.title.edit")}}
+    v-btn(@click='done' size='large' variant='text' color='secondary') {{$t("common.done")}}
 
 v-divider
 
 v-card-text(class='overflow-y-auto')
     div
-        v-text-field(v-model='item.title' :label='$t("Title")')
+        v-text-field(v-model='item.title' :label='$t("common.title")')
     div
-        v-text-field(v-model='item.title_subtitle' :label='$t("Subtitle")')
+        v-text-field(v-model='item.title_subtitle' :label='$t("common.subtitle")')
     IconField(v-model:icon='item.title_icon')
 
 </template>

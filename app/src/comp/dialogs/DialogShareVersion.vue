@@ -5,15 +5,15 @@
 //- (otherwise share_version() handles sharing directly, see services/versions.ts)
 v-dialog(:model-value='modelValue' @update:model-value='close' max-width='520')
     v-card
-        v-card-title {{$t("Share version")}}
+        v-card-title {{$t("dialog.share.title")}}
         v-card-text
             p(class='text-body-small mb-4')
-                | {{$t("Anyone with this link can view the document and keep their own copy.")}}
+                | {{$t("dialog.share.link_notice")}}
             v-text-field(:model-value='share_url' readonly density='compact' hide-details
                     @focus='select_all')
         v-card-actions
             v-spacer
-            v-btn(@click='close') {{$t("Close")}}
+            v-btn(@click='close') {{$t("common.close")}}
 
 </template>
 

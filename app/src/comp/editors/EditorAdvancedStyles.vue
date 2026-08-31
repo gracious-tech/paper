@@ -2,155 +2,155 @@
 <template lang='pug'>
 
 v-card-title(class='d-flex justify-space-between align-center')
-    | {{$t("Advanced options")}}
-    v-btn(@click='done' size='large' variant='text' color='secondary') {{$t("Done")}}
+    | {{$t("common.advanced_options")}}
+    v-btn(@click='done' size='large' variant='text' color='secondary') {{$t("common.done")}}
 
 v-divider
 
 v-card-text(class='overflow-y-auto')
 
-    h2(class='mb-4') {{$t("Page numbers/headings")}}
+    h2(class='mb-4') {{$t("editor.advanced.running_heading")}}
 
-    div(v-if='!blue.running_pages && !blue.running_headings' class='text-body-medium text-medium-emphasis mb-4') {{$t("Enable page numbers and/or book & chapter name under Features to configure these.")}}
+    div(v-if='!blue.running_pages && !blue.running_headings' class='text-body-medium text-medium-emphasis mb-4') {{$t("editor.advanced.running_disabled_note")}}
 
-    v-radio-group(v-model='blue.running_position' inline :label='$t("Position")'
+    v-radio-group(v-model='blue.running_position' inline :label='$t("common.position")'
             :disabled='!blue.running_pages && !blue.running_headings' class='my-4')
-        v-radio(value='footer' :label='$t("Bottom")')
-        v-radio(value='header' :label='$t("Top")')
-    v-radio-group(v-model='blue.running_align' inline :label='$t("Page number alignment")'
+        v-radio(value='footer' :label='$t("common.bottom")')
+        v-radio(value='header' :label='$t("common.top")')
+    v-radio-group(v-model='blue.running_align' inline :label='$t("editor.advanced.page_num_align")'
             :disabled='!blue.running_pages && !blue.running_headings' class='my-4')
-        v-radio(value='center' :label='$t("Center")')
-        v-radio(value='outer' :label='$t("Outer edge")')
+        v-radio(value='center' :label='$t("common.center")')
+        v-radio(value='outer' :label='$t("editor.advanced.outer_edge")')
 
     v-divider(class='my-8')
 
-    h2(class='mb-4') {{$t("Chapter numbers")}}
+    h2(class='mb-4') {{$t("common.chapter_numbers")}}
 
     v-select(v-model='blue.show_chapters_style' :items='chapter_styles'
-        :disabled='!blue.show_chapters' :label='$t("Style")' variant='outlined')
+        :disabled='!blue.show_chapters' :label='$t("common.style")' variant='outlined')
 
     v-divider(class='my-8')
 
-    h2(class='mb-4') {{$t("Headings")}}
+    h2(class='mb-4') {{$t("editor.advanced.headings")}}
 
-    AppFontSelect(v-model='blue.font_headings' :label='$t("Font for headings")' auto
+    AppFontSelect(v-model='blue.font_headings' :label='$t("editor.advanced.headings_font")' auto
         example='heading' class='mb-4')
 
-    v-checkbox(v-model='blue.show_headings_bold' :label='$t("Bold")')
-    v-checkbox(v-model='blue.show_headings_italic' :label='$t("Italic")')
+    v-checkbox(v-model='blue.show_headings_bold' :label='$t("common.bold")')
+    v-checkbox(v-model='blue.show_headings_italic' :label='$t("common.italic")')
 
-    v-slider(v-model='blue.show_headings_size' :label='$t("Size")' :min='0.8' :max='2'
+    v-slider(v-model='blue.show_headings_size' :label='$t("common.size")' :min='0.8' :max='2'
         :step='0.05' thumb-label class='my-4' color='')
 
     template(v-if='blue.bibles.length > 1')
 
         v-divider(class='my-8')
 
-        h2(class='mb-4') {{$t("Second translation")}}
+        h2(class='mb-4') {{$t("editor.advanced.second_translation")}}
 
-        AppFontSelect(v-model='blue.font_text2' :label='$t("Font for second translation")' auto
+        AppFontSelect(v-model='blue.font_text2' :label='$t("editor.advanced.text2_font")' auto
             example='verse' class='mb-4')
 
-        v-slider(v-model='font_size2' :label='$t("Font size")' :min='6' :max='26' thumb-label
+        v-slider(v-model='font_size2' :label='$t("common.font_size")' :min='6' :max='26' thumb-label
             class='my-4' color='')
 
     v-divider(class='my-8')
 
-    h2(class='mb-4') {{$t("Text")}}
+    h2(class='mb-4') {{$t("common.text")}}
 
-    v-checkbox(v-model='blue.hyphenate' :label='$t("Hyphenate")' hide-details)
-    p(class='text-body-medium text-medium-emphasis mt-2') {{$t("Break long words across lines with a hyphen where needed.")}}
+    v-checkbox(v-model='blue.hyphenate' :label='$t("editor.advanced.hyphenate")' hide-details)
+    p(class='text-body-medium text-medium-emphasis mt-2') {{$t("editor.advanced.hyphenate_note")}}
 
-    v-checkbox(v-model='blue.poetry_outdent' :label='$t("Skip initial indent in poetry books")' class='mt-4' hide-details)
-    p(class='text-body-medium text-medium-emphasis mt-2') {{$t("Skip the first level of indentation of poetry when the whole book is mostly poetry (Psalms, Proverbs, Isaiah…). Reduces line wrapping and improves readability.")}}
-
-    v-divider(class='my-8')
-
-    h2(class='mb-4') {{$t("Text color")}}
-
-    AppColor(v-model='blue.text_color' :label='$t("Color of text")')
-    p(class='text-body-medium text-medium-emphasis mt-2') {{$t("It's not recommended to use this setting unless you have eyesight issues that require it.")}}
+    v-checkbox(v-model='blue.poetry_outdent' :label='$t("editor.advanced.poetry_outdent")' class='mt-4' hide-details)
+    p(class='text-body-medium text-medium-emphasis mt-2') {{$t("editor.advanced.poetry_outdent_note")}}
 
     v-divider(class='my-8')
 
-    h2(class='mb-4') {{$t("Title pages")}}
-    p(class='text-body-medium text-medium-emphasis mb-4') {{$t("Applies to every title page in the document.")}}
+    h2(class='mb-4') {{$t("editor.advanced.text_color")}}
 
-    AppFontSelect(v-model='blue.titlepage_font' :label='$t("Font for title pages")' auto
+    AppColor(v-model='blue.text_color' :label='$t("editor.advanced.text_color_label")')
+    p(class='text-body-medium text-medium-emphasis mt-2') {{$t("editor.advanced.big_text_note")}}
+
+    v-divider(class='my-8')
+
+    h2(class='mb-4') {{$t("editor.advanced.title_pages")}}
+    p(class='text-body-medium text-medium-emphasis mb-4') {{$t("editor.advanced.titlepages_note")}}
+
+    AppFontSelect(v-model='blue.titlepage_font' :label='$t("editor.advanced.titlepage_font")' auto
         example='title' class='mb-4')
 
     div.patterns
         div.none(@click='blue.titlepage_frame = null'
-            :class='{active: blue.titlepage_frame === null}') {{$t("None")}}
+            :class='{active: blue.titlepage_frame === null}') {{$t("common.none")}}
         img(v-for='pattern of pattern_items' :src='pattern.src' @click='pattern.click'
             :class='{active: blue.titlepage_frame === pattern.pattern}')
 
     div(class='mb-4')
-        AppColor(v-model='blue.titlepage_color_text' :label='$t("Color of text")')
+        AppColor(v-model='blue.titlepage_color_text' :label='$t("editor.advanced.text_color_label")')
     div(class='mb-4')
-        AppColor(v-model='blue.titlepage_color_icon' :label='$t("Color of icon")')
+        AppColor(v-model='blue.titlepage_color_icon' :label='$t("editor.advanced.icon_color")')
     div(class='mb-4')
-        AppColor(v-model='blue.titlepage_color_frame' :label='$t("Color of frame")')
+        AppColor(v-model='blue.titlepage_color_frame' :label='$t("editor.advanced.frame_color")')
 
-    v-slider(v-model='blue.titlepage_text_size' :label='$t("Text size")' :min='0.5' :max='2'
+    v-slider(v-model='blue.titlepage_text_size' :label='$t("editor.advanced.text_size")' :min='0.5' :max='2'
         :step='0.1' thumb-label class='my-4' color='')
 
-    v-slider(v-model='blue.titlepage_icon_size' :label='$t("Icon size")' :min='0.4' :max='2'
+    v-slider(v-model='blue.titlepage_icon_size' :label='$t("common.icon_size")' :min='0.4' :max='2'
         :step='0.1' thumb-label class='my-4' color='')
 
     v-radio-group(v-model='titlepage_always' inline
-            :label='$t("Always start title pages on")' class='my-6')
-        v-radio(value='null' :label='$t("Either side")')
-        v-radio(value='left' :label='$t("Left")')
-        v-radio(value='right' :label='$t("Right")')
+            :label='$t("editor.advanced.titlepage_side")' class='my-6')
+        v-radio(value='null' :label='$t("editor.advanced.either_side")')
+        v-radio(value='left' :label='$t("common.left")')
+        v-radio(value='right' :label='$t("common.right")')
 
     v-divider(class='my-8')
 
-    h2(class='mb-4') {{$t("Images")}}
-    p(class='text-body-medium text-medium-emphasis mb-4') {{$t("Applies to every passage image in the document.")}}
+    h2(class='mb-4') {{$t("common.images")}}
+    p(class='text-body-medium text-medium-emphasis mb-4') {{$t("editor.advanced.images_note")}}
 
-    v-radio-group(v-model='blue.image_style' inline :label='$t("Style")')
-        v-radio(value='padded' :label='$t("Padded (within the normal page margins)")')
-        v-radio(value='painted' :label='$t("Painted (padded, with a painted brushstroke edge)")')
-        v-radio(value='torn' :label='$t("Torn (padded, with a torn-paper edge)")')
-        v-radio(value='borderless' :label='$t("Borderless (bleeds to the page edge)")')
+    v-radio-group(v-model='blue.image_style' inline :label='$t("common.style")')
+        v-radio(value='padded' :label='$t("editor.advanced.image_padded")')
+        v-radio(value='painted' :label='$t("editor.advanced.image_painted")')
+        v-radio(value='torn' :label='$t("editor.advanced.image_torn")')
+        v-radio(value='borderless' :label='$t("editor.advanced.image_borderless")')
 
     v-divider(class='my-8')
 
-    h2(class='mb-4') {{$t("Picture stories")}}
+    h2(class='mb-4') {{$t("editor.advanced.stories")}}
 
-    v-radio-group(v-model='blue.story_layout' inline :label='$t("Layout")' class='mb-2')
-        v-radio(value='single' :label='$t("One image & passage per page")')
-        v-radio(value='grid' :label='$t("Grid of 4 images & passages per page")')
+    v-radio-group(v-model='blue.story_layout' inline :label='$t("common.layout")' class='mb-2')
+        v-radio(value='single' :label='$t("editor.advanced.story_single")')
+        v-radio(value='grid' :label='$t("editor.advanced.story_grid")')
 
-    v-checkbox(v-model='blue.story_alternate' :label='$t("Alternate image side")' hide-details)
-    p(class='text-body-medium text-medium-emphasis mt-2 mb-4') {{$t("Switch which side the image appears on from one passage to the next, rather than always the same side.")}}
+    v-checkbox(v-model='blue.story_alternate' :label='$t("editor.advanced.alt_image_side")' hide-details)
+    p(class='text-body-medium text-medium-emphasis mt-2 mb-4') {{$t("editor.advanced.alt_image_side_note")}}
 
-    v-checkbox(v-model='blue.story_emphasis' :label='$t("Emphasize tone")' hide-details)
-    p(class='text-body-medium text-medium-emphasis mt-2 mb-4') {{$t("Italicize questions and embolden exclamations in picture story passages, enlarged and colored.")}}
+    v-checkbox(v-model='blue.story_emphasis' :label='$t("editor.advanced.emphasize_tone")' hide-details)
+    p(class='text-body-medium text-medium-emphasis mt-2 mb-4') {{$t("editor.advanced.emphasis_note")}}
 
     AppColor(v-if='blue.story_emphasis' v-model='blue.story_emphasis_color'
-        :label='$t("Color of emphasized text")')
+        :label='$t("editor.advanced.emphasis_color")')
 
     v-divider(class='my-8')
 
-    h2(class='mb-4') {{$t("Copyright")}}
+    h2(class='mb-4') {{$t("common.copyright")}}
 
-    v-checkbox(v-model='blue.app_link' :label='$t(`Include "Created with /paper.bible/"`)' class='mt-4')
+    v-checkbox(v-model='blue.app_link' :label='$t(`editor.advanced.app_link`)' class='mt-4')
 
-    v-checkbox(v-model='blue.design_link' :label='$t("Include link to copy design")' class='mt-4')
-    p(class='text-body-medium text-medium-emphasis mb-4') {{$t("This allows others to print additional copies of your design and/or customize it (they won't be able to modify your copy).")}}
+    v-checkbox(v-model='blue.design_link' :label='$t("editor.advanced.design_link")' class='mt-4')
+    p(class='text-body-medium text-medium-emphasis mb-4') {{$t("editor.advanced.design_link_note")}}
 
-    v-checkbox(v-model='blue.public_domain' :label='$t("Dedicate your own content to the public domain")' class='mt-4' hide-details)
-    p(class='text-body-medium text-medium-emphasis mt-2') {{$t("This ensures your creation will be able to be shared and printed by others without restriction.")}} #[a(href='https://freely.giving/questions/public-domain' target='_blank' rel='noopener') {{$t("Learn more about public domain dedication.")}}]
-    p(v-if='!blue.public_domain' class='text-body-medium text-error mt-2') {{$t("Disabling this will prevent people from sharing the design, printing additional copies, and using it in other useful ways. We do not recommend disabling it unless you are including material from third-parties that is not openly licensed.")}}
+    v-checkbox(v-model='blue.public_domain' :label='$t("editor.advanced.dedicate_pd")' class='mt-4' hide-details)
+    p(class='text-body-medium text-medium-emphasis mt-2') {{$t("editor.advanced.pd_note")}} #[a(href='https://freely.giving/questions/public-domain' target='_blank' rel='noopener') {{$t('editor.advanced.pd_learn_more')}}]
+    p(v-if='!blue.public_domain' class='text-body-medium text-error mt-2') {{$t("editor.advanced.design_link_warning")}}
 
     v-divider(class='my-8')
 
-    h2(class='mb-4') {{$t("Workarounds")}}
+    h2(class='mb-4') {{$t("editor.advanced.workarounds")}}
 
-    v-switch(v-model='blue.booklet_portrait' color='primary' :label="$t(`My printer doesn't allow \"flip on short edge\"`)" class='mt-4' :disabled='!blue.booklet' hide-details)
-    p(class='text-body-medium text-medium-emphasis') {{$t("If your printer can only flip on long edge (which is the default for double-sided portrait documents) then this setting will output a portrait PDF with alternating rotation which will look correct once printed double-sided.")}}
+    v-switch(v-model='blue.booklet_portrait' color='primary' :label="$t(`editor.advanced.flip_edge`)" class='mt-4' :disabled='!blue.booklet' hide-details)
+    p(class='text-body-medium text-medium-emphasis') {{$t("editor.advanced.flip_edge_note")}}
 
 </template>
 
@@ -158,7 +158,7 @@ v-card-text(class='overflow-y-auto')
 <script lang='ts' setup>
 
 import {computed} from 'vue'
-import {useI18n} from 'vue-i18n'
+import {useI18n} from '@/services/i18n'
 import {PATTERNS as patterns} from 'paper-bible-typst'
 
 import {blue, state} from '@/services/state'
@@ -174,9 +174,9 @@ const done = () => {
 
 // Chapter number style options
 const chapter_styles = [
-    {value: 'divider', title: t("Divider") + " / --- 2 ---"},
-    {value: 'float', title: t("Drop cap") + " / 2"},
-    {value: 'heading', title: t("Heading / Chapter") + " 2"},
+    {value: 'divider', title: t("editor.advanced.divider") + " / --- 2 ---"},
+    {value: 'float', title: t("editor.advanced.drop_cap") + " / 2"},
+    {value: 'heading', title: t("editor.advanced.heading_chapter") + " 2"},
 ]
 
 

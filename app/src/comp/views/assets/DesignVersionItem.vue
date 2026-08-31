@@ -3,10 +3,10 @@
 
 v-list-item(@click='select' :active='version.id === selected_version_id' color='primary')
     v-list-item-title
-        | {{ is_latest ? $t("Latest version") : version.created.toLocaleString() }}
+        | {{ is_latest ? $t("view.version.latest") : version.created.toLocaleString() }}
     v-list-item-subtitle(v-if='is_latest || expired')
         template(v-if='is_latest') {{ version.created.toLocaleString() }}
-        template(v-if='expired') &nbsp;— {{$t("Expired")}}
+        template(v-if='expired') &nbsp;— {{$t("view.version.expired")}}
     template(#append)
         div.status
             v-progress-circular(v-if='version.status === "pending" && !stuck' indeterminate
@@ -24,24 +24,24 @@ v-list-item(@click='select' :active='version.id === selected_version_id' color='
             v-list
                 v-list-item(@click='download'
                         :disabled='version.status !== "available" || expired')
-                    v-list-item-title {{$t("Open")}}
+                    v-list-item-title {{$t("common.open")}}
                 v-list-item(v-if='version.blueprint.cover' @click='download_cover'
                         :disabled='version.status !== "available" || expired')
-                    v-list-item-title {{$t("Open cover")}}
+                    v-list-item-title {{$t("view.version.open_cover")}}
                 template(v-if='editable')
                     v-list-item(v-if='expired || version.status === "failed"' @click='regen')
-                        v-list-item-title {{$t("Regenerate")}}
+                        v-list-item-title {{$t("common.regenerate")}}
                     v-list-item(v-else-if='stuck' @click='retry')
-                        v-list-item-title {{$t("Try again")}}
+                        v-list-item-title {{$t("common.try_again")}}
                     v-list-item(@click='edit_in_place')
-                        v-list-item-title {{$t("Edit")}}
+                        v-list-item-title {{$t("common.edit")}}
                     v-list-item(@click='duplicate')
-                        v-list-item-title {{$t("Copy as new design")}}
+                        v-list-item-title {{$t("view.version.copy_as_design")}}
                 v-list-item(@click='share' :disabled='version.status === "pending"')
-                    v-list-item-title {{$t("Share")}}
+                    v-list-item-title {{$t("common.share")}}
                 v-list-item(v-if='editable' @click='remove'
                         :disabled='version.status === "pending" && !stuck')
-                    v-list-item-title {{$t("Delete")}}
+                    v-list-item-title {{$t("common.delete")}}
     DialogShareVersion(v-model='show_share' :design_id='design_id' :version_id='version.id')
 
 </template>
@@ -50,7 +50,7 @@ v-list-item(@click='select' :active='version.id === selected_version_id' color='
 <script lang='ts' setup>
 
 import {computed, ref, watch, onUnmounted} from 'vue'
-import {useI18n} from 'vue-i18n'
+import {useI18n} from '@/services/i18n'
 import {useRouter} from 'vue-router'
 
 import DialogShareVersion from '@/comp/dialogs/DialogShareVersion.vue'
@@ -126,9 +126,10 @@ const binding_issue_message = computed(() => {
     if (!binding_issue.value){
         return ''
     }
-    return binding_issue.value.fewer
-        ? `${t("Binding requires at least")} ${binding_issue.value.limit} ${t("pages")}`
-        : `${t("Binding allows at most")} ${binding_issue.value.limit} ${t("pages")}`
+    const key = binding_issue.value.fewer
+        ? 'view.version.binding_min'
+        : 'view.version.binding_max'
+    return t(key, {limit: binding_issue.value.limit})
 })
 
 
@@ -182,8 +183,7 @@ const duplicate = async () => {
 
 const edit_in_place = async () => {
     // Destructive: overwrite the live design's content with this version's frozen content
-    if (!await confirm_dialog(t("This will overwrite the current design's content with this version's. "
-            + "Any existing changes will be lost. Continue?"))){
+    if (!await confirm_dialog(t("view.version.overwrite_note"))){
         return
     }
     await restore_version_into_design(props.design_id, props.version)
@@ -200,7 +200,7 @@ const share = async () => {
     // Prefer the OS share sheet or clipboard; only open a dialog if neither is available
     const result = await share_version(props.design_id, props.version.id)
     if (result === 'copied'){
-        show_toast(t("Copied!"))
+        show_toast(t("common.copied"))
     } else if (result === 'manual'){
         show_share.value = true
     }

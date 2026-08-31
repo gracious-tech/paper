@@ -7,43 +7,43 @@ div.cont
         BtnGenerate
 
     div.row
-        h2 {{$t("Type")}}
+        h2 {{$t("common.type")}}
         v-btn(@click='state.wizard_edit = {step: "type"}' variant='text' size='small' color='secondary')
-            | {{$t("Change")}}
+            | {{$t('common.change')}}
     p.value {{ type_summary }}
     v-divider(class='my-8')
 
     div.row
-        h2 {{$t("Content")}}
+        h2 {{$t("common.content")}}
         v-btn(@click='edit_step("books")' variant='text' size='small' color='secondary')
-            | {{$t("Change")}}
+            | {{$t('common.change')}}
     p.value {{ books_summary }}
     v-divider(class='my-8')
 
     div.row
-        h2 {{$t("Bible translations")}}
+        h2 {{$t("common.bible_translations")}}
         v-btn(@click='edit_step("bibles")' variant='text' size='small' color='secondary')
-            | {{$t("Change")}}
+            | {{$t('common.change')}}
     p.value {{ bibles_summary }}
     v-divider(class='my-8')
 
     div.row
-        h2 {{$t("Print")}}
+        h2 {{$t("common.print")}}
         v-btn(@click='edit_step("print")' variant='text' size='small' color='secondary')
-            | {{$t("Change")}}
+            | {{$t('common.change')}}
     p.value {{ print_summary }}
     v-divider(class='my-8')
 
     div.row
-        h2 {{$t("Cover")}}
+        h2 {{$t("common.cover")}}
         v-btn(@click='edit_step("cover")' variant='text' size='small' color='secondary')
-            | {{$t("Change")}}
+            | {{$t('common.change')}}
     p.value {{ cover_summary }}
 
     v-divider(class='my-8')
 
     div(class='d-flex justify-center')
-        v-btn(@click='advanced' variant='tonal' color='primary') {{$t("More options")}}
+        v-btn(@click='advanced' variant='tonal' color='primary') {{$t('common.more_options')}}
 
 </template>
 
@@ -51,7 +51,7 @@ div.cont
 <script lang='ts' setup>
 
 import {computed} from 'vue'
-import {useI18n} from 'vue-i18n'
+import {useI18n} from '@/services/i18n'
 
 import BtnGenerate from './assets/BtnGenerate.vue'
 import {blue, state} from '@/services/state'

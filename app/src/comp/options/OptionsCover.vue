@@ -3,20 +3,20 @@
 
 //- Cover is optional — no cover by default, and removable once added
 template(v-if='blue.cover')
-    p.hint {{$t("This book has a cover design")}}
+    p.hint {{$t("options.cover.has_cover")}}
     div.actions
-        v-btn(@click='open_editor' variant='tonal' color='secondary') {{$t("Edit cover")}}
-        v-btn(@click='remove_cover' variant='text') {{$t("Remove cover")}}
+        v-btn(@click='open_editor' variant='tonal' color='secondary') {{$t("options.cover.edit_cover")}}
+        v-btn(@click='remove_cover' variant='text') {{$t("options.cover.remove_cover")}}
 template(v-else)
-    p.hint {{$t("Optionally design a wraparound cover (front, spine and rear) for your book")}}
-    v-btn(@click='open_editor' variant='tonal' color='secondary') {{$t("Add cover")}}
+    p.hint {{$t("options.cover.intro")}}
+    v-btn(@click='open_editor' variant='tonal' color='secondary') {{$t("options.cover.add_cover")}}
 
 </template>
 
 
 <script lang='ts' setup>
 
-import {useI18n} from 'vue-i18n'
+import {useI18n} from '@/services/i18n'
 
 import {blue, state, confirm_dialog} from '@/services/state'
 
@@ -32,7 +32,7 @@ const open_editor = () => {
 
 // Remove the cover from the design (the config is discarded, not just disabled)
 const remove_cover = async () => {
-    if (await confirm_dialog(t("Remove this cover design?"))){
+    if (await confirm_dialog(t("options.cover.remove_confirm"))){
         blue.cover = null
     }
 }

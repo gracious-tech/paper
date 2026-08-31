@@ -5,22 +5,22 @@ div.preview
     div.toolbar
         v-btn-toggle(:model-value='mode' @update:model-value='set_mode'
             density='compact' variant='elevated' color='primary' divided mandatory)
-            v-btn(value='reading' size='small') {{ $t("Reading") }}
-            v-btn(value='print' size='small') {{ $t("Print") }}
+            v-btn(value='reading' size='small') {{ $t("common.reading") }}
+            v-btn(value='print' size='small') {{ $t("common.print") }}
         //- Which part of a large document to preview — only shown when the document exceeded
         //- the preview size limit and had to be truncated
         v-btn-toggle(v-if='truncated' :model-value='section' @update:model-value='set_section'
             density='compact' variant='elevated' color='primary' divided mandatory)
-            v-btn(value='start' size='small') {{ $t("Start") }}
-            v-btn(value='middle' size='small') {{ $t("Middle") }}
-            v-btn(value='end' size='small') {{ $t("End") }}
+            v-btn(value='start' size='small') {{ $t("common.start") }}
+            v-btn(value='middle' size='small') {{ $t("common.middle") }}
+            v-btn(value='end' size='small') {{ $t("common.end") }}
         //- Pushed to the right end of the toolbar via margin-left:auto (see style below); the
         //- mobile floating equivalent lives in ViewDesignEditor.vue since this toolbar is hidden
         //- on mobile (parent .display has display:none, see AppRoot.vue)
         BtnGenerate.create
 
     div.status(v-if='missing_warnings.length')
-        h3(class='mb-4') {{ $t("Translations missing chosen books") }}
+        h3(class='mb-4') {{ $t("display.preview.missing_books") }}
         p(v-for='warning of missing_warnings' class='status-detail') {{ warning }}
     div.frame(v-else-if='pdf_url')
         iframe(:src='pdf_url')
@@ -33,10 +33,10 @@ div.preview
                         strong {{ overlay_error_title }}
                     p {{ overlay_error || progress_message }}
     div.status(v-else-if='error_msg')
-        h3(class='mb-4') {{ $t("Couldn't generate preview") }}
+        h3(class='mb-4') {{ $t("display.preview.failed") }}
         p(class='status-detail') {{ error_msg }}
     div.status(v-else)
-        p {{ progress_message || $t("Generating preview") + "…" }}
+        p {{ progress_message || $t("display.preview.generating_preview") + "…" }}
 
 </template>
 
@@ -46,7 +46,7 @@ div.preview
 import {ref, computed, watch, onUnmounted} from 'vue'
 import {debounce} from 'lodash-es'
 import {PDFDocument} from 'pdf-lib'
-import {useI18n} from 'vue-i18n'
+import {useI18n} from '@/services/i18n'
 
 import BtnGenerate from '@/comp/views/assets/BtnGenerate.vue'
 import {blue, estimated_pages} from '@/services/state'
@@ -82,7 +82,7 @@ const overlay_error = ref<string|null>(null)
 
 // Title shown above overlay_error — kept out of the template since the pug-to-TS bridge
 // mishandles the unbalanced parenthesis in the smiley within an inline mustache expression
-const overlay_error_title = computed(() => t("Something went wrong :("))
+const overlay_error_title = computed(() => t("display.preview.error"))
 
 // Which layout to render: 'reading' = facing-page book spreads (default),
 // 'print' = the actual final PDF (folded booklet order or sequential pages)
@@ -123,16 +123,16 @@ let latest_run = 0
 // last showed rather than flashing an unrelated message
 function stage_text(event:ProgressEvent):string|null {
     if (event.stage === 'start'){
-        return t("Getting started") + "…"
+        return t("display.preview.getting_started") + "…"
     }
     if (event.stage === 'fetch'){
-        return `${t("Downloading")} ${event.label} (${event.i}/${event.total})`
+        return `${t("display.preview.downloading")} ${event.label} (${event.i}/${event.total})`
     }
     if (event.stage === 'compile'){
-        return `${t("Writing")} ${event.label} (${event.i}/${event.total})`
+        return `${t("display.preview.writing")} ${event.label} (${event.i}/${event.total})`
     }
     if (event.stage === 'finalize'){
-        return t("Final touches") + "…"
+        return t("display.preview.final_touches") + "…"
     }
     return null
 }
@@ -190,15 +190,15 @@ async function compile(){
         // Large documents are cut down to a fast-compiling ~50 page window (positioned by the
         // Start|Middle|End toggle), with a notice page wherever content was cut short
         const truncation = truncate_for_preview(request, section.value, {
-            start_title: t("Start of preview"),
-            end_title: t("End of preview"),
-            detail: t("Create document to see the rest"),
+            start_title: t("display.preview.start_of_preview"),
+            end_title: t("display.preview.end_of_preview"),
+            detail: t("display.preview.create_for_rest"),
         })
 
         // Label the "inside of front cover" gray slot on the reading preview's first spread so
         // it's clear it's not a missing/blank page — print mode never shows that synthetic slot
         if (mode.value === 'reading'){
-            truncation.request.preview_cover_label = t("Inside of cover")
+            truncation.request.preview_cover_label = t("display.preview.inside_cover")
         }
 
         let bytes = mode.value === 'print'

@@ -5,9 +5,9 @@ v-card-title(class='d-flex align-center')
     | {{ title }}
     v-spacer
     template(v-if='!busy')
-        v-btn(@click='cancel' size='large' variant='text') {{$t("Cancel")}}
+        v-btn(@click='cancel' size='large' variant='text') {{$t("common.cancel")}}
         v-btn(@click='done' :disabled='!valid || saving' :loading='saving' size='large'
-                variant='text' color='secondary') {{$t("Done")}}
+                variant='text' color='secondary') {{$t("common.done")}}
 
 v-divider
 
@@ -25,7 +25,7 @@ v-card-text(class='flex-grow-1 d-flex flex-column')
 
 import {computed, reactive, ref} from 'vue'
 import {cloneDeep} from 'lodash-es'
-import {useI18n} from 'vue-i18n'
+import {useI18n} from '@/services/i18n'
 
 import {state} from '@/services/state'
 import {design_wizard, current_design_id, apply_wizard_edit} from '@/services/designs'
@@ -66,15 +66,15 @@ const saving = ref(false)
 
 const title = computed(() => {
     if (props.step === 'books'){
-        return draft.type === 'picture_story' ? t("Stories") : t("Content")
+        return draft.type === 'picture_story' ? t("common.stories") : t("common.content")
     }
     if (props.step === 'bibles'){
-        return t("Bible translations")
+        return t("common.bible_translations")
     }
     if (props.step === 'print'){
-        return t("Print")
+        return t("common.print")
     }
-    return t("Cover")
+    return t("common.cover")
 })
 
 

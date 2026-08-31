@@ -34,19 +34,19 @@ v-dialog(:model-value='mode !== null' @update:model-value='cancel' :fullscreen='
 
         v-card-actions(v-if='!busy')
             v-btn(v-if='mode === "edit" || step_index === 0' @click='cancel' color='')
-                | {{ $t("Cancel") }}
+                | {{ $t("common.cancel") }}
             v-btn(v-else @click='back' color='')
-                | {{ $t("Prev") }}
+                | {{ $t("common.prev") }}
             v-spacer
             span.text-medium-emphasis(v-if='step === "books"') {{ books_selected_label }}
             v-spacer
             v-btn(v-if='mode === "edit"' @click='finish' :disabled='!all_steps_valid'
                     :loading='creating' color='secondary' variant='flat')
-                | {{ $t("Save") }}
+                | {{ $t("common.save") }}
             v-btn(v-else-if='step !== "type"' @click='next'
                     :disabled='step === "cover" ? !all_steps_valid : !step_valid'
                     :loading='creating' color='secondary' variant='flat')
-                | {{ step === 'cover' ? $t("Create") : $t("Next") }}
+                | {{ step === 'cover' ? $t("common.create") : $t("common.next") }}
 
 </template>
 
@@ -55,7 +55,7 @@ v-dialog(:model-value='mode !== null' @update:model-value='cancel' :fullscreen='
 
 import {computed, reactive, ref, watch} from 'vue'
 import {cloneDeep} from 'lodash-es'
-import {useI18n} from 'vue-i18n'
+import {useI18n} from '@/services/i18n'
 import {useRouter} from 'vue-router'
 import {useDisplay} from 'vuetify'
 
@@ -124,11 +124,11 @@ const step_index = computed(() => STEPS.indexOf(step.value))
 // picker for the picture_story type, so its label follows suit)
 const step_labels = computed(() => {
     return {
-        type: t("Type"),
-        books: draft.type === 'picture_story' ? t("Stories") : t("Books"),
-        bibles: t("Translations"),
-        print: t("Print"),
-        cover: t("Cover"),
+        type: t("common.type"),
+        books: draft.type === 'picture_story' ? t("common.stories") : t("common.books"),
+        bibles: t("common.translations"),
+        print: t("common.print"),
+        cover: t("common.cover"),
     }
 })
 
@@ -154,7 +154,7 @@ const books_selected_label = computed(() => {
     } else if (draft.type === 'picture_story'){
         count = draft.stories.length
     }
-    return `${count} ${t("included")}`
+    return `${count} ${t("wizard.included")}`
 })
 
 

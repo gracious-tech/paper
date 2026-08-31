@@ -2,8 +2,8 @@
 <template lang='pug'>
 
 div
-    p(class='mb-5 text-body-medium text-medium-emphasis') {{ $t("What do you want the cover to look like?") }}
-    v-text-field(v-model='draft.title' :label='$t("Title")' :placeholder='auto_title'
+    p(class='mb-5 text-body-medium text-medium-emphasis') {{ $t("wizard.cover.question") }}
+    v-text-field(v-model='draft.title' :label='$t("common.title")' :placeholder='auto_title'
         persistent-placeholder density='compact' variant='outlined' hide-details class='mb-6')
     div.grid
         NewDesignCard(v-for='item of covers' :key='item.id' :image='item.image' :label='item.label'
@@ -16,7 +16,7 @@ div
 <script lang='ts' setup>
 
 import {computed, onBeforeUnmount, reactive, watch} from 'vue'
-import {useI18n} from 'vue-i18n'
+import {useI18n} from '@/services/i18n'
 import {debounce} from 'lodash-es'
 
 import NewDesignCard from '@/comp/dialogs/assets/NewDesignCard.vue'

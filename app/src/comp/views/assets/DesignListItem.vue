@@ -3,9 +3,9 @@
 
 v-list-item.design-item(@click='open' color='primary')
     v-list-item-title
-        | {{ design.name || $t("Unnamed design") }}
+        | {{ design.name || $t("common.unnamed_design") }}
         span.needs-version(v-if='needs_version' class='ml-2'
-                :title='$t("This design has changes since its last created version")')
+                :title='$t("view.design_item.unrendered_changes")')
             app-icon(name='edit')
     v-list-item-subtitle
         div.subtitle-row
@@ -17,23 +17,23 @@ v-list-item.design-item(@click='open' color='primary')
         v-chip(size='small' variant='tonal' color='primary') {{ service_label }}
         v-chip(v-if='bibles_label' size='small' variant='tonal' color='primary') {{ bibles_label }}
     template(#append)
-        app-icon(v-if='design.shared' name='group' class='mr-2' :title='$t("Shared design")')
+        app-icon(v-if='design.shared' name='group' class='mr-2' :title='$t("view.design_item.shared")')
         v-menu
             template(#activator='{props}')
                 v-btn(v-bind='props' icon variant='text' color='black' @click.stop)
                     app-icon(name='more_vert')
             v-list
                 v-list-item(@click='rename')
-                    v-list-item-title {{$t("Rename")}}
+                    v-list-item-title {{$t("common.rename")}}
                 v-list-item(@click='duplicate')
-                    v-list-item-title {{$t("Duplicate")}}
+                    v-list-item-title {{$t("common.duplicate")}}
                 v-list-item(v-if='is_owner' @click='show_category = true')
-                    v-list-item-title {{$t("Category…")}}
+                    v-list-item-title {{$t("common.category_menu")}}
                 v-list-item(@click='show_invite = true')
                     v-list-item-title
-                        | {{ is_owner ? $t("Invite an editor") : $t("People with access") }}
+                        | {{ is_owner ? $t("common.invite_editor") : $t("common.access_list") }}
                 v-list-item(v-if='is_owner' @click='remove')
-                    v-list-item-title {{$t("Delete")}}
+                    v-list-item-title {{$t("common.delete")}}
     DialogInviteEditor(v-model='show_invite' :id='design.id')
     DialogSetCategory(v-if='is_owner' v-model='show_category' :id='design.id'
         :categories='categories')
@@ -44,7 +44,7 @@ v-list-item.design-item(@click='open' color='primary')
 <script lang='ts' setup>
 
 import {computed, ref} from 'vue'
-import {useI18n} from 'vue-i18n'
+import {useI18n} from '@/services/i18n'
 import {useRouter} from 'vue-router'
 
 import DialogInviteEditor from '@/comp/dialogs/DialogInviteEditor.vue'
@@ -106,7 +106,7 @@ const open = () => {
 }
 
 const rename = async () => {
-    const title = await prompt_dialog(t("Rename design"), props.design.name)
+    const title = await prompt_dialog(t("view.design_item.rename"), props.design.name)
     if (title !== null){
         void rename_design(props.design.id, title)
     }
@@ -118,7 +118,7 @@ const duplicate = async () => {
 }
 
 const remove = async () => {
-    if (await confirm_dialog(t("Delete this design? This cannot be undone."))){
+    if (await confirm_dialog(t("view.design_item.delete_confirm"))){
         void delete_design(props.design.id)
     }
 }

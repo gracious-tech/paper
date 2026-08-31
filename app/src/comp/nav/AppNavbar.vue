@@ -8,10 +8,10 @@ nav.navbar
     v-btn(v-for='design of recent' :key='design.id' @click='open(design.id)' variant='text'
             :active='design.id === active_design_id' color=''
             class='tab_btn design_btn')
-        | {{ design.name || $t("Unnamed design") }}
+        | {{ design.name || $t("common.unnamed_design") }}
     v-spacer
     v-btn(@click='create' variant='flat' size='small' color='secondary' class='create_btn')
-        | {{$t("New")}}
+        | {{$t("common.new")}}
 
 </template>
 

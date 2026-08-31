@@ -5,7 +5,7 @@
 //- significant stories (chronological), then every story grouped per book (also chronological)
 v-dialog(:model-value='modelValue' @update:model-value='close' max-width='520')
     v-card
-        v-card-title {{$t("Choose a picture story")}}
+        v-card-title {{$t("dialog.story_picker.choose")}}
         v-divider
         v-card-text(class='py-0')
             v-progress-circular(v-if='loading' indeterminate color='secondary' class='my-8')
@@ -14,8 +14,8 @@ v-dialog(:model-value='modelValue' @update:model-value='close' max-width='520')
                 v-list-item(@click='select_custom' color='primary')
                     template(#prepend)
                         app-icon(name='edit')
-                    v-list-item-title {{$t("Write your own...")}}
-                v-list-subheader(v-if='significant.length' class='mt-2') {{$t("Significant stories")}}
+                    v-list-item-title {{$t("dialog.story_picker.write_own")}}
+                v-list-subheader(v-if='significant.length' class='mt-2') {{$t("common.significant_stories")}}
                 v-list-item(v-for='story of significant' :key='"sig_" + story.id'
                         @click='select_story(story)')
                     v-list-item-title {{ story.heading }}
@@ -28,7 +28,7 @@ v-dialog(:model-value='modelValue' @update:model-value='close' max-width='520')
                         v-list-item-subtitle {{ story_reference_label(story) }}
         v-card-actions
             v-spacer
-            v-btn(@click='close') {{$t("Cancel")}}
+            v-btn(@click='close') {{$t("common.cancel")}}
 
 </template>
 
@@ -36,7 +36,7 @@ v-dialog(:model-value='modelValue' @update:model-value='close' max-width='520')
 <script lang='ts' setup>
 
 import {ref, computed, watch} from 'vue'
-import {useI18n} from 'vue-i18n'
+import {useI18n} from '@/services/i18n'
 
 import {content} from '@/services/content'
 import {report_error} from '@/services/errors'
@@ -79,7 +79,7 @@ watch(() => props.modelValue, async open => {
         significance.value = new Map(fetched_stories.map(
             story => [story.id, get_story_significance(story, sections)]))
     } catch (err){
-        error.value = t("Couldn't load the story list — try again")
+        error.value = t("common.story_list_failed")
         report_error('silent', err, {context: {stage: 'picture_story_list'}})
     } finally {
         loading.value = false

@@ -5,19 +5,19 @@ v-dialog(:model-value='!!state.design_invite' persistent max-width='420')
 
     //- Loaded — ask whether to accept edit access
     v-card(v-if='preview')
-        v-card-title {{ preview.name || $t("Unnamed design") }}
-        v-card-text {{$t("You've been granted edit access to this document.")}}
+        v-card-title {{ preview.name || $t("common.unnamed_design") }}
+        v-card-text {{$t("dialog.accept.granted")}}
         v-card-actions
             v-spacer
-            v-btn(@click='ignore') {{$t("Ignore")}}
-            v-btn(@click='accept' color='secondary' :loading='accepting') {{$t("Accept")}}
+            v-btn(@click='ignore') {{$t("common.ignore")}}
+            v-btn(@click='accept' color='secondary' :loading='accepting') {{$t("common.accept")}}
 
     //- Link didn't resolve (deleted, or invalidated by a fresh invite link since)
     v-card(v-else-if='failed')
-        v-card-text {{$t("This invite link is invalid or has been disabled.")}}
+        v-card-text {{$t("dialog.accept.invalid_link")}}
         v-card-actions
             v-spacer
-            v-btn(@click='ignore') {{$t("Close")}}
+            v-btn(@click='ignore') {{$t("common.close")}}
 
     //- Still loading
     v-card(v-else)
@@ -31,7 +31,7 @@ v-dialog(:model-value='!!state.design_invite' persistent max-width='420')
 
 import {ref, watch} from 'vue'
 import {useRouter} from 'vue-router'
-import {useI18n} from 'vue-i18n'
+import {useI18n} from '@/services/i18n'
 
 import {state, show_toast} from '@/services/state'
 import {ApiError} from '@/services/api'
@@ -82,7 +82,7 @@ const accept = async () => {
         if (error instanceof ApiError && error.code === 'unknown_share'){
             failed.value = true
         } else {
-            show_toast(t("Couldn't accept the invite — try the link again"))
+            show_toast(t("dialog.accept.failed"))
             report_error('banner', error)
         }
     } finally {

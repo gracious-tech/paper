@@ -5,7 +5,7 @@
 //- with the detected reference echoed back and a warning if a selected translation doesn't
 //- include the chosen book
 div.passage-field
-    v-text-field(v-model='tmp_ref' :label='$t("Book or passage")' :messages='messages'
+    v-text-field(v-model='tmp_ref' :label='$t("editor.passage.book_or_passage")' :messages='messages'
         :error-messages='errors' :hide-details='false')
     div(v-if='warnings.length' class='mt-2 text-error text-body-medium')
         div(v-for='warning of warnings') {{ warning }}
@@ -16,7 +16,7 @@ div.passage-field
 <script lang='ts' setup>
 
 import {ref, watch, computed} from 'vue'
-import {useI18n} from 'vue-i18n'
+import {useI18n} from '@/services/i18n'
 import {PassageReference} from '@gracious.tech/fetch-client'
 
 import {blue} from '@/services/state'

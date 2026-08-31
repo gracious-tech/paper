@@ -3,11 +3,11 @@
 
 div
     p(class='mb-3 text-body-medium text-medium-emphasis') {{ hint }}
-    v-textarea(v-model='passage_input' :label='$t("Passages")' rows='4' hide-details='auto'
+    v-textarea(v-model='passage_input' :label='$t("common.passages")' rows='4' hide-details='auto'
         variant='outlined')
     div.mode_switch
         v-btn(size='small' variant='tonal' color='primary' :disabled='!passage_input.trim()'
-            @click='add_passages') {{$t("Add")}}
+            @click='add_passages') {{$t("common.add")}}
         slot(name='switch')
     AppDraggableList(v-if='draft.passages.length' :list='draft.passages' :item_key='i => i.id'
             handle='.handle' class='mt-4')

@@ -15,13 +15,13 @@ v-list(bg-color='transparent')
                 v-list-item-title {{ gen_content_name(element) }}
 
 div.add(class='d-flex align-center flex-wrap')
-    strong(class='text-medium-emphasis mr-2') {{$t("Add")}}
-    v-btn(@click='add_passage' size='small' variant='outlined') {{$t("Passage")}}
-    v-btn(@click='add_custom' size='small' variant='outlined') {{$t("Text")}}
-    v-btn(@click='add_title' size='small' variant='outlined') {{$t("Title page")}}
-    v-btn(@click='picker_open = true' size='small' variant='outlined') {{$t("Picture story")}}
+    strong(class='text-medium-emphasis mr-2') {{$t("common.add")}}
+    v-btn(@click='add_passage' size='small' variant='outlined') {{$t("common.passage")}}
+    v-btn(@click='add_custom' size='small' variant='outlined') {{$t("common.text")}}
+    v-btn(@click='add_title' size='small' variant='outlined') {{$t("options.content.title_page")}}
+    v-btn(@click='picker_open = true' size='small' variant='outlined') {{$t("options.content.picture_story")}}
     v-btn(:disabled='has_copyright' @click='add_copyright' size='small' variant='outlined')
-        | {{$t("Copyright")}}
+        | {{$t("common.copyright")}}
 
 div.warnings(v-if='warnings' class='mt-4 text-body-medium')
     div(v-for='warning of warnings') {{ warning }}
@@ -35,7 +35,7 @@ DialogPictureStoryPicker(v-model='picker_open' @select-story='add_picture_story_
 <script lang='ts' setup>
 
 import {reactive, computed, ref} from 'vue'
-import {useI18n} from 'vue-i18n'
+import {useI18n} from '@/services/i18n'
 
 import {blue, state, has_copyright, requires_copyright} from '@/services/state'
 import {gen_content_name} from '@/services/blueprints'
@@ -52,23 +52,23 @@ const {t} = useI18n()
 
 
 const type_label:Record<string, string> = {
-    passage: t("Passage"),
-    custom: t("Text"),
-    title: t("Title page"),
-    picture_story: t("Picture story"),
+    passage: t("common.passage"),
+    custom: t("common.text"),
+    title: t("options.content.title_page"),
+    picture_story: t("options.content.picture_story"),
 }
 
 
 const warnings = computed(() => {
     const items:string[] = []
     if (requires_copyright.value && !has_copyright.value){
-        items.push(t("A copyright statement is required for one or more translations"))
+        items.push(t("options.content.copyright_required"))
     }
     // Book-like layouts always insert a leading blank when the first item needs a recto start
     if (blue.content[0]?.type === 'passage'
             && (blue.bibles.length === 2 && blue.bibles_layout === 'alternate'
                 || blue.half_blank !== null)){
-        items.push(t("Document will start with a blank page (due to layout settings)"))
+        items.push(t("options.content.blank_first_page"))
     }
     return items
 })

@@ -22,7 +22,7 @@ div(v-if='warnings' class='mt-4 text-error text-body-medium')
 <script lang='ts' setup>
 
 import {computed} from 'vue'
-import {useI18n} from 'vue-i18n'
+import {useI18n} from '@/services/i18n'
 
 import {blue, state} from '@/services/state'
 import {content} from '@/services/content'
@@ -39,7 +39,7 @@ const primary_title = computed(() => {
 
 const secondary_title = computed(() => {
     if (!blue.bibles[1]){
-        return t("Add additional translation")
+        return t("common.add_translation")
     }
     const trans = content.translations[blue.bibles[1]]!
     return trans.name_local || trans.name_english

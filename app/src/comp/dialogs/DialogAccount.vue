@@ -3,33 +3,33 @@
 
 v-dialog(:model-value='modelValue' @update:model-value='close' max-width='440')
     v-card
-        v-card-title {{$t("Account")}}
+        v-card-title {{$t("common.account")}}
         v-card-text
 
             //- Guest — offer sign-in methods
             template(v-if='is_anonymous')
-                p {{$t("You're using a guest account. Sign in to keep your work safe and access it from any device.")}}
+                p {{$t("dialog.account.guest_notice")}}
                 v-btn(@click='google' block color='secondary' class='mt-6' :loading='busy')
-                    | {{$t("Sign in with Google")}}
+                    | {{$t("dialog.account.google")}}
                 v-divider(class='my-6')
                 template(v-if='email_sent')
-                    p {{$t("Check your inbox — we've sent you a sign-in link.")}}
+                    p {{$t("dialog.account.link_sent")}}
                 template(v-else)
-                    v-text-field(v-model='email' :label='$t("Email address")' type='email'
+                    v-text-field(v-model='email' :label='$t("dialog.account.email_address")' type='email'
                         density='compact' hide-details class='mb-2')
                     v-btn(@click='send_email' block variant='tonal' :loading='busy'
-                        :disabled='!email.includes("@")') {{$t("Email me a sign-in link")}}
+                        :disabled='!email.includes("@")') {{$t("dialog.account.send_link")}}
 
             //- Signed in — show identity + sign out
             template(v-else)
-                p {{$t("Signed in as")}}
+                p {{$t("dialog.account.signed_in_as")}}
                 p(class='mb-6')
                     strong {{ user?.email || user?.displayName }}
-                v-btn(@click='logout' variant='tonal' :loading='busy') {{$t("Sign out")}}
+                v-btn(@click='logout' variant='tonal' :loading='busy') {{$t("dialog.account.sign_out")}}
 
         v-card-actions
             v-spacer
-            v-btn(@click='close') {{$t("Close")}}
+            v-btn(@click='close') {{$t("common.close")}}
 
 </template>
 

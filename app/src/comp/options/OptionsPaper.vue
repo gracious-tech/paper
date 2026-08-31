@@ -2,7 +2,7 @@
 <template lang='pug'>
 
 //- Printing service ("Home" + real services + a "Custom…" entry for manual bleed/spine)
-v-select(v-model='blue.service_id' :items='service_items' :label='$t("Printing service")'
+v-select(v-model='blue.service_id' :items='service_items' :label='$t("options.paper.printing_service")'
     variant='underlined' density='compact' style='max-width: 320px')
 
 //- Home mode: a simple A4 / US Letter choice, plus the fold-at-home booklet option
@@ -11,15 +11,15 @@ template(v-if='is_home')
         v-radio(value='a4' label="A4")
         v-radio(value='us_letter' label="US Letter")
 
-    v-switch(v-model='blue.booklet' :label='$t("Booklet (fold at home)")' color='primary'
+    v-switch(v-model='blue.booklet' :label='$t("common.booklet_home")' color='primary'
         density='compact' hide-details)
-    p(v-if='blue.booklet' class='text-body-medium text-secondary') {{ $t("Two pages will appear on each side of paper and will only appear in the correct order once the whole booklet has been folded.") }}
+    p(v-if='blue.booklet' class='text-body-medium text-secondary') {{ $t("options.paper.booklet_note") }}
 
 //- Service / custom modes: full trim size + print options
 template(v-else)
     //- Trim size header, with a unit toggle shown only in custom-service mode
     div(class='d-flex align-center mt-2')
-        span(class='text-medium-emphasis mr-4') {{ $t("Trim size") }}
+        span(class='text-medium-emphasis mr-4') {{ $t("options.paper.trim_size") }}
         v-btn-toggle(v-if='is_custom' :model-value='blue.custom_unit'
             @update:model-value='set_unit' density='compact' variant='outlined' divided mandatory)
             v-btn(v-for='u in unit_items' :key='u' :value='u' size='small') {{ u }}
@@ -33,7 +33,7 @@ template(v-else)
         v-btn(size='small'
             :variant='blue.size_id === "" ? "flat" : "outlined"'
             :color='blue.size_id === "" ? "primary" : undefined'
-            @click='select_custom') {{ $t("Custom") }}
+            @click='select_custom') {{ $t("common.custom") }}
     v-select(v-else :model-value='blue.size_id || "__custom__"' @update:model-value='on_size_select'
         :items='size_select_items' variant='underlined' density='compact'
         style='max-width: 320px' class='my-2')
@@ -41,9 +41,9 @@ template(v-else)
     //- Custom dimensions, only shown when no named size is selected
     div(v-if='blue.size_id === ""' class='d-flex align-center ml-2 mb-4')
         v-text-field(v-model.number='blue.custom_trim_width' type='number' variant='underlined'
-            density='compact' :label='$t("Width")' class='mr-4')
+            density='compact' :label='$t("common.width")' class='mr-4')
         v-text-field(v-model.number='blue.custom_trim_height' type='number' variant='underlined'
-            density='compact' :label='$t("Height")' class='mr-4')
+            density='compact' :label='$t("common.height")' class='mr-4')
         //- Unit select only in regular-service mode (custom-service mode uses the toggle above)
         v-radio-group(v-if='!is_custom' v-model='blue.custom_unit' inline)
             v-radio(value='mm' label="mm")
@@ -52,15 +52,15 @@ template(v-else)
     //- Custom-service mode: bleed and spine width (units follow the toggle above)
     div(v-if='is_custom' class='d-flex align-center ml-2 mb-4')
         v-text-field(v-model.number='blue.custom_bleed' type='number' variant='underlined'
-            density='compact' :label='$t("Bleed")' class='mr-4' style='max-width: 120px')
+            density='compact' :label='$t("options.paper.bleed")' class='mr-4' style='max-width: 120px')
         v-text-field(v-model.number='blue.custom_spine' type='number' variant='underlined'
-            density='compact' :label='$t("Spine width")' class='mr-4' style='max-width: 120px')
+            density='compact' :label='$t("options.paper.spine_width")' class='mr-4' style='max-width: 120px')
 
     //- Regular-service mode: binding, ink and paper type (page count isn't asked for — it's
     //- determined by the document itself, estimated from the preview until a version compiles)
     template(v-else)
         div(v-if='binding_items.length > 1' class='ml-2 my-4')
-            v-select(v-model='blue.binding_type' :items='binding_items' :label='$t("Binding")'
+            v-select(v-model='blue.binding_type' :items='binding_items' :label='$t("options.paper.binding")'
                 variant='underlined' density='compact' style='max-width: 240px')
 
         //- Warn (never auto-switch) when the chosen binding doesn't suit the estimated length —
@@ -69,11 +69,11 @@ template(v-else)
             class='ml-2 my-4' :text='binding_warning')
 
         div(v-if='show_ink_type && ink_items.length > 1' class='ml-2 my-4')
-            v-select(v-model='blue.ink_type' :items='ink_items' :label='$t("Ink type")'
+            v-select(v-model='blue.ink_type' :items='ink_items' :label='$t("options.paper.ink_type")'
                 variant='underlined' density='compact' style='max-width: 240px')
 
         div(v-if='show_paper_type && paper_items.length > 1' class='ml-2 my-4')
-            v-select(v-model='blue.paper_type' :items='paper_items' :label='$t("Paper type")'
+            v-select(v-model='blue.paper_type' :items='paper_items' :label='$t("options.paper.paper_type")'
                 variant='underlined' density='compact' style='max-width: 240px')
 
 </template>
@@ -82,7 +82,7 @@ template(v-else)
 <script lang='ts' setup>
 
 import {computed, watch} from 'vue'
-import {useI18n} from 'vue-i18n'
+import {useI18n} from '@/services/i18n'
 import {list_services, get_service, get_common_sizes} from 'printing-services'
 import type {ServicePublic, SizeId, BindingTypeId, InkTypeId} from 'printing-services'
 
@@ -99,9 +99,9 @@ const unit_items = ['mm', 'inch']
 
 // Service dropdown items: "Home" + real services + a "Custom…" entry
 const service_items = computed(() => [
-    {title: t("Home"), value: 'home'},
+    {title: t("common.home"), value: 'home'},
     ...list_services().map(s => ({title: s.name, value: s.id})),
-    {title: t("Custom…"), value: 'custom'},
+    {title: t("common.custom_menu"), value: 'custom'},
 ])
 
 
@@ -139,7 +139,7 @@ const use_buttons = computed(() => size_items.value.length <= 5)
 // Dropdown items reuse the named sizes plus a trailing "Custom" entry
 const size_select_items = computed(() => [
     ...size_items.value.map(s => ({title: s.title, value: s.id})),
-    {title: t("Custom"), value: '__custom__'},
+    {title: t("common.custom"), value: '__custom__'},
 ])
 
 
@@ -184,11 +184,10 @@ const binding_warning = computed(() => {
     if (!issue){
         return null
     }
-    const requirement = issue.fewer
-        ? t("requires at least")
-        : t("allows at most")
-    return `${issue.name} ${t("binding")} ${requirement} ${issue.limit}`
-        + ` ${t("pages, but this document is estimated at")} ~${estimated_pages.value} ${t("pages")}.`
+    const key = issue.fewer
+        ? 'options.paper.binding_min_warning'
+        : 'options.paper.binding_max_warning'
+    return t(key, {name: issue.name, limit: issue.limit, estimate: estimated_pages.value})
 })
 
 

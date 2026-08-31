@@ -2,11 +2,11 @@
 <template lang='pug'>
 
 v-card-title(class='d-flex align-center')
-    | {{$t("Edit passage")}}
+    | {{$t("editor.passage.edit")}}
     v-spacer
-    v-btn(@click='cancel' size='large' variant='text') {{$t("Cancel")}}
+    v-btn(@click='cancel' size='large' variant='text') {{$t("common.cancel")}}
     v-btn(@click='done' :disabled='!tmp_passage || passage_error' size='large' variant='text'
-        color='secondary') {{$t("Done")}}
+        color='secondary') {{$t("common.done")}}
 
 v-divider
 
@@ -14,9 +14,9 @@ v-card-text(class='flex-grow-1 d-flex flex-column')
     PassageField(v-model:passage='tmp_passage' v-model:error='passage_error'
         @resolved='on_resolved')
     div
-        v-text-field(v-model='tmp_title' :label='$t("Title")')
+        v-text-field(v-model='tmp_title' :label='$t("common.title")')
     div
-        v-text-field(v-model='tmp_title_subtitle' :label='$t("Subtitle")')
+        v-text-field(v-model='tmp_title_subtitle' :label='$t("common.subtitle")')
     IconField(v-model:icon='tmp_title_icon')
     ImageField(v-model:image='tmp_image')
 

@@ -4,7 +4,7 @@
 BiblePicker(:model-value='blue.bibles[bibles_index] ?? blue.bibles[0] ?? null'
         @update:model-value='select')
     template(#actions)
-        v-btn(@click='cancel' variant='text' size='large') {{$t("Cancel")}}
+        v-btn(@click='cancel' variant='text' size='large') {{$t("common.cancel")}}
 
 </template>
 

@@ -14,11 +14,11 @@ div.app-color-wrap
             span.label {{label}}
         //- X button — only when a discrete "none" is a valid target (clear_mode="none")
         button.clear(v-if='show_x' type="button"
-            :aria-label='$t("Clear color")' @click='emit("update:modelValue", null)')
+            :aria-label='$t("common.clear_color")' @click='emit("update:modelValue", null)')
             AppIcon(name='close')
     //- "Auto" button — revert to the app-derived default (clear_mode="auto")
     v-btn.auto(v-if='show_auto' type="button" variant='outlined' size='small'
-        @click='emit("update:modelValue", null)') {{$t("Auto")}}
+        @click='emit("update:modelValue", null)') {{$t("common.auto")}}
 
 </template>
 

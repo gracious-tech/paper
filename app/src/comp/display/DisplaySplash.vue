@@ -9,10 +9,10 @@ div.cont
 
     img(src='@/assets/splash.webp')
 
-    h2 {{$t("Print books of the Bible in whatever style you need")}}
-    h2 {{$t("In over 800 languages")}}
+    h2 {{$t("display.splash.tagline")}}
+    h2 {{$t("display.splash.languages")}}
 
-    v-btn(@click='start' color='secondary' size='large' rounded class='my-4') {{$t("Get Started")}}
+    v-btn(@click='start' color='secondary' size='large' rounded class='my-4') {{$t("display.splash.get_started")}}
 
 </template>
 

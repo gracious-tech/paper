@@ -3,7 +3,7 @@
 
 v-card-title(class='d-flex align-center')
     v-text-field.search(v-if='show_languages' v-model='languages_search' variant='plain'
-        type='search' :placeholder='$t("Search") + "..."' density='compact' hide-details single-line
+        type='search' :placeholder='$t("common.search") + "..."' density='compact' hide-details single-line
         class='flex-grow-1')
     template(v-else)
         v-btn(icon color='primary' variant='text' @click='show_languages = true')
@@ -23,7 +23,7 @@ v-card-text(class='overflow-y-auto')
                 @click='languages_show_all = true')
             app-icon(name='expand_more')
             | &nbsp;
-            | {{$t("More")}}
+            | {{$t("common.more")}}
     v-list(v-else)
         //- NOTE @click='' needed to make Vuetify show cursor etc as if clickable
         v-list-item(v-if='displayed_language === "eng"' base-color='warning' @click='')
