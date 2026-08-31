@@ -13,7 +13,6 @@ import 'vuetify/styles'
 
 import {createApp} from 'vue'
 import {createVuetify} from 'vuetify'
-import {createI18n} from 'vue-i18n'
 import {md3} from 'vuetify/blueprints'
 import CheckboxBlank from '@material-symbols/svg-400/rounded/check_box_outline_blank.svg'
 import Checkbox from '@material-symbols/svg-400/rounded/check_box.svg'
@@ -32,6 +31,8 @@ import AppColor from './comp/global/AppColor.vue'
 import AppFontSelect from './comp/global/AppFontSelect.vue'
 import AppRoot from './comp/AppRoot.vue'
 import locales_meta from './locales.json'
+import {i18n, load_locale} from '@/services/i18n'
+import {detect_locale} from '@/services/locale'
 import {router} from '@/services/router'
 import {ensure_signed_in, complete_email_link} from '@/services/auth'
 import {init_designs, start_design_sync, start_viewed_sync} from '@/services/designs'
@@ -51,25 +52,13 @@ app.component('AppColor', AppColor)
 app.component('AppFontSelect', AppFontSelect)
 
 
-// Register i18n
-const lower_lang = navigator.language.toLowerCase()
-let browser_locale = lower_lang.split('-')[0] ?? 'en'
-if (browser_locale === 'zh' && ['hant', 'tw', 'hk', 'mo'].includes(lower_lang.split('-')[1] ?? '')){
-    browser_locale = 'zh-hant'  // Such countries primarily use traditional script
-}
-const i18n = createI18n({
-    legacy: false,
-    locale: browser_locale,
-    missingWarn: false,  // TODO remove when i18n fully implemented
-})
+// Register i18n — eng is bundled as the fallback, the detected locale is fetched on demand
 app.use(i18n)
-// WARN en shouldn't be included in `supported` array as it maps to empty strings for testing only
-if (locales_meta.supported.includes(browser_locale)){
-    void import(`./locales/${browser_locale}.json`).then(messages => {
-        i18n.global.setLocaleMessage(browser_locale, messages.default)
-    }).catch(() => {
-        // Don't result in error banner as non-essential
-        console.error(`Failed to load i18n for ${browser_locale}`)
+const app_locale = detect_locale(locales_meta.supported)
+if (app_locale !== 'eng'){
+    void load_locale(app_locale).catch(() => {
+        // Non-essential — the app stays usable in English
+        console.error(`Failed to load i18n for ${app_locale}`)
     })
 }
 

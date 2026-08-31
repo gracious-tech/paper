@@ -1,0 +1,4 @@
+#!/bin/bash
+# i18n status — see app/i18n/status.ts
+cd "$(dirname "$(dirname "$0")")"
+node "app/i18n/status.ts" "$@"

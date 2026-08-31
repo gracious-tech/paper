@@ -1,0 +1,4 @@
+#!/bin/bash
+# i18n check — see app/i18n/check.ts
+cd "$(dirname "$(dirname "$0")")"
+node "app/i18n/check.ts" "$@"

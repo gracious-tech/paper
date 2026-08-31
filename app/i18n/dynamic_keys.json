@@ -1,0 +1,10 @@
+[
+  "svc.blueprint.pages.",
+  "svc.blueprint.sheets.",
+  "view.version.binding_min",
+  "view.version.binding_max",
+  "options.paper.binding_min_warning",
+  "options.paper.binding_max_warning",
+  "display.version.binding_min_warning",
+  "display.version.binding_max_warning"
+]

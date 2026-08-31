@@ -163,28 +163,28 @@ export function wizard_type_label(id:NewDesignType, t:(key:string) => string):
         {label:string, subtitle:string}{
     const labels:Record<NewDesignType, {label:string, subtitle:string}> = {
         regular: {
-            label: t("Regular Bible"),
-            subtitle: t("How most bibles look, with verse numbers and headings"),
+            label: t("svc.wizard.type_regular"),
+            subtitle: t("svc.wizard.type_regular_desc"),
         },
         reading: {
-            label: t("Reading Bible"),
-            subtitle: t("No verse numbers, like a normal book"),
+            label: t("svc.wizard.type_reading"),
+            subtitle: t("svc.wizard.type_reading_desc"),
         },
         notes: {
-            label: t("Notes Bible"),
-            subtitle: t("Lots of space to write notes"),
+            label: t("svc.wizard.type_notes"),
+            subtitle: t("svc.wizard.type_notes_desc"),
         },
         study: {
-            label: t("Study Bible"),
-            subtitle: t("Extensive footnotes to guide readers"),
+            label: t("svc.wizard.type_study"),
+            subtitle: t("svc.wizard.type_study_desc"),
         },
         bilingual: {
-            label: t("Bilingual Bible"),
-            subtitle: t("Two translations side by side"),
+            label: t("svc.wizard.type_bilingual"),
+            subtitle: t("svc.wizard.type_bilingual_desc"),
         },
         picture_story: {
-            label: t("Picture Story"),
-            subtitle: t("Illustrated Bible stories, one image per page"),
+            label: t("svc.wizard.type_story"),
+            subtitle: t("svc.wizard.type_story_desc"),
         },
     }
     return labels[id]
@@ -195,10 +195,10 @@ export function wizard_type_label(id:NewDesignType, t:(key:string) => string):
 // wizard_type_label() above
 export function wizard_cover_label(id:NewDesignCover, t:(key:string) => string):string{
     const labels:Record<NewDesignCover, string> = {
-        photo: t("Photo"),
-        pattern: t("Pattern"),
-        icon: t("Icon"),
-        minimal: t("Minimal ink"),
+        photo: t("common.photo"),
+        pattern: t("svc.wizard.cover_pattern"),
+        icon: t("common.icon"),
+        minimal: t("svc.wizard.cover_minimal"),
     }
     return labels[id]
 }

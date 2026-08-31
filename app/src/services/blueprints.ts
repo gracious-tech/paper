@@ -9,6 +9,13 @@ import {content} from '@/services/content'
 import {blue} from '@/services/state'
 
 import type {Blueprint, ContentItem, ContentPassage} from '@/services/types'
+import type {Translate} from '@/services/i18n'
+
+
+// Singular/plural variant of a "{n} thing" phrase, keyed <stem>.one / <stem>.other
+function count_phrase(t:Translate, stem:string, n:number):string{
+    return t(n === 1 ? `${stem}.one` : `${stem}.other`, {n})
+}
 
 
 // Default blueprint for 1st use, reset, and base for saved old blueprint versions
@@ -167,7 +174,7 @@ function testament_unavailable(bible:string, testament:'ot'|'nt'):boolean{
 // `t` is the caller's own useI18n() translator, since these strings mix translated labels with
 // untranslated book/translation names
 export function missing_book_warnings(
-    book_ids:string[], bibles:readonly string[], t:(key:string) => string,
+    book_ids:string[], bibles:readonly string[], t:Translate,
 ):string[]{
     const warnings:string[] = []
     for (const bible of bibles){
@@ -186,7 +193,7 @@ export function missing_book_warnings(
         for (const testament of ['ot', 'nt'] as const){
             const testament_missing = missing.filter(id => bible_books[id]?.[testament])
             if (testament_missing.length && testament_unavailable(bible, testament)){
-                labels.push(testament === 'ot' ? t("Old Testament") : t("New Testament"))
+                labels.push(testament === 'ot' ? t("common.old_testament") : t("common.new_testament"))
                 for (const id of testament_missing){
                     covered.add(id)
                 }
@@ -200,7 +207,7 @@ export function missing_book_warnings(
 
         const trans = content.translations[bible]
         const name = trans?.name_local || trans?.name_english || bible
-        warnings.push(`${name} ${t("doesn't include")}: ${labels.join(', ')}`)
+        warnings.push(t("svc.blueprint.missing_books", {bible: name, books: labels.join(', ')}))
     }
     return warnings
 }
@@ -377,19 +384,19 @@ export function get_passages(blueprint:Blueprint):ContentPassage[]{
 
 // Printing service pill label, e.g. a real service's name, or "Booklet (fold at home)"/"Home"/
 // "Custom…" for the service-less modes. `t` is the caller's own useI18n() translator (see
-// missing_book_warnings() above for why these helpers take it rather than importing vue-i18n).
+// missing_book_warnings() above for why these helpers take it rather than importing useI18n).
 // `short` drops the explanatory parenthetical/ellipsis, for compact chips
 export function format_service_label(blueprint:Pick<Blueprint, 'service_id'|'booklet'>,
-        t:(key:string) => string, short=false):string{
+        t:Translate, short=false):string{
     const {service_id, booklet} = blueprint
     if (service_id === 'home'){
         if (booklet){
-            return short ? t("Booklet") : t("Booklet (fold at home)")
+            return short ? t("common.booklet") : t("common.booklet_home")
         }
-        return t("Home")
+        return t("common.home")
     }
     if (service_id === 'custom'){
-        return short ? t("Custom") : t("Custom…")
+        return short ? t("common.custom") : t("common.custom_menu")
     }
     return get_service(service_id as Parameters<typeof get_service>[0]).name
 }
@@ -400,14 +407,17 @@ export function format_service_label(blueprint:Pick<Blueprint, 'service_id'|'boo
 // it back to the number of pages the reader actually sees once printed/folded, with the physical
 // sheet count alongside
 export function format_pages_label(pages:number|null, booklet:boolean,
-        t:(key:string) => string):string|null{
+        t:Translate):string|null{
     if (pages == null){
         return null
     }
     if (!booklet){
-        return `${pages} ${t("pages")}`
+        return count_phrase(t, 'svc.blueprint.pages', pages)
     }
     const content_pages = pages * 2
     const sheets = Math.ceil(pages / 2)
-    return `${content_pages} ${t("pages")} (${sheets} ${t("sheets")})`
+    return t("svc.blueprint.pages_with_sheets", {
+        pages: count_phrase(t, 'svc.blueprint.pages', content_pages),
+        sheets: count_phrase(t, 'svc.blueprint.sheets', sheets),
+    })
 }

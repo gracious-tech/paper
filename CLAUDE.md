@@ -105,7 +105,7 @@ paper_bible/
     deploy_app             # vite build + firebase deploy (hosting, rules)
     build_server           # Stage server/deploy/ (allowlisted Docker build context)
     deploy_server          # Runs build_server, gcloud run deploy of both services from one build
-    detect_i18n_strings    # Extract i18n keys from .vue files into en.json
+    i18n_status/_sync/_check/_extract  # Translation tooling (logic in app/i18n/); see i18n section
     test_e2e               # Playwright e2e tests (needs the dev stack running; see e2e/)
     audit_stress         # Compile stress ladder, browser (WASM) + server (see e2e/tiers.ts)
     errors                 # Download + triage error reports (TUI; claude groups them)
@@ -119,6 +119,8 @@ paper_bible/
         dialogs/           # DialogAccount, DialogInviteEditor, DialogShareVersion,
                             #   DialogViewedDesign
       services/
+        i18n.ts            # Homegrown i18n (no lib): flat catalog lookup + {placeholder} + $t
+        locale.ts          # Browser BCP-47 → ISO 639-3 locale detection
         firebase.ts        # Firebase init (config committed; emulators in dev)
         auth.ts            # Anonymous auth, Google/email-link upgrade, merge trigger
         api.ts             # fetch wrapper for /api/* with ID token
@@ -134,6 +136,8 @@ paper_bible/
         typst.ts           # TypstWorkerClient (WASM worker mgmt, worn-worker recycle)
         typst_worker.ts    # The worker: WASM compiler via paper-bible-typst-web
         watchers.ts        # Auto-fetch book content as the design changes
+    i18n/                  # Translation tooling (node, own tsconfig; excluded from app tsconfig)
+                            #   lib/status/sync/check/extract + context.json/glossary.json
   server/                  # Cloud Run API server (workspace; run directly by node)
     Dockerfile             # Cloud Run image: node + workspaces + typst CLI (no fonts baked)
     deploy/                # Staged build context (gitignored; written by .bin/build_server)
@@ -283,7 +287,35 @@ ownership for writes via `firestore.get()`.
 
 ## i18n
 
-- Keys are the English strings; `en.json` maps them to `""` (test locale), `vi.json`
-  holds Vietnamese; missing keys fall back to the key text
-- After adding UI strings run `.bin/detect_i18n_strings` (watch for its escaped-quote
-  duplicates — remove any `\\'` keys it adds)
+- **No i18n library.** `services/i18n.ts` is a ~70-line homegrown module: `translate(key,
+  params?)` does a flat catalog lookup with `{named}` placeholder substitution and `eng`
+  fallback; `useI18n()` returns `{t, locale}`; the default export is a Vue plugin that adds
+  `$t`. Rationale: the app targets 800+ machine-translated locales, where an ICU/format
+  library is dead weight (MT mangles ICU syntax; CLDR plural data doesn't exist for most
+  targets) — see [[i18n-symbolic-keys-migration]].
+- **Symbolic keys**, not English strings: `$t('options.style.justify')`. Catalogs are flat
+  JSON keyed by ISO 639-3 (`app/src/locales/eng.json` = source of truth with real English,
+  `vie.json` = Vietnamese, ...). `eng` is bundled + is the fallback; other locales load on
+  demand. `services/locale.ts` maps the browser's BCP-47 tag to a locale code.
+  `app/src/locales.json` lists `source` + `supported` (not `eng`).
+- **Messages are plain strings** with `{named}` placeholders only — no ICU, no plural/select
+  syntax. Plurals / branching are done in calling code by picking the key
+  (`t(n === 1 ? 'x.one' : 'x.other', {n})` — see `count_phrase()` in `blueprints.ts`) or
+  designed out (label:value). Keys assembled at runtime like that are invisible to the
+  usage scanner — list their prefix in `app/i18n/dynamic_keys.json` so they don't read as
+  unused.
+- `app/src/locales/.state/<loc>.json` records the English each translation was made from,
+  so staleness is detectable when the source string is reworded.
+- Tooling (`app/i18n/`, run via `.bin/i18n_*`):
+  - `.bin/i18n_status` — per-locale coverage: missing / stale / orphan, plus source-level
+    undefined (`$t` key not in `eng.json`) and unused keys
+  - `.bin/i18n_extract [--prune]` — reconcile `eng.json` with `$t()` call sites
+  - `.bin/i18n_sync [--bless [key ...]]` — canonicalise all catalogs + drop orphans;
+    `--bless` records current English as the translation base after a translation batch
+  - `.bin/i18n_check [--allow-missing]` — CI gate: canonical form, no undefined/unused,
+    no orphan/stale, `{placeholder}` parity. `--allow-missing` tolerates untranslated keys
+    while a locale is still being filled in
+- **Adding a UI string:** wrap it as `$t('namespace.key')`, add `namespace.key` → English to
+  `eng.json`, optionally note usage in `app/i18n/context.json`, then translate (or run
+  `.bin/i18n_status` to see the gap). **Renaming English:** edit `eng.json`, `i18n_status`
+  flags every locale as stale, retranslate, then `.bin/i18n_sync --bless`.

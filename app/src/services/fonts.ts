@@ -50,7 +50,7 @@ export const font_items = computed(():FontItem[] => {
 // in whichever component uses it.
 export function font_items_with_auto(t:(key:string) => string):ComputedRef<FontItem[]> {
     return computed(() => [
-        {title: t("Auto (matches text font)"), value: null},
+        {title: t("svc.fonts.auto_match"), value: null},
         ...font_items.value,
     ])
 }

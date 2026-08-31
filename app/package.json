@@ -42,7 +42,6 @@
         "printing-services": "^1.5.1",
         "sortablejs": "^1.15.7",
         "typst-fonts": "^0.1.1",
-        "vue-i18n": "^11.1.12",
         "vue-router": "^5.1.0",
         "vuetify": "^4.1.5"
     }

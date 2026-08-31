@@ -1,0 +1,8 @@
+{
+  "/paper.bible/": "Product name. Never translate. Keep the surrounding slashes when the source has them.",
+  "Bible": "Use the locale's standard word for the Christian scriptures.",
+  "design": "A saved document configuration owned by the user. Keep one consistent noun across the whole UI.",
+  "version": "An immutable rendered snapshot of a design. Must stay distinct from \"design\".",
+  "booklet": "A folded-and-stapled print format. Use the locale's bookbinding term.",
+  "cover": "The wraparound book cover (front, spine and rear)."
+}

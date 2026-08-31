@@ -1,0 +1,4 @@
+#!/bin/bash
+# i18n sync — see app/i18n/sync.ts
+cd "$(dirname "$(dirname "$0")")"
+node "app/i18n/sync.ts" "$@"
