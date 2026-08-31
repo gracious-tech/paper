@@ -6,6 +6,7 @@ import {doc_has_copyright} from 'paper-bible-typst'
 import {content} from '@/services/content'
 import {collect_passage_books} from '@/services/blueprints'
 
+import type {PmDoc} from 'paper-bible-typst'
 import type {Blueprint} from '@/services/types'
 import type {WizardStep} from '@/services/new_design'
 
@@ -98,8 +99,12 @@ export function page_count_guess():number{
 }
 
 
-// Whether current blueprint includes a copyright item
+// Whether the design carries a copyright statement anywhere — an interior custom page or the
+// cover's rear blurb (new covers seed the AUTO-COPYRIGHT marker there by default)
 export const has_copyright = computed(() => {
+    if (doc_has_copyright(blue.cover?.form['blurb'] as PmDoc | undefined)){
+        return true
+    }
     return blue.content.some(
         item => item.type === 'custom' && doc_has_copyright(item.doc))
 })

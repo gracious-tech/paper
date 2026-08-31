@@ -267,10 +267,10 @@ export function wizard_auto_title(draft:NewDesignDraft):string{
 
 
 // Assemble the final Blueprint from a completed draft: defaults, then the type preset's diff,
-// then each step's selections. Content becomes whole-book passages in canonical order plus the
-// auto-copyright statement (translations nearly always require attribution), with a title page
-// prepended only for the minimal-ink cover choice. Async because the picture_story type looks up
-// the predefined story list (already cached by the time the wizard reaches this step)
+// then each step's selections. Content becomes whole-book passages in canonical order (or the
+// user's own passage list). No copyright page is added — the auto-copyright statement lives on
+// the back of the cover. Async because the picture_story type looks up the predefined story
+// list (already cached by the time the wizard reaches this step)
 export async function build_new_blueprint(draft:NewDesignDraft):Promise<Blueprint>{
 
     const blueprint = get_default_blueprint()
@@ -388,16 +388,6 @@ export async function build_new_blueprint(draft:NewDesignDraft):Promise<Blueprin
             } as ContentPassage
         })
     }
-    blueprint.content.push({
-        type: 'custom',
-        id: generate_token(),
-        name: "Copyright",
-        doc: {type: 'doc', content: [
-            {type: 'paragraph', content: [{type: 'text', text: 'AUTO-COPYRIGHT'}]},
-        ]},
-        position: 'bottom',
-    })
-
     // Cover: a seeded preset the user refines later in the cover widget
     blueprint.cover = seed_cover_preset(draft.cover!, blueprint)
 
