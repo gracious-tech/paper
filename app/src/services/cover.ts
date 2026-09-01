@@ -11,7 +11,8 @@ import {ref as storage_ref, uploadBytes, getBytes} from 'firebase/storage'
 import {make_blank_form_values, asset_path, BACKGROUNDS_DIR, resolve_dimensions}
     from 'bookcover-core'
 import {cover_form_for_render, cover_render_key, STOCK_BG_PHOTOS, KNOWN_BUILTIN_BACKGROUNDS,
-    doc_has_copyright, gen_copyright_typst, COPYRIGHT_MARKER} from 'paper-bible-typst'
+    doc_has_copyright, gen_copyright_typst, COPYRIGHT_MARKER, resolve_trim, convert_unit}
+    from 'paper-bible-typst'
 import {PDFDocument, rgb} from 'pdf-lib'
 
 import {firebase_storage} from '@/services/firebase'
@@ -416,6 +417,16 @@ export function default_cover_preset(blueprint:Blueprint):Record<string, unknown
     // Home printers can't reach the paper edge, so default the white-margin matte on for
     // home printing (the user can still turn it off in the cover widget)
     form['home_print_margin'] = blueprint.service_id === 'home'
+
+    // Narrow books (interior trim under 5.5") get a tighter back-panel margin — bookcover's own
+    // default (a percentage of face height) leaves too little width for the blurb on a small
+    // back panel. Seeded once here at creation as an explicit form value, so it's independent
+    // of whatever bookcover's default happens to be; it's a normal form field afterwards (the
+    // user can change it in the cover editor, and it doesn't follow later page-size changes)
+    const trim = resolve_trim(blueprint)
+    if (convert_unit(trim.width, trim.unit, 'in') < 5.5){
+        form['margin_back'] = 3
+    }
 
     // Size fields always mirror the blueprint (the widget's size UI is hidden when embedded),
     // with the current page-count guess standing in for the not-yet-compiled interior
