@@ -125,7 +125,10 @@ export function gen_copyright_typst(
     if (blue.design_link && share_url) {
         const qr = gen_qr_typst(share_url)
         const invite = escape_typst("Customize and print this yourself")
-        const link = `#link("${escape_typst_str(share_url)}")[${escape_typst(share_url)}]`
+        // Keep the full URL as the link target, but drop the scheme from the visible text
+        const share_url_label = share_url.replace(/^https?:\/\//, '')
+        const link = `#text(size: 0.8em)[#link("${escape_typst_str(share_url)}")`
+            + `[${escape_typst(share_url_label)}]]`
         parts.push('#align(center, grid(\n'
             + '    columns: 2,\n'
             + '    column-gutter: 4mm,\n'
