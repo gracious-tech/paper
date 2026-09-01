@@ -292,8 +292,8 @@ export async function upload_cover_bg(bytes:Uint8Array, mime:string)
 // this used to be) because the wizard now keeps several preview variants (photo/pattern/icon)
 // warm simultaneously alongside the one real active cover. The worker always splits the
 // wraparound render into its individual panels too (cheap post-process, not a second compile),
-// so one render serves the full cover (Print preview, stored versions) and the front/back-only
-// pages (Reading preview, and the wizard's front-only previews).
+// so one render serves both the full cover (the preview and stored versions) and the front-only
+// panel (the wizard's cover-selection previews).
 // `page_count` drives the spine width for real printing services — the interior PDF's actual
 // count at version creation, the shared estimate during preview (see state.ts).
 // `fonts` supplies a version's snapshotted custom fonts when regenerating (the live library
@@ -371,22 +371,12 @@ async function render_cover(blueprint:Blueprint, page_count:number, fonts?:Custo
 }
 
 
-// The full wraparound cover PDF (front + spine + back as one page) — used for the Print
-// preview and as the stored version's cover.pdf
+// The full wraparound cover PDF (front + spine + back as one page) — used for the preview and
+// as the stored version's cover.pdf
 export async function render_cover_pdf(blueprint:Blueprint, page_count:number,
         fonts?:CustomFont[], share_url?:string):Promise<Uint8Array> {
     return (await render_cover(blueprint, page_count, fonts,
         share_url !== undefined ? {share_url} : undefined)).data as Uint8Array
-}
-
-
-// The cover's front and back panels only, each already cropped to its own page — used for the
-// Reading preview, which simulates opening the book and never shows the spine as a page
-export async function render_cover_pages(blueprint:Blueprint, page_count:number,
-        fonts?:CustomFont[], share_url?:string):Promise<{front:Uint8Array, back:Uint8Array}> {
-    const {front, back} = await render_cover(blueprint, page_count, fonts,
-        share_url !== undefined ? {share_url} : undefined)
-    return {front: front as Uint8Array, back: back as Uint8Array}
 }
 
 
@@ -587,11 +577,11 @@ export async function plan_version_cover(version_id:string, blueprint:Blueprint)
 }
 
 
-// Prepend a rendered cover (its single wraparound page) to a book PDF, for the Print preview
-// only — stored versions keep the cover as its own separate cover.pdf. The page is cropped to
-// its trim box (bleed hidden) and gets two 50%-gray guide lines marking the spine's left and
-// right edges. Both are preview aids: the content is untouched and the real cover PDF is
-// produced by a different path
+// Prepend a rendered cover (its single wraparound page) to a book PDF, for the preview only —
+// stored versions keep the cover as its own separate cover.pdf. The page is cropped to its
+// trim box (bleed hidden) and gets two 50%-gray guide lines marking the spine's left and right
+// edges. Both are preview aids: the content is untouched and the real cover PDF is produced by
+// a different path
 export async function prepend_cover_page(cover_bytes:Uint8Array, book_bytes:Uint8Array,
         blueprint:Blueprint, page_count:number):Promise<Uint8Array> {
     const book = await PDFDocument.load(book_bytes)
@@ -635,28 +625,5 @@ export async function prepend_cover_page(cover_bytes:Uint8Array, book_bytes:Uint
     }
 
     book.insertPage(0, cover_page!)
-    return book.save()
-}
-
-
-// Wrap a book PDF with the cover's front and back panels for the Reading preview — front as
-// page 1, back as the last page, spine omitted (a reader never sees the spine as its own
-// page). Either panel may be null to skip it, for a truncated preview whose window doesn't
-// reach that end of the document.
-export async function wrap_cover_reading_pages(front_bytes:Uint8Array|null,
-        back_bytes:Uint8Array|null, book_bytes:Uint8Array):Promise<Uint8Array> {
-    const book = await PDFDocument.load(book_bytes)
-    // Front panel as the new page 1
-    if (front_bytes){
-        const front_doc = await PDFDocument.load(front_bytes)
-        const [front_page] = await book.copyPages(front_doc, [0])
-        book.insertPage(0, front_page!)
-    }
-    // Back panel as the new last page
-    if (back_bytes){
-        const back_doc = await PDFDocument.load(back_bytes)
-        const [back_page] = await book.copyPages(back_doc, [0])
-        book.addPage(back_page!)
-    }
     return book.save()
 }

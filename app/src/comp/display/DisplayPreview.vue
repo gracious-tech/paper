@@ -3,10 +3,6 @@
 
 div.preview
     div.toolbar
-        v-btn-toggle(:model-value='mode' @update:model-value='set_mode'
-            density='compact' color='primary-light' divided mandatory)
-            v-btn(value='reading' size='small') {{ $t("display.preview.reading_view") }}
-            v-btn(value='print' size='small') {{ $t("display.preview.print_view") }}
         //- Which part of a large document to preview — only shown when the document was
         //- truncated and has more than one book/passage to window across
         v-btn-toggle.sections(v-if='truncated && section_options.length > 1'
@@ -58,8 +54,7 @@ import {current_design_id} from '@/services/designs'
 import {typst_generator} from '@/services/typst'
 import {get_custom_font_styles} from '@/services/custom_fonts'
 import {resolve_content_for_style} from '@/services/content_images'
-import {render_cover_pdf, render_cover_pages, prepend_cover_page, wrap_cover_reading_pages}
-    from '@/services/cover'
+import {render_cover_pdf, prepend_cover_page} from '@/services/cover'
 import {report_error} from '@/services/errors'
 import {truncate_for_preview, add_preview_strip} from 'paper-bible-typst'
 
@@ -85,16 +80,6 @@ const overlay_error = ref<string|null>(null)
 // Title shown above overlay_error — kept out of the template since the pug-to-TS bridge
 // mishandles the unbalanced parenthesis in the smiley within an inline mustache expression
 const overlay_error_title = computed(() => t("display.preview.error"))
-
-// Which layout to render: 'reading' = facing-page book spreads (default),
-// 'print' = the actual final PDF (folded booklet order or sequential pages)
-const mode = ref<'reading'|'print'>('reading')
-
-// Switch the preview layout and immediately recompile (no debounce for an explicit click)
-function set_mode(value:'reading'|'print'){
-    mode.value = value
-    compile()
-}
 
 // Which portion of an over-long document to preview. Documents past the preview size limit
 // are truncated to a fast-compiling window positioned by this (see truncate_for_preview).
@@ -204,9 +189,7 @@ async function compile(){
             ? `${location.origin}/designs/${current_design_id.value}`
             : undefined
 
-        // 'reading' lays out the pages as facing-page book spreads (as if the book were opened);
-        // 'print' produces the final PDF layout (booklet fold order, or sequential if not a
-        // booklet) with print-only blank padding relaxed for the screen (preview flag below)
+        // The preview lays the pages out as facing-page book spreads, as if the book were opened
         const request = await bible_content.resolve(
             {...blue, content: styled_content}, get_custom_font_styles(), on_progress, share_url)
 
@@ -217,22 +200,17 @@ async function compile(){
         // around the compiled preview below.
         const truncation = truncate_for_preview(request, effective_section.value)
 
-        // A truncated preview only carries the cover panels for the ends it actually reaches:
-        // a Start window keeps just the front cover, an End window just the back, a Middle
-        // window neither
+        // The front cover is only shown when the preview window reaches the start of the
+        // document — a Middle or End window drops it
         const show_front_cover = !!blue.cover && !truncation.dropped_before
-        const show_rear_cover = !!blue.cover && !truncation.dropped_after
 
-        // Label the "inside of front cover" gray slot on the reading preview's first spread so
-        // it's clear it's not a missing/blank page — only when a front cover actually precedes
-        // it (print mode never shows that synthetic slot)
-        if (mode.value === 'reading' && show_front_cover){
+        // Label the "inside of front cover" gray slot on the first spread so it's clear it's
+        // not a missing/blank page — only when a front cover actually precedes it
+        if (show_front_cover){
             truncation.request.preview_cover_label = t("display.preview.inside_cover")
         }
 
-        let bytes = mode.value === 'print'
-            ? await generator.compile_pdf(truncation.request, on_progress, true)
-            : await generator.compile_pdf_preview(truncation.request, on_progress)
+        let bytes = await generator.compile_pdf_preview(truncation.request, on_progress)
 
         // Ignore if a newer compile has started since
         if (run !== latest_run){
@@ -242,15 +220,14 @@ async function compile(){
 
         // Refresh the shared page-count estimate: the preview's own page count scaled by how
         // much of the document the preview window covered (exact when nothing was truncated).
-        // Reading spreads and booklet 2-up sheets hold two book pages per PDF page. The
-        // start/end strips aren't in these bytes yet, so nothing to exclude. Rounded to an even
-        // number since bound pages always come in twos
+        // Reading spreads hold two book pages per PDF page. The start/end strips aren't in these
+        // bytes yet, so nothing to exclude. Rounded to an even number since bound pages always
+        // come in twos
         const pdf_pages = (await PDFDocument.load(bytes)).getPageCount()
         if (run !== latest_run){
             return
         }
-        const per_pdf_page = mode.value === 'print' && !blue.booklet ? 1 : 2
-        const window_pages = Math.max(1, pdf_pages * per_pdf_page)
+        const window_pages = Math.max(1, pdf_pages * 2)
         const scale = truncation.window_chars > 0
             ? truncation.total_chars / truncation.window_chars
             : 1
@@ -258,25 +235,14 @@ async function compile(){
         estimated_pages.value = page_estimate
 
         // Merge the rendered cover into the preview (cached in cover.ts — book-only edits reuse
-        // the previous render). Print mode shows the full wraparound cover as page 1, matching
-        // the actual print file; Reading mode simulates opening the book, so it shows only the
-        // front (page 1) and back (last page) panels, ignoring the spine. A cover failure is
-        // surfaced the same way a book compile failure is, rather than silently showing a
-        // preview that's missing its cover
-        if (show_front_cover || show_rear_cover){
+        // the previous render): the full wraparound cover as page 1, matching the actual print
+        // file. A cover failure is surfaced the same way a book compile failure is, rather than
+        // silently showing a preview that's missing its cover
+        if (show_front_cover){
             try {
-                if (mode.value === 'print'){
-                    if (show_front_cover){
-                        bytes = await prepend_cover_page(
-                            await render_cover_pdf(blue, page_estimate, undefined, share_url),
-                            bytes, blue, page_estimate)
-                    }
-                } else {
-                    const {front, back} = await render_cover_pages(
-                        blue, page_estimate, undefined, share_url)
-                    bytes = await wrap_cover_reading_pages(
-                        show_front_cover ? front : null, show_rear_cover ? back : null, bytes)
-                }
+                bytes = await prepend_cover_page(
+                    await render_cover_pdf(blue, page_estimate, undefined, share_url),
+                    bytes, blue, page_estimate)
             } catch (error){
                 if (run !== latest_run){
                     return
@@ -296,7 +262,7 @@ async function compile(){
         }
 
         // Cap the preview with short orange strips — after every other step (cover included) so
-        // they sit at the very edges in every view and section. The start strip is always
+        // they sit at the very edges in every section. The start strip is always
         // present: it's the plain "this is only a preview" note, or the "Start of preview"
         // marker when content before the window was dropped. The end strip is only added when
         // content past the window was dropped.
