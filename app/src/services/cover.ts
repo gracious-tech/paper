@@ -8,10 +8,11 @@ import {PassageReference} from '@gracious.tech/fetch-client'
 import {cloneDeep} from 'lodash-es'
 import {toRaw} from 'vue'
 import {ref as storage_ref, uploadBytes, getBytes} from 'firebase/storage'
-import {make_blank_form_values, asset_path, BACKGROUNDS_DIR} from 'bookcover-core'
+import {make_blank_form_values, asset_path, BACKGROUNDS_DIR, resolve_dimensions}
+    from 'bookcover-core'
 import {cover_form_for_render, cover_render_key, STOCK_BG_PHOTOS, KNOWN_BUILTIN_BACKGROUNDS,
     doc_has_copyright, gen_copyright_typst, COPYRIGHT_MARKER} from 'paper-bible-typst'
-import {PDFDocument} from 'pdf-lib'
+import {PDFDocument, rgb} from 'pdf-lib'
 
 import {firebase_storage} from '@/services/firebase'
 import {ASSETS_PREFIX} from '@/services/typst'
@@ -22,6 +23,7 @@ import {custom_fonts} from '@/services/custom_fonts'
 import {book_icon} from '@/services/icons'
 import {get_passages} from '@/services/blueprints'
 
+import type {DimensionInputs} from 'bookcover-core'
 import type {ImageRegions} from 'bookcover-web'
 import type {CustomFont} from 'typst-fonts'
 import type {PmDoc} from 'paper-bible-typst'
@@ -575,12 +577,52 @@ export async function plan_version_cover(version_id:string, blueprint:Blueprint)
 
 
 // Prepend a rendered cover (its single wraparound page) to a book PDF, for the Print preview
-// only — stored versions keep the cover as its own separate cover.pdf
-export async function prepend_cover_page(cover_bytes:Uint8Array, book_bytes:Uint8Array)
-        :Promise<Uint8Array> {
+// only — stored versions keep the cover as its own separate cover.pdf. The page is cropped to
+// its trim box (bleed hidden) and gets two 50%-gray guide lines marking the spine's left and
+// right edges. Both are preview aids: the content is untouched and the real cover PDF is
+// produced by a different path
+export async function prepend_cover_page(cover_bytes:Uint8Array, book_bytes:Uint8Array,
+        blueprint:Blueprint, page_count:number):Promise<Uint8Array> {
     const book = await PDFDocument.load(book_bytes)
     const cover_doc = await PDFDocument.load(cover_bytes)
     const [cover_page] = await book.copyPages(cover_doc, [0])
+
+    // Use the same dimensions bookcover uses to split the wraparound into panels — its layout
+    // is mm-based, the page is pt, so convert mm -> pt exactly as bookcover's splitter does.
+    // Region y is top-down; pdf boxes are bottom-up (origin at the page's bottom-left)
+    if (blueprint.cover){
+        const dims = resolve_dimensions(cover_form_for_render(
+            blueprint.cover, blueprint, page_count) as unknown as DimensionInputs)
+        const mm_to_pt = (mm:number) => mm / 25.4 * 72
+        const page_h = cover_page!.getHeight()
+        const back = dims.cover_region_back
+        const front = dims.cover_region_front
+
+        // Crop to the trim box (drop the bleed) — a display-only crop, content is preserved
+        if (dims.cover_has_bleed){
+            const left = mm_to_pt(back.x.toNumber())
+            const right = mm_to_pt(front.x.toNumber() + front.w.toNumber())
+            const bottom = page_h - mm_to_pt(back.y.toNumber() + back.h.toNumber())
+            cover_page!.setCropBox(left, bottom, right - left, mm_to_pt(back.h.toNumber()))
+        }
+
+        // Spine guide lines at the spine region's left and right edges (clipped by the crop
+        // box above to the visible trim height)
+        if (dims.cover_has_spine){
+            const spine_left = dims.cover_region_spine.x.toNumber()
+            const spine_right = spine_left + dims.cover_region_spine.w.toNumber()
+            const gray = rgb(0.5, 0.5, 0.5)
+            for (const x of [mm_to_pt(spine_left), mm_to_pt(spine_right)]){
+                cover_page!.drawLine({
+                    start: {x, y: 0},
+                    end: {x, y: page_h},
+                    thickness: 0.5,
+                    color: gray,
+                })
+            }
+        }
+    }
+
     book.insertPage(0, cover_page!)
     return book.save()
 }
