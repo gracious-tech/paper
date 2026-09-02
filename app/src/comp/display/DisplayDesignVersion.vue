@@ -14,15 +14,15 @@ div.version
         //- Middle: download the print-ready PDF(s) — same weight/colour as the preview
         //- toolbar's Create button
         div.downloads
+            v-btn(@click='download_interior' variant='elevated' color='secondary-darken-1')
+                template(#prepend)
+                    app-icon(name='download')
+                | {{ $t("display.version.download_interior") }}
             v-btn(v-if='cover_src' @click='download_cover' variant='elevated'
                     color='secondary-darken-1')
                 template(#prepend)
                     app-icon(name='download')
                 | {{ $t("display.version.download_cover") }}
-            v-btn(@click='download_interior' variant='elevated' color='secondary-darken-1')
-                template(#prepend)
-                    app-icon(name='download')
-                | {{ $t("display.version.download_interior") }}
         //- Right: printing guidance (not wired up yet)
         v-btn.how_to_print(variant='elevated' color='secondary-darken-1')
             template(#prepend)
