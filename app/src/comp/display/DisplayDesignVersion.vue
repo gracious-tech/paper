@@ -230,7 +230,7 @@ const debug = computed(() => {
     // Include the saved error report's id when the failure was recorded (client or server side)
     const version = selected_version.value
     const error_part = version?.error_id ? ` error:${version.error_id}` : ''
-    return 'version:' + (version?.id ?? '') + error_part
+    return self.location.hostname + ' version:' + (version?.id ?? '') + error_part
 })
 
 
