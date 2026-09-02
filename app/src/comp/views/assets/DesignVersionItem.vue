@@ -1,7 +1,8 @@
 
 <template lang='pug'>
 
-v-list-item(@click='select' :active='version.id === selected_version_id' color='primary')
+v-list-item(:active='!is_mobile && version.id === selected_version_id' color='primary'
+        v-on='is_mobile ? {} : {click: select}')
     //- Version age as a relative label ("3 hours ago"); hover for the exact local date + time.
     //- The latest row also carries the "open editor" button, vertically centred beside the
     //- title + date block — its colour signals unrendered design changes (warning) or none.
@@ -62,6 +63,7 @@ v-list-item(@click='select' :active='version.id === selected_version_id' color='
 <script lang='ts' setup>
 
 import {computed, ref, watch, onUnmounted} from 'vue'
+import {useDisplay} from 'vuetify'
 import {useI18n} from '@/services/i18n'
 import {useRouter} from 'vue-router'
 
@@ -79,6 +81,13 @@ import type {Version} from '@/services/types'
 
 const {t} = useI18n()
 const router = useRouter()
+const {width} = useDisplay()
+
+
+// Below the 900px preview-pane breakpoint the row is info-only — the preview it would select
+// into is hidden (see AppRoot), so click-to-select is dropped and only the menu / action
+// buttons stay live
+const is_mobile = computed(() => width.value <= 900)
 
 
 const props = defineProps<{version:Version, design_id:string, is_latest?:boolean,
