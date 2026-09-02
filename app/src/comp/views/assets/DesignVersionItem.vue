@@ -24,7 +24,7 @@ v-list-item(@click='select' :active='version.id === selected_version_id' color='
             v-list
                 v-list-item(@click='download'
                         :disabled='version.status !== "available" || expired')
-                    v-list-item-title {{$t("common.open")}}
+                    v-list-item-title {{$t("view.version.open_interior")}}
                 v-list-item(v-if='version.blueprint.cover' @click='download_cover'
                         :disabled='version.status !== "available" || expired')
                     v-list-item-title {{$t("view.version.open_cover")}}
