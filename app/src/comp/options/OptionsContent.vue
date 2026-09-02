@@ -161,7 +161,7 @@ const add_copyright = () => {
         doc: {type: 'doc', content: [
             {type: 'paragraph', content: [{type: 'text', text: 'AUTO-COPYRIGHT'}]},
         ]},
-        position: 'bottom',
+        position: 'middle',
     }))
 }
 
