@@ -88,8 +88,8 @@ import {computed, ref} from 'vue'
 import {useI18n} from '@/services/i18n'
 import {PassageReference} from '@gracious.tech/fetch-client'
 
-import {versions, latest_version, version_expired, download_version_pdf, regenerate_version}
-    from '@/services/versions'
+import {versions, latest_version, version_expired, download_version_pdf, regenerate_version,
+    version_contact_url} from '@/services/versions'
 import {format_paper_size, format_service_label, format_pages_label, get_passages,
     binding_page_issue} from '@/services/blueprints'
 import {content} from '@/services/content'
@@ -180,14 +180,8 @@ const compile_failed = computed(() => {
 const retrying = ref(false)
 
 
-// Support-contact link for a failed latest version, carrying identifying info (host + version
-// id + saved error-report id) so the report can be traced. Mirrors DisplayDesignVersion's debug
-const contact_url = computed(() => {
-    const version = latest_version.value
-    const error_part = version?.error_id ? ` error:${version.error_id}` : ''
-    const desc = self.location.hostname + ' version:' + (version?.id ?? '') + error_part
-    return 'https://gracious.tech/contact?desc=' + encodeURIComponent(desc)
-})
+// Support-contact link for the failed latest version, prefilled with its identifying debug ref
+const contact_url = computed(() => version_contact_url(latest_version.value))
 
 
 // Recompile the failed latest version from its frozen blueprint (see regenerate_version)

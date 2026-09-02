@@ -2,16 +2,18 @@
 
 v-dialog(:model-value='!!state.alert' max-width='420' @update:model-value='val => !val && dismiss()')
     //- Light red card — the alert dialog only ever carries warning text (the binding page-limit
-    //- explanation, or a version's compile failure with its own "Try again" action)
+    //- explanation, or a version's compile failure with its own "Try again" + "Contact us")
     v-card(v-if='state.alert' class='bg-error-lighten-2')
         v-card-text.message
             app-icon.message_icon(name='error')
             span {{ state.alert.message }}
         v-card-actions
             v-spacer
+            v-btn(v-if='state.alert.contact_url' :href='state.alert.contact_url' target='_blank'
+                    variant='tonal' color='white') {{$t("display.version.contact")}}
             v-btn(v-if='state.alert.action' @click='act' variant='tonal' color='white')
                 | {{ state.alert.action }}
-            v-btn(@click='dismiss' variant='tonal' color='white') {{$t("common.ok")}}
+            v-btn(@click='dismiss' variant='flat' color='white') {{$t("common.dismiss")}}
 
 </template>
 

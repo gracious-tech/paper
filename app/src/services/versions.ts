@@ -326,6 +326,20 @@ export function version_expired(version:Version):boolean{
 }
 
 
+export function version_debug_ref(version:Version|null):string{
+    // Identifying string for a version (host + id + saved error-report id) — shown to users to
+    // quote in a support request, and prefilled into the "Contact us" link's description
+    const error_part = version?.error_id ? ` error:${version.error_id}` : ''
+    return location.hostname + ' version:' + (version?.id ?? '') + error_part
+}
+
+
+export function version_contact_url(version:Version|null):string{
+    // "Contact us" link with the version's debug ref prefilled as the message description
+    return 'https://gracious.tech/contact?desc=' + encodeURIComponent(version_debug_ref(version))
+}
+
+
 export async function regenerate_version(version:Version):Promise<void>{
     // Recompile an expired/failed version's PDF from its frozen blueprint and font snapshot
     // NOTE Storage rules only allow (re)creating the object when it no longer exists

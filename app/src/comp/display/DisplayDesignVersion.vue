@@ -59,11 +59,12 @@ div.version
                 | {{$t("display.version.typical_time")}}
         template(v-else-if='status === "failed"')
             h3(class='mb-6') {{$t("display.version.error")}}
-            div(class='mb-6')
-                v-btn(@click='regen' color='secondary') {{$t("common.try_again")}}
             div
-                v-btn(:href='contact_url' target='_blank' variant='text') {{$t("display.version.contact")}}
-            p(class='mt-12 mb-3') {{$t("display.version.include_code")}}
+                v-btn(@click='regen' color='secondary') {{$t("common.try_again")}}
+            div(class='my-6') or
+            div
+                v-btn(:href='contact_url' target='_blank' variant='tonal' color='secondary') {{$t("display.version.contact")}}
+            p(class='mt-4 mb-3') {{$t("display.version.include_code")}}
             p
                 strong {{ debug }}
         template(v-else-if='expired')
@@ -81,8 +82,8 @@ import {computed, ref, watch, onUnmounted} from 'vue'
 import {useI18n} from '@/services/i18n'
 
 import {selected_version, get_pdf_url, get_cover_pdf_url, download_version_pdf, regenerate_version,
-    retry_version, version_expired, version_stuck, latest_version, design_needs_editor}
-    from '@/services/versions'
+    retry_version, version_expired, version_stuck, latest_version, design_needs_editor,
+    version_debug_ref, version_contact_url} from '@/services/versions'
 import {designs, current_design_id} from '@/services/designs'
 import {report_error} from '@/services/errors'
 import AnimatedBook from '../reuseable/AnimatedBook.vue'
@@ -221,17 +222,9 @@ const retry = async () => {
 }
 
 
-const contact_url = computed(() => {
-    return 'https://gracious.tech/contact?desc=' + encodeURIComponent(debug.value)
-})
-
-
-const debug = computed(() => {
-    // Include the saved error report's id when the failure was recorded (client or server side)
-    const version = selected_version.value
-    const error_part = version?.error_id ? ` error:${version.error_id}` : ''
-    return self.location.hostname + ' version:' + (version?.id ?? '') + error_part
-})
+// Prefilled support-contact link + the bare identifying string shown for the user to quote
+const contact_url = computed(() => version_contact_url(selected_version.value ?? null))
+const debug = computed(() => version_debug_ref(selected_version.value ?? null))
 
 
 watch(selected_version, version => {

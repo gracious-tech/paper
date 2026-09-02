@@ -81,7 +81,8 @@ import {report_error} from '@/services/errors'
 import {binding_page_issue} from '@/services/blueprints'
 import {create_design, restore_version_into_design} from '@/services/designs'
 import {open_version_pdf, delete_version, regenerate_version, retry_version, version_expired,
-    version_stuck, share_version, selected_version_id, design_needs_editor} from '@/services/versions'
+    version_stuck, share_version, selected_version_id, design_needs_editor, version_contact_url}
+    from '@/services/versions'
 import {format_relative_time, format_datetime} from '@/services/utils'
 
 import type {Version} from '@/services/types'
@@ -155,11 +156,13 @@ const compile_failed = computed(() => {
 })
 
 
-// Show the compile-failure message with a "Try again" action in a dialog (mirrors the alert bar
-// the latest version gets in DesignVersionsList's summary); retry recompiles from the frozen
-// blueprint when chosen
+// Show the compile-failure message in a dialog with "Try again" + "Contact us" actions (mirrors
+// the alert bar the latest version gets in DesignVersionsList's summary); retry recompiles from
+// the frozen blueprint when chosen
 const show_compile_error = async () => {
-    if (await alert_dialog(t('view.version_list.compile_error'), t('common.try_again'))){
+    const retry = await alert_dialog(t('view.version_list.compile_error'),
+        {action: t('common.try_again'), contact_url: version_contact_url(props.version)})
+    if (retry){
         await regen()
     }
 }

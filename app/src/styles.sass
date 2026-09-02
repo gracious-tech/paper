@@ -66,6 +66,13 @@ body
 .v-btn
     text-transform: none !important
 
+// Vuetify's <v-card-actions> forces `slim` onto every button it wraps (padding: 0 8px via
+// provideDefaults), which leaves dialog action rows looking cramped. Restore normal button
+// padding for dialogs app-wide — a defaults entry can't win against that provideDefaults call.
+.v-dialog .v-card-actions .v-btn--slim
+    padding-left: 12px
+    padding-right: 12px
+
 
 #app
     display: flex
