@@ -31,7 +31,7 @@ template(v-else)
                 class='mt-3 text-left')
             | {{ sheets_warning.text }}
 
-    v-list(bg-color='transparent' class='flex-grow-1')
+    v-list(bg-color='transparent' class='version_list flex-grow-1')
         DesignVersionItem(v-if='latest_version' :version='latest_version' :design_id='design_id'
             :is_latest='true' :editable='editable' class='latest_version')
         div.after_latest
@@ -161,8 +161,19 @@ const service_label = computed(() => {
     width: 16px
     margin-right: 6px
 
+// Room around the rows so the outlined current-version card and the selected-row wash read as
+// distinct blocks rather than sitting flush against the container edges
+.version_list
+    padding: 8px 12px
+
+// Current version: an outlined "card" lifted off the plain rows with a faint primary tint
+// (composes with the selected-row wash + accent bar when the latest version is also open)
 .latest_version
     font-weight: bold
+    border: 1px solid rgba(var(--v-theme-primary), 0.35)
+    border-radius: 8px
+    background-color: rgba(var(--v-theme-primary), 0.04)
+    margin-bottom: 8px
 
 .after_latest
     display: flex

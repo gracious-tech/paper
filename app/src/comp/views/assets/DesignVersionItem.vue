@@ -209,4 +209,10 @@ const share = async () => {
 .v-progress-circular
     margin: 8px
 
+// Selected version: a stronger primary wash than Vuetify's default active state, plus a solid
+// accent bar down the leading edge so the open version is unmistakable
+.v-list-item.v-list-item--active
+    background-color: rgba(var(--v-theme-primary), 0.14)
+    box-shadow: inset 3px 0 0 0 rgb(var(--v-theme-primary))
+
 </style>
