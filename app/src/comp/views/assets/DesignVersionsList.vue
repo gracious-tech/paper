@@ -42,6 +42,18 @@ template(v-else)
                 class='mt-3 text-left')
             | {{ sheets_warning.text }}
 
+    //- Download + printing actions, shown only where the preview toolbar isn't (below 900px,
+    //- where AppRoot hides the whole preview pane). Same controls as the preview toolbar in
+    //- DisplayDesignVersion.vue — one centred row above the latest version card
+    div.mobile_actions(v-if='downloads_ready')
+        v-btn(@click='download_interior' variant='tonal' color='secondary-darken-1')
+            | {{ $t("display.version.download_interior") }}
+        v-btn(v-if='has_cover' @click='download_cover' variant='tonal'
+                color='secondary-darken-1')
+            | {{ $t("display.version.download_cover") }}
+        v-btn.how_to_print(variant='tonal' color='')
+            | {{ $t("display.version.how_to_print") }}
+
     v-list(bg-color='transparent' class='version_list flex-grow-1')
         DesignVersionItem(v-if='latest_version' :version='latest_version' :design_id='design_id'
             :is_latest='true' :editable='editable' class='latest_version')
@@ -65,7 +77,8 @@ import {computed} from 'vue'
 import {useI18n} from '@/services/i18n'
 import {PassageReference} from '@gracious.tech/fetch-client'
 
-import {versions, latest_version, design_needs_editor} from '@/services/versions'
+import {versions, latest_version, design_needs_editor, version_expired, download_version_pdf}
+    from '@/services/versions'
 import {format_paper_size, format_service_label, format_pages_label, get_passages,
     binding_page_issue} from '@/services/blueprints'
 import {content} from '@/services/content'
@@ -173,6 +186,35 @@ const service_label = computed(() => {
     return latest_version.value ? format_service_label(latest_version.value.blueprint, t) : ''
 })
 
+
+// Whether the latest version has a downloadable PDF (gates the mobile action row)
+const downloads_ready = computed(() => {
+    const version = latest_version.value
+    return !!version && version.status === 'available' && !version_expired(version)
+})
+
+
+// Whether the latest version has a separate cover PDF to offer alongside the interior
+const has_cover = computed(() => {
+    return !!latest_version.value?.blueprint.cover
+})
+
+
+// Save the latest version's interior PDF to disk (see download_version_pdf)
+const download_interior = () => {
+    if (latest_version.value){
+        void download_version_pdf(latest_version.value, 'interior')
+    }
+}
+
+
+// Save the latest version's separate cover PDF to disk
+const download_cover = () => {
+    if (latest_version.value){
+        void download_version_pdf(latest_version.value, 'cover')
+    }
+}
+
 </script>
 
 
@@ -229,5 +271,17 @@ const service_label = computed(() => {
     justify-content: center
     gap: 12px
     padding: 16px 16px 0 16px
+
+// One centred row of download / printing buttons above the latest version card. Only shown
+// below 900px — above that the same actions sit in the preview toolbar (DisplayDesignVersion.vue)
+.mobile_actions
+    display: flex
+    flex-wrap: wrap
+    align-items: center
+    justify-content: center
+    gap: 8px
+    padding: 16px 12px 12px 12px
+    @media (min-width: 901px)
+        display: none
 
 </style>
