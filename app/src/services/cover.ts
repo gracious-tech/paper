@@ -579,9 +579,9 @@ export async function plan_version_cover(version_id:string, blueprint:Blueprint)
 
 // Prepend a rendered cover (its single wraparound page) to a book PDF, for the preview only —
 // stored versions keep the cover as its own separate cover.pdf. The page is cropped to its
-// trim box (bleed hidden) and gets two 50%-gray guide lines marking the spine's left and right
-// edges. Both are preview aids: the content is untouched and the real cover PDF is produced by
-// a different path
+// trim box (bleed hidden) and gets 50%-gray guide lines: the spine's left and right edges when
+// there's a spine, otherwise a single line on the back/front fold. Both are preview aids: the
+// content is untouched and the real cover PDF is produced by a different path
 export async function prepend_cover_page(cover_bytes:Uint8Array, book_bytes:Uint8Array,
         blueprint:Blueprint, page_count:number):Promise<Uint8Array> {
     const book = await PDFDocument.load(book_bytes)
@@ -607,20 +607,21 @@ export async function prepend_cover_page(cover_bytes:Uint8Array, book_bytes:Uint
             cover_page!.setCropBox(left, bottom, right - left, mm_to_pt(back.h.toNumber()))
         }
 
-        // Spine guide lines at the spine region's left and right edges (clipped by the crop
-        // box above to the visible trim height)
-        if (dims.cover_has_spine){
-            const spine_left = dims.cover_region_spine.x.toNumber()
-            const spine_right = spine_left + dims.cover_region_spine.w.toNumber()
-            const gray = rgb(0.5, 0.5, 0.5)
-            for (const x of [mm_to_pt(spine_left), mm_to_pt(spine_right)]){
-                cover_page!.drawLine({
-                    start: {x, y: 0},
-                    end: {x, y: page_h},
-                    thickness: 0.5,
-                    color: gray,
-                })
-            }
+        // Gray fold guide lines (clipped by the crop box above to the visible trim height):
+        // the spine's left and right edges when the book has a spine, otherwise a single line
+        // on the fold between the back and front panels
+        const gray = rgb(0.5, 0.5, 0.5)
+        const fold_x = dims.cover_has_spine
+            ? [dims.cover_region_spine.x.toNumber(),
+                dims.cover_region_spine.x.toNumber() + dims.cover_region_spine.w.toNumber()]
+            : [front.x.toNumber()]
+        for (const mm of fold_x){
+            cover_page!.drawLine({
+                start: {x: mm_to_pt(mm), y: 0},
+                end: {x: mm_to_pt(mm), y: page_h},
+                thickness: 0.5,
+                color: gray,
+            })
         }
     }
 
