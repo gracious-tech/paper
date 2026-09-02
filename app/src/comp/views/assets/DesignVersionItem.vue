@@ -15,7 +15,7 @@ v-list-item(@click='select' :active='version.id === selected_version_id' color='
                 template(v-if='expired') &nbsp;— {{$t("view.version.expired")}}
         v-btn(v-if='is_latest && editable' @click.stop='view_changes' variant='flat' size='small'
                 :color='design_needs_editor ? "warning" : "secondary"')
-            | {{ design_needs_editor ? $t("view.design.view_changes") : $t("common.edit") }}
+            | {{ design_needs_editor ? $t("view.design.unapplied_changes") : $t("common.edit") }}
     template(#append)
         div.status
             v-progress-circular(v-if='version.status === "pending" && !stuck' indeterminate

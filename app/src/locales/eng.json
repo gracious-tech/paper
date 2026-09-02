@@ -320,7 +320,7 @@
   "svc.wizard.type_study_desc": "Extensive footnotes to guide readers",
   "view.design.keep_copy": "Keep my own copy",
   "view.design.still_generating": "This document is still being generated — try again in a moment",
-  "view.design.view_changes": "View changes",
+  "view.design.unapplied_changes": "Unapplied changes",
   "view.design_item.delete_confirm": "Delete this design? This cannot be undone.",
   "view.design_item.rename": "Rename design",
   "view.design_item.shared": "Shared design",
