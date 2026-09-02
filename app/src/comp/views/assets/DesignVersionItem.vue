@@ -28,7 +28,7 @@ v-list-item(:active='!is_mobile && version.id === selected_version_id' color='pr
             //- versions only have room for this icon, so clicking it opens the same full text
             //- in a dismissable dialog (the tooltip is just the short form / hover hint).
             v-btn(v-else-if='binding_issue' icon variant='text' size='small' color='error'
-                    v-tooltip='binding_issue_message' @click.stop='show_binding_detail')
+                    @click.stop='show_binding_detail')
                 app-icon(name='error')
         v-menu
             template(#activator='{props}')
@@ -147,18 +147,6 @@ const binding_issue = computed(() => {
     return !props.is_latest && props.version.status === 'available' && props.version.pages !== null
         ? binding_page_issue(props.version.blueprint, props.version.pages)
         : null
-})
-
-
-// Tooltip text explaining the binding issue above (fewer/more pages than the binding supports)
-const binding_issue_message = computed(() => {
-    if (!binding_issue.value){
-        return ''
-    }
-    const key = binding_issue.value.fewer
-        ? 'view.version.binding_min'
-        : 'view.version.binding_max'
-    return t(key, {limit: binding_issue.value.limit})
 })
 
 

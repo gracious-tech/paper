@@ -340,8 +340,6 @@
   "view.help.creator": "Creator",
   "view.help.intro": "This is a free app for printing Scripture and we highly recommend watching the very short introduction video before using it.",
   "view.help.source_code": "Source code",
-  "view.version.binding_max": "Binding allows at most {limit} pages",
-  "view.version.binding_min": "Binding requires at least {limit} pages",
   "view.version.copy_as_design": "Copy as new design",
   "view.version.expired": "Expired",
   "view.version.latest": "Latest version",
