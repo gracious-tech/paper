@@ -27,6 +27,19 @@ template(v-else)
                 template(#prepend)
                     app-icon(name='print')
                 | {{ service_label }}
+        //- Compile failure of the latest version. Like the binding warning below, it's shown
+        //- here as a full alert bar (with its own "Try again") rather than just the row icon,
+        //- so a mobile user — who never sees the preview pane's failure screen — can still act.
+        //- Older failed versions get the same message + retry in a click-through dialog.
+        v-alert(v-if='compile_failed' class='mt-3 text-left bg-error-lighten-2')
+            div.compile_error
+                app-icon.compile_error_icon(name='error')
+                span {{ $t("view.version_list.compile_error") }}
+            div.compile_error_actions
+                v-btn(@click='retry_compile' size='small' variant='flat' color='white'
+                        :loading='retrying') {{ $t("common.try_again") }}
+                v-btn(:href='contact_url' target='_blank' size='small' variant='tonal'
+                        color='white') {{ $t("display.version.contact") }}
         //- Binding page-limit warning. It lives here in the always-visible version summary
         //- rather than in the preview pane (like the thinner "you're viewing an old render"
         //- advisory strip) on purpose: that strip only concerns what the on-screen preview is
@@ -71,11 +84,12 @@ template(v-else)
 
 <script lang='ts' setup>
 
-import {computed} from 'vue'
+import {computed, ref} from 'vue'
 import {useI18n} from '@/services/i18n'
 import {PassageReference} from '@gracious.tech/fetch-client'
 
-import {versions, latest_version, version_expired, download_version_pdf} from '@/services/versions'
+import {versions, latest_version, version_expired, download_version_pdf, regenerate_version}
+    from '@/services/versions'
 import {format_paper_size, format_service_label, format_pages_label, get_passages,
     binding_page_issue} from '@/services/blueprints'
 import {content} from '@/services/content'
@@ -154,6 +168,42 @@ const binding_warning = computed(() => {
 })
 
 
+// Whether the latest version failed to compile. Surfaced as a full alert bar here (with its
+// own retry) rather than just the row icon — mirrors binding_warning so a mobile user, who
+// can't see the preview pane's failure screen, still gets the message and a way to act
+const compile_failed = computed(() => {
+    return latest_version.value?.status === 'failed'
+})
+
+
+// Whether a retry of the failed latest version is in flight (drives the button's spinner)
+const retrying = ref(false)
+
+
+// Support-contact link for a failed latest version, carrying identifying info (host + version
+// id + saved error-report id) so the report can be traced. Mirrors DisplayDesignVersion's debug
+const contact_url = computed(() => {
+    const version = latest_version.value
+    const error_part = version?.error_id ? ` error:${version.error_id}` : ''
+    const desc = self.location.hostname + ' version:' + (version?.id ?? '') + error_part
+    return 'https://gracious.tech/contact?desc=' + encodeURIComponent(desc)
+})
+
+
+// Recompile the failed latest version from its frozen blueprint (see regenerate_version)
+const retry_compile = async () => {
+    if (!latest_version.value){
+        return
+    }
+    retrying.value = true
+    try {
+        await regenerate_version(latest_version.value)
+    } finally {
+        retrying.value = false
+    }
+}
+
+
 // Booklet sheet-count warning, latest version only — flags when the fold-at-home booklet
 // grows thick enough that folding/stapling by hand gets difficult. Same rendered-and-available
 // guard as binding_warning so a stale page count from the previous compile can't keep the alert
@@ -218,17 +268,18 @@ const download_cover = () => {
 <style lang='sass' scoped>
 
 .summary
-    padding: 16px 16px 0 16px
+    padding: 16px 16px 18px 16px
     text-align: center
 
 .summary_title
-    margin-bottom: 8px
+    margin-bottom: 16px
 
 .summary_pills
     display: flex
     flex-wrap: wrap
     justify-content: center
     gap: 8px
+    margin-bottom: 24px
 
 // Error icon (matching the per-row binding icon on previous versions) vertically centred
 // against the binding warning text
@@ -242,6 +293,26 @@ const download_cover = () => {
     height: 20px
     width: 20px
     color: rgb(var(--v-theme-error-darken-2))
+
+// Compile-failure alert: an icon + message row, then a centred row of actions beneath it
+.compile_error
+    display: flex
+    align-items: center
+    gap: 8px
+    line-height: 1.3
+
+.compile_error_icon
+    flex-shrink: 0
+    height: 24px
+    width: 24px
+    color: rgb(var(--v-theme-error-darken-2))
+
+.compile_error_actions
+    display: flex
+    flex-wrap: wrap
+    justify-content: center
+    gap: 8px
+    margin-top: 12px
 
 .summary_pills .icon
     height: 16px
@@ -268,17 +339,5 @@ const download_cover = () => {
     justify-content: center
     gap: 12px
     padding: 16px 16px 0 16px
-
-// One centred row of download / printing buttons above the latest version card. Only shown
-// below 900px — above that the same actions sit in the preview toolbar (DisplayDesignVersion.vue)
-.mobile_actions
-    display: flex
-    flex-wrap: wrap
-    align-items: center
-    justify-content: center
-    gap: 8px
-    padding: 16px 12px 12px 12px
-    @media (min-width: 901px)
-        display: none
 
 </style>

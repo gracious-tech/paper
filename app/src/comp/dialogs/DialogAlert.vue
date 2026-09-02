@@ -1,15 +1,16 @@
-
 <template lang='pug'>
 
 v-dialog(:model-value='!!state.alert' max-width='420' @update:model-value='val => !val && dismiss()')
-    //- Light red card — the alert dialog only ever carries warning text (currently the binding
-    //- page-limit explanation)
+    //- Light red card — the alert dialog only ever carries warning text (the binding page-limit
+    //- explanation, or a version's compile failure with its own "Try again" action)
     v-card(v-if='state.alert' class='bg-error-lighten-2')
         v-card-text.message
             app-icon.message_icon(name='error')
             span {{ state.alert.message }}
         v-card-actions
             v-spacer
+            v-btn(v-if='state.alert.action' @click='act' variant='tonal' color='white')
+                | {{ state.alert.action }}
             v-btn(@click='dismiss' variant='tonal' color='white') {{$t("common.ok")}}
 
 </template>
@@ -20,9 +21,15 @@ v-dialog(:model-value='!!state.alert' max-width='420' @update:model-value='val =
 import {state} from '@/services/state'
 
 
-// Resolve the pending alert request and close the dialog (also covers backdrop/esc dismissal)
+// Resolve the pending alert request as "action button clicked" and close the dialog
+const act = () => {
+    state.alert?.resolve(true)
+    state.alert = null
+}
+
+// Resolve the pending alert request as plain dismissal (also covers backdrop/esc dismissal)
 const dismiss = () => {
-    state.alert?.resolve()
+    state.alert?.resolve(false)
     state.alert = null
 }
 

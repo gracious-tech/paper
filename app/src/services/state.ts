@@ -55,8 +55,10 @@ export const state = reactive({
     confirm: null as null|{message:string, resolve:(confirmed:boolean) => void},
     // Pending prompt-dialog request, rendered by DialogPrompt — null hides it (see prompt_dialog())
     prompt: null as null|{message:string, value:string, resolve:(value:string|null) => void},
-    // Pending alert-dialog request, rendered by DialogAlert — null hides it (see alert_dialog())
-    alert: null as null|{message:string, resolve:() => void},
+    // Pending alert-dialog request, rendered by DialogAlert — null hides it (see alert_dialog()).
+    // `action` is an optional extra button label (e.g. "Try again"); resolve(true) when it's
+    // clicked, resolve(false) on plain dismissal
+    alert: null as null|{message:string, action:string|null, resolve:(did_action:boolean) => void},
 })
 
 
@@ -82,10 +84,12 @@ export function prompt_dialog(message:string, initial=''):Promise<string|null>{
 }
 
 
-// Show the user a dismissable message via a Vuetify dialog (replaces the browser's native alert())
-export function alert_dialog(message:string):Promise<void>{
+// Show the user a dismissable message via a Vuetify dialog (replaces the browser's native alert()).
+// Pass `action` to add a second button (e.g. "Try again") — resolves true when it's clicked,
+// false when the dialog is merely dismissed
+export function alert_dialog(message:string, action?:string):Promise<boolean>{
     return new Promise(resolve => {
-        state.alert = {message, resolve}
+        state.alert = {message, action: action ?? null, resolve}
     })
 }
 

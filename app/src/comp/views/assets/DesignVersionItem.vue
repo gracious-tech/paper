@@ -21,8 +21,14 @@ v-list-item(:active='!is_mobile && version.id === selected_version_id' color='pr
         div.status
             v-progress-circular(v-if='version.status === "pending" && !stuck' indeterminate
                 size='32' color='secondary')
-            app-icon(v-else-if='version.status === "failed" || stuck' name='error'
-                class='text-error')
+            app-icon(v-else-if='stuck' name='error' class='text-error')
+            //- Compile failure. The latest version gets a full alert bar (with its own retry) in
+            //- DesignVersionsList's summary, so — like the binding icon below — this per-row
+            //- affordance is only for older versions: clicking opens the same message + "Try
+            //- again" in a dismissable dialog.
+            v-btn(v-else-if='compile_failed' icon variant='text' size='small' color='error'
+                    @click.stop='show_compile_error')
+                app-icon(name='error')
             //- The document compiled, but its actual page count broke its chosen binding.
             //- The latest version gets a full alert bar in DesignVersionsList's summary; older
             //- versions only have room for this icon, so clicking it opens the same full text
@@ -42,7 +48,9 @@ v-list-item(:active='!is_mobile && version.id === selected_version_id' color='pr
                         :disabled='version.status !== "available" || expired')
                     v-list-item-title {{$t("view.version.open_cover")}}
                 template(v-if='editable')
-                    v-list-item(v-if='expired || version.status === "failed"' @click='regen')
+                    //- Failed compiles retry via the alert bar / dialog (see compile_failed);
+                    //- this item is just for an expired PDF whose metadata is still around
+                    v-list-item(v-if='expired' @click='regen')
                         v-list-item-title {{$t("common.regenerate")}}
                     v-list-item(v-else-if='stuck' @click='retry')
                         v-list-item-title {{$t("common.try_again")}}
@@ -138,6 +146,23 @@ const expired = computed(() => version_expired(props.version))
 // local date + time surfaced on hover
 const created_relative = computed(() => format_relative_time(props.version.created))
 const created_exact = computed(() => format_datetime(props.version.created))
+
+
+// Whether this is an older version whose compile failed. Skipped for the latest version — it
+// gets the full alert bar (with its own retry) in DesignVersionsList's summary just above
+const compile_failed = computed(() => {
+    return !props.is_latest && props.version.status === 'failed'
+})
+
+
+// Show the compile-failure message with a "Try again" action in a dialog (mirrors the alert bar
+// the latest version gets in DesignVersionsList's summary); retry recompiles from the frozen
+// blueprint when chosen
+const show_compile_error = async () => {
+    if (await alert_dialog(t('view.version_list.compile_error'), t('common.try_again'))){
+        await regen()
+    }
+}
 
 
 // Whether the produced document's actual page count isn't supported by its chosen binding,
