@@ -355,7 +355,7 @@
   "view.version_list.none_yet": "No versions (yet)",
   "view.version_list.passages": "passages",
   "view.version_list.previous": "Previous versions",
-  "view.version_list.sheets_hard": "{sheets} sheets is a lot to fold and staple by hand — a printing service may work better",
+  "view.version_list.sheets_hard": "{sheets} sheets will be too hard to fold — you should reduce the size or use a printing service",
   "view.version_list.sheets_tricky": "{sheets} sheets may be tricky to fold and staple neatly by hand",
   "view.version_list.unapplied_changes": "Unapplied changes",
   "view.version_list.unrendered_changes": "This design has changes since this version was created",
