@@ -26,6 +26,7 @@ import {useI18n} from '@/services/i18n'
 
 import {state, blue} from '@/services/state'
 import {page_reduction_suggestions} from '@/services/blueprints'
+import {design_wizard, current_design_id, leave_simple_mode} from '@/services/designs'
 
 
 const {t} = useI18n()
@@ -61,6 +62,12 @@ const apply = () => {
         if (selected.value.includes(suggestion.id)){
             Object.assign(blue, suggestion.patch)
         }
+    }
+    // These patches touch raw style fields the wizard doesn't model, so a simple-mode design
+    // must graduate to the full editor — otherwise reopening a wizard step would rebuild the
+    // blueprint from the draft and silently discard what was just applied
+    if (design_wizard.simple_mode && current_design_id.value){
+        void leave_simple_mode(current_design_id.value)
     }
     open.value = false
 }

@@ -80,7 +80,7 @@ app.use(createVuetify({
             },
         },
         variations: {
-            colors: ['primary', 'secondary', 'error'],
+            colors: ['primary', 'secondary', 'error', 'warning'],
             lighten: 2,
             darken: 2,
         },

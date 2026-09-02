@@ -47,18 +47,18 @@ template(v-else)
         //- showing, so it's fine for it to be hidden with the whole preview pane below 900px —
         //- but a finished document that broke its binding's page limit can't be printed as
         //- designed, which a mobile user needs to see just as much as a desktop one.
-        v-alert(v-if='binding_warning' density='compact' type='warning'
+        v-alert(v-if='binding_warning' density='compact' type='error'
                 class='mt-3 text-left bg-error-lighten-2')
             div {{ binding_warning }}
             div(class='text-right')
                 v-btn(@click='state.page_suggestions = true' size='small' variant='flat'
-                    class='mt-2') {{ $t("page_suggestions.button") }}
-        v-alert(v-if='sheets_warning' :color='sheets_warning.color' density='compact'
+                    class='mt-2' color='error') {{ $t("page_suggestions.button") }}
+        v-alert(v-if='sheets_warning' :color='sheets_warning.color' type='warning' density='compact'
                 class='mt-3 text-left')
             div {{ sheets_warning.text }}
             div(class='text-right')
                 v-btn(@click='state.page_suggestions = true' size='small' variant='flat'
-                    class='mt-2') {{ $t("page_suggestions.button") }}
+                    class='mt-2' :color='`${sheets_warning.color}-darken-2`') {{ $t("page_suggestions.button") }}
 
     //- Download + printing actions, shown only where the preview toolbar isn't (below 900px,
     //- where AppRoot hides the whole preview pane). Same controls as the preview toolbar in
