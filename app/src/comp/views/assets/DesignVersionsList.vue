@@ -47,14 +47,18 @@ template(v-else)
         //- showing, so it's fine for it to be hidden with the whole preview pane below 900px —
         //- but a finished document that broke its binding's page limit can't be printed as
         //- designed, which a mobile user needs to see just as much as a desktop one.
-        v-alert(v-if='binding_warning' density='compact'
+        v-alert(v-if='binding_warning' density='compact' type='warning'
                 class='mt-3 text-left bg-error-lighten-2')
-            div.binding_warning
-                app-icon.binding_warning_icon(name='error')
-                span {{ binding_warning }}
+            div {{ binding_warning }}
+            div(class='text-right')
+                v-btn(@click='state.page_suggestions = true' size='small' variant='flat'
+                    class='mt-2') {{ $t("page_suggestions.button") }}
         v-alert(v-if='sheets_warning' :color='sheets_warning.color' density='compact'
                 class='mt-3 text-left')
-            | {{ sheets_warning.text }}
+            div {{ sheets_warning.text }}
+            div(class='text-right')
+                v-btn(@click='state.page_suggestions = true' size='small' variant='flat'
+                    class='mt-2') {{ $t("page_suggestions.button") }}
 
     //- Download + printing actions, shown only where the preview toolbar isn't (below 900px,
     //- where AppRoot hides the whole preview pane). Same controls as the preview toolbar in
@@ -93,6 +97,7 @@ import {versions, latest_version, version_expired, download_version_pdf, regener
     regenerate_cover, cover_failed as version_cover_failed, version_contact_url}
     from '@/services/versions'
 import {report_error} from '@/services/errors'
+import {state} from '@/services/state'
 import {format_paper_size, format_service_label, format_pages_label, get_passages,
     binding_page_issue} from '@/services/blueprints'
 import {content} from '@/services/content'
@@ -314,18 +319,6 @@ const download_cover = () => {
     gap: 8px
     margin-bottom: 24px
 
-// Error icon (matching the per-row binding icon on previous versions) vertically centred
-// against the binding warning text
-.binding_warning
-    display: flex
-    align-items: center
-    gap: 8px
-
-.binding_warning_icon
-    flex-shrink: 0
-    height: 20px
-    width: 20px
-    color: rgb(var(--v-theme-error-darken-2))
 
 // Compile-failure alert: an icon + message row, then a centred row of actions beneath it
 .compile_error

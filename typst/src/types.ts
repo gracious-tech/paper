@@ -352,7 +352,7 @@ export interface Blueprint {
     font_text2:string|null     // null = auto (matches font_text); font for the 2nd translation
     font_headings:string|null  // null = auto (matches font_text)
     font_size:number
-    font_size2:number|null     // null = auto (matches font_size); font size for the 2nd translation
+    font_size2:number          // 2nd translation size as a multiple of font_size (1 = match)
     line_height:number
     justify:null|boolean
     hyphenate:boolean

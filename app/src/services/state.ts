@@ -41,6 +41,10 @@ export const state = reactive({
     // Whether the new-design wizard dialog is open — set by AppNavbar's "New" button and by
     // DisplaySplash for brand-new users, rendered by DialogNewDesign (mounted in AppRoot)
     new_design: false,
+    // Whether the "reduce the page count" suggestions dialog is open — set by any page-limit
+    // warning (OptionsPaper's binding estimate box, DesignVersionsList's post-compile binding /
+    // booklet-sheet alerts), rendered by DialogPageSuggestions (mounted in AppRoot)
+    page_suggestions: false,
     // Whether the account dialog is open — set by the header's account button and by any flow
     // that needs a guest to sign in first (e.g. inviting an editor), rendered by DialogAccount
     account: false,

@@ -66,7 +66,11 @@ template(v-else)
         //- Warn (never auto-switch) when the chosen binding doesn't suit the estimated length —
         //- the estimate refreshes after every preview compile, and the user keeps their choice
         v-alert(v-if='binding_warning' type='warning' variant='tonal' density='compact'
-            class='ml-2 my-4' :text='binding_warning')
+                class='ml-2 my-4')
+            div {{ binding_warning }}
+            div(class='text-right')
+                v-btn(@click='state.page_suggestions = true' size='small' variant='flat' color='warning'
+                    class='mt-2') {{ $t("page_suggestions.button") }}
 
         div(v-if='show_ink_type && ink_items.length > 1' class='ml-2 my-4')
             v-select(v-model='blue.ink_type' :items='ink_items' :label='$t("options.paper.ink_type")'
@@ -86,7 +90,7 @@ import {useI18n} from '@/services/i18n'
 import {list_services, get_service, get_common_sizes} from 'printing-services'
 import type {ServicePublic, SizeId, BindingTypeId, InkTypeId} from 'printing-services'
 
-import {blue, estimated_pages} from '@/services/state'
+import {blue, state, estimated_pages} from '@/services/state'
 import {format_dims, binding_page_issue} from '@/services/blueprints'
 
 

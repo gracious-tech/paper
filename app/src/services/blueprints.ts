@@ -78,7 +78,7 @@ export function get_default_blueprint():Blueprint{
 
         // Max pages 30 (15 sheets) but ideally not greater than 20 (10 sheets)
         font_size: 10,  // Pref 10, lowest 8
-        font_size2: null,
+        font_size2: 1,  // 2nd translation size as a multiple of font_size (1 = match)
         line_height: 1.75,  // Pref 1.75, lowest 1.5
 
         justify: null,
@@ -106,11 +106,11 @@ export function get_default_blueprint():Blueprint{
 
         // Spacing
         margin_unit: 'mm',
-        margin_top: 10,
-        margin_bottom: 10,
-        margin_inner: 10,
-        margin_outer: 10,
-        column_gap: 5,
+        margin_top: 15,
+        margin_bottom: 15,
+        margin_inner: 15,
+        margin_outer: 15,
+        column_gap: 8,
 
         // Legal
         public_domain: true,
@@ -346,6 +346,100 @@ export function binding_page_issue(blueprint:Blueprint, pages:number):BindingPag
         return {name, fewer: false, limit: limits.max_pages}
     }
     return null
+}
+
+
+// A single tweak the user can opt into from a page-limit warning's "Suggestions" dialog: a
+// short already-translated label and the blueprint patch it applies when ticked
+export interface PageSuggestion {
+    id:string
+    text:string
+    patch:Partial<Blueprint>
+}
+
+
+// Next sensible value when reducing a numeric style setting: a comfortable target first, then a
+// tighter floor once already at/below comfortable, then null once nothing more is worth shaving
+function reduce_step(current:number, comfortable:number, floor:number):number|null{
+    if (current > comfortable){
+        return comfortable
+    }
+    if (current > floor){
+        return floor
+    }
+    return null
+}
+
+
+// Small styling tweaks offered from a page-limit warning (the estimate box while designing, or
+// the post-compile binding / booklet-sheet alerts) to help a document fit without touching the
+// content itself. Each entry is only included when it would actually shrink the current
+// blueprint — nothing suggests a value the design is already at or past. Bigger reductions
+// (removing passages, splitting into multiple books) are out of scope and called out in the
+// dialog's intro text instead
+export function page_reduction_suggestions(blueprint:Blueprint, t:Translate):PageSuggestion[]{
+    const out:PageSuggestion[] = []
+
+    // Two columns fit far more text per page. Skipped when already on, or when two translations
+    // in a columns layout have forced two columns anyway (the option is disabled in that case)
+    const forced_two_col = blueprint.bibles_layout === 'columns' && blueprint.bibles.length > 1
+    if (blueprint.columns !== true && !forced_two_col){
+        out.push({id: 'columns', text: t('page_suggestions.columns'), patch: {columns: true}})
+    }
+
+    // Loosen how two translations line up — aligning by paragraph rather than verse lets each
+    // text flow with less forced whitespace
+    if (blueprint.bibles.length > 1 && blueprint.bibles_align === 'verse'){
+        out.push({id: 'bibles_align', text: t('page_suggestions.align_paragraph'),
+            patch: {bibles_align: 'paragraph'}})
+    }
+
+    // Turn off translator footnotes. Study notes already force them off, so nothing to gain
+    // (or offer) while notes are on
+    if (blueprint.show_footnotes && !blueprint.notes){
+        out.push({id: 'footnotes', text: t('page_suggestions.footnotes'),
+            patch: {show_footnotes: false}})
+    }
+
+    // Tighten margins — all four together, lowering only the ones above the target. The label
+    // quotes the current largest margin, not all four. The floor stays at 10mm even for print
+    // services: consumer printers can't image up to the sheet edge, and it's a safe stopping
+    // point everywhere
+    const unit = blueprint.margin_unit
+    const [margin_comfortable, margin_floor] = unit === 'mm' ? [12, 10] : [0.5, 0.4]
+    const margin_max = Math.max(blueprint.margin_top, blueprint.margin_bottom,
+        blueprint.margin_inner, blueprint.margin_outer)
+    const margin_target = reduce_step(margin_max, margin_comfortable, margin_floor)
+    if (margin_target !== null){
+        out.push({id: 'margins',
+            text: t('page_suggestions.margins', {current: margin_max, value: margin_target, unit}),
+            patch: {
+                margin_top: Math.min(blueprint.margin_top, margin_target),
+                margin_bottom: Math.min(blueprint.margin_bottom, margin_target),
+                margin_inner: Math.min(blueprint.margin_inner, margin_target),
+                margin_outer: Math.min(blueprint.margin_outer, margin_target),
+            }})
+    }
+
+    // Tighten line height
+    const line_target = reduce_step(blueprint.line_height, 1.3, 1.2)
+    if (line_target !== null){
+        out.push({id: 'line_height',
+            text: t('page_suggestions.line_height',
+                {current: Math.round(blueprint.line_height * 100) / 100, value: line_target}),
+            patch: {line_height: line_target}})
+    }
+
+    // Shrink the main text size (any second translation is sized relative to it, so it follows)
+    const font_target = reduce_step(blueprint.font_size, 9, 8)
+    if (font_target !== null){
+        out.push({id: 'font_size',
+            text: t('page_suggestions.font_size',
+                {current: Math.round(blueprint.font_size * 10) / 10, value: font_target}),
+            patch: {font_size: font_target}})
+    }
+
+    return out
 }
 
 

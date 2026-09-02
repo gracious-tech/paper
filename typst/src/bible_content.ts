@@ -316,7 +316,8 @@ export class BibleContent {
         }
 
         const font_text2 = blue.font_text2 ?? blue.font_text
-        const font_size2 = blue.font_size2 ?? blue.font_size
+        // font_size2 is a multiple of the primary text size (1 = match)
+        const font_size2 = blue.font_size * blue.font_size2
 
         // Collect every resolved passage image's bytes into one asset map, keyed by the virtual
         // filename generated Typst source references (see gen_passage_image in content_passage.ts)

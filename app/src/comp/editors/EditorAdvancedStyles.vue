@@ -51,8 +51,12 @@ v-card-text(class='overflow-y-auto')
         AppFontSelect(v-model='blue.font_text2' :label='$t("editor.advanced.text2_font")' auto
             example='verse' class='mb-4')
 
-        v-slider(v-model='font_size2' :label='$t("common.font_size")' :min='6' :max='26' thumb-label
-            class='my-4')
+        //- Sized relative to the main text (1 = match), not an absolute point size
+        v-slider(v-model='blue.font_size2' :label='$t("editor.advanced.text2_size")' :min='0.5'
+                :max='1.5' :step='0.05' thumb-label class='my-4')
+            template(#thumb-label='{modelValue}')
+                | {{ Math.round(modelValue * 100) }}%
+        p(class='text-body-medium text-medium-emphasis') {{$t("editor.advanced.text2_size_note")}}
 
     v-divider(class='my-8')
 
@@ -189,15 +193,6 @@ const pattern_items = Object.entries(patterns).map(([pattern, svg]) => {
             blue.titlepage_frame = pattern
         },
     }
-})
-
-
-// Wrap font_size2 so the slider has a number to bind to (null means auto = matches font_size)
-const font_size2 = computed({
-    get: () => blue.font_size2 ?? blue.font_size,
-    set: value => {
-        blue.font_size2 = value
-    },
 })
 
 
