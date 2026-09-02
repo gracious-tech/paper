@@ -5,6 +5,6 @@
   "view.version.binding_max",
   "options.paper.binding_min_warning",
   "options.paper.binding_max_warning",
-  "display.version.binding_min_warning",
-  "display.version.binding_max_warning"
+  "view.version_list.binding_min_warning",
+  "view.version_list.binding_max_warning"
 ]

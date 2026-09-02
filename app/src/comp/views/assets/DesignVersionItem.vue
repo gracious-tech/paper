@@ -13,10 +13,13 @@ v-list-item(@click='select' :active='version.id === selected_version_id' color='
                 size='32' color='secondary')
             app-icon(v-else-if='version.status === "failed" || stuck' name='error'
                 class='text-error')
-            //- The document compiled, but its actual page count broke its chosen binding
-            //- (DisplayDesignVersion shows the full explanation when the version is viewed)
-            app-icon(v-else-if='binding_issue' name='warning' class='text-warning'
-                v-tooltip='binding_issue_message')
+            //- The document compiled, but its actual page count broke its chosen binding.
+            //- The latest version gets a full alert bar in DesignVersionsList's summary; older
+            //- versions only have room for this icon, so clicking it opens the same full text
+            //- in a dismissable dialog (the tooltip is just the short form / hover hint).
+            v-btn(v-else-if='binding_issue' icon variant='text' size='small' color='error'
+                    v-tooltip='binding_issue_message' @click.stop='show_binding_detail')
+                app-icon(name='error')
         v-menu
             template(#activator='{props}')
                 v-btn(v-bind='props' icon variant='text' color='black' @click.stop)
@@ -54,7 +57,7 @@ import {useI18n} from '@/services/i18n'
 import {useRouter} from 'vue-router'
 
 import DialogShareVersion from '@/comp/dialogs/DialogShareVersion.vue'
-import {show_toast, confirm_dialog} from '@/services/state'
+import {show_toast, confirm_dialog, alert_dialog} from '@/services/state'
 import {report_error} from '@/services/errors'
 import {binding_page_issue} from '@/services/blueprints'
 import {create_design, restore_version_into_design} from '@/services/designs'
@@ -113,9 +116,10 @@ const expired = computed(() => version_expired(props.version))
 
 
 // Whether the produced document's actual page count isn't supported by its chosen binding,
-// and if so whether it fell short or ran over
+// and if so whether it fell short or ran over. Skipped for the latest version — it already
+// gets the full alert bar in DesignVersionsList's summary just above this row
 const binding_issue = computed(() => {
-    return props.version.status === 'available' && props.version.pages !== null
+    return !props.is_latest && props.version.status === 'available' && props.version.pages !== null
         ? binding_page_issue(props.version.blueprint, props.version.pages)
         : null
 })
@@ -131,6 +135,21 @@ const binding_issue_message = computed(() => {
         : 'view.version.binding_max'
     return t(key, {limit: binding_issue.value.limit})
 })
+
+
+// Full binding-issue explanation (binding name, limit, and this version's actual page count) —
+// shown in a dismissable dialog when the warning icon is clicked. Mirrors the alert bar the
+// latest version gets in DesignVersionsList's summary
+const show_binding_detail = () => {
+    if (!binding_issue.value || props.version.pages === null){
+        return
+    }
+    const key = binding_issue.value.fewer
+        ? 'view.version_list.binding_min_warning'
+        : 'view.version_list.binding_max_warning'
+    void alert_dialog(t(key, {name: binding_issue.value.name, limit: binding_issue.value.limit,
+        final: props.version.pages}))
+}
 
 
 const select = () => {

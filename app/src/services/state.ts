@@ -55,6 +55,8 @@ export const state = reactive({
     confirm: null as null|{message:string, resolve:(confirmed:boolean) => void},
     // Pending prompt-dialog request, rendered by DialogPrompt — null hides it (see prompt_dialog())
     prompt: null as null|{message:string, value:string, resolve:(value:string|null) => void},
+    // Pending alert-dialog request, rendered by DialogAlert — null hides it (see alert_dialog())
+    alert: null as null|{message:string, resolve:() => void},
 })
 
 
@@ -76,6 +78,14 @@ export function confirm_dialog(message:string):Promise<boolean>{
 export function prompt_dialog(message:string, initial=''):Promise<string|null>{
     return new Promise(resolve => {
         state.prompt = {message, value: initial, resolve}
+    })
+}
+
+
+// Show the user a dismissable message via a Vuetify dialog (replaces the browser's native alert())
+export function alert_dialog(message:string):Promise<void>{
+    return new Promise(resolve => {
+        state.alert = {message, resolve}
     })
 }
 

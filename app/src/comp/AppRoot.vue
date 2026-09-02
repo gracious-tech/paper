@@ -42,6 +42,7 @@ DialogAcceptInvite
 DialogAccount(v-model='state.account')
 DialogConfirm
 DialogPrompt
+DialogAlert
 DialogCoverEditor
 DialogNewDesign
 
@@ -63,6 +64,7 @@ import DialogAcceptInvite from '@/comp/dialogs/DialogAcceptInvite.vue'
 import DialogAccount from '@/comp/dialogs/DialogAccount.vue'
 import DialogConfirm from '@/comp/dialogs/DialogConfirm.vue'
 import DialogPrompt from '@/comp/dialogs/DialogPrompt.vue'
+import DialogAlert from '@/comp/dialogs/DialogAlert.vue'
 import DialogCoverEditor from '@/comp/dialogs/DialogCoverEditor.vue'
 import DialogNewDesign from '@/comp/dialogs/DialogNewDesign.vue'
 import DisplaySplash from '@/comp/display/DisplaySplash.vue'

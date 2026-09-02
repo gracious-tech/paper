@@ -24,22 +24,23 @@ div.version
                     app-icon(name='download')
                 | {{ $t("display.version.download_cover") }}
         //- Right: printing guidance (not wired up yet)
-        v-btn.how_to_print(variant='elevated' color='secondary-darken-1')
+        v-btn.how_to_print(variant='elevated' color='')
             template(#prepend)
                 app-icon(name='print')
             | {{ $t("display.version.how_to_print") }}
 
     //- Thin advisory strip under the toolbar — one message at a time: viewing a superseded
-    //- version, the latest version having unrendered design changes, or booklet page ordering
+    //- version, the latest version having unrendered design changes, or booklet page ordering.
+    //- Design decision: this strip only ever describes what the on-screen preview is showing
+    //- (an old render, a flat-and-out-of-order booklet), so it deliberately lives with the
+    //- preview and shares its fate — AppRoot hides the whole preview pane below 900px. Anything
+    //- a mobile user must act on regardless of the preview (e.g. the binding page-limit warning)
+    //- belongs in the always-visible version summary in DesignVersionsList.vue instead.
     div.notice(v-if='iframe_src && version_warning' :class='version_warning.tone')
         app-icon(:name='version_warning.tone === "info" ? "info" : "warning"')
         span {{ version_warning.text }}
 
     div.doc(v-if='iframe_src')
-        //- Firm warning when the produced document's actual page count broke its chosen binding —
-        //- unlike the soft estimate-based warning while designing, this one is definite
-        v-alert(v-if='binding_warning' type='warning' variant='flat' density='compact' rounded='0'
-            :text='binding_warning')
         iframe(:src='current_src')
     div.explain(v-else :class='{pending: status === "pending" && !stuck}')
         template(v-if='status === undefined')
@@ -83,7 +84,6 @@ import {selected_version, get_pdf_url, get_cover_pdf_url, download_version_pdf, 
     retry_version, version_expired, version_stuck, latest_version, design_needs_editor}
     from '@/services/versions'
 import {designs, current_design_id} from '@/services/designs'
-import {binding_page_issue} from '@/services/blueprints'
 import {report_error} from '@/services/errors'
 import AnimatedBook from '../reuseable/AnimatedBook.vue'
 
@@ -115,27 +115,6 @@ const stuck = computed(() => {
 // Whether the selected version's PDF has passed its Storage lifetime
 const expired = computed(() => {
     return selected_version.value ? version_expired(selected_version.value) : false
-})
-
-
-// Warning text when the document's actual page count isn't supported by the binding it was
-// designed for — the design needs its binding changed and a new version created. Firmer when
-// the design has a cover, since a binding change also changes the cover's spine/dimensions.
-// States whether it's too short or too long and the limit, since a bare "doesn't support this
-// page count" leaves the user guessing which direction to fix
-const binding_warning = computed(() => {
-    const version = selected_version.value
-    if (!version || version.status !== 'available' || version.pages === null){
-        return null
-    }
-    const issue = binding_page_issue(version.blueprint, version.pages)
-    if (!issue){
-        return null
-    }
-    const key = issue.fewer
-        ? 'display.version.binding_min_warning'
-        : 'display.version.binding_max_warning'
-    return t(key, {name: issue.name, limit: issue.limit, final: version.pages})
 })
 
 
@@ -365,18 +344,12 @@ onUnmounted(() => {
         color: #123a5c
         background-color: #bcd8f2
 
-// Column so a binding warning can sit above the PDF without breaking the full-size sizing
+// Holds just the PDF frame, filling the container's leftover height below the toolbar/notice
 .doc
     display: flex
     flex-direction: column
     flex-grow: 1
     min-height: 0
-
-    // Vuetify's v-alert defaults to `flex: 1 1`, which fights the iframe for the container's
-    // leftover height (both would grow equally) — pin it to its content size instead
-    .v-alert
-        flex-grow: 0
-        flex-basis: auto
 
     iframe
         flex-grow: 1

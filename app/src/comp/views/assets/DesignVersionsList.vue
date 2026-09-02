@@ -27,6 +27,17 @@ template(v-else)
                 template(#prepend)
                     app-icon(name='print')
                 | {{ service_label }}
+        //- Binding page-limit warning. It lives here in the always-visible version summary
+        //- rather than in the preview pane (like the thinner "you're viewing an old render"
+        //- advisory strip) on purpose: that strip only concerns what the on-screen preview is
+        //- showing, so it's fine for it to be hidden with the whole preview pane below 900px —
+        //- but a finished document that broke its binding's page limit can't be printed as
+        //- designed, which a mobile user needs to see just as much as a desktop one.
+        v-alert(v-if='binding_warning' density='compact'
+                class='mt-3 text-left bg-error-lighten-2')
+            div.binding_warning
+                app-icon.binding_warning_icon(name='error')
+                span {{ binding_warning }}
         v-alert(v-if='sheets_warning' :color='sheets_warning.color' density='compact'
                 class='mt-3 text-left')
             | {{ sheets_warning.text }}
@@ -55,8 +66,8 @@ import {useI18n} from '@/services/i18n'
 import {PassageReference} from '@gracious.tech/fetch-client'
 
 import {versions, latest_version, design_needs_editor} from '@/services/versions'
-import {format_paper_size, format_service_label, format_pages_label, get_passages}
-    from '@/services/blueprints'
+import {format_paper_size, format_service_label, format_pages_label, get_passages,
+    binding_page_issue} from '@/services/blueprints'
 import {content} from '@/services/content'
 import DesignVersionItem from './DesignVersionItem.vue'
 
@@ -112,14 +123,38 @@ const pages_label = computed(() => {
 })
 
 
-// Booklet sheet-count warning, latest version only — flags when the fold-at-home booklet
-// grows thick enough that folding/stapling by hand gets difficult
-const sheets_warning = computed(() => {
-    const pages = latest_version.value?.pages
-    if (pages == null || !latest_version.value!.blueprint.booklet){
+// Binding page-limit warning, latest rendered version only. Definite (the document has been
+// produced), unlike the soft estimate-based warning shown in OptionsPaper while designing.
+// Moved here from the preview pane so it survives the preview being hidden on mobile — see the
+// note on the template alert and in DisplayDesignVersion.vue. States direction + limit so the
+// fix (change the binding, create a new version) isn't a guess.
+const binding_warning = computed(() => {
+    const version = latest_version.value
+    if (!version || version.status !== 'available' || version.pages === null){
         return null
     }
-    const sheets = Math.ceil(pages / 2)
+    const issue = binding_page_issue(version.blueprint, version.pages)
+    if (!issue){
+        return null
+    }
+    const key = issue.fewer
+        ? 'view.version_list.binding_min_warning'
+        : 'view.version_list.binding_max_warning'
+    return t(key, {name: issue.name, limit: issue.limit, final: version.pages})
+})
+
+
+// Booklet sheet-count warning, latest version only — flags when the fold-at-home booklet
+// grows thick enough that folding/stapling by hand gets difficult. Same rendered-and-available
+// guard as binding_warning so a stale page count from the previous compile can't keep the alert
+// up while the latest version is regenerating
+const sheets_warning = computed(() => {
+    const version = latest_version.value
+    if (!version || version.status !== 'available' || version.pages === null
+            || !version.blueprint.booklet){
+        return null
+    }
+    const sheets = Math.ceil(version.pages / 2)
     if (sheets > 20){
         return {color: 'error',
             text: t("view.version_list.sheets_hard", {sheets})}
@@ -155,6 +190,19 @@ const service_label = computed(() => {
     flex-wrap: wrap
     justify-content: center
     gap: 8px
+
+// Error icon (matching the per-row binding icon on previous versions) vertically centred
+// against the binding warning text
+.binding_warning
+    display: flex
+    align-items: center
+    gap: 8px
+
+.binding_warning_icon
+    flex-shrink: 0
+    height: 20px
+    width: 20px
+    color: rgb(var(--v-theme-error-darken-2))
 
 .summary_pills .icon, .after_latest .v-chip .icon
     height: 16px
