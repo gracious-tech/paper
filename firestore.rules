@@ -83,5 +83,17 @@ service cloud.firestore {
 
             allow delete: if signed_in() && request.auth.uid == resource.data.owner;
         }
+
+        // Compile performance telemetry — one row per interior compile attempt (browser or
+        // server). Write-only for the owner: it's analysed offline (Firestore export), never
+        // read back in-app, and deliberately not under versions/ so it isn't exposed by a
+        // shared version id. The server writes here too, via the Admin SDK (bypasses rules).
+        // signed_in() never blocks a real write: anon users are signed in (see note above), and
+        // a compile always has a signed-in owner anyway (versions require one to be created).
+        // Rows carry an `expires` field and a Firestore TTL policy (set by .bin/setup_firebase)
+        // drops them after ~1 year
+        match /compile_stats/{stat_id} {
+            allow create: if signed_in() && request.resource.data.owner == request.auth.uid;
+        }
     }
 }

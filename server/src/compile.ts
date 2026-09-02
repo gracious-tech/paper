@@ -5,8 +5,9 @@ import {mkdtemp, writeFile, readFile, rm} from 'node:fs/promises'
 
 import {Timestamp} from 'firebase-admin/firestore'
 import {PDFDocument} from 'pdf-lib'
-import {PDF_LIFETIME_MS, cover_form_for_render, KNOWN_BUILTIN_BACKGROUNDS, doc_has_copyright,
-    replace_copyright_marker, gen_copyright_typst} from 'paper-bible-typst'
+import {PDF_LIFETIME_MS, COMPILE_STATS_LIFETIME_MS, cover_form_for_render,
+    KNOWN_BUILTIN_BACKGROUNDS, doc_has_copyright, replace_copyright_marker,
+    gen_copyright_typst} from 'paper-bible-typst'
 import {compile_pdf_from_blueprint} from 'paper-bible-typst-node'
 import {generate as generate_cover, build_schema} from 'bookcover-node'
 
@@ -113,7 +114,28 @@ async function render_cover(blueprint:Blueprint, custom_fonts:CustomFont[], page
 }
 
 
-export async function handle_compile(uid:string, version_id:string, client_ip:string|null)
+async function record_compile_stat(fields:{version_id:string, design_id:string, owner:string,
+        engine:'server', interior_ms:number, pages:number|null, ok:boolean,
+        user_agent:string|null}):Promise<void>{
+    // Log a server-side interior compile to the write-only compile_stats collection for offline
+    // performance analysis (never shown to the user). Best-effort — a lost stat row must never
+    // affect the compile result. The browser records its own rows for the in-browser path
+    try {
+        await admin_db.collection('compile_stats').add({
+            ...fields,
+            created: Timestamp.now(),
+            // Firestore's TTL policy on this field drops the row after ~1 year (see
+            // .bin/setup_firebase); analysis only ever wants the recent window
+            expires: Timestamp.fromMillis(Date.now() + COMPILE_STATS_LIFETIME_MS),
+        })
+    } catch (error){
+        console.error(error)
+    }
+}
+
+
+export async function handle_compile(uid:string, version_id:string, client_ip:string|null,
+        user_agent:string|null)
         :Promise<{status:number, body:Record<string, unknown>}>{
     // Compile a pending version's PDF server-side (fallback for devices whose in-browser
     // compile failed, and regeneration of expired PDFs)
@@ -194,6 +216,10 @@ export async function handle_compile(uid:string, version_id:string, client_ip:st
     }
     active_uids.add(uid)
 
+    // Wall-clock of the interior compile, for the compile_stats telemetry (set right before the
+    // compile so the failure path only logs a real attempt)
+    let interior_start:number|null = null
+
     try {
         // Re-stamp the attempt start so a compile killed here (instance termination, OOM on the
         // largest docs, request timeout) reads as stuck rather than forever-pending on the
@@ -213,6 +239,7 @@ export async function handle_compile(uid:string, version_id:string, client_ip:st
 
         // Compile straight from the frozen blueprint (Bible content comes via the instance-wide
         // shared cache — see content.ts)
+        interior_start = performance.now()
         const bytes = await compile_pdf_from_blueprint(blueprint, {
             typst_path: config.typst_path,
             fonts_dir: config.fonts_dir,
@@ -220,7 +247,12 @@ export async function handle_compile(uid:string, version_id:string, client_ip:st
             custom_fonts,
             share_url,
         })
+        const interior_ms = performance.now() - interior_start
         const pages = (await PDFDocument.load(bytes)).getPageCount()
+
+        // Record the successful server-side compile for offline performance analysis
+        void record_compile_stat({version_id, design_id, owner: uid, engine: 'server',
+            interior_ms, pages, ok: true, user_agent})
 
         // Publish the PDF and mark the version available (contentDisposition: 'inline' so the
         // iframe preview displays it rather than triggering a download — the Storage emulator
@@ -280,6 +312,14 @@ export async function handle_compile(uid:string, version_id:string, client_ip:st
     } catch (error){
         console.error(error)
         const message = error instanceof Error ? error.message : String(error)
+
+        // Log the failed server-side attempt (only if the compile itself was reached) alongside
+        // how long it ran before failing
+        if (interior_start !== null){
+            void record_compile_stat({version_id, design_id, owner: uid, engine: 'server',
+                interior_ms: performance.now() - interior_start, pages: null, ok: false,
+                user_agent})
+        }
 
         // Save a report (a document failing to render is critical) and put its id on the doc
         // so the app can offer the user a support link containing it

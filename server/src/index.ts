@@ -37,7 +37,8 @@ if (config.roles.includes('compile')){
         if (typeof body?.version_id !== 'string'){
             return context.json({error: 'bad_request'}, 400)
         }
-        const result = await handle_compile(uid, body.version_id, get_client_ip(context))
+        const result = await handle_compile(uid, body.version_id, get_client_ip(context),
+            context.req.header('User-Agent') ?? null)
         return context.json(result.body, result.status as 200)
     })
 }

@@ -2,11 +2,11 @@
 import {reactive, ref, computed} from 'vue'
 import {cloneDeep} from 'lodash-es'
 import {collection, doc, query, where, orderBy, limit, onSnapshot, getDoc, getDocs, setDoc,
-    updateDoc, deleteDoc, serverTimestamp, Timestamp} from 'firebase/firestore'
+    addDoc, updateDoc, deleteDoc, serverTimestamp, Timestamp} from 'firebase/firestore'
 import type {DocumentData, Unsubscribe} from 'firebase/firestore'
 import {ref as storage_ref, uploadBytes, getDownloadURL} from 'firebase/storage'
 import {PDFDocument} from 'pdf-lib'
-import {SCHEMA_VERSION, PDF_LIFETIME_MS} from 'paper-bible-typst'
+import {SCHEMA_VERSION, PDF_LIFETIME_MS, COMPILE_STATS_LIFETIME_MS} from 'paper-bible-typst'
 
 import {firestore, firebase_storage} from '@/services/firebase'
 import {api, ApiError} from '@/services/api'
@@ -199,6 +199,30 @@ export async function create_pending_version(design_id:string, blueprint:Bluepri
 }
 
 
+async function record_compile_stat(fields:{version_id:string, design_id:string, engine:'browser',
+        interior_ms:number, pages:number|null, ok:boolean}):Promise<void>{
+    // Log how long an interior compile took, plus which engine and browser ran it, to the
+    // write-only compile_stats collection for offline performance analysis (never shown to the
+    // user). Best-effort — telemetry must never interfere with a compile, so failures are
+    // swallowed. The server records its own rows for the fallback path (see handle_compile).
+    // `user` is always set here: a compile can only run for a signed-in user (anon included),
+    // since freezing the version needs an owner
+    try {
+        await addDoc(collection(firestore, 'compile_stats'), {
+            ...fields,
+            owner: user.value!.uid,
+            created: serverTimestamp(),
+            // Firestore's TTL policy on this field drops the row after ~1 year (see
+            // .bin/setup_firebase); analysis only ever wants the recent window
+            expires: Timestamp.fromMillis(Date.now() + COMPILE_STATS_LIFETIME_MS),
+            user_agent: navigator.userAgent,
+        })
+    } catch {
+        // Ignore — losing a stat row doesn't matter
+    }
+}
+
+
 export async function compile_and_upload(id:string, design_id:string, blueprint:Blueprint,
         is_latest:boolean, fonts?:CustomFont[]):Promise<void>{
     // Compile a version's PDF in-browser and upload it, updating the doc's status. If the
@@ -219,6 +243,11 @@ export async function compile_and_upload(id:string, design_id:string, blueprint:
     // version_stuck(). Best-effort: a failed stamp write just means the older timestamp is used
     await updateDoc(doc_ref, {compile_started: serverTimestamp()}).catch(() => undefined)
 
+    // Wall-clock of the interior compile (content resolve + Typst render), stamped for the
+    // compile_stats telemetry — mirrors what the server times around compile_pdf_from_blueprint.
+    // Stays null until the compile actually starts so the failure path only logs a real attempt
+    let interior_start:number|null = null
+
     try {
         try {
             // Resolve the frozen blueprint to a full request (fetches uncached Bible content)
@@ -229,6 +258,7 @@ export async function compile_and_upload(id:string, design_id:string, blueprint:
             const font_styles = fonts
                 ? Object.fromEntries(fonts.map(f => [f.family, f.style]))
                 : get_custom_font_styles()
+            interior_start = performance.now()
             const request = await bible_content.resolve(
                 blueprint, font_styles, undefined, share_url)
 
@@ -247,7 +277,12 @@ export async function compile_and_upload(id:string, design_id:string, blueprint:
             } else {
                 bytes = await generator.compile_pdf(request)
             }
+            const interior_ms = performance.now() - interior_start
             const pages = (await PDFDocument.load(bytes)).getPageCount()
+
+            // Record the successful in-browser compile for offline performance analysis
+            void record_compile_stat({
+                version_id: id, design_id, engine: 'browser', interior_ms, pages, ok: true})
 
             // Publish the PDF, then mark the version available (contentDisposition: 'inline' so
             // the iframe preview displays it rather than triggering a download — the Storage
@@ -291,6 +326,13 @@ export async function compile_and_upload(id:string, design_id:string, blueprint:
             // via the versions Firestore sync). Not critical yet as the fallback usually works
             report_error('silent', wasm_error,
                 {context: {version_id: id, stage: 'wasm_compile'}})
+            // Log the failed in-browser attempt (only if the compile itself was reached) so the
+            // telemetry shows browser-vs-server splits and how long a device struggles before
+            // giving up; the server records its own row for the fallback that follows
+            if (interior_start !== null){
+                void record_compile_stat({version_id: id, design_id, engine: 'browser',
+                    interior_ms: performance.now() - interior_start, pages: null, ok: false})
+            }
             try {
                 await api('/api/compile', {version_id: id})
             } catch (server_error){

@@ -22,6 +22,12 @@ ASSETS_BUCKET="${2:-assets.paper.bible}"
 gcloud storage buckets update "gs://$PROJECT.firebasestorage.app" \
     --project "$PROJECT" --lifecycle-file=firebase_storage_lifecycle.json
 
+# Expire compile_stats telemetry rows after ~1 year (Firestore native TTL on the `expires`
+# field each row carries — see COMPILE_STATS_LIFETIME_MS in typst/src/consts.ts). Idempotent:
+# re-running with the policy already enabled is a no-op
+gcloud firestore fields ttls update expires \
+    --collection-group=compile_stats --enable-ttl --project "$PROJECT" --quiet
+
 # Let Cloud Run's runtime service account read the assets bucket — the bucket itself is
 # created and published by the bookcover repo, but the compile service here mounts it as a
 # GCS volume (see deploy_server), and volume mounts authenticate as the service account
