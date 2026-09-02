@@ -2,11 +2,20 @@
 <template lang='pug'>
 
 v-list-item(@click='select' :active='version.id === selected_version_id' color='primary')
-    v-list-item-title
-        | {{ is_latest ? $t("view.version.latest") : version.created.toLocaleString() }}
-    v-list-item-subtitle(v-if='is_latest || expired')
-        template(v-if='is_latest') {{ version.created.toLocaleString() }}
-        template(v-if='expired') &nbsp;— {{$t("view.version.expired")}}
+    //- Version age as a relative label ("3 hours ago"); hover for the exact local date + time.
+    //- The latest row also carries the "open editor" button, vertically centred beside the
+    //- title + date block — its colour signals unrendered design changes (warning) or none.
+    div.title_row
+        div
+            v-list-item-title
+                strong(v-if='is_latest') {{ $t("view.version.latest") }}
+                span(v-else v-tooltip='created_exact') {{ created_relative }}
+            v-list-item-subtitle(v-if='is_latest || expired')
+                span(v-if='is_latest' v-tooltip='created_exact') {{ created_relative }}
+                template(v-if='expired') &nbsp;— {{$t("view.version.expired")}}
+        v-btn(v-if='is_latest && editable' @click.stop='view_changes' variant='flat' size='small'
+                :color='design_needs_editor ? "warning" : "secondary"')
+            | {{ design_needs_editor ? $t("view.design.view_changes") : $t("common.edit") }}
     template(#append)
         div.status
             v-progress-circular(v-if='version.status === "pending" && !stuck' indeterminate
@@ -57,12 +66,13 @@ import {useI18n} from '@/services/i18n'
 import {useRouter} from 'vue-router'
 
 import DialogShareVersion from '@/comp/dialogs/DialogShareVersion.vue'
-import {show_toast, confirm_dialog, alert_dialog} from '@/services/state'
+import {state, show_toast, confirm_dialog, alert_dialog} from '@/services/state'
 import {report_error} from '@/services/errors'
 import {binding_page_issue} from '@/services/blueprints'
 import {create_design, restore_version_into_design} from '@/services/designs'
-import {open_version_pdf, delete_version, regenerate_version, retry_version,
-    version_expired, version_stuck, share_version, selected_version_id} from '@/services/versions'
+import {open_version_pdf, delete_version, regenerate_version, retry_version, version_expired,
+    version_stuck, share_version, selected_version_id, design_needs_editor} from '@/services/versions'
+import {format_relative_time, format_datetime} from '@/services/utils'
 
 import type {Version} from '@/services/types'
 
@@ -115,6 +125,12 @@ const stuck = computed(() => {
 const expired = computed(() => version_expired(props.version))
 
 
+// When this version was created — a relative label ("3 hours ago") for the row, with the exact
+// local date + time surfaced on hover
+const created_relative = computed(() => format_relative_time(props.version.created))
+const created_exact = computed(() => format_datetime(props.version.created))
+
+
 // Whether the produced document's actual page count isn't supported by its chosen binding,
 // and if so whether it fell short or ran over. Skipped for the latest version — it already
 // gets the full alert bar in DesignVersionsList's summary just above this row
@@ -154,6 +170,13 @@ const show_binding_detail = () => {
 
 const select = () => {
     void router.push({name: 'design', params: {id: props.design_id, version: props.version.id}})
+}
+
+const view_changes = () => {
+    // Force the design's editor open (even when it currently matches a rendered version) and
+    // navigate to the bare design route — mirrors ViewDesign's own show_editor gate
+    state.forced_editor = true
+    void router.push({name: 'design', params: {id: props.design_id}})
 }
 
 const download = () => {
@@ -224,6 +247,12 @@ const share = async () => {
     display: inline-flex
     justify-content: center
     align-items: center
+
+// Title + date block with the editor button vertically centred beside it
+.title_row
+    display: flex
+    align-items: center
+    gap: 12px
 
 .v-progress-circular
     margin: 8px

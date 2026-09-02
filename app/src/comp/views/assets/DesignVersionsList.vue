@@ -57,11 +57,9 @@ template(v-else)
     v-list(bg-color='transparent' class='version_list flex-grow-1')
         DesignVersionItem(v-if='latest_version' :version='latest_version' :design_id='design_id'
             :is_latest='true' :editable='editable' class='latest_version')
-        div.after_latest
-            v-chip(v-if='editable && design_needs_editor' size='small' variant='flat'
-                    color='warning'
-                    :title='$t("view.version_list.unrendered_changes")')
-                | {{ $t("view.version_list.unapplied_changes") }}
+        //- Non-editors get a "keep a copy" action here; for editors the changes button now
+        //- lives inside the latest version row (its colour signals unrendered changes)
+        div.after_latest(v-if='!editable')
             slot(name='after-latest')
         template(v-if='versions.length > 1')
             v-list-subheader {{$t("view.version_list.previous")}}
@@ -77,8 +75,7 @@ import {computed} from 'vue'
 import {useI18n} from '@/services/i18n'
 import {PassageReference} from '@gracious.tech/fetch-client'
 
-import {versions, latest_version, design_needs_editor, version_expired, download_version_pdf}
-    from '@/services/versions'
+import {versions, latest_version, version_expired, download_version_pdf} from '@/services/versions'
 import {format_paper_size, format_service_label, format_pages_label, get_passages,
     binding_page_issue} from '@/services/blueprints'
 import {content} from '@/services/content'
@@ -246,7 +243,7 @@ const download_cover = () => {
     width: 20px
     color: rgb(var(--v-theme-error-darken-2))
 
-.summary_pills .icon, .after_latest .v-chip .icon
+.summary_pills .icon
     height: 16px
     width: 16px
     margin-right: 6px

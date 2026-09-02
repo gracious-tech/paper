@@ -17,10 +17,7 @@ div.view_design(v-else)
     template(v-else)
         DesignVersionsList(:design_id='id' :editable='is_editor')
             template(#after-latest)
-                v-btn(v-if='is_editor' @click='edit' variant='tonal' color='secondary')
-                    | {{ design_needs_editor ? $t("view.design.view_changes") : $t("view.design.make_changes") }}
-                v-btn(v-else @click='keep_copy' variant='tonal' color='secondary'
-                        :loading='keeping')
+                v-btn(@click='keep_copy' variant='tonal' color='secondary' :loading='keeping')
                     | {{$t("view.design.keep_copy")}}
 
 </template>
@@ -139,12 +136,6 @@ const is_editor = computed(() => designs.some(item => item.id === id.value))
 const show_editor = computed(() => {
     return !version_param.value && (design_needs_editor.value || state.forced_editor)
 })
-
-
-const edit = () => {
-    state.forced_editor = true
-    void router.push({name: 'design', params: {id: id.value}})
-}
 
 
 // Whether "Keep my own copy" is in progress

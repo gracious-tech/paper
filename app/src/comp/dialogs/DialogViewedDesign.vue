@@ -8,7 +8,9 @@ v-dialog(:model-value='!!state.viewed_version && !state.viewed_confirmed' persis
     //- read-only version view once confirmed)
     v-card(v-if='version')
         v-card-title {{ version.title }}
-        v-card-subtitle {{ version.created.toLocaleDateString() }}
+        v-card-subtitle
+            span(v-tooltip='format_datetime(version.created)')
+                | {{ format_relative_time(version.created) }}
         v-card-text {{$t("dialog.viewed.shared_notice")}}
         v-card-actions
             v-spacer
@@ -37,6 +39,7 @@ import {useRouter} from 'vue-router'
 
 import {state} from '@/services/state'
 import {fetch_shared_version, record_viewed, has_viewed_design} from '@/services/versions'
+import {format_relative_time, format_datetime} from '@/services/utils'
 
 import type {Version} from '@/services/types'
 
