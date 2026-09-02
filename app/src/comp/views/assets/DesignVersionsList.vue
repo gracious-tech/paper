@@ -373,4 +373,16 @@ const download_cover = () => {
     gap: 12px
     padding: 16px 16px 0 16px
 
+// One centred row of download / printing buttons above the latest version card. Only shown
+// below 900px — above that the same actions sit in the preview toolbar (DisplayDesignVersion.vue)
+.mobile_actions
+    display: flex
+    flex-wrap: wrap
+    align-items: center
+    justify-content: center
+    gap: 8px
+    padding: 16px 12px 12px 12px
+    @media (min-width: 901px)
+        display: none
+
 </style>
