@@ -21,7 +21,17 @@ v-list-item(:active='!is_mobile && version.id === selected_version_id' color='pr
         div.status
             v-progress-circular(v-if='version.status === "pending" && !stuck' indeterminate
                 size='32' color='secondary')
-            app-icon(v-else-if='stuck' name='error' class='text-error')
+            //- A pending compile that almost certainly never finished (see version_stuck):
+            //- clicking opens the "taking longer than expected" message + "Retry" in a dialog.
+            v-btn(v-else-if='stuck' icon variant='text' size='small' color='error'
+                    @click.stop='show_stuck_error')
+                app-icon(name='error')
+            //- The stored PDF passed its 1-year Storage lifetime (metadata + settings remain).
+            //- Clicking opens the "expired" message + "Regenerate" in a dialog — the only rebuild
+            //- affordance on mobile, where the preview pane's own expired screen is hidden.
+            v-btn(v-else-if='expired' icon variant='text' size='small' color='error'
+                    @click.stop='show_expired')
+                app-icon(name='history_toggle_off')
             //- Compile failure. The latest version gets a full alert bar (with its own retry) in
             //- DesignVersionsList's summary, so — like the binding icon below — this per-row
             //- affordance is only for older versions: clicking opens the same message + "Try
@@ -54,15 +64,8 @@ v-list-item(:active='!is_mobile && version.id === selected_version_id' color='pr
                         :disabled='version.status !== "available" || expired || cover_failed')
                     v-list-item-title {{$t("view.version.open_cover")}}
                 template(v-if='editable')
-                    //- Failed compiles retry via the alert bar / dialog (see compile_failed);
-                    //- this item is just for an expired PDF whose metadata is still around
-                    v-list-item(v-if='expired' @click='regen')
-                        v-list-item-title {{$t("common.regenerate")}}
-                    //- Cover-only retry for a version whose interior is fine but cover failed
-                    v-list-item(v-else-if='cover_failed' @click='retry_cover')
-                        v-list-item-title {{$t("view.version.regenerate_cover")}}
-                    v-list-item(v-else-if='stuck' @click='retry')
-                        v-list-item-title {{$t("common.try_again")}}
+                    //- Expired / stuck / failed all retry via their status-icon dialog (see
+                    //- show_expired / show_stuck_error / show_compile_error) — no menu item
                     v-list-item(@click='edit_in_place')
                         v-list-item-title {{$t("common.edit")}}
                     v-list-item(@click='duplicate')
@@ -148,8 +151,34 @@ const stuck = computed(() => {
 })
 
 
+// Show the "taking longer than expected" message in a dialog with a "Retry" action (mirrors the
+// preview pane's stuck screen in DisplayDesignVersion.vue); retry re-drives the pending version
+// back through the compile pipeline when chosen
+const show_stuck_error = async () => {
+    const do_retry = await alert_dialog(
+        t('display.version.taking_long') + ' ' + t('display.version.interrupted'),
+        {action: t('common.try_again'), contact_url: version_contact_url(props.version)})
+    if (do_retry){
+        await retry()
+    }
+}
+
+
 // Whether the PDF has passed its 1-year Storage lifetime (metadata remains, can regenerate)
 const expired = computed(() => version_expired(props.version))
+
+
+// Show the expired-PDF message in a dialog with a "Regenerate" action — on mobile the preview
+// pane (and its own expired screen) is hidden, so this icon + dialog is the only rebuild path;
+// regen recompiles from the frozen blueprint when chosen
+const show_expired = async () => {
+    const do_regen = await alert_dialog(
+        t('display.version.pdf_expired') + ' ' + t('display.version.settings_saved'),
+        {action: t('common.regenerate')})
+    if (do_regen){
+        await regen()
+    }
+}
 
 
 // When this version was created — a relative label ("3 hours ago") for the row, with the exact
