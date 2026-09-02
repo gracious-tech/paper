@@ -27,17 +27,18 @@ template(v-else)
                 template(#prepend)
                     app-icon(name='print')
                 | {{ service_label }}
-        //- Compile failure of the latest version. Like the binding warning below, it's shown
-        //- here as a full alert bar (with its own "Try again") rather than just the row icon,
-        //- so a mobile user — who never sees the preview pane's failure screen — can still act.
-        //- Older failed versions get the same message + retry in a click-through dialog.
-        v-alert(v-if='compile_failed' class='mt-3 text-left bg-error-lighten-2')
+        //- Latest version couldn't be fully generated — either the whole compile failed, or the
+        //- interior compiled and only its wraparound cover render failed (a cover-only retry).
+        //- A full alert bar (with its own "Try again") rather than just the row icon, so a
+        //- mobile user — who never sees the preview pane's failure screen — can still act.
+        //- Older versions get the same message + retry in a click-through dialog.
+        v-alert(v-if='failure_alert' class='mt-3 text-left bg-error-lighten-2')
             div.compile_error
                 app-icon.compile_error_icon(name='error')
-                span {{ $t("view.version_list.compile_error") }}
+                span {{ failure_alert.message }}
             div.compile_error_actions
-                v-btn(@click='retry_compile' size='small' variant='flat' color='white'
-                        :loading='retrying') {{ $t("common.try_again") }}
+                v-btn(@click='failure_alert.retry' size='small' variant='flat' color='white'
+                        :loading='failure_alert.loading') {{ $t("common.try_again") }}
                 v-btn(:href='contact_url' target='_blank' size='small' variant='tonal'
                         color='white') {{ $t("display.version.contact") }}
         //- Binding page-limit warning. It lives here in the always-visible version summary
@@ -62,7 +63,7 @@ template(v-else)
         v-btn(@click='download_interior' variant='tonal' color='secondary-darken-1')
             | {{ $t("display.version.download_interior") }}
         v-btn(v-if='has_cover' @click='download_cover' variant='tonal'
-                color='secondary-darken-1')
+                color='secondary-darken-1' :disabled='cover_failed')
             | {{ $t("display.version.download_cover") }}
         v-btn.how_to_print(variant='tonal' color='')
             | {{ $t("display.version.how_to_print") }}
@@ -89,7 +90,9 @@ import {useI18n} from '@/services/i18n'
 import {PassageReference} from '@gracious.tech/fetch-client'
 
 import {versions, latest_version, version_expired, download_version_pdf, regenerate_version,
-    version_contact_url} from '@/services/versions'
+    regenerate_cover, cover_failed as version_cover_failed, version_contact_url}
+    from '@/services/versions'
+import {report_error} from '@/services/errors'
 import {format_paper_size, format_service_label, format_pages_label, get_passages,
     binding_page_issue} from '@/services/blueprints'
 import {content} from '@/services/content'
@@ -168,16 +171,35 @@ const binding_warning = computed(() => {
 })
 
 
-// Whether the latest version failed to compile. Surfaced as a full alert bar here (with its
-// own retry) rather than just the row icon — mirrors binding_warning so a mobile user, who
-// can't see the preview pane's failure screen, still gets the message and a way to act
-const compile_failed = computed(() => {
-    return latest_version.value?.status === 'failed'
+// Whether a retry of the failed latest version is in flight (drives the button's spinner)
+const retrying = ref(false)
+
+
+// Whether the latest version's interior is available but its cover render failed (also gates
+// the mobile "Download cover" button)
+const cover_failed = computed(() => {
+    return !!latest_version.value && version_cover_failed(latest_version.value)
 })
 
 
-// Whether a retry of the failed latest version is in flight (drives the button's spinner)
-const retrying = ref(false)
+// Whether a cover-only retry of the latest version is in flight
+const retrying_cover = ref(false)
+
+
+// Re-render just the latest version's cover from its frozen blueprint (see regenerate_cover)
+const retry_cover = async () => {
+    if (!latest_version.value){
+        return
+    }
+    retrying_cover.value = true
+    try {
+        await regenerate_cover(latest_version.value)
+    } catch (error){
+        report_error('banner', error)
+    } finally {
+        retrying_cover.value = false
+    }
+}
 
 
 // Support-contact link for the failed latest version, prefilled with its identifying debug ref
@@ -196,6 +218,23 @@ const retry_compile = async () => {
         retrying.value = false
     }
 }
+
+
+// The latest version's failure state, if any — a full compile failure or an interior-compiled
+// / cover-failed one (mutually exclusive: a version is either 'failed' or 'available'). Drives
+// the alert bar's message + which retry it runs. Shown here rather than only in the preview
+// pane so a mobile user, who can't see that pane, still gets the message and a way to act
+const failure_alert = computed(() => {
+    if (latest_version.value?.status === 'failed'){
+        return {message: t("view.version_list.compile_error"), retry: retry_compile,
+            loading: retrying.value}
+    }
+    if (cover_failed.value){
+        return {message: t("view.version_list.cover_failed"), retry: retry_cover,
+            loading: retrying_cover.value}
+    }
+    return null
+})
 
 
 // Booklet sheet-count warning, latest version only — flags when the fold-at-home booklet

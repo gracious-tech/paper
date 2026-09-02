@@ -45,6 +45,10 @@ export interface Version {
     title:string
     blueprint:Blueprint
     status:'pending'|'failed'|'available'
+    // Cover render outcome, tracked separately from `status` so an interior that compiled fine
+    // still publishes when only the wraparound cover failed. null = no cover configured, or a
+    // version created before cover failures were survivable (its cover, if any, succeeded)
+    cover_status:'available'|'failed'|null
     pages:number|null
     pdf_path:string
     pdf_expires:Date|null  // null until first generated

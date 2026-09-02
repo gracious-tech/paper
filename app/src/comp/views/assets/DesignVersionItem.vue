@@ -29,6 +29,12 @@ v-list-item(:active='!is_mobile && version.id === selected_version_id' color='pr
             v-btn(v-else-if='compile_failed' icon variant='text' size='small' color='error'
                     @click.stop='show_compile_error')
                 app-icon(name='error')
+            //- Interior compiled but the cover render failed. Latest version gets the full alert
+            //- bar (with a cover-only retry) in DesignVersionsList's summary; older versions get
+            //- this icon — clicking opens the same message + "Try again" in a dialog.
+            v-btn(v-else-if='!is_latest && cover_failed' icon variant='text' size='small'
+                    color='error' @click.stop='show_cover_error')
+                app-icon(name='error')
             //- The document compiled, but its actual page count broke its chosen binding.
             //- The latest version gets a full alert bar in DesignVersionsList's summary; older
             //- versions only have room for this icon, so clicking it opens the same full text
@@ -45,13 +51,16 @@ v-list-item(:active='!is_mobile && version.id === selected_version_id' color='pr
                         :disabled='version.status !== "available" || expired')
                     v-list-item-title {{$t("view.version.open_interior")}}
                 v-list-item(v-if='version.blueprint.cover' @click='download_cover'
-                        :disabled='version.status !== "available" || expired')
+                        :disabled='version.status !== "available" || expired || cover_failed')
                     v-list-item-title {{$t("view.version.open_cover")}}
                 template(v-if='editable')
                     //- Failed compiles retry via the alert bar / dialog (see compile_failed);
                     //- this item is just for an expired PDF whose metadata is still around
                     v-list-item(v-if='expired' @click='regen')
                         v-list-item-title {{$t("common.regenerate")}}
+                    //- Cover-only retry for a version whose interior is fine but cover failed
+                    v-list-item(v-else-if='cover_failed' @click='retry_cover')
+                        v-list-item-title {{$t("view.version.regenerate_cover")}}
                     v-list-item(v-else-if='stuck' @click='retry')
                         v-list-item-title {{$t("common.try_again")}}
                     v-list-item(@click='edit_in_place')
@@ -80,9 +89,9 @@ import {state, show_toast, confirm_dialog, alert_dialog} from '@/services/state'
 import {report_error} from '@/services/errors'
 import {binding_page_issue} from '@/services/blueprints'
 import {create_design, restore_version_into_design} from '@/services/designs'
-import {open_version_pdf, delete_version, regenerate_version, retry_version, version_expired,
-    version_stuck, share_version, selected_version_id, design_needs_editor, version_contact_url}
-    from '@/services/versions'
+import {open_version_pdf, delete_version, regenerate_version, regenerate_cover, retry_version,
+    cover_failed as version_cover_failed, version_expired, version_stuck, share_version,
+    selected_version_id, design_needs_editor, version_contact_url} from '@/services/versions'
 import {format_relative_time, format_datetime} from '@/services/utils'
 
 import type {Version} from '@/services/types'
@@ -164,6 +173,32 @@ const show_compile_error = async () => {
         {action: t('common.try_again'), contact_url: version_contact_url(props.version)})
     if (retry){
         await regen()
+    }
+}
+
+
+// Whether this version's interior is available but its wraparound cover render failed — the
+// interior stays viewable/downloadable, the cover doesn't (and gets a cover-only retry)
+const cover_failed = computed(() => version_cover_failed(props.version))
+
+
+// Show the cover-failure message in a dialog with "Try again" (mirrors the alert bar the latest
+// version gets in DesignVersionsList's summary); retry re-renders just the cover
+const show_cover_error = async () => {
+    const retry = await alert_dialog(t('view.version_list.cover_failed'),
+        {action: t('common.try_again'), contact_url: version_contact_url(props.version)})
+    if (retry){
+        await retry_cover()
+    }
+}
+
+
+// Re-render just this version's cover from its frozen blueprint (see regenerate_cover)
+const retry_cover = async () => {
+    try {
+        await regenerate_cover(props.version)
+    } catch (error){
+        report_error('banner', error)
     }
 }
 

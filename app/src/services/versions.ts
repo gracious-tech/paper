@@ -94,6 +94,7 @@ function version_from_doc(id:string, data:DocumentData):Version{
         title: data['title'] as string,
         blueprint: data['blueprint'] as Blueprint,
         status: data['status'] as Version['status'],
+        cover_status: (data['cover_status'] ?? null) as Version['cover_status'],
         pages: (data['pages'] ?? null) as number|null,
         pdf_path: data['pdf_path'] as string,
         pdf_expires: ((data['pdf_expires'] ?? null) as Timestamp|null)?.toDate() ?? null,
@@ -257,16 +258,26 @@ export async function compile_and_upload(id:string, design_id:string, blueprint:
             // Render + publish the cover as its own separate PDF (a wraparound cover is a
             // different page size and print services take it as its own file). Rendered after
             // the interior deliberately — its spine width derives from the actual page count
-            // just compiled. A failure throws into the server fallback below, which compiles
-            // both
+            // just compiled. A cover failure is non-fatal: the interior is already compiled and
+            // uploaded, so record cover_status 'failed' and still publish the version (the UI
+            // disables just the cover's view/download, and offers a cover-only regen)
+            let cover_status:Version['cover_status'] = null
             if (blueprint.cover){
-                const cover_bytes = await render_cover_pdf(blueprint, pages, fonts, share_url)
-                await uploadBytes(storage_ref(firebase_storage, `versions/${id}/cover.pdf`),
-                    cover_bytes, {contentType: 'application/pdf', contentDisposition: 'inline'})
+                try {
+                    const cover_bytes = await render_cover_pdf(blueprint, pages, fonts, share_url)
+                    await uploadBytes(storage_ref(firebase_storage, `versions/${id}/cover.pdf`),
+                        cover_bytes, {contentType: 'application/pdf', contentDisposition: 'inline'})
+                    cover_status = 'available'
+                } catch (cover_error){
+                    report_error('silent', cover_error,
+                        {context: {version_id: id, stage: 'cover_render'}})
+                    cover_status = 'failed'
+                }
             }
 
             await updateDoc(doc_ref, {
                 status: 'available',
+                cover_status,
                 pages,
                 pdf_expires: Timestamp.fromMillis(Date.now() + PDF_LIFETIME_MS),
                 error: null,
@@ -359,6 +370,38 @@ export async function regenerate_version(version:Version):Promise<void>{
 }
 
 
+export function cover_failed(version:Version):boolean{
+    // Whether the version's interior is available but its wraparound cover failed to render —
+    // the interior PDF can still be viewed/downloaded, the cover can't (and can be regenerated
+    // on its own via regenerate_cover)
+    return version.cover_status === 'failed' && version.status === 'available'
+}
+
+
+export async function regenerate_cover(version:Version):Promise<void>{
+    // Re-render just the cover for a version whose interior succeeded but whose cover failed.
+    // Far cheaper than regenerate_version (no interior recompile) and it sidesteps the
+    // create-once doc.pdf a full recompile would 403 on — only the absent cover.pdf is produced
+    if (!version.blueprint.cover || version.status !== 'available'){
+        return
+    }
+    const doc_ref = doc(firestore, 'versions', version.id)
+    try {
+        const fonts = await Promise.all(
+            version.custom_fonts.map(meta => load_font_from_meta(meta)))
+        const share_url = `${location.origin}/designs/${version.design_id}/${version.id}`
+        const cover_bytes = await render_cover_pdf(version.blueprint, version.pages ?? 0,
+            fonts.length ? fonts : undefined, share_url)
+        await uploadBytes(storage_ref(firebase_storage, `versions/${version.id}/cover.pdf`),
+            cover_bytes, {contentType: 'application/pdf', contentDisposition: 'inline'})
+        await updateDoc(doc_ref, {cover_status: 'available'})
+    } catch (error){
+        report_error('banner', error, {context: {version_id: version.id, stage: 'cover_regen'}})
+        await updateDoc(doc_ref, {cover_status: 'failed'}).catch(() => undefined)
+    }
+}
+
+
 async function adopt_pending_pdf(version:Version, is_latest:boolean):Promise<boolean>{
     // If a prior compile of this pending version already uploaded its PDF but died before
     // recording the result, finish the job from the bytes that are already in Storage rather
@@ -378,7 +421,10 @@ async function adopt_pending_pdf(version:Version, is_latest:boolean):Promise<boo
     const pages = (await PDFDocument.load(bytes)).getPageCount()
 
     // The cover PDF is uploaded after the interior, so it can be missing even when doc.pdf isn't
-    // — render + upload just the cover in that case (cover.pdf is also create-once, but absent)
+    // — render + upload just the cover in that case (cover.pdf is also create-once, but absent).
+    // A cover failure here is non-fatal, same as the main compile path: adopt the interior and
+    // record cover_status 'failed'
+    let cover_status:Version['cover_status'] = null
     if (version.blueprint.cover){
         let cover_missing = false
         try {
@@ -390,20 +436,28 @@ async function adopt_pending_pdf(version:Version, is_latest:boolean):Promise<boo
             }
             cover_missing = true
         }
+        cover_status = 'available'
         if (cover_missing){
-            const fonts = await Promise.all(
-                version.custom_fonts.map(meta => load_font_from_meta(meta)))
-            const share_url = `${location.origin}/designs/${version.design_id}/${version.id}`
-            const cover_bytes = await render_cover_pdf(
-                version.blueprint, pages, fonts.length ? fonts : undefined, share_url)
-            await uploadBytes(
-                storage_ref(firebase_storage, `versions/${version.id}/cover.pdf`),
-                cover_bytes, {contentType: 'application/pdf', contentDisposition: 'inline'})
+            try {
+                const fonts = await Promise.all(
+                    version.custom_fonts.map(meta => load_font_from_meta(meta)))
+                const share_url = `${location.origin}/designs/${version.design_id}/${version.id}`
+                const cover_bytes = await render_cover_pdf(
+                    version.blueprint, pages, fonts.length ? fonts : undefined, share_url)
+                await uploadBytes(
+                    storage_ref(firebase_storage, `versions/${version.id}/cover.pdf`),
+                    cover_bytes, {contentType: 'application/pdf', contentDisposition: 'inline'})
+            } catch (cover_error){
+                report_error('silent', cover_error,
+                    {context: {version_id: version.id, stage: 'cover_render'}})
+                cover_status = 'failed'
+            }
         }
     }
 
     await updateDoc(doc(firestore, 'versions', version.id), {
         status: 'available',
+        cover_status,
         pages,
         pdf_expires: Timestamp.fromMillis(Date.now() + PDF_LIFETIME_MS),
         error: null,
@@ -461,9 +515,10 @@ export async function get_pdf_url(version:Version):Promise<string|null>{
 export async function get_cover_pdf_url(version:Version):Promise<string|null>{
     // Resolve a download URL for the version's separate cover PDF (path derived from the id,
     // never read from the doc — same rule as the server's pdf_path convention). Null when the
-    // version has no cover, isn't available, or the PDF expired (covers share doc.pdf's
-    // lifecycle since both live under the same versions/ prefix)
-    if (!version.blueprint.cover || version.status !== 'available' || version_expired(version)){
+    // version has no cover, the cover render failed (cover_status), the version isn't available,
+    // or the PDF expired (covers share doc.pdf's lifecycle — both under the same versions/ prefix)
+    if (!version.blueprint.cover || version.cover_status === 'failed'
+            || version.status !== 'available' || version_expired(version)){
         return null
     }
     try {

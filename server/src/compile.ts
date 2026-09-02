@@ -233,17 +233,40 @@ export async function handle_compile(uid:string, version_id:string, client_ip:st
         // Render + publish the cover as its own separate PDF when the version has one (a
         // wraparound cover is a different page size and print services take it as its own
         // file). Rendered after the interior deliberately — its spine width derives from the
-        // actual page count just compiled. A cover failure fails the whole compile — same
-        // error surface as the book
+        // actual page count just compiled. A cover failure is non-fatal (mirrors the in-browser
+        // path in versions.ts): the interior is already compiled and uploaded, so record
+        // cover_status 'failed' and still publish the version
+        let cover_status:'available'|'failed'|null = null
         if (blueprint.cover){
-            const cover_bytes = await render_cover(blueprint, custom_fonts, pages, share_url)
-            await admin_bucket.file(`versions/${version_id}/cover.pdf`).save(
-                Buffer.from(cover_bytes),
-                {contentType: 'application/pdf', metadata: {contentDisposition: 'inline'}})
+            try {
+                const cover_bytes = await render_cover(blueprint, custom_fonts, pages, share_url)
+                await admin_bucket.file(`versions/${version_id}/cover.pdf`).save(
+                    Buffer.from(cover_bytes),
+                    {contentType: 'application/pdf', metadata: {contentDisposition: 'inline'}})
+                cover_status = 'available'
+            } catch (cover_error){
+                console.error(cover_error)
+                cover_status = 'failed'
+                await save_error({
+                    id: generate_error_id(),
+                    source: 'server',
+                    severity: 'silent',
+                    message: cover_error instanceof Error
+                        ? cover_error.stack ?? cover_error.message : String(cover_error),
+                    ip: client_ip,
+                    uid,
+                    url: '/api/compile',
+                    user_agent: null,
+                    language: null,
+                    runtime_ms: null,
+                    context: {version_id, stage: 'cover_render'},
+                }).catch(() => undefined)
+            }
         }
 
         await doc_ref.update({
             status: 'available',
+            cover_status,
             pages,
             pdf_expires: Timestamp.fromMillis(Date.now() + PDF_LIFETIME_MS),
             error: null,

@@ -7,10 +7,13 @@ div.version
     div.toolbar(v-if='iframe_src')
         //- Left: switch the frame between the interior pages and the wraparound cover — only
         //- shown when this version actually has a cover
-        v-btn-toggle.mode(v-if='cover_src' v-model='view_mode'
+        //- Cover toggle / download stay visible but disabled when the cover render failed
+        //- (cover_failed) — the interior compiled and is unaffected
+        v-btn-toggle.mode(v-if='cover_src || cover_failed' v-model='view_mode'
                 color='primary-light' divided mandatory)
             v-btn(value='interior' size='small') {{ $t("display.version.show_interior") }}
-            v-btn(value='cover' size='small') {{ $t("display.version.show_cover") }}
+            v-btn(value='cover' size='small' :disabled='!cover_src')
+                | {{ $t("display.version.show_cover") }}
         //- Middle: download the print-ready PDF(s) — same weight/colour as the preview
         //- toolbar's Create button
         div.downloads
@@ -18,8 +21,8 @@ div.version
                 template(#prepend)
                     app-icon(name='download')
                 | {{ $t("display.version.download_interior") }}
-            v-btn(v-if='cover_src' @click='download_cover' variant='elevated'
-                    color='secondary-darken-1')
+            v-btn(v-if='cover_src || cover_failed' @click='download_cover' variant='elevated'
+                    color='secondary-darken-1' :disabled='!cover_src')
                 template(#prepend)
                     app-icon(name='download')
                 | {{ $t("display.version.download_cover") }}
@@ -83,7 +86,8 @@ import {useI18n} from '@/services/i18n'
 
 import {selected_version, get_pdf_url, get_cover_pdf_url, download_version_pdf, regenerate_version,
     retry_version, version_expired, version_stuck, latest_version, design_needs_editor,
-    version_debug_ref, version_contact_url} from '@/services/versions'
+    version_debug_ref, version_contact_url, cover_failed as version_cover_failed}
+    from '@/services/versions'
 import {designs, current_design_id} from '@/services/designs'
 import {report_error} from '@/services/errors'
 import AnimatedBook from '../reuseable/AnimatedBook.vue'
@@ -116,6 +120,12 @@ const stuck = computed(() => {
 // Whether the selected version's PDF has passed its Storage lifetime
 const expired = computed(() => {
     return selected_version.value ? version_expired(selected_version.value) : false
+})
+
+
+// Whether the selected version's interior is available but its cover render failed
+const cover_failed = computed(() => {
+    return selected_version.value ? version_cover_failed(selected_version.value) : false
 })
 
 

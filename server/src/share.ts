@@ -121,6 +121,13 @@ export async function handle_copy_version(uid:string, version_id:string)
         await src_pdf.copy(admin_bucket.file(new_pdf_path))
     }
 
+    // The separate wraparound cover PDF, when the source version has one (a cover render can
+    // fail independently of the interior — see cover_status in compile.ts)
+    const src_cover = admin_bucket.file(`versions/${version_id}/cover.pdf`)
+    if ((await src_cover.exists())[0]){
+        await src_cover.copy(admin_bucket.file(`versions/${new_version_id}/cover.pdf`))
+    }
+
     // Copy any custom font snapshots so the recipient can regenerate independently, dropping
     // (rather than rewriting) any metadata entry that points outside the version's own font
     // prefix — same trust reasoning as the PDF path above
@@ -146,6 +153,8 @@ export async function handle_copy_version(uid:string, version_id:string)
     // live content is identical to the version it was just copied from
     const save_token = randomBytes(15).toString('base64url')
     const blueprint = data['blueprint'] as Blueprint
+    // cover_status carries over verbatim — the copy's cover.pdf (if any) was copied above
+    const cover_status = (data['cover_status'] ?? null) as 'available'|'failed'|null
 
     await admin_db.doc(`designs/${new_design_id}`).set({
         schema: SCHEMA_VERSION,
@@ -170,6 +179,7 @@ export async function handle_copy_version(uid:string, version_id:string)
         title: data['title'],
         blueprint,
         status: data['status'],
+        cover_status,
         pages: data['pages'],
         pdf_path: new_pdf_path,
         pdf_expires: pdf_copied
