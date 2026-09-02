@@ -19,6 +19,7 @@ import subject from '@material-symbols/svg-400/outlined/subject.svg?component'
 import download from '@material-symbols/svg-400/outlined/download.svg?component'
 import upload from '@material-symbols/svg-400/outlined/upload.svg?component'
 import error from '@material-symbols/svg-400/outlined/error.svg?component'
+import info from '@material-symbols/svg-400/outlined/info.svg?component'
 import more_vert from '@material-symbols/svg-400/outlined/more_vert.svg?component'
 import more_horiz from '@material-symbols/svg-400/outlined/more_horiz.svg?component'
 import lists from '@material-symbols/svg-400/outlined/lists.svg?component'
@@ -52,7 +53,7 @@ defineProps({
 
 const icons = {
     drag_indicator, close, arrow_back, expand_more, planner_banner, copyright, auto_stories,
-    subject, download, upload, error, more_vert, more_horiz, lists, history_toggle_off, donate,
+    subject, download, upload, error, info, more_vert, more_horiz, lists, history_toggle_off, donate,
     add, content_copy, 'delete': delete_icon, group, share, account_circle, straighten,
     menu_book, description, print, warning, check, search, edit,
 } as Record<string, FunctionalComponent>

@@ -31,9 +31,9 @@ div.version
 
     //- Thin advisory strip under the toolbar — one message at a time: viewing a superseded
     //- version, the latest version having unrendered design changes, or booklet page ordering
-    div.notice(v-if='iframe_src && version_warning')
-        app-icon(name='warning')
-        span {{ version_warning }}
+    div.notice(v-if='iframe_src && version_warning' :class='version_warning.tone')
+        app-icon(:name='version_warning.tone === "info" ? "info" : "warning"')
+        span {{ version_warning.text }}
 
     div.doc(v-if='iframe_src')
         //- Firm warning when the produced document's actual page count broke its chosen binding —
@@ -139,9 +139,9 @@ const binding_warning = computed(() => {
 })
 
 
-// Single advisory line for the strip under the toolbar. Being out of date (viewing a
-// superseded version, or the latest one with unrendered design edits) takes priority over the
-// evergreen booklet page-order note, and only one shows at a time
+// Single advisory line for the strip under the toolbar, with its tone: being out of date
+// (viewing a superseded version, or the latest one with unrendered design edits) is a "warning"
+// and takes priority over the evergreen booklet page-order "notice". Only one shows at a time
 const version_warning = computed(() => {
     const version = selected_version.value
     if (!version){
@@ -149,18 +149,19 @@ const version_warning = computed(() => {
     }
     // Superseded — a newer version of this design exists
     if (latest_version.value && version.id !== latest_version.value.id){
-        return t('display.version.not_latest')
+        return {text: t('display.version.not_latest'), tone: 'warning'}
     }
     // Latest version, but the design has changed since it was created. `design_needs_editor`
     // can't distinguish "no local design" from "has changes", so only trust it when the design
     // is one the user can actually edit
     const is_editor = designs.some(item => item.id === current_design_id.value)
     if (is_editor && design_needs_editor.value){
-        return t('display.version.has_unapplied')
+        return {text: t('display.version.has_unapplied'), tone: 'warning'}
     }
-    // Booklet pages are imposed for folding, so they read out of sequence flat
+    // Booklet pages are imposed for folding, so they read out of sequence flat — informational,
+    // not a problem to fix
     if (version.blueprint.booklet){
-        return t('display.version.booklet_order')
+        return {text: t('display.version.booklet_order'), tone: 'info'}
     }
     return null
 })
@@ -338,7 +339,7 @@ onUnmounted(() => {
     .mode
         height: 32px
 
-// Thin warning strip between the toolbar and the PDF frame
+// Thin advisory strip between the toolbar and the PDF frame
 .notice
     flex-shrink: 0
     display: flex
@@ -348,13 +349,21 @@ onUnmounted(() => {
     padding: 4px 12px
     font-size: 0.8125rem
     line-height: 1.3
-    color: rgb(var(--v-theme-on-warning))
-    background-color: rgb(var(--v-theme-warning))
 
     .icon
         flex-shrink: 0
         height: 18px
         width: 18px
+
+    // Something the user should act on (out-of-date version) — full warning colour
+    &.warning
+        color: rgb(var(--v-theme-on-warning))
+        background-color: rgb(var(--v-theme-warning))
+
+    // Just informational (booklet page order) — light blue, distinct from the orange warnings
+    &.info
+        color: #123a5c
+        background-color: #bcd8f2
 
 // Column so a binding warning can sit above the PDF without breaking the full-size sizing
 .doc
