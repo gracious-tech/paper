@@ -99,14 +99,20 @@ export function page_count_guess():number{
 }
 
 
+// Whether an interior custom page carries a copyright statement
+export const has_interior_copyright = computed(() => {
+    return blue.content.some(
+        item => item.type === 'custom' && doc_has_copyright(item.doc))
+})
+
+
 // Whether the design carries a copyright statement anywhere — an interior custom page or the
 // cover's rear blurb (new covers seed the AUTO-COPYRIGHT marker there by default)
 export const has_copyright = computed(() => {
     if (doc_has_copyright(blue.cover?.form['blurb'] as PmDoc | undefined)){
         return true
     }
-    return blue.content.some(
-        item => item.type === 'custom' && doc_has_copyright(item.doc))
+    return has_interior_copyright.value
 })
 
 

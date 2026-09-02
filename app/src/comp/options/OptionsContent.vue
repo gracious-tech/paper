@@ -20,7 +20,7 @@ div.add(class='d-flex align-center flex-wrap')
     v-btn(@click='add_custom' size='small' variant='outlined') {{$t("common.text")}}
     v-btn(@click='add_title' size='small' variant='outlined') {{$t("options.content.title_page")}}
     v-btn(@click='picker_open = true' size='small' variant='outlined') {{$t("options.content.picture_story")}}
-    v-btn(:disabled='has_copyright' @click='add_copyright' size='small' variant='outlined')
+    v-btn(:disabled='has_interior_copyright' @click='add_copyright' size='small' variant='outlined')
         | {{$t("common.copyright")}}
 
 div.warnings(v-if='warnings' class='mt-4 text-body-medium')
@@ -37,7 +37,7 @@ DialogPictureStoryPicker(v-model='picker_open' @select-story='add_picture_story_
 import {reactive, computed, ref} from 'vue'
 import {useI18n} from '@/services/i18n'
 
-import {blue, state, has_copyright, requires_copyright} from '@/services/state'
+import {blue, state, has_copyright, has_interior_copyright, requires_copyright} from '@/services/state'
 import {gen_content_name} from '@/services/blueprints'
 import {generate_token} from '@/services/utils'
 import {story_to_slides, story_reference_label} from '@/services/stories'
