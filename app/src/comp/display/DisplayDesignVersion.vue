@@ -1,41 +1,69 @@
 
 <template lang='pug'>
 
-div.doc(v-if='iframe_src')
-    //- Firm warning when the produced document's actual page count broke its chosen binding —
-    //- unlike the soft estimate-based warning while designing, this one is definite
-    v-alert(v-if='binding_warning' type='warning' variant='flat' density='compact' rounded='0'
-        :text='binding_warning')
-    iframe(:src='iframe_src')
-div.explain(v-else :class='{pending: status === "pending" && !stuck}')
-    template(v-if='status === undefined')
-    template(v-else-if='status === "pending" && stuck')
-        h3(class='mb-6') {{$t("display.version.taking_long")}}
-        p(class='mb-6') {{$t("display.version.interrupted")}}
-        div(class='mb-6')
-            v-btn(@click='retry' color='secondary' :loading='retrying') {{$t("common.try_again")}}
-        div
-            v-btn(:href='contact_url' target='_blank' variant='text') {{$t("display.version.contact")}}
-    template(v-else-if='status === "pending"')
-        h3(class='text-headline-large') {{$t("display.version.preparing") + '...'}}
-        AnimatedBook
-        h1(class='my-10 text-display-large') {{ time_since_request }}
-        div(class='mb-10')
-            | {{$t("display.version.typical_time")}}
-    template(v-else-if='status === "failed"')
-        h3(class='mb-6') {{$t("display.version.error")}}
-        div(class='mb-6')
-            v-btn(@click='regen' color='secondary') {{$t("common.try_again")}}
-        div
-            v-btn(:href='contact_url' target='_blank' variant='text') {{$t("display.version.contact")}}
-        p(class='mt-12 mb-3') {{$t("display.version.include_code")}}
-        p
-            strong {{ debug }}
-    template(v-else-if='expired')
-        h3(class='mb-6') {{$t("display.version.pdf_expired")}}
-        p(class='mb-6') {{$t("display.version.settings_saved")}}
-        div
-            v-btn(@click='regen' color='secondary') {{$t("common.regenerate")}}
+div.version
+    //- Toolbar for a rendered version — mirrors the preview toolbar shown while editing.
+    //- Only meaningful once there's a PDF to show (hidden while pending/failed/expired)
+    div.toolbar(v-if='iframe_src')
+        //- Left: switch the frame between the interior pages and the wraparound cover — only
+        //- shown when this version actually has a cover
+        v-btn-toggle.mode(v-if='cover_src' v-model='view_mode'
+                color='primary-light' divided mandatory)
+            v-btn(value='interior' size='small') {{ $t("display.version.show_interior") }}
+            v-btn(value='cover' size='small') {{ $t("display.version.show_cover") }}
+        //- Middle: download the print-ready PDF(s) — same weight/colour as the preview
+        //- toolbar's Create button
+        div.downloads
+            v-btn(v-if='cover_src' @click='download_cover' variant='elevated'
+                    color='secondary-darken-1')
+                template(#prepend)
+                    app-icon(name='download')
+                | {{ $t("display.version.download_cover") }}
+            v-btn(@click='download_interior' variant='elevated' color='secondary-darken-1')
+                template(#prepend)
+                    app-icon(name='download')
+                | {{ $t("display.version.download_interior") }}
+        //- Right: printing guidance (not wired up yet)
+        v-btn.how_to_print(variant='elevated' color='secondary-darken-1')
+            template(#prepend)
+                app-icon(name='print')
+            | {{ $t("display.version.how_to_print") }}
+
+    div.doc(v-if='iframe_src')
+        //- Firm warning when the produced document's actual page count broke its chosen binding —
+        //- unlike the soft estimate-based warning while designing, this one is definite
+        v-alert(v-if='binding_warning' type='warning' variant='flat' density='compact' rounded='0'
+            :text='binding_warning')
+        iframe(:src='current_src')
+    div.explain(v-else :class='{pending: status === "pending" && !stuck}')
+        template(v-if='status === undefined')
+        template(v-else-if='status === "pending" && stuck')
+            h3(class='mb-6') {{$t("display.version.taking_long")}}
+            p(class='mb-6') {{$t("display.version.interrupted")}}
+            div(class='mb-6')
+                v-btn(@click='retry' color='secondary' :loading='retrying') {{$t("common.try_again")}}
+            div
+                v-btn(:href='contact_url' target='_blank' variant='text') {{$t("display.version.contact")}}
+        template(v-else-if='status === "pending"')
+            h3(class='text-headline-large') {{$t("display.version.preparing") + '...'}}
+            AnimatedBook
+            h1(class='my-10 text-display-large') {{ time_since_request }}
+            div(class='mb-10')
+                | {{$t("display.version.typical_time")}}
+        template(v-else-if='status === "failed"')
+            h3(class='mb-6') {{$t("display.version.error")}}
+            div(class='mb-6')
+                v-btn(@click='regen' color='secondary') {{$t("common.try_again")}}
+            div
+                v-btn(:href='contact_url' target='_blank' variant='text') {{$t("display.version.contact")}}
+            p(class='mt-12 mb-3') {{$t("display.version.include_code")}}
+            p
+                strong {{ debug }}
+        template(v-else-if='expired')
+            h3(class='mb-6') {{$t("display.version.pdf_expired")}}
+            p(class='mb-6') {{$t("display.version.settings_saved")}}
+            div
+                v-btn(@click='regen' color='secondary') {{$t("common.regenerate")}}
 
 </template>
 
@@ -45,8 +73,8 @@ div.explain(v-else :class='{pending: status === "pending" && !stuck}')
 import {computed, ref, watch, onUnmounted} from 'vue'
 import {useI18n} from '@/services/i18n'
 
-import {selected_version, get_pdf_url, regenerate_version, retry_version, version_expired,
-    version_stuck} from '@/services/versions'
+import {selected_version, get_pdf_url, get_cover_pdf_url, download_version_pdf, regenerate_version,
+    retry_version, version_expired, version_stuck} from '@/services/versions'
 import {binding_page_issue} from '@/services/blueprints'
 import {report_error} from '@/services/errors'
 import AnimatedBook from '../reuseable/AnimatedBook.vue'
@@ -103,18 +131,51 @@ const binding_warning = computed(() => {
 })
 
 
-// Download URL of the stored PDF (resolved async whenever the selected version changes)
+// Whether the toolbar's frame is showing the interior pages or the wraparound cover
+const view_mode = ref<'interior'|'cover'>('interior')
+
+// Download URLs of the stored interior + cover PDFs (resolved async whenever the selected
+// version changes); cover_src stays null for versions without a cover
 const iframe_src = ref(null as string|null)
+const cover_src = ref(null as string|null)
 let resolve_count = 0
 watch([selected_version, status], async () => {
     const version = selected_version.value
     const this_resolve = ++resolve_count
-    const url = version ? await get_pdf_url(version) : null
+    // Reset to the interior view whenever the selected version changes
+    view_mode.value = 'interior'
+    const [pdf_url, cover_url] = version
+        ? await Promise.all([get_pdf_url(version), get_cover_pdf_url(version)])
+        : [null, null]
     // Ignore stale resolutions if the selection changed while awaiting
     if (this_resolve === resolve_count){
-        iframe_src.value = url
+        iframe_src.value = pdf_url
+        cover_src.value = cover_url
     }
 }, {immediate: true})
+
+
+// Which PDF the frame shows — the cover only while toggled to it and one actually exists
+const current_src = computed(() => {
+    const src = view_mode.value === 'cover' && cover_src.value ? cover_src.value : iframe_src.value
+    return src ?? undefined
+})
+
+
+// Save the interior PDF to disk (see download_version_pdf)
+const download_interior = () => {
+    if (selected_version.value){
+        void download_version_pdf(selected_version.value, 'interior')
+    }
+}
+
+
+// Save the separate cover PDF to disk
+const download_cover = () => {
+    if (selected_version.value){
+        void download_version_pdf(selected_version.value, 'cover')
+    }
+}
 
 
 // Recompile the failed/expired PDF from the version's frozen blueprint
@@ -204,11 +265,50 @@ onUnmounted(() => {
 
 <style lang='sass' scoped>
 
-// Column so a binding warning can sit above the PDF without breaking the parent's full-size
-// sizing (.display > * in AppRoot gives this container 100% width/height)
+// Fills the panel (.display > * in AppRoot gives this container 100% width/height); stacks the
+// toolbar above the PDF frame / status area
+.version
+    display: flex
+    flex-direction: column
+    width: 100%
+    height: 100%
+
+// Mirrors the preview toolbar in DisplayPreview.vue (dark strip along the top)
+.toolbar
+    flex-shrink: 0
+    display: flex
+    align-items: center
+    gap: 12px
+    padding: 8px
+    background-color: rgba(0, 0, 0, 0.2)
+
+    // Centre the download buttons in the toolbar whether or not the mode toggle is present on
+    // the left; "How to print" then trails on the far right
+    .downloads
+        display: flex
+        align-items: center
+        gap: 8px
+        margin-left: auto
+        margin-right: auto
+
+    .how_to_print
+        flex-shrink: 0
+
+    // Active toggle label in brand primary over its primary-light fill (on the dark toolbar)
+    :deep(.v-btn-toggle .v-btn--active)
+        color: rgb(var(--v-theme-primary))
+
+    // A v-btn-group ignores its children's size and has no density tier below 40px, so
+    // set a compact height directly to sit with the size='small' child buttons.
+    .mode
+        height: 32px
+
+// Column so a binding warning can sit above the PDF without breaking the full-size sizing
 .doc
     display: flex
     flex-direction: column
+    flex-grow: 1
+    min-height: 0
 
     // Vuetify's v-alert defaults to `flex: 1 1`, which fights the iframe for the container's
     // leftover height (both would grow equally) — pin it to its content size instead

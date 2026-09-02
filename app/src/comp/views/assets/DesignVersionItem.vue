@@ -58,7 +58,7 @@ import {show_toast, confirm_dialog} from '@/services/state'
 import {report_error} from '@/services/errors'
 import {binding_page_issue} from '@/services/blueprints'
 import {create_design, restore_version_into_design} from '@/services/designs'
-import {get_pdf_url, get_cover_pdf_url, delete_version, regenerate_version, retry_version,
+import {open_version_pdf, delete_version, regenerate_version, retry_version,
     version_expired, version_stuck, share_version, selected_version_id} from '@/services/versions'
 
 import type {Version} from '@/services/types'
@@ -137,27 +137,15 @@ const select = () => {
     void router.push({name: 'design', params: {id: props.design_id, version: props.version.id}})
 }
 
-const download = async () => {
-    // Open the stored PDF in a new tab
-    // NOTE Window opened before the async URL resolution so popup blockers see a user gesture
-    const win = self.open('', '_blank')
-    const url = await get_pdf_url(props.version)
-    if (url && win){
-        win.location.href = url
-    } else {
-        win?.close()
-    }
+const download = () => {
+    // Open the stored interior PDF in a new tab (tab opened synchronously so popup blockers
+    // credit the click as a user gesture — see open_version_pdf)
+    void open_version_pdf(self.open('', '_blank'), props.version, 'interior')
 }
 
-const download_cover = async () => {
-    // Open the version's separate cover PDF in a new tab (same popup-safe pattern as above)
-    const win = self.open('', '_blank')
-    const url = await get_cover_pdf_url(props.version)
-    if (url && win){
-        win.location.href = url
-    } else {
-        win?.close()
-    }
+const download_cover = () => {
+    // Open the version's separate cover PDF in a new tab
+    void open_version_pdf(self.open('', '_blank'), props.version, 'cover')
 }
 
 const regen = async () => {

@@ -464,6 +464,47 @@ export async function get_cover_pdf_url(version:Version):Promise<string|null>{
 }
 
 
+export async function open_version_pdf(win:Window|null, version:Version,
+        which:'interior'|'cover'):Promise<void>{
+    // Navigate an already-opened blank tab to one of the version's PDFs. The caller opens the
+    // tab synchronously (passing the handle in) so popup blockers still credit the originating
+    // click as a user gesture; this resolves the URL and points the tab at it, closing the tab
+    // when the PDF isn't available (pending/failed/expired, or no cover)
+    const url = which === 'cover' ? await get_cover_pdf_url(version) : await get_pdf_url(version)
+    if (url && win){
+        win.location.href = url
+    } else {
+        win?.close()
+    }
+}
+
+
+export async function download_version_pdf(version:Version, which:'interior'|'cover')
+        :Promise<void>{
+    // Save one of the version's PDFs to disk. The stored objects have contentDisposition 'inline'
+    // (so the preview iframe renders them) and live on a different origin, so the <a download>
+    // attribute alone is ignored — fetch the bytes and hand the browser a same-origin blob URL
+    const url = which === 'cover' ? await get_cover_pdf_url(version) : await get_pdf_url(version)
+    if (!url){
+        return
+    }
+    const blob = await (await fetch(url)).blob()
+    const blob_url = URL.createObjectURL(blob)
+    // Build a readable filename from the version title
+    const base = (version.title || 'bible').replace(/[/\\?%*:|"<>]/g, '-').trim() || 'bible'
+    const name = which === 'cover' ? `${base} (cover).pdf` : `${base}.pdf`
+    // Trigger the download via a transient anchor, then release the blob URL
+    const anchor = document.createElement('a')
+    anchor.href = blob_url
+    anchor.download = name
+    document.body.appendChild(anchor)
+    anchor.click()
+    anchor.remove()
+    // Give the browser a beat to start the download before releasing the blob
+    setTimeout(() => URL.revokeObjectURL(blob_url), 10000)
+}
+
+
 export async function delete_version(id:string):Promise<void>{
     // Delete a version's metadata — its PDF object becomes unreachable immediately (Storage
     // rules can no longer resolve an owner) and is removed by the bucket's lifecycle rule

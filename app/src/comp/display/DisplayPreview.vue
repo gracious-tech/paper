@@ -7,11 +7,11 @@ div.preview
         //- truncated and has more than one book/passage to window across
         v-btn-toggle.sections(v-if='truncated && section_options.length > 1'
             :model-value='effective_section' @update:model-value='set_section'
-            density='compact' color='primary-light' divided mandatory)
-            v-btn(value='start' size='x-small') {{ $t("common.start") }}
-            v-btn(v-if="section_options.includes('middle')" value='middle' size='x-small')
+            color='primary-light' divided mandatory)
+            v-btn(value='start' size='small') {{ $t("common.start") }}
+            v-btn(v-if="section_options.includes('middle')" value='middle' size='small')
                 | {{ $t("common.middle") }}
-            v-btn(value='end' size='x-small') {{ $t("common.end") }}
+            v-btn(value='end' size='small') {{ $t("common.end") }}
         //- Pushed to the right end of the toolbar via margin-left:auto (see style below); the
         //- mobile floating equivalent lives in ViewDesignEditor.vue since this toolbar is hidden
         //- on mobile (parent .display has display:none, see AppRoot.vue)
@@ -404,15 +404,15 @@ onUnmounted(() => {
     .create
         margin-left: auto
 
-    // Active toggle label in brand primary, over its primary-light fill (both toggles
-    // sit on the dark preview toolbar)
+    // Active toggle label in brand primary, over its primary-light fill (the toggle
+    // sits on the dark preview toolbar)
     :deep(.v-btn-toggle .v-btn--active)
         color: rgb(var(--v-theme-primary))
 
-    // Vuetify forces a uniform group height from density, so the x-small child buttons alone
-    // don't shrink the section toggle — override it directly to render it shorter.
+    // A v-btn-group ignores its children's size and has no density tier below 40px, so
+    // set a compact height directly to sit with the size='small' child buttons.
     .sections
-        height: 28px
+        height: 32px
 
 .frame
     position: relative
