@@ -80,7 +80,9 @@ body
     overflow: hidden
 
 
-a:not(.v-btn)
+// Plain text links use the accent color; component anchors (buttons, list items) keep their
+// own styling and must be excluded
+a:not(.v-btn):not(.v-list-item)
     color: rgb(var(--v-theme-secondary))
 
 

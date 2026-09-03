@@ -20,23 +20,27 @@ v-app.app(v-else)
                         VBtn(v-bind='props' color='' icon variant='text')
                             AppIcon(name='more_vert')
                     v-list
-                        v-list-item(:to='{name: "help"}')
+                        v-list-item(:to='{name: "about"}')
                             template(#prepend)
-                                AppIcon(name='auto_stories')
-                            v-list-item-title {{ $t("common.guide") }}
+                                AppIcon(name='info')
+                            v-list-item-title {{ $t("app.about") }}
+                        v-list-item(href='https://gracious.tech/contact' target='_blank')
+                            template(#prepend)
+                                AppIcon(name='mail')
+                            v-list-item-title {{ $t("app.contact") }}
                         v-list-item(href='https://gracious.tech/donate' target='_blank')
                             template(#prepend)
                                 AppIcon(name='donate')
                             v-list-item-title {{ $t("app.donate") }}
 
-            AppNavbar(v-if='route.name !== "help"')
+            AppNavbar(v-if='route.name !== "about"')
 
         router-view
 
 div.display(v-if='!state.splash')
     DisplayPreview(v-if='showing_editor')
     DisplayDesignVersion(v-else-if='route.name === "design"')
-    DisplayHelp(v-else-if='route.name === "help"')
+    DisplayHelp(v-else-if='route.name === "about"')
 
 DialogViewedDesign
 DialogAcceptInvite
