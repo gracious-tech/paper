@@ -24,7 +24,7 @@ v-dialog(:model-value='mode !== null' @update:model-value='cancel' :fullscreen='
                     NewDesignStories(v-if='draft.type === "picture_story"' :draft='draft')
                     NewDesignBooks(v-else :draft='draft')
                 v-window-item(value='bibles')
-                    NewDesignBibles(:draft='draft' @busy='busy = $event')
+                    NewDesignBibles(:draft='draft')
                 v-window-item(value='print')
                     NewDesignPrint(:draft='draft')
                 v-window-item(value='cover')
@@ -32,7 +32,7 @@ v-dialog(:model-value='mode !== null' @update:model-value='cancel' :fullscreen='
 
         v-divider
 
-        v-card-actions(v-if='!busy')
+        v-card-actions
             v-btn(v-if='mode === "edit" || step_index === 0' @click='cancel' color='')
                 | {{ $t("common.cancel") }}
             v-btn(v-else @click='back' color='')
@@ -94,7 +94,6 @@ const STEPS = WIZARD_STEPS
 // State
 const step = ref<WizardStep>('type')
 const draft = reactive(get_default_draft())
-const busy = ref(false)  // A step subview (e.g. translation picker) is covering navigation
 const creating = ref(false)
 
 
@@ -178,7 +177,6 @@ watch(mode, m => {
         Object.assign(draft, cloneDeep(design_wizard.draft) ?? get_default_draft())
         step.value = state.wizard_edit!.step
     }
-    busy.value = false
 })
 
 

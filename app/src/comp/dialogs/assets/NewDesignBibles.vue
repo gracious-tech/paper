@@ -1,29 +1,33 @@
 
 <template lang='pug'>
 
-template(v-if='picking === null')
-    p(class='mb-3 text-body-medium text-medium-emphasis')
-        | {{ $t("wizard.bibles.question") }}
-    v-list(bg-color='transparent')
-        v-list-item(@click='picking = 0')
-            v-list-item-title {{ primary_title }}
-        v-list-item(@click='picking = 1')
-            v-list-item-title(:class='{"text-disabled": !draft.bibles[1]}') {{ secondary_title }}
-            template(#append)
-                v-btn(v-if='draft.bibles[1] && draft.type !== "bilingual"' icon variant='text'
-                        @click.stop='rm_secondary')
-                    app-icon(name='close')
-    p.hint(v-if='draft.type === "bilingual" && !draft.bibles[1]' class='text-body-medium mt-2')
-        | {{$t("wizard.bibles.need_second")}}
-    p.hint(v-if='duplicate' class='text-body-medium mt-2 text-error')
-        | {{$t("wizard.bibles.must_differ")}}
-    div(v-if='warnings.length' class='mt-2 text-error text-body-medium')
-        div(v-for='warning of warnings') {{ warning }}
+p(class='mb-3 text-body-medium text-medium-emphasis')
+    | {{ $t("wizard.bibles.question") }}
+v-list(bg-color='transparent')
+    v-list-item(@click='picking = 0')
+        v-list-item-title {{ primary_title }}
+    v-list-item(@click='picking = 1')
+        v-list-item-title(:class='{"text-disabled": !draft.bibles[1]}') {{ secondary_title }}
+        template(#append)
+            v-btn(v-if='draft.bibles[1] && draft.type !== "bilingual"' icon variant='text'
+                    @click.stop='rm_secondary')
+                app-icon(name='close')
+p.hint(v-if='draft.type === "bilingual" && !draft.bibles[1]' class='text-body-medium mt-2')
+    | {{$t("wizard.bibles.need_second")}}
+p.hint(v-if='duplicate' class='text-body-medium mt-2 text-error')
+    | {{$t("wizard.bibles.must_differ")}}
+div(v-if='warnings.length' class='mt-2 text-error text-body-medium')
+    div(v-for='warning of warnings') {{ warning }}
 
-BiblePicker(v-else :model-value='draft.bibles[picking] ?? draft.bibles[0] ?? null'
-        @update:model-value='select')
-    template(#actions)
-        v-btn(@click='picking = null' variant='text' size='large') {{$t("common.cancel")}}
+//- The translation picker sits in its own dialog so switching wizard steps while it's open
+//- can't leave the wizard (whose stepper header is always clickable) in a half-open state
+v-dialog(:model-value='picking !== null' @update:model-value='picking = null'
+        max-width='800' scrollable)
+    v-card(v-if='picking !== null')
+        BiblePicker(:model-value='draft.bibles[picking] ?? draft.bibles[0] ?? null'
+                @update:model-value='select')
+            template(#actions)
+                v-btn(@click='picking = null' variant='text' size='large') {{$t("common.cancel")}}
 
 </template>
 
@@ -40,11 +44,10 @@ import BiblePicker from '@/comp/reuseable/BiblePicker.vue'
 import type {NewDesignDraft} from '@/services/new_design'
 
 
-// Wizard step 3: choose one or two translations (two required for bilingual designs). While
-// the picker subview is open the wizard hides its own navigation (via the busy emit)
+// Wizard step 3: choose one or two translations (two required for bilingual designs). The
+// picker itself opens in its own dialog (see template)
 const props = defineProps<{draft:NewDesignDraft}>()
 const draft = props.draft
-const emit = defineEmits<{(e:'busy', value:boolean):void}>()
 
 const {t} = useI18n()
 
@@ -66,11 +69,8 @@ watch(() => draft.bibles, bibles => {
 }, {deep: true, immediate: true})
 
 
-// Which slot (0/1) is currently being picked, null when showing the summary list
+// Which slot (0/1) is currently being picked, null when the picker dialog is closed
 const picking = ref<number|null>(null)
-watch(picking, value => {
-    emit('busy', value !== null)
-})
 
 
 // Display names for the two slots
