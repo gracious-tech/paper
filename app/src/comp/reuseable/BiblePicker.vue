@@ -38,6 +38,11 @@ v-card-text(class='overflow-y-auto')
                     | {{ trans.name_abbrev }} &mdash; {{ trans.name }}
                 v-list-item-subtitle(v-if='trans.name_english !== trans.name') {{ trans.name_english }}
 
+    div(class='cant_find text-center')
+        v-btn(variant='text' size='small' color='primary')
+            | {{ $t("dialog.missing_translation.title") }}
+            DialogMissingTranslation
+
 </template>
 
 
@@ -48,6 +53,7 @@ import {computed, ref, watch} from 'vue'
 
 import {content} from '@/services/content'
 import DialogPeddlers from '@/comp/dialogs/DialogPeddlers.vue'
+import DialogMissingTranslation from '@/comp/dialogs/DialogMissingTranslation.vue'
 
 import type {VList} from 'vuetify/components'
 import type {GetResourcesItem} from '@gracious.tech/fetch-client'
@@ -140,6 +146,9 @@ const change_trans = (id:string) => {
 
 .v-card-text
     padding-bottom: 30vh
+
+.cant_find
+    margin-top: 24px
 
 .search :deep() .v-field__input
     padding: 0 !important
