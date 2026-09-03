@@ -260,7 +260,9 @@ export function gen_preamble(request:TypstRequest, overrides:PreambleOverrides =
     binding: ${binding},
     header: ${header},
     footer: ${footer},
-    footer-descent: 20%,
+    // Gap between the running header/footer and the body (eats into the margin)
+    header-ascent: 3em,
+    footer-descent: 3em,
 )
 #set text(font: (${fonts}), size: ${typography.font_size}, hyphenate: ${
         typography.hyphenate}${
