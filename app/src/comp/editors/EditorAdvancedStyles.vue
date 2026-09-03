@@ -82,7 +82,7 @@ v-card-text(class='overflow-y-auto')
 
         //- Sized relative to the main text (1 = match), not an absolute point size
         v-slider(v-model='blue.font_size2' :label='$t("editor.advanced.text2_size")' :min='0.5'
-                :max='1.5' :step='0.05' thumb-label class='my-4')
+                :max='1.5' :step='0.01' thumb-label class='my-4')
             template(#thumb-label='{modelValue}')
                 | {{ Math.round(modelValue * 100) }}%
         p(class='text-body-medium text-medium-emphasis') {{$t("editor.advanced.text2_size_note")}}
