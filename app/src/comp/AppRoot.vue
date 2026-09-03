@@ -134,11 +134,15 @@ const showing_editor = computed(() => {
 
                 span
                     font-family: "Crimson Pro", serif
+                    transition: color 0.15s ease
 
                 .brand
                     margin-right: 12px
                     width: 28px
                     height: 28px
+
+                &:hover span
+                    color: rgb(var(--v-theme-secondary-lighten-2))
 
             .beta
                 margin-left: 10px
@@ -151,6 +155,7 @@ const showing_editor = computed(() => {
                 text-transform: uppercase
                 letter-spacing: 0.5px
                 align-self: flex-start
+                user-select: none
 
 
 .display
