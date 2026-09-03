@@ -78,11 +78,22 @@ describe('generate_pdf', () => {
 describe('generate_pdf_spread_preview', () => {
 
     it('drops trailing blank pages before arranging spreads', async () => {
-        // A lone title (1 page, no titlepage_always forcing) previews as a single spread —
-        // with no front cover there's no leading slot, so the title pairs onto the left
+        // A lone title (1 page, no titlepage_always forcing) previews as a single standalone
+        // page — with no front cover, page 1 stands alone at half width
         const request = make_request({arrangement: 'booklet', content: [make_title()]})
         const bytes = await generate_pdf_spread_preview(request, fake_compile)
         expect(await page_count(bytes)).toBe(1)
+    })
+
+    it('gives page 1 its own half-width page when there is no front cover', async () => {
+        // No cover: page 1 is emitted standalone at single width, spreads start at page 2
+        const doc = await PDFDocument.load(await generate_pdf_spread_preview(
+            make_request({arrangement: 'booklet', content: [make_passage(), make_title()]}),
+            fake_compile))
+        // Standalone page 1 (100 wide) then one full spread for page 2 + gray pad (200 wide)
+        expect(doc.getPageCount()).toBe(2)
+        expect(doc.getPage(0).getWidth()).toBe(100)
+        expect(doc.getPage(1).getWidth()).toBe(200)
     })
 
     it('prepends the inside-of-cover slot only when the preview has a front cover', async () => {
@@ -94,15 +105,11 @@ describe('generate_pdf_spread_preview', () => {
         })
         expect(await page_count(await generate_pdf_spread_preview(with_cover, fake_compile)))
             .toBe(1)
-        // 2-page content: with the leading slot that's [slot|p1] + [p2|blank] = 2 spreads,
-        // versus [p1|p2] = 1 spread without it
+        // 2-page content with a cover: [slot|p1] + [p2|blank] = 2 full-width spreads
         const two_pages = {arrangement: 'booklet' as const, content: [make_passage(), make_title()]}
         expect(await page_count(await generate_pdf_spread_preview(
             make_request({...two_pages, preview_cover_label: 'Inside of cover'}), fake_compile)))
             .toBe(2)
-        expect(await page_count(await generate_pdf_spread_preview(
-            make_request(two_pages), fake_compile)))
-            .toBe(1)
     })
 
 })

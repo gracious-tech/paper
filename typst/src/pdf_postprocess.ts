@@ -78,8 +78,10 @@ export async function generate_pdf(
 
 
 // Preview pipeline: lay out the printed pages as facing-page book spreads, as if the book
-// were opened — a blank left page beside page 1 on the right, then 2|3, 4|5, etc. Includes
-// every blank/note page exactly as printed. For on-screen preview only, never for printing.
+// were opened. With a front cover, page 1 sits on the right of the first spread beside a gray
+// "inside of cover" slot; without one, page 1 stands alone on its own half-width page (a book
+// opens on a recto). Then 2|3, 4|5, etc. Includes every blank/note page exactly as printed.
+// For on-screen preview only, never for printing.
 export async function generate_pdf_spread_preview(
     request:TypstRequest, compile_fn:CompileFn, on_progress?:ProgressFn,
 ):Promise<Uint8Array> {
@@ -123,10 +125,10 @@ function draw_slot_label(
 // as if the book were open. Each spread is one landscape page (2x width) with the two pages
 // drawn left and right (same 2-up technique as apply_booklet).
 //
-// A leading gray slot (the inside face of the front cover) is prepended only when the preview
-// actually has a front cover — request.preview_cover_label is set for exactly that case — so
-// page 1 then lands on the right; without a cover the pairing just starts at page 1 on the
-// left, with no synthetic page.
+// With a front cover (request.preview_cover_label is set for exactly that case), a leading gray
+// slot — the inside face of the cover — is prepended so page 1 lands on the right of the first
+// spread. Without a cover, page 1 is emitted on its own single-width page (a book opens on a
+// recto, so it has no facing page) and the full-width spreads start at page 2.
 async function arrange_spreads(
     reading_doc:PDFDocument, request:TypstRequest,
 ):Promise<Uint8Array> {
@@ -141,19 +143,28 @@ async function arrange_spreads(
 
     // Only embedded when there's actually a label to draw (the CLI/server compile path never
     // sets preview_cover_label, since it has no i18n to translate it with)
-    const label_font = request.preview_cover_label
+    const has_cover = !!request.preview_cover_label
+    const label_font = has_cover
         ? await spread_doc.embedFont(StandardFonts.Helvetica)
         : null
 
-    // Slot order for the content pages: an optional leading gray slot (inside of front cover)
-    // so page 1 lands on the right, then every content page in reading order. Pad to even so
-    // the final spread has both sides.
-    const slots:(number|null)[] = request.preview_cover_label ? [null] : []
-    for (let p = 0; p < total; p++) {
+    // Slot order for the spreads. With a cover: a leading gray slot (inside of front cover) so
+    // page 1 lands on the right, then every page in reading order. Without one: skip page 1
+    // (emitted standalone below) and start the spreads at page 2. Pad to even so the final
+    // spread has both sides.
+    const slots:(number|null)[] = has_cover ? [null] : []
+    for (let p = has_cover ? 0 : 1; p < total; p++) {
         slots.push(p)
     }
     if (slots.length % 2 === 1) {
         slots.push(null)
+    }
+
+    // No cover: page 1 stands alone on a single-width page ahead of the spreads
+    if (!has_cover) {
+        const first_page = spread_doc.addPage([page_w, page_h])
+        const [first_embed] = await spread_doc.embedPages([reading_doc.getPage(0)])
+        first_page.drawPage(first_embed!, {x: 0, y: 0, width: page_w, height: page_h})
     }
 
     // Each pair of slots becomes one spread; a null slot isn't a real page (the inside of the
