@@ -10,6 +10,7 @@ v-app.app(v-else)
                 router-link.brand_link(:to='{name: "designs"}')
                     BrandIcon.brand
                     span Paper Bible
+                span.beta beta
                 v-spacer
                 VBtn.account(@click='state.account = true' color='' icon variant='text'
                         v-tooltip:left='$t("common.account")')
@@ -138,6 +139,18 @@ const showing_editor = computed(() => {
                     margin-right: 12px
                     width: 28px
                     height: 28px
+
+            .beta
+                margin-left: 10px
+                margin-top: 14px
+                border-radius: 10px
+                color: #fffa
+                font-family: inherit
+                font-size: 10px
+                font-weight: 600
+                text-transform: uppercase
+                letter-spacing: 0.5px
+                align-self: flex-start
 
 
 .display
