@@ -3,13 +3,15 @@
 
 v-dialog(v-model='dialog' activator='parent' max-width='800')
     v-card
-        template(#title) Commercial translations
+        template(#title) {{ $t("dialog.peddlers.title") }}
         template(#text)
-            p We cannot include commercial translations as the owners do not wish for you to be able to print them, whole or in part. This unfortunately includes the most popular English translations, such as the NIV, ESV, NLT, etc. We instead highly recommend the <a href='https://bsb.freely.giving' target='_blank'>Berean Standard Bible</a> which has a translation style between the NIV and ESV, and is trustworthy and free to share.
+            p(class='text-body-large' v-html='$t("dialog.peddlers.body1")')
+            p(class='text-body-large mt-2' v-html='$t("dialog.peddlers.body2", {bsb: bsb_link})')
         template(#actions)
             v-spacer
-            v-btn(@click='dialog = false') Close
-            v-btn(href='https://sellingjesus.org/articles/bible-publishers' target='_blank' color='secondary') Learn More
+            v-btn(@click='dialog = false') {{ $t("common.close") }}
+            v-btn(href='https://sellingjesus.org/articles/bible-publishers' target='_blank'
+                color='secondary') {{ $t("dialog.peddlers.learn_more") }}
 
 </template>
 
@@ -19,7 +21,11 @@ v-dialog(v-model='dialog' activator='parent' max-width='800')
 import {ref} from 'vue'
 
 
+// Shown from the Bible picker when a user wants a commercial translation we can't include
 const dialog = ref(false)
+
+//- Inline link to the recommended translation, substituted into the {bsb} placeholder
+const bsb_link = '<a href="https://bsb.freely.giving" target="_blank" rel="noopener">Berean Standard Bible</a>'
 
 </script>
 
