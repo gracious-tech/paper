@@ -14,6 +14,11 @@ export type FontItem = string | {type:'subheader', title:string} | {title:string
 export const DEFAULT_FONT_EXAMPLE = "In the beginning God created the heavens and the earth."
 
 
+// The "Styles" group (decorative/display faces) is always sorted after the more useful
+// text-face groups, regardless of its position in the manifest
+const LAST_GROUP = 'Styles'
+
+
 // Font picker items, grouped by BundledFont.group with a subheader per group (fonts arrive
 // from content.fonts already grouped contiguously, see font_config.json), plus an "Uploaded"
 // group for any custom fonts. Shared by any component offering a font picker (OptionsStyle.vue,
@@ -23,15 +28,23 @@ export const font_items = computed(():FontItem[] => {
     const items:FontItem[] = []
     const custom_names = new Set(custom_fonts.map(f => f.family))
 
-    let last_group = ''
+    // Collect groups in manifest order, then push LAST_GROUP to the end
+    const groups:string[] = []
     for (const font of content.fonts){
-        if (custom_names.has(font.family))
-            continue
-        if (font.group !== last_group){
-            items.push({type: 'subheader', title: font.group})
-            last_group = font.group
+        if (!custom_names.has(font.family) && !groups.includes(font.group)){
+            groups.push(font.group)
         }
-        items.push(font.family)
+    }
+    groups.sort((a, b) => (a === LAST_GROUP ? 1 : 0) - (b === LAST_GROUP ? 1 : 0))
+
+    // Emit a subheader per group followed by its fonts, in the resolved group order
+    for (const group of groups){
+        items.push({type: 'subheader', title: group})
+        for (const font of content.fonts){
+            if (font.group === group && !custom_names.has(font.family)){
+                items.push(font.family)
+            }
+        }
     }
 
     if (custom_fonts.length){
