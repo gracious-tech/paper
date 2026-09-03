@@ -104,10 +104,12 @@ export function get_default_blueprint():Blueprint{
         // Images
         image_style: 'padded',
 
-        // Spacing
+        // Spacing. Top/bottom margins are deeper than the sides: the foot needs thumb room to
+        // hold the book (more even than the fore-edge), and the head has to fit the running
+        // heading, which sits at the top by default (running_position).
         margin_unit: 'mm',
-        margin_top: 15,
-        margin_bottom: 15,
+        margin_top: 20,
+        margin_bottom: 20,
         margin_inner: 15,
         margin_outer: 15,
         margin_gutter_auto: true,
