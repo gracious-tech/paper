@@ -10,7 +10,7 @@ nav.navbar
             class='tab_btn design_btn')
         | {{ design.name || $t("common.unnamed_design") }}
     v-spacer
-    v-btn(@click='create' variant='flat' size='small' color='secondary' class='create_btn')
+    v-btn(@click='create' variant='flat' color='secondary' class='create_btn')
         | {{$t("common.new")}}
 
 </template>
@@ -74,7 +74,8 @@ const create = () => {
         color: rgb(var(--v-theme-on-surface))
 
 .create_btn
-    align-self: center
+    position: relative
+    top: -8px
 
 .design_btn
     max-width: 120px
