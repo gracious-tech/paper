@@ -76,6 +76,7 @@ export async function ensure_bible_books_loaded(bible:string):Promise<void> {
 // an exact result doesn't matter, just something readable in the chosen font
 function typst_to_plain(markup:string):string {
     return markup
+        .replace(/\\([^\p{L}\p{N}])/gu, '$1')  // unescape Typst backslash-escapes (e.g. \- in Ít\-ra\-ên)
         .replace(/^=+\s.*$/gm, '')  // drop heading lines (extracted separately)
         .replace(/#[a-zA-Z_][\w.]*(\([^)]*\))?\[/g, '')  // function calls opening a body: keep body
         .replace(/[[\]]/g, '')  // any leftover brackets
