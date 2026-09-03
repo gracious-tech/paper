@@ -88,8 +88,9 @@ export function get_default_draft():NewDesignDraft{
 
 
 // The design-type presets: only the fields that differ from the blank default blueprint
-// (diffs mirror the retired OptionsPreset panel; bilingual additionally requires a second
-// translation, which the wizard's translations step enforces). picture_story has no artwork yet
+// (diffs mirror the retired OptionsPreset panel; the bilingual preset just turns footnotes
+// off — a second translation is optional and only enables the side-by-side layout).
+// picture_story has no artwork yet
 export const TYPE_PRESETS:{id:NewDesignType, image:string, diff:Partial<Blueprint>}[] = [
     {id: 'regular', image: img_type_regular, diff: {}},
     {id: 'reading', image: img_type_reading, diff: {
@@ -140,8 +141,7 @@ export function is_wizard_step_valid(draft:NewDesignDraft, step:WizardStep):bool
     if (step === 'bibles'){
         const bibles = draft.bibles.filter(id => id)
         const distinct = new Set(bibles).size === bibles.length
-        const two_if_bilingual = draft.type !== 'bilingual' || bibles.length === 2
-        return bibles.length >= 1 && distinct && two_if_bilingual
+        return bibles.length >= 1 && distinct
     }
     if (step === 'print'){
         return draft.service_id !== null && draft.size_id !== null
@@ -284,7 +284,7 @@ export async function build_new_blueprint(draft:NewDesignDraft):Promise<Blueprin
     blueprint.ink_type = draft.ink_type
     blueprint.paper_type = draft.paper_type
 
-    // Translations (the wizard's step validation guarantees 1-2, and 2 for bilingual)
+    // Translations (the wizard's step validation guarantees 1-2)
     blueprint.bibles = [...draft.bibles] as [string, ...string[]]
 
     // Body font: Source Serif 4 for the languages it commonly covers, else Noto Serif (see

@@ -6,14 +6,16 @@ p(class='mb-3 text-body-medium text-medium-emphasis')
 v-list(bg-color='transparent')
     v-list-item(@click='picking = 0')
         v-list-item-title {{ primary_title }}
+        template(#append)
+            //- With two translations either can be removed — removing the first promotes
+            //- the second into its place
+            v-btn(v-if='removable' icon variant='text' @click.stop='rm_bible(0)')
+                app-icon(name='close')
     v-list-item(@click='picking = 1')
         v-list-item-title(:class='{"text-disabled": !draft.bibles[1]}') {{ secondary_title }}
         template(#append)
-            v-btn(v-if='draft.bibles[1] && draft.type !== "bilingual"' icon variant='text'
-                    @click.stop='rm_secondary')
+            v-btn(v-if='removable' icon variant='text' @click.stop='rm_bible(1)')
                 app-icon(name='close')
-p.hint(v-if='draft.type === "bilingual" && !draft.bibles[1]' class='text-body-medium mt-2')
-    | {{$t("wizard.bibles.need_second")}}
 p.hint(v-if='duplicate' class='text-body-medium mt-2 text-error')
     | {{$t("wizard.bibles.must_differ")}}
 div(v-if='warnings.length' class='mt-2 text-error text-body-medium')
@@ -27,7 +29,8 @@ v-dialog(:model-value='picking !== null' @update:model-value='picking = null'
         BiblePicker(:model-value='draft.bibles[picking] ?? draft.bibles[0] ?? null'
                 @update:model-value='select')
             template(#actions)
-                v-btn(@click='picking = null' variant='text' size='large') {{$t("common.cancel")}}
+                v-btn(icon variant='text' @click='picking = null')
+                    app-icon(name='close')
 
 </template>
 
@@ -44,8 +47,9 @@ import BiblePicker from '@/comp/reuseable/BiblePicker.vue'
 import type {NewDesignDraft} from '@/services/new_design'
 
 
-// Wizard step 3: choose one or two translations (two required for bilingual designs). The
-// picker itself opens in its own dialog (see template)
+// Wizard step 3: choose one or two translations (the bilingual preset works with either —
+// a second translation just enables the side-by-side layout). The picker itself opens in
+// its own dialog (see template)
 const props = defineProps<{draft:NewDesignDraft}>()
 const draft = props.draft
 
@@ -93,6 +97,12 @@ const duplicate = computed(() => {
 })
 
 
+// Whether a translation can be removed — only once a second one exists
+const removable = computed(() => {
+    return !!draft.bibles[1]
+})
+
+
 // Books referenced by whichever of the previous step's two modes is active
 const referenced_books = computed(() => {
     if (draft.book_mode === 'books'){
@@ -117,8 +127,8 @@ const select = (id:string) => {
     picking.value = null
 }
 
-const rm_secondary = () => {
-    draft.bibles.splice(1, 1)
+const rm_bible = (index:number) => {
+    draft.bibles.splice(index, 1)
 }
 
 

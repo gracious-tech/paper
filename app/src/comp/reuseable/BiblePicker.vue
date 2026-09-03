@@ -6,9 +6,12 @@ v-card-title(class='d-flex align-center')
         type='search' :placeholder='$t("common.search") + "..."' density='compact' hide-details single-line
         class='flex-grow-1')
     template(v-else)
-        v-btn(icon color='primary' variant='text' @click='show_languages = true')
+        v-btn(color='primary' variant='text' @click='show_languages = true')
             app-icon(name='arrow_back')
-        | {{ displayed_language_name }}
+            | &nbsp;
+            | {{ $t("common.languages") }}
+        v-spacer
+        span.lang_name {{ displayed_language_name }}
     v-spacer
     slot(name='actions')
 
@@ -143,6 +146,13 @@ const change_trans = (id:string) => {
     // So same height when changing between states (height of icon button)
     height: 48px
     box-sizing: content-box
+
+// Centered language name between the "Languages" button and the actions slot
+.lang_name
+    overflow: hidden
+    text-overflow: ellipsis
+    white-space: nowrap
+    font-size: 16px
 
 .v-card-text
     padding-bottom: 30vh

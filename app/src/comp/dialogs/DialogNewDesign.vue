@@ -33,19 +33,20 @@ v-dialog(:model-value='mode !== null' @update:model-value='cancel' :fullscreen='
         v-divider
 
         v-card-actions
-            v-btn(v-if='mode === "edit" || step_index === 0' @click='cancel' color='')
+            v-btn(v-if='mode === "edit" || step_index === 0' @click='cancel' color=''
+                    variant='tonal' size='large')
                 | {{ $t("common.cancel") }}
-            v-btn(v-else @click='back' color='')
+            v-btn(v-else @click='back' color='' variant='tonal' size='large')
                 | {{ $t("common.prev") }}
             v-spacer
             span.text-medium-emphasis(v-if='step === "books"') {{ books_selected_label }}
             v-spacer
             v-btn(v-if='mode === "edit"' @click='finish' :disabled='!all_steps_valid'
-                    :loading='creating' color='secondary' variant='flat')
+                    :loading='creating' color='secondary' variant='flat' size='large')
                 | {{ $t("common.save") }}
             v-btn(v-else-if='step !== "type"' @click='next'
                     :disabled='step === "cover" ? !all_steps_valid : !step_valid'
-                    :loading='creating' color='secondary' variant='flat')
+                    :loading='creating' color='secondary' variant='flat' size='large')
                 | {{ step === 'cover' ? $t("common.create") : $t("common.next") }}
 
 </template>
