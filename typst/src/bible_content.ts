@@ -7,7 +7,7 @@
 import {FetchClient, PassageReference} from '@gracious.tech/fetch-client'
 
 import {LruCache, estimate_bytes, escape_typst, emphasize_sentences} from './helpers.js'
-import {resolve_trim, convert_unit} from './trim.js'
+import {resolve_trim, convert_unit, resolve_binding_gutter} from './trim.js'
 import {prose_to_typst, replace_copyright_marker} from './prose.js'
 import {gen_copyright_typst} from './copyright.js'
 import {resolve_icon} from './icon_cache.js'
@@ -249,10 +249,13 @@ export class BibleContent {
     // via the constructor), letting a single shared BibleContent report progress per-call rather
     // than only for whichever callback it was constructed with. share_url is this document's
     // production design/version URL, woven into any auto-copyright block as a link + QR code when
-    // the blueprint opts in (blue.design_link)
+    // the blueprint opts in (blue.design_link). page_count is the caller's best current estimate
+    // of the finished document length, used only when blue.margin_gutter_auto is on to size the
+    // binding gutter added to the inner margin (a thicker book needs a deeper gutter); it falls
+    // back to a mid-range guess when the caller has nothing better (e.g. the server fallback)
     async resolve(
         blue:Blueprint, custom_font_styles?:Record<string, FontStyle>, on_progress?:ProgressFn,
-        share_url?:string,
+        share_url?:string, page_count?:number,
     ):Promise<TypstRequest> {
         const progress = on_progress ?? this.on_progress
         progress?.({stage: 'start'})
@@ -336,7 +339,7 @@ export class BibleContent {
 
         return {
             title: blue.title,
-            page: this.gen_page(blue),
+            page: this.gen_page(blue, page_count),
             typography: {
                 font_text: blue.font_text,
                 font_text2,
@@ -381,8 +384,10 @@ export class BibleContent {
         }
     }
 
-    // Resolve the chosen trim size + margins to a concrete PageConfig of Typst unit strings
-    private gen_page(blue:Blueprint):PageConfig {
+    // Resolve the chosen trim size + margins to a concrete PageConfig of Typst unit strings.
+    // page_count is only consulted for the auto binding-gutter (margin_gutter_auto); a
+    // plausible mid-size book is assumed when the caller has no estimate to offer
+    private gen_page(blue:Blueprint, page_count=300):PageConfig {
         let trim = resolve_trim(blue)
 
         // Booklet: the chosen size is the sheet that gets folded in half, so each reading page
@@ -400,9 +405,14 @@ export class BibleContent {
         // invert the content area and blow up layout/compile
         const max_vertical = convert_unit(trim.height, trim.unit, blue.margin_unit) / 2
         const max_horizontal = convert_unit(trim.width, trim.unit, blue.margin_unit) / 2
+
+        // Optionally deepen the inner margin by the printing service's calculated binding gutter
+        // so text near the spine isn't lost into the fold (no-op for home/booklet/custom modes)
+        const gutter = blue.margin_gutter_auto ? resolve_binding_gutter(blue, page_count) : 0
+
         const margin_top = Math.min(blue.margin_top, max_vertical)
         const margin_bottom = Math.min(blue.margin_bottom, max_vertical)
-        const margin_inner = Math.min(blue.margin_inner, max_horizontal)
+        const margin_inner = Math.min(blue.margin_inner + gutter, max_horizontal)
         const margin_outer = Math.min(blue.margin_outer, max_horizontal)
 
         return {

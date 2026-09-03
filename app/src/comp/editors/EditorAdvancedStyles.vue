@@ -9,6 +9,35 @@ v-divider
 
 v-card-text(class='overflow-y-auto')
 
+    h2(class='mb-4') {{$t("options.layout.margins")}}
+
+    div(class='d-flex align-center')
+        v-text-field(v-model.number='blue.margin_top' type='number' variant='underlined'
+            density='compact' :label='$t("common.top")' class='mr-4')
+        v-text-field(v-model.number='blue.margin_bottom' type='number' variant='underlined'
+            density='compact' :label='$t("common.bottom")' class='mr-4')
+        v-text-field(v-model.number='blue.margin_inner' type='number' variant='underlined'
+            density='compact' :label='$t("options.layout.inner")' class='mr-4')
+        v-text-field(v-model.number='blue.margin_outer' type='number' variant='underlined'
+            density='compact' :label='$t("options.layout.outer")' class='mr-4')
+
+    div(class='d-flex align-center my-2')
+        v-text-field(v-model.number='blue.column_gap' type='number' variant='underlined'
+            density='compact' :label='$t("options.layout.column_gap")' class='mr-4'
+            style='max-width: 90px' :disabled='blue.columns === false')
+        v-radio-group(v-model='margin_unit' inline)
+            v-radio(value='mm' label="mm")
+            v-radio(value='in' label="inches")
+
+    v-checkbox(v-model='gutter_checked' :label='$t("editor.advanced.auto_gutter")'
+        :disabled='!service_provides_gutter' hide-details)
+    template(v-if='service_provides_gutter')
+        p(class='text-body-medium text-medium-emphasis mt-2') {{$t("editor.advanced.auto_gutter_note")}}
+        p(v-if='gutter_amount' class='text-body-medium text-medium-emphasis mt-1') {{ $t("editor.advanced.auto_gutter_amount", {amount: gutter_amount, unit: blue.margin_unit, pages: gutter_pages}) }}
+    p(v-else class='text-body-medium text-medium-emphasis mt-2') {{$t("editor.advanced.auto_gutter_unavailable")}}
+
+    v-divider(class='my-8')
+
     h2(class='mb-4') {{$t("editor.advanced.running_heading")}}
 
     div(v-if='!blue.running_pages && !blue.running_headings' class='text-body-medium text-medium-emphasis mb-4') {{$t("editor.advanced.running_disabled_note")}}
@@ -163,9 +192,9 @@ v-card-text(class='overflow-y-auto')
 
 import {computed} from 'vue'
 import {useI18n} from '@/services/i18n'
-import {PATTERNS as patterns} from 'paper-bible-typst'
+import {PATTERNS as patterns, resolve_binding_gutter} from 'paper-bible-typst'
 
-import {blue, state} from '@/services/state'
+import {blue, state, page_count_guess} from '@/services/state'
 
 const {t} = useI18n()
 
@@ -174,6 +203,70 @@ const {t} = useI18n()
 const done = () => {
     state.editor = null
 }
+
+
+// Wrap margin_unit so switching mm/inches converts existing margin values rather than
+// leaving the numbers as-is (which would otherwise become nonsensically small/large)
+const margin_unit = computed({
+    get: () => blue.margin_unit,
+    set: value => {
+        if (value === blue.margin_unit) {
+            return
+        }
+        const factor = value === 'in' ? 1 / 25.4 : 25.4
+        const round = (num:number) => Math.round(num * 100) / 100
+        blue.margin_top = round(blue.margin_top * factor)
+        blue.margin_bottom = round(blue.margin_bottom * factor)
+        blue.margin_inner = round(blue.margin_inner * factor)
+        blue.margin_outer = round(blue.margin_outer * factor)
+        blue.column_gap = round(blue.column_gap * factor)
+        blue.margin_unit = value
+    },
+})
+
+
+// Page estimate the gutter preview is calculated against (a thicker book needs a deeper gutter)
+const gutter_pages = computed(() => page_count_guess())
+
+
+// The raw gutter the chosen printing service would add right now (in the current margin unit).
+// May legitimately be 0 for a known reason — a lay-flat binding (coil/staple), or a book
+// still too thin to need one — in which case auto-calc is simply quiet, not broken
+const gutter_raw = computed(() => resolve_binding_gutter(blue, gutter_pages.value))
+
+
+// Whether the chosen service can work a gutter out at all. False only when the user would have
+// to size the inner margin themselves: home printing, the "custom" (unlisted service) mode,
+// and listed services that never specify a gutter (Officeworks, Vistaprint). Stays true when
+// the current gutter is 0 for a known reason (lay-flat binding / thin book) — probed by asking
+// for a thick book on a perfect binding
+const service_provides_gutter = computed(() => {
+    if (blue.booklet || blue.service_id === 'home' || blue.service_id === 'custom'
+            || blue.service_id === '') {
+        return false
+    }
+    return ['hardcover', 'paperback'].some(binding_type => {
+        return resolve_binding_gutter({...blue, binding_type}, 2000) > 0
+    })
+})
+
+
+// Checkbox state: shows unticked whenever the option is disabled, whatever the stored value is
+// (margin_gutter_auto defaults on, but is a no-op without a service that provides a gutter)
+const gutter_checked = computed({
+    get: () => service_provides_gutter.value && blue.margin_gutter_auto,
+    set: value => {
+        blue.margin_gutter_auto = value
+    },
+})
+
+
+// The gutter amount rounded for display: whole mm, or 2dp for the much smaller inch values
+const gutter_amount = computed(() => {
+    return blue.margin_unit === 'mm'
+        ? Math.round(gutter_raw.value)
+        : Math.round(gutter_raw.value * 100) / 100
+})
 
 
 // Chapter number style options

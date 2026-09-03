@@ -46,6 +46,10 @@ export interface BlueprintCompileOptions extends NodeCompileOptions {
     // Production design/version URL for this document — rendered as a link + QR code in any
     // auto-copyright block when the blueprint opts in (blueprint.design_link)
     share_url?:string
+    // Best estimate of the finished page count, used only when blueprint.margin_gutter_auto is
+    // on to size the binding gutter added to the inner margin (a thicker book needs a deeper
+    // gutter). Omitted falls back to a mid-range guess inside the resolver
+    page_count?:number
 }
 
 
@@ -91,7 +95,8 @@ export async function compile_pdf_from_blueprint(
     // on_progress passed per-call (not via the constructor) so a shared instance reports to
     // whichever compile is running
     const request = await content.resolve(
-        blueprint, custom_font_styles, options?.on_progress, options?.share_url)
+        blueprint, custom_font_styles, options?.on_progress, options?.share_url,
+        options?.page_count)
     const font_paths = await resolve_font_paths(request, options)
     return generate_pdf(request, make_compile_fn(options, font_paths), options?.on_progress)
 }

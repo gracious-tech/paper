@@ -47,7 +47,7 @@ import {PDFDocument} from 'pdf-lib'
 import {useI18n} from '@/services/i18n'
 
 import BtnGenerate from '@/comp/views/assets/BtnGenerate.vue'
-import {blue, estimated_pages} from '@/services/state'
+import {blue, estimated_pages, page_count_guess} from '@/services/state'
 import {content, bible_content} from '@/services/content'
 import {collect_passage_books, missing_book_warnings} from '@/services/blueprints'
 import {current_design_id} from '@/services/designs'
@@ -191,7 +191,8 @@ async function compile(){
 
         // The preview lays the pages out as facing-page book spreads, as if the book were opened
         const request = await bible_content.resolve(
-            {...blue, content: styled_content}, get_custom_font_styles(), on_progress, share_url)
+            {...blue, content: styled_content}, get_custom_font_styles(), on_progress, share_url,
+            page_count_guess())
 
         // Large documents are trimmed to a fast-compiling ~50 page window (positioned by the
         // Start|Middle|End toggle) — whole books are dropped and only the last kept book's tail

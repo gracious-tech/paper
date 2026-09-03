@@ -236,6 +236,7 @@ export function make_blueprint_schema(defaults:Blueprint):z.ZodType<Blueprint>{
         margin_bottom: z.number().catch(defaults.margin_bottom),
         margin_inner: z.number().catch(defaults.margin_inner),
         margin_outer: z.number().catch(defaults.margin_outer),
+        margin_gutter_auto: z.boolean().catch(defaults.margin_gutter_auto),
         column_gap: z.number().catch(defaults.column_gap),
 
         // Legal

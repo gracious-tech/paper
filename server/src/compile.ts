@@ -116,10 +116,13 @@ async function render_cover(blueprint:Blueprint, custom_fonts:CustomFont[], page
 
 async function record_compile_stat(fields:{version_id:string, design_id:string, owner:string,
         engine:'server', interior_ms:number, pages:number|null, ok:boolean,
-        user_agent:string|null}):Promise<void>{
+        user_agent:string|null, estimated_pages:number|null, gutter_auto:boolean}):Promise<void>{
     // Log a server-side interior compile to the write-only compile_stats collection for offline
     // performance analysis (never shown to the user). Best-effort — a lost stat row must never
-    // affect the compile result. The browser records its own rows for the in-browser path
+    // affect the compile result. The browser records its own rows for the in-browser path.
+    // estimated_pages is the client's page-count guess that fed the auto binding-gutter (see
+    // margin_gutter_auto); paired with the actual `pages` it shows offline how far the estimate
+    // strays, and gutter_auto flags the rows where that gap would actually change the layout
     try {
         await admin_db.collection('compile_stats').add({
             ...fields,
@@ -135,7 +138,7 @@ async function record_compile_stat(fields:{version_id:string, design_id:string, 
 
 
 export async function handle_compile(uid:string, version_id:string, client_ip:string|null,
-        user_agent:string|null)
+        user_agent:string|null, page_count?:number)
         :Promise<{status:number, body:Record<string, unknown>}>{
     // Compile a pending version's PDF server-side (fallback for devices whose in-browser
     // compile failed, and regeneration of expired PDFs)
@@ -246,13 +249,15 @@ export async function handle_compile(uid:string, version_id:string, client_ip:st
             content: shared_content,
             custom_fonts,
             share_url,
+            page_count,
         })
         const interior_ms = performance.now() - interior_start
         const pages = (await PDFDocument.load(bytes)).getPageCount()
 
         // Record the successful server-side compile for offline performance analysis
         void record_compile_stat({version_id, design_id, owner: uid, engine: 'server',
-            interior_ms, pages, ok: true, user_agent})
+            interior_ms, pages, ok: true, user_agent, estimated_pages: page_count ?? null,
+            gutter_auto: !!blueprint.margin_gutter_auto})
 
         // Publish the PDF and mark the version available (contentDisposition: 'inline' so the
         // iframe preview displays it rather than triggering a download — the Storage emulator
@@ -318,7 +323,8 @@ export async function handle_compile(uid:string, version_id:string, client_ip:st
         if (interior_start !== null){
             void record_compile_stat({version_id, design_id, owner: uid, engine: 'server',
                 interior_ms: performance.now() - interior_start, pages: null, ok: false,
-                user_agent})
+                user_agent, estimated_pages: page_count ?? null,
+                gutter_auto: !!blueprint.margin_gutter_auto})
         }
 
         // Save a report (a document failing to render is critical) and put its id on the doc

@@ -19,6 +19,7 @@ import {custom_fonts, get_custom_font_styles, plan_version_fonts, upload_version
 import {plan_version_cover, render_cover_pdf} from '@/services/cover'
 import {plan_version_images} from '@/services/content_images'
 import {generate_token} from '@/services/utils'
+import {page_count_guess} from '@/services/state'
 import {report_error, error_to_string} from '@/services/errors'
 
 import type {CustomFont} from 'typst-fonts'
@@ -200,13 +201,18 @@ export async function create_pending_version(design_id:string, blueprint:Bluepri
 
 
 async function record_compile_stat(fields:{version_id:string, design_id:string, engine:'browser',
-        interior_ms:number, pages:number|null, ok:boolean}):Promise<void>{
+        interior_ms:number, pages:number|null, ok:boolean, estimated_pages:number|null,
+        gutter_auto:boolean}):Promise<void>{
     // Log how long an interior compile took, plus which engine and browser ran it, to the
     // write-only compile_stats collection for offline performance analysis (never shown to the
     // user). Best-effort — telemetry must never interfere with a compile, so failures are
     // swallowed. The server records its own rows for the fallback path (see handle_compile).
     // `user` is always set here: a compile can only run for a signed-in user (anon included),
-    // since freezing the version needs an owner
+    // since freezing the version needs an owner.
+    // estimated_pages is the pre-compile page-count guess that fed the auto binding-gutter;
+    // paired with the actual `pages` it lets us judge offline whether the estimate is ever far
+    // enough off to warrant a corrective recompile (see margin_gutter_auto). gutter_auto marks
+    // the rows where that gap actually mattered
     try {
         await addDoc(collection(firestore, 'compile_stats'), {
             ...fields,
@@ -248,6 +254,10 @@ export async function compile_and_upload(id:string, design_id:string, blueprint:
     // Stays null until the compile actually starts so the failure path only logs a real attempt
     let interior_start:number|null = null
 
+    // Page-count guess passed to the resolver for the auto binding-gutter — captured here so the
+    // same value reaches both the success and failure compile_stats rows (see record_compile_stat)
+    const page_estimate = page_count_guess()
+
     try {
         try {
             // Resolve the frozen blueprint to a full request (fetches uncached Bible content)
@@ -260,7 +270,7 @@ export async function compile_and_upload(id:string, design_id:string, blueprint:
                 : get_custom_font_styles()
             interior_start = performance.now()
             const request = await bible_content.resolve(
-                blueprint, font_styles, undefined, share_url)
+                blueprint, font_styles, undefined, share_url, page_estimate)
 
             // Compile in the worker (temporarily adding snapshotted fonts when regenerating),
             // then count pages for the history badge
@@ -282,7 +292,8 @@ export async function compile_and_upload(id:string, design_id:string, blueprint:
 
             // Record the successful in-browser compile for offline performance analysis
             void record_compile_stat({
-                version_id: id, design_id, engine: 'browser', interior_ms, pages, ok: true})
+                version_id: id, design_id, engine: 'browser', interior_ms, pages, ok: true,
+                estimated_pages: page_estimate, gutter_auto: blueprint.margin_gutter_auto})
 
             // Publish the PDF, then mark the version available (contentDisposition: 'inline' so
             // the iframe preview displays it rather than triggering a download — the Storage
@@ -331,10 +342,11 @@ export async function compile_and_upload(id:string, design_id:string, blueprint:
             // giving up; the server records its own row for the fallback that follows
             if (interior_start !== null){
                 void record_compile_stat({version_id: id, design_id, engine: 'browser',
-                    interior_ms: performance.now() - interior_start, pages: null, ok: false})
+                    interior_ms: performance.now() - interior_start, pages: null, ok: false,
+                    estimated_pages: page_estimate, gutter_auto: blueprint.margin_gutter_auto})
             }
             try {
-                await api('/api/compile', {version_id: id})
+                await api('/api/compile', {version_id: id, page_count: page_estimate})
             } catch (server_error){
                 // A concurrent compile (another tab, or a retry racing the original) already
                 // moved the version out of 'pending' — not a failure, the winner's status

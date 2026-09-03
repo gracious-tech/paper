@@ -146,6 +146,7 @@ export function build_blueprint(tier:Tier, overrides:Partial<Blueprint> = {}):Bl
         margin_bottom: 10,
         margin_inner: 10,
         margin_outer: 10,
+        margin_gutter_auto: false,
         column_gap: 5,
 
         // Legal

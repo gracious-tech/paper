@@ -30,26 +30,6 @@ v-radio-group(v-model='passage_title' inline
     v-radio(value='heading' :label='$t("options.layout.show_as_heading")')
     v-radio(value='titlepage' :label='$t("options.layout.show_as_title_page")')
 
-div(class='d-flex align-center ml-2')
-    span(class='mr-4 text-medium-emphasis') {{ $t("options.layout.margins") }}
-
-div(class='d-flex align-center ml-2 my-4')
-    v-text-field(v-model.number='blue.margin_top' type='number' variant='underlined' density='compact'
-        :label='$t("common.top")' class='mr-4')
-    v-text-field(v-model.number='blue.margin_bottom' type='number' variant='underlined' density='compact'
-        :label='$t("common.bottom")' class='mr-4')
-    v-text-field(v-model.number='blue.margin_inner' type='number' variant='underlined' density='compact'
-        :label='$t("options.layout.inner")' class='mr-4')
-    v-text-field(v-model.number='blue.margin_outer' type='number' variant='underlined' density='compact'
-        :label='$t("options.layout.outer")' class='mr-4')
-div(class='ml-2 my-6 d-flex')
-    v-text-field(v-model.number='blue.column_gap' type='number' variant='underlined' density='compact'
-        :label='$t("options.layout.column_gap")' class='mr-4' style='max-width: 90px'
-        :disabled='blue.columns === false')
-    v-radio-group(v-model='margin_unit' inline)
-        v-radio(value='mm' label="mm")
-        v-radio(value='in' label="inches")
-
 </template>
 
 
@@ -82,26 +62,6 @@ const passage_title = computed({
     get: () => String(blue.passage_title),
     set: value => {
         blue.passage_title = value === 'null' ? null : (value as 'titlepage'|'heading')
-    },
-})
-
-
-// Wrap margin_unit so switching mm/inches converts existing margin values rather than
-// leaving the numbers as-is (which would otherwise become nonsensically small/large)
-const margin_unit = computed({
-    get: () => blue.margin_unit,
-    set: value => {
-        if (value === blue.margin_unit) {
-            return
-        }
-        const factor = value === 'in' ? 1 / 25.4 : 25.4
-        const round = (num:number) => Math.round(num * 100) / 100
-        blue.margin_top = round(blue.margin_top * factor)
-        blue.margin_bottom = round(blue.margin_bottom * factor)
-        blue.margin_inner = round(blue.margin_inner * factor)
-        blue.margin_outer = round(blue.margin_outer * factor)
-        blue.column_gap = round(blue.column_gap * factor)
-        blue.margin_unit = value
     },
 })
 

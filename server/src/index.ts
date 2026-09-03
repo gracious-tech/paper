@@ -33,12 +33,18 @@ if (config.roles.includes('compile')){
         if (!uid){
             return context.json({error: 'unauthenticated'}, 401)
         }
-        const body = await context.req.json().catch(() => null) as {version_id?:unknown}|null
+        const body = await context.req.json().catch(() => null) as
+            {version_id?:unknown, page_count?:unknown}|null
         if (typeof body?.version_id !== 'string'){
             return context.json({error: 'bad_request'}, 400)
         }
+        // page_count is an advisory estimate for the auto binding-gutter only (see
+        // margin_gutter_auto) — ignored unless it's a sane positive number
+        const page_count = typeof body.page_count === 'number' && body.page_count > 0
+            ? body.page_count
+            : undefined
         const result = await handle_compile(uid, body.version_id, get_client_ip(context),
-            context.req.header('User-Agent') ?? null)
+            context.req.header('User-Agent') ?? null, page_count)
         return context.json(result.body, result.status as 200)
     })
 }

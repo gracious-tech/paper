@@ -394,6 +394,9 @@ export interface Blueprint {
     margin_bottom:number
     margin_inner:number
     margin_outer:number
+    // Add the printing service's calculated binding gutter to the inner margin at compile time
+    // (thicker books need a deeper gutter, so it can't just be baked into margin_inner)
+    margin_gutter_auto:boolean
     column_gap:number
 
     // Legal

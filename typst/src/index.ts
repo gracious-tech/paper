@@ -43,7 +43,7 @@ export {cover_form_for_render, cover_render_key, STOCK_BG_PHOTOS, KNOWN_BUILTIN_
 
 // Trim-size resolution (service + named size, or custom dimensions) and a mm/in converter —
 // used for the interior margin clamp and, in the app, the cover's create-time back-margin seed
-export {resolve_trim, convert_unit, norm_unit} from './trim.js'
+export {resolve_trim, convert_unit, norm_unit, resolve_binding_gutter} from './trim.js'
 
 // Bundled title-page decorative pattern SVGs (name → corner SVG), used by the resolver and the
 // app's title-page editor

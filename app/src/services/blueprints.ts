@@ -110,6 +110,7 @@ export function get_default_blueprint():Blueprint{
         margin_bottom: 15,
         margin_inner: 15,
         margin_outer: 15,
+        margin_gutter_auto: true,
         column_gap: 8,
 
         // Legal
