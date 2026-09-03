@@ -5,7 +5,7 @@
 import {PassageReference} from '@gracious.tech/fetch-client'
 
 import {content} from '@/services/content'
-import {get_default_blueprint, get_passages} from '@/services/blueprints'
+import {get_default_blueprint, get_passages, font_default_for_bibles} from '@/services/blueprints'
 import {seed_cover_preset} from '@/services/cover'
 import {generate_token} from '@/services/utils'
 import {fetch_stories, story_to_slides, story_reference_label, story_canonical_cmp}
@@ -286,6 +286,10 @@ export async function build_new_blueprint(draft:NewDesignDraft):Promise<Blueprin
 
     // Translations (the wizard's step validation guarantees 1-2, and 2 for bilingual)
     blueprint.bibles = [...draft.bibles] as [string, ...string[]]
+
+    // Body font: Source Serif 4 for the languages it commonly covers, else Noto Serif (see
+    // font_default_for_bibles)
+    blueprint.font_text = font_default_for_bibles(draft.bibles)
 
     // Title: the wizard's optional title field — blank means the design/cover falls back to the
     // first passage's reference (see design_name() and default_cover_preset())

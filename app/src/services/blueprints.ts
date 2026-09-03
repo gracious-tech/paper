@@ -58,7 +58,7 @@ export function get_default_blueprint():Blueprint{
         show_verses: true,
         running_pages: true,
         running_headings: true,
-        running_position: 'footer',
+        running_position: 'header',
         running_align: 'center',
         show_footnotes: true,
         show_wj: false,
@@ -71,8 +71,19 @@ export function get_default_blueprint():Blueprint{
         half_blank: null,
         passage_title: 'heading',
 
-        // Style
-        font_text: "Crimson Pro",
+        // Style. Body-font default: Source Serif 4 — a transitional serif (Adobe, after
+        // P.S. Fournier's 18th-century types). Picked as a deliberate middle ground: crisper
+        // and more even than an old-style face like Crimson Pro, but softer and rounder than
+        // something rigid like Times. Chosen mainly for space efficiency — its x-height
+        // (0.475 em) is mid-range, so it reads comfortably at font_size 10 / line_height 1.75
+        // with no per-font compensation, and at matched apparent size it sets ~10-13% fewer
+        // pages than Crimson Pro (measured: Gospels+Acts and the whole NT). Crimson Pro
+        // (x-height 0.420) and EB Garamond (0.400) are shorter: to read at the same size they
+        // need ~+13% point size and a tighter line_height, which this one global default
+        // can't express — and Crimson Pro has almost no Greek/Cyrillic anyway. The wizard
+        // swaps in Noto Serif when a translation's language isn't one Source Serif 4 covers
+        // — see font_default_for_bibles()
+        font_text: "Source Serif 4",
         font_text2: null,
         font_headings: null,
 
@@ -120,6 +131,44 @@ export function get_default_blueprint():Blueprint{
         app_link: true,
         design_link: true,
     }
+}
+
+
+// ISO 639-3 codes of the common languages Source Serif 4 can set — everything Latin-script in
+// mainstream use plus its Greek and Cyrillic coverage. Not exhaustive (Source Serif 4 has far
+// more Latin-script coverage than this); a translation whose language isn't listed just gets
+// Noto Serif instead, which is a fine fallback, and the compile pipeline still routes any
+// non-Latin script to the right per-script Noto family regardless.
+const SOURCE_SERIF_LANGS = new Set([
+    // European (Latin)
+    'eng', 'spa', 'por', 'fra', 'deu', 'ita', 'nld', 'dan', 'swe', 'nob', 'nno', 'nor', 'isl',
+    'fin', 'est', 'lav', 'lit', 'pol', 'ces', 'slk', 'slv', 'hrv', 'bos', 'ron', 'hun', 'sqi',
+    'cat', 'glg', 'eus', 'cym', 'gle', 'gla', 'bre', 'ltz', 'mlt', 'fao',
+    // Greek and Cyrillic
+    'ell', 'gre', 'grc', 'rus', 'ukr', 'bel', 'bul', 'mkd', 'srp', 'kaz', 'kir', 'tgk', 'mon',
+    'tat', 'bak', 'chv',
+    // Africa (Latin)
+    'swa', 'swh', 'hau', 'yor', 'ibo', 'zul', 'xho', 'afr', 'sna', 'nya', 'sot', 'nso', 'tsn',
+    'tso', 'ssw', 'nbl', 'ven', 'kin', 'run', 'lug', 'luo', 'kik', 'lin', 'kon', 'lua', 'umb',
+    'kmb', 'mlg', 'som', 'wol', 'bam', 'ewe', 'aka', 'twi', 'fon', 'ful', 'orm',
+    // Asia and Pacific (Latin)
+    'ind', 'msa', 'zsm', 'jav', 'sun', 'tgl', 'fil', 'ceb', 'hil', 'ilo', 'war', 'vie', 'tur',
+    'aze', 'tuk', 'uzb', 'tpi', 'hmo', 'bis', 'fij', 'smo', 'ton', 'mri', 'haw',
+    // Americas (Latin)
+    'hat', 'que', 'quz', 'quy', 'aym', 'ayr', 'grn', 'nhe',
+])
+
+
+// The body-font default for a set of translations: "Source Serif 4" when every translation's
+// language is one it commonly covers (see SOURCE_SERIF_LANGS), else "Noto Serif".
+export function font_default_for_bibles(bibles:readonly string[]):string{
+    for (const bible of bibles){
+        const lang = content.translations?.[bible]?.language ?? bible.slice(0, 3)
+        if (!SOURCE_SERIF_LANGS.has(lang)){
+            return 'Noto Serif'
+        }
+    }
+    return 'Source Serif 4'
 }
 
 
