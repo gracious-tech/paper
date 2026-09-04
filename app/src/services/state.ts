@@ -71,6 +71,11 @@ export const state = reactive({
     // us" link button
     alert: null as null|{message:string, action:string|null, contact_url:string|null,
         resolve:(did_action:boolean) => void},
+    // Pending "review before printing" warning, rendered by DialogPrintServiceWarning — null
+    // hides it (see print_service_warning_dialog()). Unlike the other dialogs above this one
+    // has no cancel path: it's persistent and only resolves once the required checkbox is
+    // ticked, since BtnGenerate.vue awaits it before creating the version
+    print_service_warning: null as null|{resolve:() => void},
 })
 
 
@@ -103,6 +108,15 @@ export function alert_dialog(message:string, {action, contact_url}:
         {action?:string, contact_url?:string} = {}):Promise<boolean>{
     return new Promise(resolve => {
         state.alert = {message, action: action ?? null, contact_url: contact_url ?? null, resolve}
+    })
+}
+
+
+// Show the one-time "review before printing" warning via a Vuetify dialog — resolves once the
+// user ticks the required checkbox and dismisses (no cancel path)
+export function print_service_warning_dialog():Promise<void>{
+    return new Promise(resolve => {
+        state.print_service_warning = {resolve}
     })
 }
 

@@ -52,6 +52,7 @@ DialogCoverEditor
 DialogNewDesign
 DialogPageSuggestions
 DialogHowToPrint
+DialogPrintServiceWarning
 
 v-snackbar(:model-value='!!state.toast' @update:model-value='state.toast = null' timeout='2500')
     | {{ state.toast }}
@@ -76,6 +77,7 @@ import DialogCoverEditor from '@/comp/dialogs/DialogCoverEditor.vue'
 import DialogNewDesign from '@/comp/dialogs/DialogNewDesign.vue'
 import DialogPageSuggestions from '@/comp/dialogs/DialogPageSuggestions.vue'
 import DialogHowToPrint from '@/comp/dialogs/DialogHowToPrint.vue'
+import DialogPrintServiceWarning from '@/comp/dialogs/DialogPrintServiceWarning.vue'
 import DisplaySplash from '@/comp/display/DisplaySplash.vue'
 import DisplayPreview from '@/comp/display/DisplayPreview.vue'
 import DisplayDesignVersion from '@/comp/display/DisplayDesignVersion.vue'

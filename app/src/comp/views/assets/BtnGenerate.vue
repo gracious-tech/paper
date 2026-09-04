@@ -16,10 +16,10 @@ v-btn-group(rounded='pill' divided color='secondary-darken-1' variant='elevated'
 import {ref, computed} from 'vue'
 import {useRouter} from 'vue-router'
 
-import {blue} from '@/services/state'
+import {blue, print_service_warning_dialog} from '@/services/state'
 import {current_design_id, flush_changes} from '@/services/designs'
 import {create_pending_version, compile_and_upload, selected_version_id, latest_version,
-    } from '@/services/versions'
+    has_seen_print_service_warning, record_seen_print_service_warning} from '@/services/versions'
 import {typst_generator} from '@/services/typst'
 import {gen_content_name, collect_passage_books, has_missing_books} from '@/services/blueprints'
 import {resolve_content_for_style} from '@/services/content_images'
@@ -76,6 +76,15 @@ const generate = async () => {
         const design_id = current_design_id.value
         const styled_content = await resolve_content_for_style(blue.content, blue.image_style)
         const blueprint = {...blue, content: styled_content}
+
+        // Real printing services (i.e. not printing at home) need a physical print run the
+        // user can't easily undo, so warn once, the first time this account creates such a
+        // version, and require them to acknowledge it before continuing
+        if (blueprint.service_id !== 'home' && !await has_seen_print_service_warning()){
+            await print_service_warning_dialog()
+            await record_seen_print_service_warning()
+        }
+
         const version_id = await create_pending_version(design_id, blueprint)
 
         // Switch to the version view

@@ -681,6 +681,23 @@ export async function has_viewed_design(design_id:string):Promise<boolean>{
 }
 
 
+export async function has_seen_print_service_warning():Promise<boolean>{
+    // Whether the user has already been shown (and dismissed) the "review before printing"
+    // warning — a direct targeted read against the user's root doc, checked by BtnGenerate.vue
+    // right before creating a version for a real (non-home) printing service
+    const uid = user.value!.uid
+    const snap = await getDoc(doc(firestore, 'users', uid))
+    return !!snap.data()?.['seen_print_service_warning']
+}
+
+
+export async function record_seen_print_service_warning():Promise<void>{
+    // Record that the user has dismissed the print-service warning, so it never shows again
+    const uid = user.value!.uid
+    await setDoc(doc(firestore, 'users', uid), {seen_print_service_warning: true}, {merge: true})
+}
+
+
 export async function share_version(design_id:string, version_id:string)
         :Promise<'shared'|'copied'|'manual'>{
     // Share a version's public link, preferring the OS share sheet then the clipboard, only
