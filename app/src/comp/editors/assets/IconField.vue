@@ -36,7 +36,7 @@ div.icon-field
         v-btn(v-if='icon && !picker_open' icon variant='text' size='small'
             :aria-label='$t("editor.icon.remove")' @click='icon = null')
             AppIcon(name='close')
-    IconHelpDialog(v-model:open='help_open')
+    DialogIconHelp(v-model:open='help_open')
 
 </template>
 
@@ -46,7 +46,7 @@ div.icon-field
 import {computed, nextTick, ref, watch} from 'vue'
 
 import {biblical_icons} from '@/services/icons'
-import IconHelpDialog from '@/comp/editors/assets/IconHelpDialog.vue'
+import DialogIconHelp from '@/comp/dialogs/DialogIconHelp.vue'
 
 
 // Two-way bindings: the chosen Iconify ID (or raw SVG) and its size multiplier. size is
