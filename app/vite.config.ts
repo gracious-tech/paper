@@ -11,7 +11,6 @@ import plugin_index from './vite_plugin_index'
 
 export default defineConfig(({mode}) => {
     return {
-        publicDir: 'src/public',
         clearScreen: false,
         plugins: [
             plugin_index(path.join(__dirname, 'src/index.pug')),
