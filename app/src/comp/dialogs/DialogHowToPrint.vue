@@ -28,21 +28,30 @@ v-dialog(v-model='open' max-width='850' scrollable :fullscreen='is_mobile')
                 h4(class='text-title-small mt-4') {{ $t("dialog.how_to_print.booklet_thick_h") }}
                 p(class='text-body-medium') {{ $t("dialog.how_to_print.booklet_thick_p") }}
 
-            //- Home, single pages
+            //- Home, single pages stapled along the left edge (no folding)
             template(v-else-if='mode === "home_plain"')
                 p(class='mb-4 text-body-medium') {{ $t("dialog.how_to_print.plain_intro") }}
 
-                h4(class='text-title-small') {{ $t("dialog.how_to_print.plain_scale_h") }}
-                p(class='text-body-medium') {{ $t("dialog.how_to_print.plain_scale_p") }}
+                ol(class='plain-steps mb-4')
+                    li
+                        h4(class='text-title-small') {{ $t("dialog.how_to_print.plain_scale_h") }}
+                        p(class='text-body-medium') {{ $t("dialog.how_to_print.plain_scale_p") }}
+                    li
+                        h4(class='text-title-small') {{ $t("dialog.how_to_print.plain_double_sided_h") }}
+                        p(class='text-body-medium') {{ $t("dialog.how_to_print.plain_double_sided_p") }}
+                    li
+                        h4(class='text-title-small') {{ $t("dialog.how_to_print.plain_staple_h") }}
+                        p(class='text-body-medium') {{ $t("dialog.how_to_print.plain_staple_p") }}
 
-                h4(class='text-title-small mt-4') {{ $t("dialog.how_to_print.plain_double_sided_h") }}
-                p(class='text-body-medium') {{ $t("dialog.how_to_print.plain_double_sided_p") }}
+                v-divider(class='my-4')
+                p(class='text-title-medium mb-2') {{ $t("dialog.how_to_print.plain_tips_h") }}
 
-                h4(class='text-title-small mt-4') {{ $t("dialog.how_to_print.plain_bind_h") }}
-                p(class='text-body-medium') {{ $t("dialog.how_to_print.plain_bind_p") }}
+                h4(class='text-title-small mt-4') {{ $t("dialog.how_to_print.one_sided_h") }}
+                p(class='text-body-medium') {{ $t("dialog.how_to_print.one_sided_p") }}
 
-                h4(class='text-title-small mt-4') {{ $t("dialog.how_to_print.whole_bible_h") }}
-                p(class='text-body-medium') {{ $t("dialog.how_to_print.whole_bible_p") }}
+                h4(class='text-title-small mt-4') {{ $t("dialog.how_to_print.plain_thick_h") }}
+                p(class='text-body-medium') {{ $t("dialog.how_to_print.plain_thick_p") }}
+
 
             //- Lulu: self-publishing upload flow
             template(v-else-if='mode === "lulu"')
@@ -339,5 +348,41 @@ const service_guide = computed(() => {
 
     dd
         margin: 0
+
+// Numbered steps for the home_plain (staple, no fold) walkthrough — plain text, not a stepper
+.plain-steps
+    display: flex
+    flex-direction: column
+    gap: 12px
+    margin: 0
+    padding: 0
+    list-style: none
+    counter-reset: plain-step
+
+    li
+        position: relative
+        padding: 10px 16px 10px 48px
+        border-radius: 8px
+        background-color: rgba(var(--v-theme-primary), 0.06)
+        counter-increment: plain-step
+
+        &::before
+            content: counter(plain-step)
+            position: absolute
+            top: 10px
+            left: 12px
+            width: 24px
+            height: 24px
+            border-radius: 50%
+            background-color: rgb(var(--v-theme-primary))
+            color: rgb(var(--v-theme-on-primary))
+            font-size: 0.75rem
+            font-weight: 600
+            display: flex
+            align-items: center
+            justify-content: center
+
+        h4
+            margin-bottom: 2px
 
 </style>
