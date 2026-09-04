@@ -55,10 +55,6 @@ export interface NewDesignDraft {
     bibles:string[]  // 1-2 translation ids
     service_id:string|null  // 'home' or a printing-services id ('custom' isn't offered here)
     size_id:string|null
-    booklet:boolean  // Home printing only
-    binding_type:string  // Professional printing only, as are ink/paper below
-    ink_type:string
-    paper_type:string
     cover:NewDesignCover|null
 }
 
@@ -78,10 +74,6 @@ export function get_default_draft():NewDesignDraft{
         bibles: [],
         service_id: null,
         size_id: null,
-        booklet: true,
-        binding_type: 'paperback',
-        ink_type: 'bw',
-        paper_type: 'white',
         cover: null,
     }
 }
@@ -204,6 +196,18 @@ export function wizard_cover_label(id:NewDesignCover, t:(key:string) => string):
 }
 
 
+// The wizard never offers booklet / binding / ink / paper as choices — they all follow from
+// the chosen service and design type. Applied by both wizard_preview_blueprint() and the final
+// build_new_blueprint() so the cover preview matches what gets created
+function apply_wizard_print_defaults(blueprint:Blueprint, draft:NewDesignDraft):void{
+    blueprint.booklet = draft.service_id === 'home'
+    // Coil binding suits a notes bible's flat-lay writing space, otherwise perfect bound
+    blueprint.binding_type = draft.type === 'notes' ? 'paperback_coil' : 'paperback'
+    blueprint.ink_type = 'bw'
+    blueprint.paper_type = 'white'
+}
+
+
 // A minimal-but-real Blueprint built straight from the wizard's draft, for the cover step's
 // live preview cards to feed into seed_cover_preset()/cover_form_for_render() before a real
 // Blueprint exists (that only happens at build_new_blueprint(), the wizard's last step). Only
@@ -215,9 +219,7 @@ export function wizard_preview_blueprint(draft:NewDesignDraft):Blueprint{
     const blueprint = get_default_blueprint()
     blueprint.service_id = draft.service_id ?? blueprint.service_id
     blueprint.size_id = draft.size_id ?? blueprint.size_id
-    blueprint.binding_type = draft.binding_type
-    blueprint.ink_type = draft.ink_type
-    blueprint.paper_type = draft.paper_type
+    apply_wizard_print_defaults(blueprint, draft)
     blueprint.title = (draft.title ?? '').trim()
     if (draft.bibles.length){
         blueprint.bibles = [...draft.bibles] as [string, ...string[]]
@@ -276,13 +278,11 @@ export async function build_new_blueprint(draft:NewDesignDraft):Promise<Blueprin
     const blueprint = get_default_blueprint()
     Object.assign(blueprint, TYPE_PRESETS.find(preset => preset.id === draft.type)!.diff)
 
-    // Printing (booklet only applies to home printing)
+    // Printing — service and size are the only choices the wizard offers; booklet / binding /
+    // ink / paper are derived (see apply_wizard_print_defaults)
     blueprint.service_id = draft.service_id!
     blueprint.size_id = draft.size_id!
-    blueprint.booklet = draft.service_id === 'home' && draft.booklet
-    blueprint.binding_type = draft.binding_type
-    blueprint.ink_type = draft.ink_type
-    blueprint.paper_type = draft.paper_type
+    apply_wizard_print_defaults(blueprint, draft)
 
     // Translations (the wizard's step validation guarantees 1-2)
     blueprint.bibles = [...draft.bibles] as [string, ...string[]]

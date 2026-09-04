@@ -95,8 +95,8 @@ async function render_previews(){
 // Re-render on every relevant draft change, debounced so a burst of edits (e.g. toggling many
 // books) only triggers one render pass
 const debounced_render = debounce(() => {void render_previews()}, 400)
-watch(() => [draft.title, draft.book_mode, draft.books, draft.passages, draft.bibles,
-    draft.service_id, draft.size_id, draft.binding_type, draft.ink_type, draft.paper_type],
+watch(() => [draft.type, draft.title, draft.book_mode, draft.books, draft.passages,
+    draft.bibles, draft.service_id, draft.size_id],
     debounced_render, {deep: true, immediate: true})
 
 onBeforeUnmount(() => {

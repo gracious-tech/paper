@@ -36,7 +36,7 @@ template(v-else-if='professional')
 
 <script lang='ts' setup>
 
-import {computed, ref, watch} from 'vue'
+import {computed, ref} from 'vue'
 import {useI18n} from '@/services/i18n'
 
 import NewDesignCard from '@/comp/dialogs/assets/NewDesignCard.vue'
@@ -69,8 +69,9 @@ const SIZE_OPTIONS = computed(() => [
 
 // Methods
 
-// Choose home printing (restores the booklet default, but leaves the paper size for the user
-// to pick — clearing it if it's a professional trim size left over from switching branches)
+// Choose home printing — booklet folding is implied (build_new_blueprint sets it from the
+// service). Leaves the paper size for the user to pick, clearing it if it's a professional
+// trim size left over from switching branches
 const choose_home = () => {
     professional.value = false
     draft.service_id = 'home'
@@ -80,35 +81,17 @@ const choose_home = () => {
 }
 
 
-// Choose professional printing — Lulu is the only service offered, so this locks in its
-// defaults straight away rather than requiring a separate service-picking step. The trim size
-// is left for the user to pick — cleared if it's a home paper size left over from switching
+// Choose professional printing — Lulu is the only service offered, so this locks it in
+// straight away rather than requiring a separate service-picking step. The trim size is left
+// for the user to pick — cleared if it's a home paper size left over from switching. Binding /
+// ink / paper aren't offered here; build_new_blueprint derives them from the service and type
 const choose_professional = () => {
     professional.value = true
     draft.service_id = 'lulu'
-    draft.booklet = false
     if (!SIZE_OPTIONS.value.some(item => item.id === draft.size_id)){
         draft.size_id = null
     }
-    draft.binding_type = binding_for_type()
-    draft.ink_type = 'bw'
-    draft.paper_type = 'white'
 }
-
-
-// Coil binding suits a notes bible's flat-lay writing space, otherwise perfect bound (both
-// Lulu binding ids) — the wizard never offers a binding choice
-const binding_for_type = ():string => {
-    return draft.type === 'notes' ? 'paperback_coil' : 'paperback'
-}
-
-
-// Keep the implied binding in sync if the user goes back and changes the design type
-watch(() => draft.type, () => {
-    if (draft.service_id === 'lulu'){
-        draft.binding_type = binding_for_type()
-    }
-})
 
 
 </script>
