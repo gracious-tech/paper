@@ -58,7 +58,6 @@ import {computed, reactive, ref, watch} from 'vue'
 import {cloneDeep} from 'lodash-es'
 import {useI18n} from '@/services/i18n'
 import {useRouter} from 'vue-router'
-import {useDisplay} from 'vuetify'
 
 import {state} from '@/services/state'
 import {create_design, design_wizard, apply_wizard_edit, current_design_id}
@@ -66,6 +65,7 @@ import {create_design, design_wizard, apply_wizard_edit, current_design_id}
 import {get_default_draft, build_new_blueprint, WIZARD_STEPS, is_wizard_step_valid,
     all_wizard_steps_valid} from '@/services/new_design'
 import {report_error} from '@/services/errors'
+import {use_is_mobile} from '@/services/display'
 import NewDesignType from '@/comp/dialogs/assets/NewDesignType.vue'
 import NewDesignBooks from '@/comp/dialogs/assets/NewDesignBooks.vue'
 import NewDesignStories from '@/comp/dialogs/assets/NewDesignStories.vue'
@@ -112,8 +112,7 @@ const mode = computed<'create'|'edit'|null>(() => {
 
 // Fullscreen below the app's own mobile breakpoint (where AppRoot stops width-capping
 // .v-application at 500px, so fullscreen covers the real viewport)
-const {width} = useDisplay()
-const fullscreen = computed(() => width.value <= 900)
+const fullscreen = use_is_mobile()
 
 
 // Position of the current step

@@ -3,7 +3,8 @@
 
 //- Predefined picture-story picker: a "write your own" escape hatch pinned at the top, then
 //- significant stories (chronological), then every story grouped per book (also chronological)
-v-dialog(:model-value='modelValue' @update:model-value='close' max-width='520')
+v-dialog(:model-value='modelValue' @update:model-value='close' max-width='520'
+        :fullscreen='is_mobile' scrollable)
     v-card
         v-card-title {{$t("dialog.story_picker.choose")}}
         v-divider
@@ -43,6 +44,7 @@ import {report_error} from '@/services/errors'
 import {fetch_stories, fetch_story_sections, get_story_significance, story_reference_label,
     story_canonical_cmp} from '@/services/stories'
 import {books_ordered} from '@gracious.tech/fetch-client'
+import {use_is_mobile} from '@/services/display'
 
 import type {Story} from '@/services/stories'
 
@@ -56,6 +58,9 @@ const emit = defineEmits<{
 }>()
 
 const {t} = useI18n()
+
+// Fullscreen on mobile (scrollable picker)
+const is_mobile = use_is_mobile()
 
 
 // Loaded data (fetched once per dialog open, cached across opens by the service module)
@@ -145,9 +150,5 @@ const close = () => {
 
 
 <style lang='sass' scoped>
-
-.v-card-text
-    max-height: 60vh
-    overflow-y: auto
 
 </style>

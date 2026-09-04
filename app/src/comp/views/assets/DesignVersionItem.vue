@@ -83,11 +83,11 @@ v-list-item(:active='!is_mobile && version.id === selected_version_id' color='pr
 <script lang='ts' setup>
 
 import {computed, ref, watch, onUnmounted} from 'vue'
-import {useDisplay} from 'vuetify'
 import {useI18n} from '@/services/i18n'
 import {useRouter} from 'vue-router'
 
 import DialogShareVersion from '@/comp/dialogs/DialogShareVersion.vue'
+import {use_is_mobile} from '@/services/display'
 import {state, show_toast, confirm_dialog, alert_dialog} from '@/services/state'
 import {report_error} from '@/services/errors'
 import {binding_page_issue} from '@/services/blueprints'
@@ -102,13 +102,12 @@ import type {Version} from '@/services/types'
 
 const {t} = useI18n()
 const router = useRouter()
-const {width} = useDisplay()
 
 
 // Below the 900px preview-pane breakpoint the row is info-only — the preview it would select
 // into is hidden (see AppRoot), so click-to-select is dropped and only the menu / action
 // buttons stay live
-const is_mobile = computed(() => width.value <= 900)
+const is_mobile = use_is_mobile()
 
 
 const props = defineProps<{version:Version, design_id:string, is_latest?:boolean,

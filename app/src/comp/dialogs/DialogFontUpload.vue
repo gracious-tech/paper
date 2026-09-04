@@ -1,7 +1,7 @@
 
 <template lang='pug'>
 
-v-dialog(v-model='dialog' activator='parent' max-width='420')
+v-dialog(v-model='dialog' activator='parent' max-width='420' :fullscreen='is_mobile')
     v-card
         template(#title) {{$t("dialog.fonts.upload")}}
         template(#text)
@@ -52,6 +52,7 @@ import {ref} from 'vue'
 import {useI18n} from '@/services/i18n'
 
 import {upload_custom_fonts} from '@/services/custom_fonts'
+import {use_is_mobile} from '@/services/display'
 
 import AppIcon from '@/comp/global/AppIcon.vue'
 
@@ -61,6 +62,9 @@ const emit = defineEmits<{
 }>()
 
 const {t} = useI18n()
+
+// Fullscreen on mobile (instructions + dropzone fill most of a phone screen)
+const is_mobile = use_is_mobile()
 
 const dialog = ref(false)
 const is_dragging = ref(false)

@@ -1,7 +1,7 @@
 
 <template lang='pug'>
 
-v-dialog(v-model='open' max-width='480')
+v-dialog(v-model='open' max-width='480' :fullscreen='is_mobile')
     v-card
         v-card-title(class='px-6 pt-4') {{ $t("page_suggestions.title") }}
         v-card-text(class='px-6 pt-2')
@@ -27,9 +27,14 @@ import {useI18n} from '@/services/i18n'
 import {state, blue} from '@/services/state'
 import {page_reduction_suggestions} from '@/services/blueprints'
 import {design_wizard, current_design_id, leave_simple_mode} from '@/services/designs'
+import {use_is_mobile} from '@/services/display'
 
 
 const {t} = useI18n()
+
+
+// Fullscreen on mobile (variable-length checkbox list that can outgrow a phone modal)
+const is_mobile = use_is_mobile()
 
 
 // Bound to state.page_suggestions so any page-limit warning can open this from anywhere

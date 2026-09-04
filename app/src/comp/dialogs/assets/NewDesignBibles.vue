@@ -24,7 +24,7 @@ div(v-if='warnings.length' class='mt-2 text-error text-body-medium')
 //- The translation picker sits in its own dialog so switching wizard steps while it's open
 //- can't leave the wizard (whose stepper header is always clickable) in a half-open state
 v-dialog(:model-value='picking !== null' @update:model-value='picking = null'
-        max-width='800' scrollable)
+        max-width='800' scrollable :fullscreen='is_mobile')
     v-card(v-if='picking !== null')
         BiblePicker(:model-value='draft.bibles[picking] ?? draft.bibles[0] ?? null'
                 @update:model-value='select')
@@ -42,6 +42,7 @@ import {useI18n} from '@/services/i18n'
 
 import {content, ensure_bible_books_loaded} from '@/services/content'
 import {missing_book_warnings} from '@/services/blueprints'
+import {use_is_mobile} from '@/services/display'
 import BiblePicker from '@/comp/reuseable/BiblePicker.vue'
 
 import type {NewDesignDraft} from '@/services/new_design'
@@ -54,6 +55,9 @@ const props = defineProps<{draft:NewDesignDraft}>()
 const draft = props.draft
 
 const {t} = useI18n()
+
+// Fullscreen on mobile (scrollable picker)
+const is_mobile = use_is_mobile()
 
 
 // Default the primary slot to the preferred translation on first reaching this step (rather

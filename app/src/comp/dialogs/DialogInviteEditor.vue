@@ -1,7 +1,8 @@
 
 <template lang='pug'>
 
-v-dialog(:model-value='modelValue' @update:model-value='close' max-width='520')
+v-dialog(:model-value='modelValue' @update:model-value='close' max-width='520'
+        :fullscreen='is_mobile' scrollable)
 
     //- Guests can't invite editors — a design shared from a guest account would be lost with
     //-     the session, so prompt them to sign in first
@@ -61,12 +62,17 @@ import {designs, reset_design_share_token, remove_design_editor, fetch_design_ed
 import {user, is_anonymous} from '@/services/auth'
 import {state} from '@/services/state'
 import {report_error} from '@/services/errors'
+import {use_is_mobile} from '@/services/display'
 
 import type {DesignEditorInfo} from '@/services/types'
 
 
 const props = defineProps<{modelValue:boolean, id:string}>()
 const emit = defineEmits<{(event:'update:modelValue', value:boolean):void}>()
+
+
+// Fullscreen on mobile (link controls + a growing access list)
+const is_mobile = use_is_mobile()
 
 
 // Feedback flash for the copy button
