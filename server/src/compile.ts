@@ -169,8 +169,9 @@ export async function handle_compile(uid:string, version_id:string, client_ip:st
         ?.save_token === data['save_token']
 
     // Production URL for this exact version — woven into the attribution block (link + QR code)
-    // when the blueprint opts in (see gen_copyright_typst)
-    const share_url = `${config.app_url}/designs/${design_id}/${version_id}`
+    // when the blueprint opts in (see gen_copyright_typst). Short /v/:id form (just the version
+    // id) rather than /designs/:design_id/:version so the printed link/QR stays short
+    const share_url = `${config.app_url}/v/${version_id}`
 
     // Storage paths are always derived from the version id, never read from the doc — doc
     // fields are client-written, and trusting them would let a crafted doc make the Admin SDK

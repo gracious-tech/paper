@@ -241,8 +241,9 @@ export async function compile_and_upload(id:string, design_id:string, blueprint:
     const design_ref = doc(firestore, 'designs', design_id)
 
     // Production URL for this exact version — woven into any auto-copyright block as a link + QR
-    // code when the blueprint opts in (blueprint.design_link)
-    const share_url = `${location.origin}/designs/${design_id}/${id}`
+    // code when the blueprint opts in (blueprint.design_link). Uses the short /v/:id form (just
+    // the version id) rather than /designs/:design_id/:version so the printed link/QR stays short
+    const share_url = `${location.origin}/v/${id}`
 
     // Stamp the start of this attempt so a reload/tab-close/crash mid-compile (or a killed
     // server fallback) can be spotted as stuck rather than shown as forever-pending — see
@@ -443,7 +444,7 @@ export async function regenerate_cover(version:Version):Promise<void>{
     try {
         const fonts = await Promise.all(
             version.custom_fonts.map(meta => load_font_from_meta(meta)))
-        const share_url = `${location.origin}/designs/${version.design_id}/${version.id}`
+        const share_url = `${location.origin}/v/${version.id}`
         const cover_bytes = await render_cover_pdf(version.blueprint, version.pages ?? 0,
             fonts.length ? fonts : undefined, share_url)
         await uploadBytes(storage_ref(firebase_storage, `versions/${version.id}/cover.pdf`),
@@ -495,7 +496,7 @@ async function adopt_pending_pdf(version:Version, is_latest:boolean):Promise<boo
             try {
                 const fonts = await Promise.all(
                     version.custom_fonts.map(meta => load_font_from_meta(meta)))
-                const share_url = `${location.origin}/designs/${version.design_id}/${version.id}`
+                const share_url = `${location.origin}/v/${version.id}`
                 const cover_bytes = await render_cover_pdf(
                     version.blueprint, pages, fonts.length ? fonts : undefined, share_url)
                 await uploadBytes(
