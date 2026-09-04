@@ -126,12 +126,14 @@ const select_none = (group:{books:GetBooksItem[]}) => {
 
     .head
         display: flex
-        flex-direction: column
+        flex-direction: row
+        align-items: center
         margin-bottom: 8px
 
         .bulk
             display: flex
             gap: 4px
+            margin-left: 12px
 
 .mode_switch
     display: flex
