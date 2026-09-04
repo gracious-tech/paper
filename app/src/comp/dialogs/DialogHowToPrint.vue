@@ -101,19 +101,17 @@ v-dialog(v-model='open' max-width='850' scrollable :fullscreen='is_mobile')
                         dt {{ row.label }}
                         dd {{ row.value }}
 
-                h4(class='text-title-small mt-4') {{ $t("dialog.how_to_print.generic_match_h") }}
-                p(class='text-body-medium') {{ $t("dialog.how_to_print.generic_match_p") }}
+                v-divider(class='my-4')
+                p(class='text-title-medium mb-2') {{ $t("dialog.how_to_print.generic_tips_h") }}
 
-                h4(class='text-title-small mt-4') {{ $t("dialog.how_to_print.generic_noscale_h") }}
-                p(class='text-body-medium') {{ $t("dialog.how_to_print.generic_noscale_p") }}
+                h4(class='text-title-small') {{ $t("dialog.how_to_print.generic_color_h") }}
+                p(class='text-body-medium') {{ $t("dialog.how_to_print.generic_color_p") }}
 
-                template(v-if='is_custom')
-                    h4(class='text-title-small mt-4') {{ $t("dialog.how_to_print.custom_spec_h") }}
-                    p(class='text-body-medium') {{ $t("dialog.how_to_print.custom_spec_p") }}
+                h4(class='text-title-small mt-4') {{ $t("dialog.how_to_print.generic_paper_h") }}
+                p(class='text-body-medium') {{ $t("dialog.how_to_print.generic_paper_p") }}
 
-                template(v-if='has_cover')
-                    h4(class='text-title-small mt-4') {{ $t("dialog.how_to_print.generic_cover_h") }}
-                    p(class='text-body-medium') {{ $t("dialog.how_to_print.generic_cover_p") }}
+                h4(class='text-title-small mt-4') {{ $t("dialog.how_to_print.generic_finish_h") }}
+                p(class='text-body-medium') {{ $t("dialog.how_to_print.generic_finish_p") }}
 
                 h4(class='text-title-small mt-4') {{ $t("dialog.how_to_print.generic_proof_h") }}
                 p(class='text-body-medium') {{ $t("dialog.how_to_print.generic_proof_p") }}
@@ -272,10 +270,6 @@ const title_key = computed(() => {
 })
 
 
-// Whether this is the manual "Custom" service (trim size only, user-entered bleed/spine)
-const is_custom = computed(() => state.how_to_print?.blueprint.service_id === 'custom')
-
-
 // Whether the version carries a wraparound cover to hand to the printer separately
 const has_cover = computed(() => !!state.how_to_print?.blueprint.cover)
 
@@ -335,7 +329,7 @@ const service_guide = computed(() => {
     display: grid
     grid-template-columns: auto 1fr
     column-gap: 16px
-    row-gap: 4px
+    row-gap: 10px
     margin: 8px 0 4px
     padding: 12px
     border-radius: 8px
