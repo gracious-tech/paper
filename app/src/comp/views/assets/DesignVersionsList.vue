@@ -69,7 +69,7 @@ template(v-else)
         v-btn(v-if='has_cover' @click='download_cover' variant='tonal'
                 color='secondary-darken-1' :disabled='cover_failed')
             | {{ $t("display.version.download_cover") }}
-        v-btn.how_to_print(variant='tonal' color='')
+        v-btn.how_to_print(variant='tonal' color='' @click='show_how_to_print')
             | {{ $t("display.version.how_to_print") }}
 
     v-list(bg-color='transparent' class='version_list flex-grow-1')
@@ -297,6 +297,14 @@ const download_interior = () => {
 const download_cover = () => {
     if (latest_version.value){
         void download_version_pdf(latest_version.value, 'cover')
+    }
+}
+
+
+// Open the printing guidance for the latest version, tailored to its printing service
+const show_how_to_print = () => {
+    if (latest_version.value){
+        state.how_to_print = latest_version.value.blueprint
     }
 }
 

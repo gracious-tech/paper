@@ -8,6 +8,13 @@ div
         div.mode_switch
             v-btn(size='small' variant='text' @click='draft.book_mode = "passages"')
                 | {{ $t("common.specify_passages") }}
+
+        //- Warn when every book is selected — the app is meant for portions, and a whole Bible
+        //- needs professional printing (and may still exceed some services' limits)
+        v-alert(v-if='whole_bible' type='warning' variant='tonal' class='my-4')
+            div(class='text-title-medium') {{ $t("wizard.books.whole_bible_h") }}
+            div(class='text-body-medium') {{ $t("wizard.books.whole_bible_p") }}
+
         div.testaments
             section(v-for='group of groups' :key='group.label')
                 div.head
@@ -68,6 +75,10 @@ const groups = computed(() => [
     {label: t("common.old_testament"), books: books.filter(book => book.ot)},
     {label: t("common.new_testament"), books: books.filter(book => book.nt)},
 ])
+
+
+// Whether the user has selected every book of the Bible
+const whole_bible = computed(() => books.length > 0 && draft.books.length >= books.length)
 
 
 // Hint passed to <NewDesignPassages> for the "specify exact passages" input

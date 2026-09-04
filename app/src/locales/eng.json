@@ -393,6 +393,8 @@
   "wizard.bibles.question": "What Bible translation would you like to use?",
   "wizard.books.choose_books": "Choose books instead",
   "wizard.books.question": "What books of the Bible do you want included? It can be as little as one passage or as large as the whole Bible.",
+  "wizard.books.whole_bible_h": "Want to print the whole Bible?",
+  "wizard.books.whole_bible_p": "This app can produce it, but printing it is another story. The Bible is larger than most books, and would be very thick and heavy using standard printing services. Published bibles use thin paper which is only available for bulk orders. If you're new to this app, we recommend trying to print a single book of the Bible first.",
   "wizard.cover.question": "What do you want the cover to look like?",
   "wizard.included": "included",
   "wizard.passages.hint": "List the passages you want, one per line, e.g. \"Genesis 1:1-5\" or \"Matthew 5\", then click Add.",

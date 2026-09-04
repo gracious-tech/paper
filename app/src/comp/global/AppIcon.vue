@@ -13,6 +13,8 @@ import drag_indicator from '@material-symbols/svg-400/outlined/drag_indicator.sv
 import close from '@material-symbols/svg-400/outlined/close.svg?component'
 import arrow_back from '@material-symbols/svg-400/outlined/arrow_back.svg?component'
 import expand_more from '@material-symbols/svg-400/outlined/expand_more.svg?component'
+import chevron_left from '@material-symbols/svg-400/outlined/chevron_left.svg?component'
+import chevron_right from '@material-symbols/svg-400/outlined/chevron_right.svg?component'
 import copyright from '@material-symbols/svg-400/outlined/copyright.svg?component'
 import subject from '@material-symbols/svg-400/outlined/subject.svg?component'
 import download from '@material-symbols/svg-400/outlined/download.svg?component'
@@ -53,7 +55,8 @@ defineProps({
 
 
 const icons = {
-    drag_indicator, close, arrow_back, expand_more, planner_banner, copyright,
+    drag_indicator, close, arrow_back, expand_more, chevron_left, chevron_right, planner_banner,
+    copyright,
     subject, download, upload, error, info, more_vert, more_horiz, lists, history_toggle_off, donate,
     add, content_copy, 'delete': delete_icon, group, share, account_circle, straighten,
     menu_book, description, print, warning, check, search, edit, help, mail,

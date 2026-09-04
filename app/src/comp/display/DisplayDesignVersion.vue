@@ -26,8 +26,9 @@ div.version
                 template(#prepend)
                     app-icon(name='download')
                 | {{ $t("display.version.download_cover") }}
-        //- Right: printing guidance (not wired up yet)
-        v-btn.how_to_print(variant='elevated' color='')
+        //- Right: printing guidance, tailored to the version's printing service
+        v-btn.how_to_print(v-if='selected_version' variant='elevated' color=''
+                @click='state.how_to_print = selected_version.blueprint')
             template(#prepend)
                 app-icon(name='print')
             | {{ $t("display.version.how_to_print") }}
@@ -89,6 +90,7 @@ import {selected_version, get_pdf_url, get_cover_pdf_url, download_version_pdf, 
     version_debug_ref, version_contact_url, cover_failed as version_cover_failed}
     from '@/services/versions'
 import {designs, current_design_id} from '@/services/designs'
+import {state} from '@/services/state'
 import {report_error} from '@/services/errors'
 import AnimatedBook from '../reuseable/AnimatedBook.vue'
 
