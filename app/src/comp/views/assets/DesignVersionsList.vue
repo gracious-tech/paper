@@ -304,7 +304,7 @@ const download_cover = () => {
 // Open the printing guidance for the latest version, tailored to its printing service
 const show_how_to_print = () => {
     if (latest_version.value){
-        state.how_to_print = latest_version.value.blueprint
+        state.how_to_print = latest_version.value
     }
 }
 

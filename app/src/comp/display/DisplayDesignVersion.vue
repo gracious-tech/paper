@@ -28,7 +28,7 @@ div.version
                 | {{ $t("display.version.download_cover") }}
         //- Right: printing guidance, tailored to the version's printing service
         v-btn.how_to_print(v-if='selected_version' variant='elevated' color=''
-                @click='state.how_to_print = selected_version.blueprint')
+                @click='state.how_to_print = selected_version')
             template(#prepend)
                 app-icon(name='print')
             | {{ $t("display.version.how_to_print") }}

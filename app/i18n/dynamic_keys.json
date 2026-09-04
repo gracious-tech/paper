@@ -1,6 +1,9 @@
 [
   "svc.blueprint.pages.",
   "svc.blueprint.sheets.",
+  "dialog.how_to_print.title_",
+  "dialog.how_to_print.walk_",
+  "dialog.how_to_print.lulu_walk_",
   "view.version.binding_min",
   "view.version.binding_max",
   "options.paper.binding_min_warning",
