@@ -223,14 +223,6 @@ export async function probe_legacy_data():Promise<void>{
 }
 
 
-// Readable names for the old page arrangement values
-const ARRANGEMENT_NAMES:Record<string, string> = {
-    normal: "Single pages",
-    book: "Book (double-sided)",
-    booklet: "Booklet (folded)",
-}
-
-
 // Escape text for inclusion in the exported HTML
 function escape_html(value:string):string{
     return value
@@ -265,95 +257,39 @@ function format_passage(item:OldContentPassage):string{
 }
 
 
-// Render a tri-state option (null meaning the old app chose automatically)
-function format_auto(value:boolean|null):string{
-    if (value === null){
-        return "Automatic"
-    }
-    return value ? "Yes" : "No"
-}
-
-
-// Render a boolean option
-function format_bool(value:boolean):string{
-    return value ? "Yes" : "No"
-}
-
-
-// The blueprint's settings as readable label/value pairs
-function collect_settings(blue:OldBlueprint):[string, string][]{
-    return [
-        ["Bible translations", blue.bibles?.join(', ') || "None"],
-        ["Translation layout", blue.bibles_layout === 'columns' ? "Side by side" : "Alternating"],
-        ["Paper size",
-            `${blue.paper_width} × ${blue.paper_height} ${blue.paper_unit}`],
-        ["Page arrangement", ARRANGEMENT_NAMES[blue.page_arrangement] ?? blue.page_arrangement],
-        ["Margins", `top ${blue.margin_top}, bottom ${blue.margin_bottom},`
-            + ` left ${blue.margin_left}, right ${blue.margin_right} ${blue.margin_unit}`],
-        ["Swap margins on alternate pages", format_bool(blue.margin_swap)],
-        ["Font", blue.font_family],
-        ["Font size", `${blue.font_size}`],
-        ["Line height", `${blue.line_height}`],
-        ["Columns", format_auto(blue.columns)],
-        ["Column gap", `${blue.column_gap}`],
-        ["Justified text", format_auto(blue.justify)],
-        ["Section headings", format_bool(blue.show_headings)],
-        ["Chapter numbers",
-            blue.show_chapters ? `Yes (${blue.show_chapters_style})` : "No"],
-        ["Verse numbers", format_bool(blue.show_verses)],
-        ["Page numbers", format_bool(blue.show_pages)],
-        ["Footnotes", format_bool(blue.show_footnotes)],
-        ["Words of Jesus", format_bool(blue.show_woj)],
-        ["Lines for writing", format_bool(blue.show_lines)],
-        ["Blank half pages", format_bool(blue.half_blank)],
-        ["Study notes", blue.notes ?? "None"],
-        ["Cross references", blue.crossref ?? "None"],
-        ["License", blue.license],
-        ["Attribution", blue.license_attribution?.trim() || "None"],
-        ["Link to paper.bible", format_bool(blue.app_link)],
-    ]
-}
-
-
 // Render one content item as a section of the exported HTML
 function render_item(item:OldContentItem):string{
 
-    // Title pages — the decorative values are listed as text (the old artwork isn't carried over)
+    // Title pages — the wording only; the pattern/colors/icon are styling, not content
     if (item.type === 'title'){
-        const details = [`pattern: ${item.pattern}`, `colors: ${item.color_primary}`
-            + ` / ${item.color_secondary}`]
-        if (item.icon){
-            details.push(`icon: ${item.icon}`)
-        }
         return `
             <section>
                 <p class="kind">Title page</p>
                 <h2>${escape_html(item.title)}</h2>
                 ${item.subtitle ? `<h3>${escape_html(item.subtitle)}</h3>` : ''}
-                <p class="detail">${escape_html(details.join(' — '))}</p>
             </section>
         `
     }
 
-    // Bible passages
+    // Bible passages — the reference is all there is to recover (the text itself is still
+    // available in the new app)
     if (item.type === 'passage'){
         return `
             <section>
                 <p class="kind">Bible passage</p>
                 <h2>${escape_html(format_passage(item))}</h2>
-                ${item.title ? '' : '<p class="detail">Heading hidden</p>'}
             </section>
         `
     }
 
-    // Custom pages — the user's own HTML, and the whole reason this export exists.
+    // Custom pages — the user's own text, and the whole reason this export exists.
     // The old app swapped AUTO-COPYRIGHT for a generated copyright block at render time, so
     // note what it stood for rather than leaving the bare placeholder in the export
     const html = item.html.replace(/AUTO-COPYRIGHT/g,
         '<em>[copyright and license details were inserted here automatically]</em>')
     return `
         <section>
-            <p class="kind">Custom page (${escape_html(item.position)})</p>
+            <p class="kind">Custom text</p>
             <h2>${escape_html(item.name)}</h2>
             <div class="custom">${html}</div>
         </section>
@@ -363,10 +299,6 @@ function render_item(item:OldContentItem):string{
 
 // Build a self-contained HTML document holding everything recoverable from an old item
 export function build_legacy_html(item:LegacyItem):string{
-
-    const settings = collect_settings(item.blueprint).map(([label, value]) => {
-        return `<dt>${escape_html(label)}</dt><dd>${escape_html(value)}</dd>`
-    }).join('\n')
 
     // Note when it was made and how long it was
     const meta:string[] = []
@@ -395,11 +327,8 @@ h2 {font-size: 1.2em; margin: 0.2em 0}
 h3 {font-size: 1em; font-weight: normal; font-style: italic; margin: 0.2em 0; color: #555}
 section {border-top: 1px solid #ddd; padding: 1.5em 0}
 .kind, .detail, .meta {font-family: sans-serif; font-size: 0.8em; color: #777; margin: 0.3em 0}
-.kind {text-transform: uppercase; letter-spacing: 0.05em}
-.custom {border-left: 3px solid #ddd; padding-left: 1em; margin-top: 1em}
-dl {display: grid; grid-template-columns: auto 1fr; gap: 0.4em 1.5em; font-size: 0.9em}
-dt {font-family: sans-serif; color: #777}
-dd {margin: 0}
+.kind {font-size: 0.7em; text-transform: uppercase; letter-spacing: 0.08em; color: #999}
+.custom {margin-top: 1em}
 footer {border-top: 1px solid #ddd; padding-top: 1.5em; margin-top: 2em; font-family: sans-serif;
     font-size: 0.8em; color: #777}
 </style>
@@ -409,15 +338,7 @@ footer {border-top: 1px solid #ddd; padding-top: 1.5em; margin-top: 2em; font-fa
 <h1>${escape_html(item.title)}</h1>
 ${meta.length ? `<p class="meta">${escape_html(meta.join(' — '))}</p>` : ''}
 
-<h2>Pages</h2>
 ${pages || '<p class="detail">This document had no content.</p>'}
-
-<section>
-<h2>Settings</h2>
-<dl>
-${settings}
-</dl>
-</section>
 
 <footer>Saved from the previous version of paper.bible</footer>
 

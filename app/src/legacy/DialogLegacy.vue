@@ -4,7 +4,7 @@
 //- Lists data recovered from the PREVIOUS version of the app (see legacy.ts)
 //- WARN Temporary — strings are hardcoded in English so there is nothing to unpick on removal
 v-dialog(v-model='legacy.open' max-width='520' scrollable)
-    v-card(title="Old version")
+    v-card(title="Old Creations")
         v-card-text
 
             p(class='mb-2 text-body-medium')
