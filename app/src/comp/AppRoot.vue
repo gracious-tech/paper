@@ -53,6 +53,8 @@ DialogNewDesign
 DialogPageSuggestions
 DialogHowToPrint
 DialogPrintServiceWarning
+//- LEGACY Remove with app/src/legacy/ once old data no longer needs recovering
+DialogLegacy
 
 v-snackbar(:model-value='!!state.toast' @update:model-value='state.toast = null' timeout='2500')
     | {{ state.toast }}
@@ -83,6 +85,9 @@ import DisplayPreview from '@/comp/display/DisplayPreview.vue'
 import DisplayDesignVersion from '@/comp/display/DisplayDesignVersion.vue'
 import DisplayHelp from '@/comp/display/DisplayHelp.vue'
 import BrandIcon from '@/assets/icon.svg?component'
+// LEGACY Remove with app/src/legacy/ once old data no longer needs recovering
+import DialogLegacy from '@/legacy/DialogLegacy.vue'
+import {probe_legacy_data} from '@/legacy/legacy'
 import {state} from '@/services/state'
 import {design_needs_editor} from '@/services/versions'
 import {init_coloris} from '@/services/coloris'
@@ -94,6 +99,11 @@ const {t} = useI18n()
 
 // Bind the Coloris color picker to every [data-coloris] input (AppColor), once, app-wide
 init_coloris(t("app.used_in_design"))
+
+
+// LEGACY Detect data from the previous app, revealing ViewDesigns' "My Old Docs" button.
+// Probed here (once at boot) rather than in ViewDesigns, which remounts on every visit
+void probe_legacy_data()
 
 
 // Whether the currently open design is showing its editor (vs. a rendered version) — mirrors

@@ -51,6 +51,13 @@ div.cont
                 v-list-item-title {{ viewed.title || $t("common.unnamed_design") }}
                 v-list-item-subtitle {{ format_relative_time(viewed.last_viewed) }}
 
+    //- LEGACY Remove with app/src/legacy/ once old data no longer needs recovering
+    //- WARN Condition is currently INVERTED (!) for testing — flip before shipping
+    //- Sits outside the list so searching/filtering can never hide it
+    div.legacy(v-if='legacy.available')
+        VBtn(@click='legacy.open = true' color='warning' variant='flat')
+            | My Old Creations
+
 </template>
 
 
@@ -63,6 +70,8 @@ import {useRouter} from 'vue-router'
 import DesignListItem from './assets/DesignListItem.vue'
 import {user} from '@/services/auth'
 import {designs, viewed_designs, rename_category, clear_category} from '@/services/designs'
+// LEGACY Remove with app/src/legacy/ once old data no longer needs recovering
+import {legacy} from '@/legacy/legacy'
 import {confirm_dialog, prompt_dialog} from '@/services/state'
 import {format_relative_time} from '@/services/utils'
 
@@ -202,5 +211,11 @@ const open_viewed = (viewed:ViewedDesign) => {
     padding-top: 14px
     padding-bottom: 14px
     margin-bottom: 4px
+
+// LEGACY Remove with app/src/legacy/ once old data no longer needs recovering
+.legacy
+    display: flex
+    justify-content: center
+    padding: 32px 16px 16px
 
 </style>
