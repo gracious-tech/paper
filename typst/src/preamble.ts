@@ -260,9 +260,12 @@ export function gen_preamble(request:TypstRequest, overrides:PreambleOverrides =
     binding: ${binding},
     header: ${header},
     footer: ${footer},
-    // Gap between the running header/footer and the body (eats into the margin)
-    header-ascent: 3em,
-    footer-descent: 3em,
+    // Gap between the running header/footer and the body, as a share of the margin it sits in
+    // (Typst's own default is 30%). Deliberately margin-relative rather than font-relative: an
+    // em-based gap grows with the text size while the margin doesn't, so a large font would
+    // push the running head off the top of the page
+    header-ascent: 40%,
+    footer-descent: 40%,
 )
 #set text(font: (${fonts}), size: ${typography.font_size}, hyphenate: ${
         typography.hyphenate}${
