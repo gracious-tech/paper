@@ -53,6 +53,23 @@ export function resolve_trim(blue:Blueprint):{width:number, height:number, unit:
 }
 
 
+// The size of an actual reading page — the trim size, halved for fold-at-home booklets. A
+// booklet's chosen size is the sheet that gets folded in half, so each reading page is half of
+// it: fold across the sheet's longer axis and rotate the result upright (an A4 sheet yields A5
+// pages, US Letter yields half-Letter). Both the interior page config and the cover need this
+// same finished-book size — the sheet only reappears when apply_booklet() (pdf_postprocess.ts)
+// places two reading pages side by side
+export function resolve_reading_trim(blue:Blueprint):{width:number, height:number, unit:'mm'|'in'} {
+    const trim = resolve_trim(blue)
+    if (!blue.booklet) {
+        return trim
+    }
+    const longer = Math.max(trim.width, trim.height)
+    const shorter = Math.min(trim.width, trim.height)
+    return {width: longer / 2, height: shorter, unit: trim.unit}
+}
+
+
 // Map the blueprint's margin unit ('mm'|'in') to printing-services' unit string ('mm'|'inch')
 function ps_unit(unit:'mm'|'in'):UnitType {
     return unit === 'mm' ? 'mm' : 'inch'

@@ -11,7 +11,7 @@ import {ref as storage_ref, uploadBytes, getBytes} from 'firebase/storage'
 import {make_blank_form_values, asset_path, BACKGROUNDS_DIR, resolve_dimensions}
     from 'bookcover-core'
 import {cover_form_for_render, cover_render_key, STOCK_BG_PHOTOS, KNOWN_BUILTIN_BACKGROUNDS,
-    doc_has_copyright, gen_copyright_typst, COPYRIGHT_MARKER, resolve_trim, convert_unit}
+    doc_has_copyright, gen_copyright_typst, COPYRIGHT_MARKER, resolve_reading_trim, convert_unit}
     from 'paper-bible-typst'
 import {PDFDocument, rgb} from 'pdf-lib'
 
@@ -413,7 +413,7 @@ export function default_cover_preset(blueprint:Blueprint):Record<string, unknown
     // back panel. Seeded once here at creation as an explicit form value, so it's independent
     // of whatever bookcover's default happens to be; it's a normal form field afterwards (the
     // user can change it in the cover editor, and it doesn't follow later page-size changes)
-    const trim = resolve_trim(blueprint)
+    const trim = resolve_reading_trim(blueprint)
     if (convert_unit(trim.width, trim.unit, 'in') < 5.5){
         form['margin_back'] = 3
     }

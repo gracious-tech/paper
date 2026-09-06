@@ -6,6 +6,8 @@
 // compiled interior, so callers pass the actual count (version creation, where the cover is
 // rendered after the interior) or an estimate (live preview).
 
+import {resolve_reading_trim} from './trim.js'
+
 import type {Blueprint, CoverConfig} from './types.js'
 
 
@@ -44,20 +46,38 @@ export const KNOWN_BUILTIN_BACKGROUNDS = new Set<string>([
 // spine is derived from page_count
 export function cover_form_for_render(cover:CoverConfig, blueprint:Blueprint,
         page_count:number):Record<string, unknown>{
-    const manual = blueprint.service_id === 'home' || blueprint.service_id === 'custom'
+    const home = blueprint.service_id === 'home'
+    const manual = home || blueprint.service_id === 'custom'
+
+    // Home printing is a plain A4/US-Letter sheet: nothing is trimmed and nothing is bound
+    // along a spine, so the wraparound is exactly two trim faces wide (matching an interior
+    // booklet sheet). The blueprint's manual bleed/spine aren't even offered in home mode
+    const bleed = home ? 0 : blueprint.custom_bleed
+    const spine = home ? 0 : blueprint.custom_spine
+
+    // A fold-at-home booklet's chosen size is the sheet that gets folded, so the finished book
+    // is half of it — the cover must wrap a reading page, not the sheet. No named size can
+    // express the halved dimensions, so pass them as custom size fields instead
+    const trim = resolve_reading_trim(blueprint)
+    const size_id = blueprint.booklet ? '' : blueprint.size_id
+    const unit = blueprint.booklet
+        ? (trim.unit === 'mm' ? 'mm' : 'inch') : blueprint.custom_unit
+    const trim_width = blueprint.booklet ? trim.width : blueprint.custom_trim_width
+    const trim_height = blueprint.booklet ? trim.height : blueprint.custom_trim_height
+
     return {
         ...cover.form,
         service_id: manual ? 'custom' : blueprint.service_id,
-        size_id: blueprint.size_id,
+        size_id,
         page_count,
         binding_type: blueprint.binding_type,
         ink_type: blueprint.ink_type,
         paper_type: blueprint.paper_type,
-        custom_unit: blueprint.custom_unit,
-        custom_trim_width: blueprint.custom_trim_width,
-        custom_trim_height: blueprint.custom_trim_height,
-        custom_bleed: blueprint.custom_bleed,
-        custom_spine: blueprint.custom_spine,
+        custom_unit: unit,
+        custom_trim_width: trim_width,
+        custom_trim_height: trim_height,
+        custom_bleed: bleed,
+        custom_spine: spine,
     }
 }
 

@@ -7,7 +7,7 @@
 import {FetchClient, PassageReference} from '@gracious.tech/fetch-client'
 
 import {LruCache, estimate_bytes, escape_typst, emphasize_sentences} from './helpers.js'
-import {resolve_trim, convert_unit, resolve_binding_gutter} from './trim.js'
+import {resolve_reading_trim, convert_unit, resolve_binding_gutter} from './trim.js'
 import {prose_to_typst, replace_copyright_marker} from './prose.js'
 import {gen_copyright_typst} from './copyright.js'
 import {resolve_icon} from './icon_cache.js'
@@ -388,17 +388,8 @@ export class BibleContent {
     // page_count is only consulted for the auto binding-gutter (margin_gutter_auto); a
     // plausible mid-size book is assumed when the caller has no estimate to offer
     private gen_page(blue:Blueprint, page_count=300):PageConfig {
-        let trim = resolve_trim(blue)
-
-        // Booklet: the chosen size is the sheet that gets folded in half, so each reading page
-        // is half of it. Fold across the sheet's longer axis and rotate the result upright —
-        // an A4 sheet yields A5 reading pages, US Letter yields half-Letter. apply_booklet()
-        // (pdf_postprocess.ts) then places two of these side by side to rebuild the full sheet
-        if (blue.booklet) {
-            const longer = Math.max(trim.width, trim.height)
-            const shorter = Math.min(trim.width, trim.height)
-            trim = {width: longer / 2, height: shorter, unit: trim.unit}
-        }
+        // The reading-page size (half the chosen sheet for fold-at-home booklets)
+        const trim = resolve_reading_trim(blue)
 
         // Clamp each margin to 50% of the corresponding trim dimension (in the margin's own
         // unit, since trim/margin units can differ) so a bad/extreme value can't collapse or
