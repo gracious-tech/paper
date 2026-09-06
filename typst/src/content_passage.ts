@@ -43,6 +43,43 @@ function gen_passage_image(
 }
 
 
+// Inline passage title/subtitle sizing, relative to the body text size. The subtitle sits well
+// below the title's size so it reads as subordinate rather than as a second title line
+const PASSAGE_TITLE_SIZE = '1.2em'
+const PASSAGE_SUBTITLE_SIZE = '0.9em'
+// Baseline-to-baseline advance from the title down to the subtitle. It has to be explicit:
+// paragraph line boxes are collapsed to their baseline document-wide (see preamble.ts), so a
+// plain stack/paragraph gap would leave the two lines printing on top of each other. Slightly
+// more than the title's own leading (1.4 x 1.2em), so the subtitle reads as a separate line
+// attached to the title rather than as another wrapped line of it
+const PASSAGE_SUBTITLE_GAP = '1.6em'
+
+
+// Generate the centred title (+ optional subtitle) shown above a passage when passage titles
+// render inline ('heading' mode) rather than as their own title page. Returned as a bare content
+// expression so the caller can put it in the flow, float it to page scope, or repeat it once per
+// facing half. Leading is fixed at 1.4x each line's own size (em resolves per line) rather than
+// inherited from the body, so a wrapped title spaces the same in every design — the same
+// treatment a full title page gets. Justification and hyphenation are always off: a centred
+// title must never be stretched to the measure or broken across lines. Paragraph spacing is
+// zeroed so the title/subtitle gap is exactly PASSAGE_SUBTITLE_GAP — the document's own
+// paragraph spacing would otherwise stack on top of it and vary with the user's line height.
+function gen_passage_title(title:string, subtitle:string|null):string {
+    const lines = [
+        'set par(leading: 1.4em, spacing: 0pt, justify: false)',
+        'set text(hyphenate: false)',
+        `align(center, text(weight: "bold", size: ${PASSAGE_TITLE_SIZE},`
+            + ` [${escape_typst(title)}]))`,
+    ]
+    if (subtitle) {
+        lines.push(`v(${PASSAGE_SUBTITLE_GAP})`)
+        lines.push(`align(center, text(size: ${PASSAGE_SUBTITLE_SIZE},`
+            + ` [${escape_typst(subtitle)}]))`)
+    }
+    return `{\n    ${lines.join('\n    ')}\n}`
+}
+
+
 // Generate Typst markup for a Bible passage content item. font_size is the document text size
 // (used to anchor heading sizes). font_text2/font_headings2/font_size2/font_fallbacks2 are only
 // used when a second translation is actually rendered side-by-side (grid layout with 2 bibles)
@@ -65,14 +102,10 @@ export function gen_passage(
     // 2-column page it floats at the parent (page) scope so it spans the full width above both
     // columns — a plain block would sit inside the first column
     if (passage.passage_title) {
-        const title = `text(weight: "bold", size: 1.2em,
-            [${escape_typst(passage.passage_title)}])`
-        const block = passage.passage_subtitle
-            ? `stack(spacing: 0.3em, align(center, ${title}),
-                align(center, text(size: 1em, [${escape_typst(passage.passage_subtitle)}])))`
-            : `align(center, ${title})`
+        const block = gen_passage_title(passage.passage_title, passage.passage_subtitle)
         if (passage_columns(passage) === 2) {
-            parts.push(`#place(top + center, scope: "parent", float: true, ${block})`)
+            parts.push(`#place(top + center, scope: "parent", float: true,
+    block(width: 100%, ${block}))`)
         } else {
             // Generous bottom margin so the book title stands clearly apart from the passage
             // (a bare paragraph break would leave it only one line's gap above the first verse).
@@ -125,12 +158,7 @@ export function gen_passage_facing(
     // The passage title (+ optional subtitle) repeats on both halves, since each becomes its
     // own physical page
     if (passage.passage_title) {
-        const title = `align(center, text(weight: "bold", size: 1.2em,
-            [${escape_typst(passage.passage_title)}]))`
-        const subtitle = passage.passage_subtitle
-            ? `align(center, text(size: 1em, [${escape_typst(passage.passage_subtitle)}]))`
-            : null
-        const block = subtitle ? `stack(spacing: 0.3em, ${title}, ${subtitle})` : title
+        const block = gen_passage_title(passage.passage_title, passage.passage_subtitle)
         // Generous bottom margin so the book title stands clearly apart from the passage (a
         // bare paragraph break would leave it only one line's gap above the first verse)
         parts.push(`#block(width: 100%, below: 2.8em, grid(columns: (1fr, 1fr), column-gutter: ${gutter},

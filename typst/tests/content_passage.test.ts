@@ -334,25 +334,28 @@ describe('gen_passage', () => {
 
         it('omits passage title when null', () => {
             const result = call(make_passage({passage_title: null}))
-            expect(result).not.toContain('#align(center, text(weight: "bold"')
+            expect(result).not.toContain('align(center, text(weight: "bold"')
         })
 
-        it('renders subtitle beneath title when provided', () => {
+        it('renders subtitle beneath title, smaller and clear of it', () => {
             const result = call(make_passage({
                 passage_title: 'Genesis 1:1-31',
                 passage_subtitle: 'The Creation',
             }))
             expect(result).toContain('Genesis 1:1-31')
             expect(result).toContain('The Creation')
-            expect(result).toContain('stack(spacing:')
+            // An explicit gap (line boxes have no height of their own) and a subordinate size
+            expect(result).toContain('v(1.8em)')
+            expect(result).toContain('size: 0.85em, [The Creation]')
+            expect(result.indexOf('Genesis 1:1-31')).toBeLessThan(result.indexOf('The Creation'))
         })
 
-        it('omits subtitle stack when passage_subtitle is null', () => {
+        it('omits the subtitle line when passage_subtitle is null', () => {
             const result = call(make_passage({
                 passage_title: 'Genesis 1:1-31',
                 passage_subtitle: null,
             }))
-            expect(result).not.toContain('stack(spacing:')
+            expect(result).not.toContain('v(1.8em)')
         })
     })
 
