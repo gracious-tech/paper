@@ -99,6 +99,19 @@ body
     padding-right: 12px
 
 
+// New-design wizard (non-mobile only — mobile is fullscreen): anchor the card near the top of
+// the viewport instead of vertically centering it, so moving between steps of differing height
+// only shifts the card's bottom edge rather than re-centering the whole dialog. Overrides
+// Vuetify's centered `.v-dialog > .v-overlay__content` (align-items: center, margin: 24px).
+// Also caps the card's own dimensions so tall/wide steps stay a comfortable reading size.
+.wizard-dialog
+    align-self: flex-start
+    margin-top: 6vh
+    max-width: 800px
+    min-height: 600px
+    max-height: min(1400px, calc(100% - 6vh - 24px))
+
+
 #app
     display: flex
     height: 100%
