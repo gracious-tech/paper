@@ -161,12 +161,21 @@ export function gen_preamble(request:TypstRequest, overrides:PreambleOverrides =
         // grid width rather than one inside each cell (see gen_multi_bible_grids).
         //
         // A single full-width block: width: 100% gives align(center) the text column to centre
-        // against, sticky: true keeps the divider with the chapter's text so it can never be
-        // stranded at the foot of a page, and its above/below spacing is left to default (the
-        // document paragraph spacing == leading) so it breathes exactly like a paragraph break.
-        // Explicit v() around the divider gets trimmed here — #ch(n) sits at a paragraph edge in
-        // the fetched markup — so the block's own margins are the only reliable spacing.
+        // against, and sticky: true keeps the divider with the chapter's text so it can never be
+        // stranded at the foot of a page. Explicit v() around it gets trimmed — #ch(n) sits at a
+        // paragraph edge in the fetched markup — so the block's own margins are the spacing.
+        //
+        // above + below total two leadings, so the divider takes one line slot out of the
+        // baseline grid and the rhythm is unchanged. They're deliberately unequal though: every
+        // body line is a zero-height box on its baseline (see the top-edge/bottom-edge note
+        // below), so the line *following* the divider hangs its whole ascent up into the gap
+        // beneath it, while the line above ends flat at its baseline. Equal margins therefore
+        // read as visibly top-heavy. Shifting up by half that imbalance — roughly half of a body
+        // ascent (~0.95em) less the divider's own cap-height (0.7 x 0.8em) — evens it out. A
+        // constant rather than a measured value: it's within ~0.05em across the font range,
+        // well below perception, and this runs once per chapter (1189x for a full Bible).
         chapter = `#let ch_divider(n) = block(width: 100%, sticky: true,
+    above: ${leading} - 0.2em, below: ${leading} + 0.2em,
     align(center, text(size: 0.8em, weight: "regular", {
         let rule = box(width: 2em, baseline: -0.28em, line(length: 100%, stroke: 0.5pt))
         [#rule #str(n) #rule]
