@@ -84,7 +84,7 @@
   "options.paper.paper_type": "Paper type",
   "options.paper.printing_service": "Printing service",
   "options.paper.spine_width": "Spine width",
-  "options.paper.trim_size": "Trim size",
+  "options.paper.trim_size": "Page size",
   "options.style.justify": "Justify",
   "options.style.justify_auto_note": "Auto will not justify when width is too narrow",
   "options.style.line_height": "Line height",

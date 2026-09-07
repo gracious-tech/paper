@@ -3,79 +3,76 @@
 
 //- Printing service ("Home" + real services + a "Custom…" entry for manual bleed/spine)
 v-select(v-model='blue.service_id' :items='service_items' :label='$t("options.paper.printing_service")'
-    variant='underlined' density='compact' style='max-width: 320px')
+    variant='underlined' density='compact' hide-details style='max-width: 320px' class='mt-7')
 
 //- Home mode: a simple A4 / US Letter choice, plus the fold-at-home booklet option
 template(v-if='is_home')
-    AppOptionToggle(v-model='blue.size_id' :items='home_size_items' class='mt-2')
+    AppOptionToggle(v-model='blue.size_id' :items='home_size_items' class='mt-6')
 
     v-switch(v-model='blue.booklet' :label='$t("common.booklet_home")' color='primary'
-        density='compact' hide-details)
-    p(class='hint') {{ $t("options.paper.booklet_note") }}
+        density='compact' hide-details class='mt-4')
 
 //- Service / custom modes: full trim size + print options
 template(v-else)
-    //- Trim size header, with a unit toggle shown only in custom-service mode
-    div(class='d-flex align-center mt-2')
-        span(class='text-medium-emphasis mr-4') {{ $t("options.paper.trim_size") }}
-        v-btn-toggle(v-if='is_custom' :model-value='blue.custom_unit'
-            @update:model-value='set_unit' density='compact' variant='outlined' divided mandatory)
-            v-btn(v-for='u in unit_items' :key='u' :value='u' size='small') {{ u }}
-
-    //- Named sizes: a button group when few, a dropdown when many; always a "Custom" option
-    div(v-if='use_buttons' class='d-flex flex-wrap ga-2 my-2')
-        v-btn(v-for='s in size_items' :key='s.id' size='small'
-            :variant='blue.size_id === s.id ? "flat" : "outlined"'
-            :color='blue.size_id === s.id ? "primary" : undefined'
-            @click='select_size(s.id)') {{ s.title }}
-        v-btn(size='small'
-            :variant='blue.size_id === "" ? "flat" : "outlined"'
-            :color='blue.size_id === "" ? "primary" : undefined'
-            @click='select_custom') {{ $t("common.custom") }}
+    //- Named sizes: a button group when few, a dropdown when many; always a "Custom" option.
+    //- The dropdown carries the "Trim size" label itself; the buttons need one above them
+    template(v-if='use_buttons')
+        div(class='mt-6 mb-3')
+            span(class='text-medium-emphasis') {{ $t("options.paper.trim_size") }}
+        div(class='d-flex flex-wrap ga-3 mb-6')
+            v-btn(v-for='s in size_items' :key='s.id' size='small'
+                :variant='blue.size_id === s.id ? "flat" : "outlined"'
+                :color='blue.size_id === s.id ? "primary" : undefined'
+                @click='select_size(s.id)') {{ s.title }}
+            v-btn(size='small'
+                :variant='blue.size_id === "" ? "flat" : "outlined"'
+                :color='blue.size_id === "" ? "primary" : undefined'
+                @click='select_custom') {{ $t("common.custom") }}
     v-select(v-else :model-value='blue.size_id || "__custom__"' @update:model-value='on_size_select'
-        :items='size_select_items' variant='underlined' density='compact'
-        style='max-width: 320px' class='my-2')
+        :items='size_select_items' :label='$t("options.paper.trim_size")' variant='underlined'
+        density='compact' hide-details style='max-width: 320px' class='mt-6 mb-6')
 
-    //- Custom dimensions, only shown when no named size is selected
-    div(v-if='blue.size_id === ""' class='d-flex align-center ml-2 mb-4')
-        v-text-field(v-model.number='blue.custom_trim_width' type='number' variant='underlined'
-            density='compact' :label='$t("common.width")' class='mr-4')
-        v-text-field(v-model.number='blue.custom_trim_height' type='number' variant='underlined'
-            density='compact' :label='$t("common.height")' class='mr-4')
-        //- Unit select only in regular-service mode (custom-service mode uses the toggle above)
-        AppOptionToggle(v-if='!is_custom' v-model='blue.custom_unit' :items='custom_unit_items'
-            size='small' density='compact')
-
-    //- Custom-service mode: bleed and spine width (units follow the toggle above)
-    div(v-if='is_custom' class='d-flex align-center ml-2 mb-4')
-        v-text-field(v-model.number='blue.custom_bleed' type='number' variant='underlined'
-            density='compact' :label='$t("options.paper.bleed")' class='mr-4' style='max-width: 120px')
-        v-text-field(v-model.number='blue.custom_spine' type='number' variant='underlined'
-            density='compact' :label='$t("options.paper.spine_width")' class='mr-4' style='max-width: 120px')
+    //- Custom measurements: trim size (only when no named size is selected) and, in
+    //- custom-service mode, bleed and spine. Fields are sized so only two fit per row, with
+    //- the unit toggle trailing whichever field comes last
+    div(v-if='blue.size_id === "" || is_custom' class='dims d-flex flex-wrap align-center mb-6 ga-4')
+        template(v-if='blue.size_id === ""')
+            v-text-field(v-model.number='blue.custom_trim_width' type='number' variant='underlined'
+                density='compact' hide-details :label='$t("common.width")' class='dims-field')
+            v-text-field(v-model.number='blue.custom_trim_height' type='number' variant='underlined'
+                density='compact' hide-details :label='$t("common.height")' class='dims-field')
+        template(v-if='is_custom')
+            v-text-field(v-model.number='blue.custom_bleed' type='number' variant='underlined'
+                density='compact' hide-details :label='$t("options.paper.bleed")' class='dims-field')
+            v-text-field(v-model.number='blue.custom_spine' type='number' variant='underlined'
+                density='compact' hide-details :label='$t("options.paper.spine_width")'
+                class='dims-field')
+        AppOptionToggle(v-model='unit_model' :items='custom_unit_items' size='small'
+            density='compact')
 
     //- Regular-service mode: binding, ink and paper type (page count isn't asked for — it's
     //- determined by the document itself, estimated from the preview until a version compiles)
     template(v-else)
-        div(v-if='binding_items.length > 1' class='ml-2 my-4')
-            v-select(v-model='blue.binding_type' :items='binding_items' :label='$t("options.paper.binding")'
-                variant='underlined' density='compact' style='max-width: 240px')
+        v-select(v-if='binding_items.length > 1' v-model='blue.binding_type' :items='binding_items'
+            :label='$t("options.paper.binding")' variant='underlined' density='compact' hide-details
+            style='max-width: 240px' class='mb-6')
 
         //- Warn (never auto-switch) when the chosen binding doesn't suit the estimated length —
         //- the estimate refreshes after every preview compile, and the user keeps their choice
         v-alert(v-if='binding_warning' type='warning' variant='tonal' density='compact'
-                class='ml-2 my-4')
+                class='mb-6')
             div {{ binding_warning }}
             div(class='text-right')
                 v-btn(@click='state.page_suggestions = true' size='small' variant='flat' color='warning'
                     class='mt-2') {{ $t("page_suggestions.button") }}
 
-        div(v-if='show_ink_type && ink_items.length > 1' class='ml-2 my-4')
-            v-select(v-model='blue.ink_type' :items='ink_items' :label='$t("options.paper.ink_type")'
-                variant='underlined' density='compact' style='max-width: 240px')
+        v-select(v-if='show_ink_type && ink_items.length > 1' v-model='blue.ink_type'
+            :items='ink_items' :label='$t("options.paper.ink_type")' variant='underlined'
+            density='compact' hide-details style='max-width: 240px' class='mb-6')
 
-        div(v-if='show_paper_type && paper_items.length > 1' class='ml-2 my-4')
-            v-select(v-model='blue.paper_type' :items='paper_items' :label='$t("options.paper.paper_type")'
-                variant='underlined' density='compact' style='max-width: 240px')
+        v-select(v-if='show_paper_type && paper_items.length > 1' v-model='blue.paper_type'
+            :items='paper_items' :label='$t("options.paper.paper_type")' variant='underlined'
+            density='compact' hide-details style='max-width: 240px' class='mb-6')
 
 </template>
 
@@ -94,10 +91,6 @@ import {format_dims, binding_page_issue} from '@/services/blueprints'
 const {t} = useI18n()
 
 
-// Unit options for custom sizes (printing-services uses 'inch', not 'in')
-const unit_items = ['mm', 'inch']
-
-
 // A4 / US Letter choice for home printing
 const home_size_items = [
     {value: 'a4', title: "A4"},
@@ -105,11 +98,18 @@ const home_size_items = [
 ]
 
 
-// Measurement unit for custom dimensions (regular-service mode)
+// Measurement unit for custom dimensions (printing-services uses 'inch', not 'in')
 const custom_unit_items = [
     {value: 'mm', title: "mm"},
     {value: 'inch', title: "inch"},
 ]
+
+
+// The unit toggle's value — setting it converts the existing measurements to the new unit
+const unit_model = computed({
+    get: () => blue.custom_unit as string,
+    set: (unit:string) => set_unit(unit),
+})
 
 
 // Service dropdown items: "Home" + real services + a "Custom…" entry
@@ -238,7 +238,7 @@ function convert_unit(value:number, from:string, to:string):number{
 }
 
 
-// Toggle the unit (custom-service mode), converting all custom measurements to match
+// Toggle the unit, converting all custom measurements to match
 function set_unit(unit:string):void{
     const from = blue.custom_unit
     if (from === unit){
@@ -326,6 +326,19 @@ watch(() => blue.ink_type, () => {
 
 <style lang='sass' scoped>
 
+// The measurement row wraps at two fields per line, while still leaving room for the unit
+// toggle to trail the last field on its line (width/height/unit, or width/height then
+// bleed/spine/unit when the custom service adds those two). The max-width is what forces the
+// wrap: three fields (452px) overflow it, two fields plus the toggle (~412px) don't
+.dims
+    max-width: 430px
 
+.dims-field
+    flex: 0 0 140px
+
+// The unit buttons are two-to-four characters, so drop Vuetify's 64px minimum to keep the
+// toggle narrow enough to sit beside a pair of fields
+.dims :deep(.v-btn)
+    min-width: 0
 
 </style>
