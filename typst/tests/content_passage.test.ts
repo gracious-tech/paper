@@ -207,6 +207,23 @@ describe('gen_passage', () => {
             expect(result.indexOf(spacers[0]!)).toBeGreaterThan(first_grid)
         })
 
+        it('flags the cell top only for a cell that opens with a heading', () => {
+            // Flagging a cell whose heading isn't at its top would flatten that heading against
+            // the text above it (the flag suppresses the heading's leading space and top-edge)
+            const a = '#ch(1)\n\n== A Section\n#vn(1)Alpha one.\n\n== Another\n#vn(2)Alpha two.'
+            const b = '#ch(1)\n\n#vn(1)Beta one.\n\n#vn(2)Beta two.'
+            const result = call(make_passage({
+                bibles: [{content: a}, {content: b}],
+                multi_layout: 'columns',
+                multi_align: 'verse',
+            }))
+            // Both of the primary's cells open with a heading, neither of the second's do
+            const flags = [...result.matchAll(
+                /height: 0pt\)\n#state\("bilingual-cell-top", false\)\.update\((\w+)\)/g)]
+                .map(match => match[1])
+            expect(flags).toEqual(['true', 'false', 'true', 'false'])
+        })
+
         it('scales heading margins with line_height', () => {
             const tight = call(make_passage({show_headings: true}), FONT_TEXT2, FONT_HEADINGS2,
                 FONT_FALLBACKS, FONT_SIZE2, 1.5)

@@ -398,6 +398,9 @@ function gen_multi_bible_grids(
 ):string {
     const fonts2 = [font_text2, ...font_fallbacks2].map(f => `"${escape_typst_str(f)}"`).join(', ')
 
+    // A chunk that opens with a section heading (after an optional #ch marker)
+    const heading_row = /^\s*(#ch\(\d+\)\s*)?={1,6}\s/
+
     // Every cell opens with this:
     //   - A zero-height block, so the cell's first paragraph counts as following a block —
     //     that's what makes the document's `#show par: set text(top-edge/bottom-edge: 0)`
@@ -405,15 +408,19 @@ function gen_multi_bible_grids(
     //     starting straight into a paragraph renders that paragraph with metric-based line
     //     height, so its leading visibly differs from sibling rows (most obvious with tall
     //     stacked-diacritic scripts). Same trick as gen_passage_inner.
-    //   - The "bilingual-cell-top" flag, so a heading that's the first thing in the cell drops
-    //     its leading space and sits level with the other translation's first line rather than
-    //     a line lower (see the heading rules in gen_heading_rules).
-    const cell_open = '#block(below: 0pt, height: 0pt)\n'
-        + '#state("bilingual-cell-top", false).update(true)'
+    //   - The "bilingual-cell-top" flag, set only for a cell that actually opens with a
+    //     heading, so that heading drops its leading space and sits level with the other
+    //     translation's first line rather than a line lower (see gen_heading_rules). Every
+    //     other cell clears the flag: a heading further down a cell ('chapter' alignment puts
+    //     a whole chapter's headings in one cell) must keep its normal margins — flattened
+    //     against the text above it, it would overlap the preceding line. Clearing also stops
+    //     a flag no heading consumed (headings hidden) from leaking into a later cell.
+    const cell_open = (opens_with_heading:boolean) => '#block(below: 0pt, height: 0pt)\n'
+        + `#state("bilingual-cell-top", false).update(${opens_with_heading})`
 
     // set/let bindings scope to their own content block, so every second cell repeats this
     // prelude (shadowing #footnote in an outer scope wouldn't reach markup evaluated here)
-    const prelude2 = `${cell_open}
+    const prelude2 = (opens_with_heading:boolean) => `${cell_open(opens_with_heading)}
 #let footnote(..args) = none
 #set text(font: (${fonts2}), size: ${font_size2})
 #show heading: set text(font: "${escape_typst_str(font_headings2)}")`
@@ -421,18 +428,20 @@ function gen_multi_bible_grids(
     const rows = build_aligned_rows(
         passage.bibles[0]!.content, passage.bibles[1]?.content ?? '', passage.multi_align)
 
-    // A row whose chunk opens with a section heading (after an optional #ch marker). The
-    // heading's own leading v() is suppressed at a cell top (see gen_heading_rules), so the
-    // margin before it has to be added at the row level instead — on the whole grid, so both
-    // columns shift together and stay aligned. Matches the single-column heading's top margin
-    // (see the HEADING_MARGIN_LINES / GRID_LEAD_EXTRA_LINES notes) and scales with line_height
-    // the same way. Weak so it collapses away at a page top.
-    const heading_row = /^\s*(#ch\(\d+\)\s*)?={1,6}\s/
+    // A row that opens with a heading gets the heading's top margin at the row level, since the
+    // heading's own leading v() is suppressed at a cell top (see gen_heading_rules) — on the
+    // whole grid, so both columns shift together and stay aligned. Matches the single-column
+    // heading's top margin (see the HEADING_MARGIN_LINES / GRID_LEAD_EXTRA_LINES notes) and
+    // scales with line_height the same way. Weak so it collapses away at a page top.
     const row_lead_em =
         ((HEADING_MARGIN_LINES[2].before + GRID_LEAD_EXTRA_LINES) * line_height).toFixed(3)
     const row_lead = `#v(${row_lead_em}em, weak: true)\n`
 
     return rows.map(([a, b], i) => {
+        // Tested on the original markup — quiet_chapter_markers below rewrites the #ch calls
+        const a_heading = heading_row.test(a)
+        const b_heading = heading_row.test(b)
+
         // The chapter marker sits in the pre-rendered markup of *both* translations, so left
         // alone it renders twice — once per column. For the 'divider' style, quiet both in-cell
         // markers and draw one divider across the full grid width instead; for the 'float'
@@ -457,17 +466,17 @@ function gen_multi_bible_grids(
             cell_b = quiet_chapter_markers(b)
         }
 
-        const lead = i > 0 && (heading_row.test(a) || heading_row.test(b)) ? row_lead : ''
+        const lead = i > 0 && (a_heading || b_heading) ? row_lead : ''
         return `${full_divider}${lead}#grid(
     columns: (1fr, 1fr),
     column-gutter: ${gutter},
     align: top,
 [
-${cell_open}
+${cell_open(a_heading)}
 ${cell_a}
 ],
 [
-${prelude2}
+${prelude2(b_heading)}
 ${cell_b}
 ],
 )`

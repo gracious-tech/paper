@@ -75,8 +75,8 @@ function end_of_last_verse_block(text:string):number {
 
 // Pull a cut position back over any heading line(s) (`==`, `===`, …) that directly precede it,
 // so a section heading travels into the row of the verses it introduces rather than being
-// stranded at the foot of the previous row (the primary translation keeps its own headings
-// attached this way — this makes the forced cut of the second translation match).
+// stranded at the foot of the previous row. Both sides cut this way — the primary translation
+// when chunking by verse, the second when its breaks are forced to match.
 function widen_cut_over_headings(text:string, pos:number):number {
     let cut = pos
     while (cut > 0 && text[cut - 1] === '\n') {
@@ -137,9 +137,13 @@ function chapter_rows(
                 boundaries.push(verse)
                 continue
             }
-            chunks.push(text.slice(start, pos))
+            // A heading sits directly above the verse it introduces, so the cut goes above the
+            // heading — otherwise it would be stranded at the foot of the previous verse's row
+            // (the second translation is cut over headings the same way, see cut_at_verses)
+            const cut = Math.max(start, widen_cut_over_headings(text, pos))
+            chunks.push(text.slice(start, cut))
             boundaries.push(verse)
-            start = pos
+            start = cut
         }
         chunks.push(text.slice(start))
         return {chunks, boundaries}

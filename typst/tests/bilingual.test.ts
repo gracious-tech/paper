@@ -127,6 +127,14 @@ describe('build_aligned_rows', () => {
         expect(rows[1]![1]).toContain('Beta two one')
     })
 
+    it('keeps headings with the following verse row', () => {
+        // Real markup puts a heading on its own line directly above the verse it introduces
+        const a = '#ch(1)\n\n#vn(1)Alpha one.\n\n== A Section\n#vn(2)Alpha two.'
+        const rows = build_aligned_rows(a, CONTENT_B, 'verse')
+        expect(rows[0]![0]).not.toContain('== A Section')
+        expect(rows[1]![0]).toBe('== A Section\n#vn(2)Alpha two.')
+    })
+
     it('keeps headings with the following paragraph row', () => {
         const rows = build_aligned_rows(CONTENT_A, CONTENT_B, 'paragraph')
         expect(rows[0]![0]).toContain('== The Beginning')
