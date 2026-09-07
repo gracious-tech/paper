@@ -365,8 +365,8 @@ describe('gen_passage', () => {
             expect(result).toContain('Genesis 1:1-31')
             expect(result).toContain('The Creation')
             // An explicit gap (line boxes have no height of their own) and a subordinate size
-            expect(result).toContain('v(1.6em)')
-            expect(result).toContain('size: 0.9em, [The Creation]')
+            expect(result).toContain('v(3em)')
+            expect(result).toContain('size: 1.2em, [The Creation]')
             expect(result.indexOf('Genesis 1:1-31')).toBeLessThan(result.indexOf('The Creation'))
         })
 
@@ -375,7 +375,7 @@ describe('gen_passage', () => {
                 passage_title: 'Genesis 1:1-31',
                 passage_subtitle: null,
             }))
-            expect(result).not.toContain('v(1.6em)')
+            expect(result).not.toContain('v(3em)')
         })
     })
 

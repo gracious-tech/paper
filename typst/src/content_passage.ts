@@ -348,13 +348,18 @@ function gen_heading_rules(passage:TypstPassage, font_size:string, line_height:n
     // (see preamble.ts) — a heading that wraps must never be stretched to the measure or broken
     // across lines. Headings wrap often enough for this to matter: long section headings in a
     // 2-column layout, or in a half-width bilingual grid cell.
+    //
+    // `sticky: true` restores Typst's built-in keep-with-next: the default heading block is
+    // sticky, but this full show-rule replacement would otherwise drop that, letting a heading
+    // be stranded at the foot of a page/column with its passage text starting overleaf. It
+    // binds to the following text block in the flow (the trailing `v()` gap doesn't break it).
     const lead = (before:number, mult:number) => `it => context {
     let open = state("ch-float-open", false).get()
     state("ch-float-open", false).update(false)
     let cell_top = state("bilingual-cell-top", false).get()
     state("bilingual-cell-top", false).update(false)
     if not open and not cell_top { v(${gap(before)}) }
-    block(above: 0pt, {
+    block(above: 0pt, sticky: true, {
         set par(justify: false)
         set text(hyphenate: false)
         set text(top-edge: 0pt) if cell_top

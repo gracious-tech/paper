@@ -158,15 +158,19 @@ export function gen_preamble(request:TypstRequest, overrides:PreambleOverrides =
         // box with its baseline raised so the line sits centred on the number rather than at the
         // text baseline. No font: override — see footer. The visual is factored into #ch_divider
         // so the bilingual columns layout can draw one divider across both translations at full
-        // grid width rather than one inside each cell (see gen_multi_bible_grids)
-        chapter = `#let ch_divider(n) = {
-    v(0.5em)
+        // grid width rather than one inside each cell (see gen_multi_bible_grids).
+        //
+        // A single full-width block: width: 100% gives align(center) the text column to centre
+        // against, sticky: true keeps the divider with the chapter's text so it can never be
+        // stranded at the foot of a page, and its above/below spacing is left to default (the
+        // document paragraph spacing == leading) so it breathes exactly like a paragraph break.
+        // Explicit v() around the divider gets trimmed here — #ch(n) sits at a paragraph edge in
+        // the fetched markup — so the block's own margins are the only reliable spacing.
+        chapter = `#let ch_divider(n) = block(width: 100%, sticky: true,
     align(center, text(size: 0.8em, weight: "regular", {
         let rule = box(width: 2em, baseline: -0.28em, line(length: 100%, stroke: 0.5pt))
         [#rule #str(n) #rule]
-    }))
-    v(0.5em)
-}
+    })))
 #let ch(n) = {
     state("running-chapter", 0).update(n)
     if n > 1 {
@@ -280,6 +284,12 @@ export function gen_preamble(request:TypstRequest, overrides:PreambleOverrides =
 #set text(font: (${fonts}), size: ${typography.font_size}, hyphenate: ${
         typography.hyphenate}${
         typography.text_color ? `, fill: rgb("${typography.text_color}")` : ''})
+// Widow/orphan/runt/hyphenation break penalties pinned to Typst's current defaults so a
+// version bump can't silently repaginate every document. Deliberately not raised: print-Bible
+// convention tolerates the occasional widow to keep justified columns full and balanced —
+// aggressive avoidance in dense 2-column / bilingual-cell text just trades single lines for
+// ragged page bottoms.
+#set text(costs: (orphan: 100%, widow: 100%, runt: 100%, hyphenation: 100%))
 // spacing matches leading (rather than Typst's larger default) so a paragraph break reads the
 // same as a wrapped line — indent alone marks a new paragraph, no added gap. A literal 0pt would
 // make consecutive paragraphs overlap, since block spacing is additive on top of zero rather
