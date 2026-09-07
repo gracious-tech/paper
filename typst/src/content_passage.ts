@@ -46,14 +46,14 @@ function gen_passage_image(
 
 // Inline passage title/subtitle sizing, relative to the body text size. The subtitle sits well
 // below the title's size so it reads as subordinate rather than as a second title line
-const PASSAGE_TITLE_SIZE = '1.2em'
-const PASSAGE_SUBTITLE_SIZE = '0.9em'
+const PASSAGE_TITLE_SIZE = '1.8em'
+const PASSAGE_SUBTITLE_SIZE = '1.2em'
 // Baseline-to-baseline advance from the title down to the subtitle. It has to be explicit:
 // paragraph line boxes are collapsed to their baseline document-wide (see preamble.ts), so a
 // plain stack/paragraph gap would leave the two lines printing on top of each other. Slightly
 // more than the title's own leading (1.4 x 1.2em), so the subtitle reads as a separate line
 // attached to the title rather than as another wrapped line of it
-const PASSAGE_SUBTITLE_GAP = '1.6em'
+const PASSAGE_SUBTITLE_GAP = '3em'
 // Gap from the heading text down to the decorative icon below it
 const PASSAGE_ICON_GAP = '3em'
 
