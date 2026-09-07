@@ -261,13 +261,16 @@ function gen_passage_inner(
     // deciding whether the next paragraph follows a paragraph)
     lines.push('#block(below: 0pt, height: 0pt)')
 
-    // Render the content (any 2-column layout comes from the page setting, not a block)
+    // Render the content (any 2-column layout comes from the page setting, not a block).
+    // A passage that opens exactly on a chapter boundary has its own opening chapter marker
+    // quieted — the passage reference already announces that chapter (see
+    // quiet_leading_chapter_marker); the grid path does the same per translation
     if (use_grid) {
         lines.push(gen_multi_bible_grids(
             passage, gutter, font_text2, font_headings2, font_size2, font_fallbacks2, line_height,
             chapter_style))
     } else {
-        lines.push(passage.bibles[0]!.content)
+        lines.push(quiet_leading_chapter_marker(passage.bibles[0]!.content))
     }
 
     return lines.join('\n')
@@ -417,8 +420,9 @@ function gen_multi_bible_grids(
 ):string {
     const fonts2 = [font_text2, ...font_fallbacks2].map(f => `"${escape_typst_str(f)}"`).join(', ')
 
-    // A chunk that opens with a section heading (after an optional #ch marker)
-    const heading_row = /^\s*(#ch\(\d+\)\s*)?={1,6}\s/
+    // A chunk that opens with a section heading (after an optional #ch / #ch_quiet marker —
+    // quiet_leading_chapter_marker rewrites a passage's opening #ch before the rows are built)
+    const heading_row = /^\s*(#ch(?:_quiet)?\(\d+\)\s*)?={1,6}\s/
 
     // Every cell opens with this:
     //   - A zero-height block, so the cell's first paragraph counts as following a block —
@@ -457,6 +461,15 @@ function gen_multi_bible_grids(
     const row_lead = `#v(${row_lead_em}em, weak: true)\n`
 
     return rows.map(([a, b], i) => {
+        // The passage's own opening chapter is announced by its reference/title, so quiet that
+        // first #ch marker on both translations of the opening row (see
+        // quiet_leading_chapter_marker). Done here, not before build_aligned_rows, so the
+        // chapter-splitting in bilingual.ts still sees every real #ch marker.
+        if (i === 0) {
+            a = quiet_leading_chapter_marker(a)
+            b = quiet_leading_chapter_marker(b)
+        }
+
         // Tested on the original markup — quiet_chapter_markers below rewrites the #ch calls
         const a_heading = heading_row.test(a)
         const b_heading = heading_row.test(b)
@@ -508,4 +521,17 @@ ${cell_b}
 // bilingual columns layout draws the marker itself rather than once per translation cell
 function quiet_chapter_markers(markup:string):string {
     return markup.replace(/#ch\((\d+)\)/g, '#ch_quiet($1)')
+}
+
+
+// A passage that begins exactly on a chapter boundary (e.g. "1 Cor 6") opens with a #ch(n)
+// marker that would draw the chapter number — as a divider, margin numeral or "Chapter N"
+// heading depending on the document style — right where the passage's own reference/title
+// already announces it. Swap just that opening marker for the state-only #ch_quiet so the
+// running-chapter state still advances while nothing is drawn; any later #ch(n) in a
+// multi-chapter passage renders normally. A passage starting mid-chapter has no leading marker
+// at all (the USX->Typst converter only emits one at a chapter's opening verse), so this is a
+// no-op there.
+function quiet_leading_chapter_marker(markup:string):string {
+    return markup.replace(/^(\s*)#ch\((\d+)\)/, '$1#ch_quiet($2)')
 }

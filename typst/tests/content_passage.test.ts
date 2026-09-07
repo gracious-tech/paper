@@ -270,23 +270,26 @@ describe('gen_passage', () => {
             expect(result).toContain('#ch_quiet(2)')
         })
 
-        it('drop-cap (float) style: quiets only the second translation\'s marker', () => {
+        it('drop-cap (float) style: quiets the opening chapter and the second translation', () => {
             const result = bilingual_chapters('float')
-            // Primary keeps its real marker (draws the margin numeral); second is quieted so it
-            // doesn't repeat the numeral into the column gutter
-            expect(result).toContain('#ch(1)')
-            expect(result).toContain('#ch(2)')
+            // The passage's opening chapter (1) is quieted on both sides — the reference already
+            // announces it (see quiet_leading_chapter_marker). Later chapters keep the primary's
+            // margin numeral and quiet the second so it doesn't repeat into the column gutter
+            expect(result).not.toContain('#ch(1)')
             expect(result).toContain('#ch_quiet(1)')
+            expect(result).toContain('#ch(2)')
             expect(result).toContain('#ch_quiet(2)')
-            expect(result.indexOf('#ch(1)')).toBeLessThan(result.indexOf('#ch_quiet(1)'))
+            expect(result.indexOf('#ch(2)')).toBeLessThan(result.indexOf('#ch_quiet(2)'))
             expect(result).not.toContain('#ch_divider(')
         })
 
-        it('heading style: leaves both translations\' markers untouched', () => {
+        it('heading style: quiets only the passage\'s opening chapter marker', () => {
             const result = bilingual_chapters('heading')
-            expect(result).toContain('#ch(1)')
+            // Opening chapter (1) quieted on both sides; every later chapter marker is left as-is
+            expect(result).not.toContain('#ch(1)')
+            expect(result).toContain('#ch_quiet(1)')
             expect(result).toContain('#ch(2)')
-            expect(result).not.toContain('#ch_quiet(')
+            expect(result).not.toContain('#ch_quiet(2)')
             expect(result).not.toContain('#ch_divider(')
         })
 
@@ -407,6 +410,30 @@ describe('gen_passage', () => {
                 FONT_SIZE, FONT_TEXT2, FONT_HEADINGS2, FONT_SIZE2, FONT_FALLBACKS)
             expect(result).toContain('#place(top + left')
             expect(result).toContain(`dx: -${TEST_PAGE.margin_left}`)
+        })
+    })
+
+    // --- Opening chapter marker ---
+
+    describe('opening chapter marker', () => {
+
+        it('quiets a passage\'s own opening #ch marker (single translation)', () => {
+            // "1 Cor 6" opens straight on a chapter boundary — its leading #ch(6) would draw
+            // the chapter number the passage reference already announces
+            const result = call(make_passage({
+                bibles: [{content: '#ch(6)\n\n#vn(1)Verse one.\n\n#ch(7)\n\n#vn(1)Verse one.'}],
+            }))
+            expect(result).toContain('#ch_quiet(6)')
+            expect(result).not.toContain('#ch(6)')
+            // A later chapter within the same passage still renders normally
+            expect(result).toContain('#ch(7)')
+        })
+
+        it('leaves content untouched when the passage starts mid-chapter', () => {
+            const result = call(make_passage({
+                bibles: [{content: '#vn(12)Verse twelve.\n\n#vn(13)Verse thirteen.'}],
+            }))
+            expect(result).not.toContain('#ch_quiet(')
         })
     })
 
