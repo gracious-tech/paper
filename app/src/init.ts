@@ -86,14 +86,15 @@ app.use(createVuetify({
         },
     },
     defaults: {
+        // 'auto' collapses the details row when a field has nothing to show (plain hints are
+        // now rendered via the .hint class instead), but still reserves it for error-messages
         global: {
-            persistentHint: true,
+            hideDetails: 'auto',
         },
         VChip: {
             rounded: 'pill',
         },
         VCheckbox: {
-            hideDetails: true,
             color: 'primary',
         },
         VRadioGroup: {

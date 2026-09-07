@@ -11,12 +11,12 @@ v-radio-group(v-model='blue.bibles_align' inline :label='$t("options.layout.alig
     v-radio(value='paragraph' :label='$t("options.layout.paragraph")')
     v-radio(value='chapter' :label='$t("options.layout.chapter")')
 
-v-radio-group(v-model='columns' inline :label='$t("options.layout.columns")' class='my-4'
+v-radio-group(v-model='columns' inline :label='$t("options.layout.columns")' class='mt-4'
         :disabled='blue.bibles_layout === "columns" && blue.bibles.length > 1')
     v-radio(value='null' :label='$t("common.auto")')
     v-radio(value='false' :label='$t("common.one")')
     v-radio(value='true' :label='$t("common.two")')
-p(class='text-body-medium text-disabled') {{ $t("options.layout.columns_auto_note") }}
+p(class='hint') {{ $t("options.layout.columns_auto_note") }}
 
 v-radio-group(v-model='half_blank' inline :label='$t("options.layout.half_blank")'
         :disabled='blue.bibles.length > 1 && blue.bibles_layout === "alternate"' class='my-6')

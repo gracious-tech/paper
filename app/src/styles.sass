@@ -63,8 +63,33 @@ body
 .v-checkbox
     --v-input-control-height: 24px !important
 
+// md3's radio-group indents both its own label and its row of radios under it (a hierarchy
+// cue that doesn't match this app's flush-left fields/hints elsewhere) — flush both back out
+.v-radio-group > .v-input__control > .v-label
+    margin-inline-start: 0
+
+.v-radio-group > .v-input__control > .v-label + .v-selection-control-group
+    padding-inline-start: 0
+
+// Vuetify's default label opacity (the shared --v-medium-emphasis-opacity var, 0.6) reads as
+// only ~5.3:1 against this app's tinted (non-white) --app-bg — passes AA but not by much.
+// Override just the label's own opacity (not the shared var, which other things also rely on)
+.v-label
+    opacity: 0.75
+
 .v-btn
     text-transform: none !important
+
+// Helper text below a form field. Vuetify's own `hint`/`messages` props are preferred wherever
+// the component supports them; this class covers every field that can't use them (checkboxes,
+// sliders, radio groups, custom fields). Add `text-error` for a warning-toned hint
+.hint
+    font-size: 0.9rem
+    line-height: 1.4
+    margin-top: 6px
+    margin-bottom: 12px
+    color: rgba(var(--v-theme-on-surface), var(--v-medium-emphasis-opacity))
+
 
 // Vuetify's <v-card-actions> forces `slim` onto every button it wraps (padding: 0 8px via
 // provideDefaults), which leaves dialog action rows looking cramped. Restore normal button

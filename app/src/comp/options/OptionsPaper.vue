@@ -13,7 +13,7 @@ template(v-if='is_home')
 
     v-switch(v-model='blue.booklet' :label='$t("common.booklet_home")' color='primary'
         density='compact' hide-details)
-    p(class='text-body-medium') {{ $t("options.paper.booklet_note") }}
+    p(class='hint') {{ $t("options.paper.booklet_note") }}
 
 //- Service / custom modes: full trim size + print options
 template(v-else)

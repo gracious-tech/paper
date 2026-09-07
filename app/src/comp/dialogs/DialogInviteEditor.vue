@@ -27,7 +27,7 @@ v-dialog(:model-value='modelValue' @update:model-value='close' max-width='520'
                         v-btn(@click='copy_link' variant='text' size='small')
                             | {{ copied ? $t("common.copied") : $t("common.copy") }}
                 v-btn(@click='reset_link' variant='tonal' size='small') {{$t("dialog.invite.reset_link")}}
-                p(class='text-body-small mt-1')
+                p(class='hint')
                     | {{$t("dialog.invite.reset_notice")}}
                 v-divider(class='my-4')
 
@@ -44,7 +44,7 @@ v-dialog(:model-value='modelValue' @update:model-value='close' max-width='520'
                     template(#append)
                         v-btn(v-if='is_owner && !person.owner' @click='kick_editor(person.uid)'
                                 icon='mdi-close' variant='text' size='small' color='error')
-            p(v-if='is_owner' class='text-body-small mt-1')
+            p(v-if='is_owner' class='hint')
                 | {{$t("dialog.invite.remove_notice")}}
         v-card-actions
             v-spacer

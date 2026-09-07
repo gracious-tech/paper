@@ -16,9 +16,9 @@ v-list(bg-color='transparent')
         template(#append)
             v-btn(v-if='removable' icon variant='text' @click.stop='rm_bible(1)')
                 app-icon(name='close')
-p.hint(v-if='duplicate' class='text-body-medium mt-2 text-error')
+p(v-if='duplicate' class='hint text-error')
     | {{$t("wizard.bibles.must_differ")}}
-div(v-if='warnings.length' class='mt-2 text-error text-body-medium')
+div(v-if='warnings.length' class='hint text-error')
     div(v-for='warning of warnings') {{ warning }}
 
 //- The translation picker sits in its own dialog so switching wizard steps while it's open
@@ -140,8 +140,5 @@ const rm_bible = (index:number) => {
 
 
 <style lang='sass' scoped>
-
-.hint
-    opacity: 0.8
 
 </style>

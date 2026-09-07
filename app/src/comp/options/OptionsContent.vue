@@ -23,7 +23,7 @@ div.add(class='d-flex align-center flex-wrap')
     v-btn(:disabled='has_interior_copyright' @click='add_copyright' size='small' variant='outlined')
         | {{$t("common.copyright")}}
 
-div.warnings(v-if='warnings' class='mt-4 text-body-medium')
+div.warnings(v-if='warnings' class='hint')
     div(v-for='warning of warnings') {{ warning }}
 
 DialogPictureStoryPicker(v-model='picker_open' @select-story='add_picture_story_from'

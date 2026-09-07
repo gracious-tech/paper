@@ -2,7 +2,7 @@
 <template lang='pug'>
 
 v-dialog(:model-value='mode !== null' @update:model-value='cancel' :fullscreen='fullscreen'
-        :max-width='fullscreen ? undefined : 800' height='1000' max-height='1000' scrollable no-click-animation)
+        :max-width='fullscreen ? undefined : 800' min-height='500' max-height='1000' scrollable no-click-animation)
     v-card.wizard(:class='{fullscreen}')
 
         v-stepper.stepper-progress(:model-value='step_index + 1' @update:model-value='set_step'

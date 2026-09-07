@@ -1,7 +1,7 @@
 
 <template lang='pug'>
 
-v-select(v-model='model' :items='items' :label='label' :hint='hint')
+v-select(v-model='model' :items='items' :label='label')
     template(#item='{internalItem: item, props: item_props}')
         v-list-item(v-bind='item_props')
             template(#title v-if='typeof item.raw === "string"')
@@ -35,7 +35,6 @@ import DialogFontUpload from '@/comp/dialogs/DialogFontUpload.vue'
 
 const props = defineProps<{
     label:string
-    hint?:string
     auto?:boolean  // include the "Auto (matches text font)" option
     example:'title'|'heading'|'verse'  // which content.example_text field to preview with
 }>()

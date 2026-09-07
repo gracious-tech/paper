@@ -21,7 +21,7 @@ div.image-field
                     :disabled='uploading' @change='on_file_select')
             v-text-field(v-else v-model='url_input' :label='$t("editor.image.url_label")' hide-details
                 density='compact' @keyup.enter='apply_url' @blur='apply_url')
-    p(v-if='error' class='text-body-small text-error mt-1') {{ error }}
+    p(v-if='error' class='hint text-error') {{ error }}
 
 </template>
 

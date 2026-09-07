@@ -32,15 +32,15 @@ v-card-text(class='overflow-y-auto')
     v-checkbox(v-model='gutter_checked' :label='$t("editor.advanced.auto_gutter")'
         :disabled='!service_provides_gutter' hide-details)
     template(v-if='service_provides_gutter')
-        p(class='text-body-medium text-medium-emphasis mt-2') {{$t("editor.advanced.auto_gutter_note")}}
-        p(v-if='gutter_amount' class='text-body-medium text-medium-emphasis mt-1') {{ $t("editor.advanced.auto_gutter_amount", {amount: gutter_amount, unit: blue.margin_unit, pages: gutter_pages}) }}
-    p(v-else class='text-body-medium text-medium-emphasis mt-2') {{$t("editor.advanced.auto_gutter_unavailable")}}
+        p(class='hint') {{$t("editor.advanced.auto_gutter_note")}}
+        p(v-if='gutter_amount' class='hint') {{ $t("editor.advanced.auto_gutter_amount", {amount: gutter_amount, unit: blue.margin_unit, pages: gutter_pages}) }}
+    p(v-else class='hint') {{$t("editor.advanced.auto_gutter_unavailable")}}
 
     v-divider(class='my-8')
 
     h2(class='mb-4') {{$t("editor.advanced.running_heading")}}
 
-    div(v-if='!blue.running_pages && !blue.running_headings' class='text-body-medium text-medium-emphasis mb-4') {{$t("editor.advanced.running_disabled_note")}}
+    p(v-if='!blue.running_pages && !blue.running_headings' class='hint') {{$t("editor.advanced.running_disabled_note")}}
 
     v-radio-group(v-model='blue.running_position' inline :label='$t("common.position")'
             :disabled='!blue.running_pages && !blue.running_headings' class='my-4')
@@ -82,32 +82,32 @@ v-card-text(class='overflow-y-auto')
 
         //- Sized relative to the main text (1 = match), not an absolute point size
         v-slider(v-model='blue.font_size2' :label='$t("editor.advanced.text2_size")' :min='0.5'
-                :max='1.5' :step='0.01' thumb-label class='my-4')
+                :max='1.5' :step='0.01' thumb-label class='mt-4')
             template(#thumb-label='{modelValue}')
                 | {{ Math.round(modelValue * 100) }}%
-        p(class='text-body-medium text-medium-emphasis') {{$t("editor.advanced.text2_size_note")}}
+        p(class='hint') {{$t("editor.advanced.text2_size_note")}}
 
     v-divider(class='my-8')
 
     h2(class='mb-4') {{$t("common.text")}}
 
     v-checkbox(v-model='blue.hyphenate' :label='$t("editor.advanced.hyphenate")' hide-details)
-    p(class='text-body-medium text-medium-emphasis mt-2') {{$t("editor.advanced.hyphenate_note")}}
+    p(class='hint') {{$t("editor.advanced.hyphenate_note")}}
 
     v-checkbox(v-model='blue.poetry_outdent' :label='$t("editor.advanced.poetry_outdent")' class='mt-4' hide-details)
-    p(class='text-body-medium text-medium-emphasis mt-2') {{$t("editor.advanced.poetry_outdent_note")}}
+    p(class='hint') {{$t("editor.advanced.poetry_outdent_note")}}
 
     v-divider(class='my-8')
 
     h2(class='mb-4') {{$t("editor.advanced.text_color")}}
 
     AppColor(v-model='blue.text_color' :label='$t("editor.advanced.text_color_label")')
-    p(class='text-body-medium text-medium-emphasis mt-2') {{$t("editor.advanced.big_text_note")}}
+    p(class='hint') {{$t("editor.advanced.big_text_note")}}
 
     v-divider(class='my-8')
 
     h2(class='mb-4') {{$t("editor.advanced.title_pages")}}
-    p(class='text-body-medium text-medium-emphasis mb-4') {{$t("editor.advanced.titlepages_note")}}
+    p(class='hint') {{$t("editor.advanced.titlepages_note")}}
 
     AppFontSelect(v-model='blue.titlepage_font' :label='$t("editor.advanced.titlepage_font")' auto
         example='title' class='mb-4')
@@ -140,7 +140,7 @@ v-card-text(class='overflow-y-auto')
     v-divider(class='my-8')
 
     h2(class='mb-4') {{$t("common.images")}}
-    p(class='text-body-medium text-medium-emphasis mb-4') {{$t("editor.advanced.images_note")}}
+    p(class='hint') {{$t("editor.advanced.images_note")}}
 
     v-radio-group(v-model='blue.image_style' inline :label='$t("common.style")')
         v-radio(value='padded' :label='$t("editor.advanced.image_padded")')
@@ -157,10 +157,10 @@ v-card-text(class='overflow-y-auto')
         v-radio(value='grid' :label='$t("editor.advanced.story_grid")')
 
     v-checkbox(v-model='blue.story_alternate' :label='$t("editor.advanced.alt_image_side")' hide-details)
-    p(class='text-body-medium text-medium-emphasis mt-2 mb-4') {{$t("editor.advanced.alt_image_side_note")}}
+    p(class='hint') {{$t("editor.advanced.alt_image_side_note")}}
 
     v-checkbox(v-model='blue.story_emphasis' :label='$t("editor.advanced.emphasize_tone")' hide-details)
-    p(class='text-body-medium text-medium-emphasis mt-2 mb-4') {{$t("editor.advanced.emphasis_note")}}
+    p(class='hint') {{$t("editor.advanced.emphasis_note")}}
 
     AppColor(v-if='blue.story_emphasis' v-model='blue.story_emphasis_color'
         :label='$t("editor.advanced.emphasis_color")')
@@ -172,18 +172,18 @@ v-card-text(class='overflow-y-auto')
     v-checkbox(v-model='blue.app_link' :label='$t(`editor.advanced.app_link`)' class='mt-4')
 
     v-checkbox(v-model='blue.design_link' :label='$t("editor.advanced.design_link")' class='mt-4')
-    p(class='text-body-medium text-medium-emphasis mb-4') {{$t("editor.advanced.design_link_note")}}
+    p(class='hint') {{$t("editor.advanced.design_link_note")}}
 
     v-checkbox(v-model='blue.public_domain' :label='$t("editor.advanced.dedicate_pd")' class='mt-4' hide-details)
-    p(class='text-body-medium text-medium-emphasis mt-2') {{$t("editor.advanced.pd_note")}} #[a(href='https://freely.giving/questions/public-domain' target='_blank' rel='noopener') {{$t('editor.advanced.pd_learn_more')}}]
-    p(v-if='!blue.public_domain' class='text-body-medium text-error mt-2') {{$t("editor.advanced.design_link_warning")}}
+    p(class='hint') {{$t("editor.advanced.pd_note")}} #[a(href='https://freely.giving/questions/public-domain' target='_blank' rel='noopener') {{$t('editor.advanced.pd_learn_more')}}]
+    p(v-if='!blue.public_domain' class='hint text-error') {{$t("editor.advanced.design_link_warning")}}
 
     v-divider(class='my-8')
 
     h2(class='mb-4') {{$t("editor.advanced.workarounds")}}
 
     v-switch(v-model='blue.booklet_portrait' color='primary' :label="$t(`editor.advanced.flip_edge`)" class='mt-4' :disabled='!blue.booklet' hide-details)
-    p(class='text-body-medium text-medium-emphasis') {{$t("editor.advanced.flip_edge_note")}}
+    p(class='hint') {{$t("editor.advanced.flip_edge_note")}}
 
 </template>
 
