@@ -61,8 +61,8 @@ template(v-else)
         //- the estimate refreshes after every preview compile, and the user keeps their choice
         v-alert(v-if='binding_warning' type='warning' variant='tonal' density='compact'
                 class='mb-6')
-            div {{ binding_warning }}
-            div(class='text-right')
+            div {{ binding_warning.text }}
+            div(v-if='binding_warning.too_many' class='text-right')
                 v-btn(@click='state.page_suggestions = true' size='small' variant='flat' color='warning'
                     class='mt-2') {{ $t("page_suggestions.button") }}
 
@@ -202,7 +202,10 @@ const binding_warning = computed(() => {
     const key = issue.fewer
         ? 'options.paper.binding_min_warning'
         : 'options.paper.binding_max_warning'
-    return t(key, {name: issue.name, limit: issue.limit, estimate: estimated_pages.value})
+    // Suggestions only ever reduce the page count, so they're no help when the document is
+    // too short for the binding
+    return {text: t(key, {name: issue.name, limit: issue.limit, estimate: estimated_pages.value}),
+        too_many: !issue.fewer}
 })
 
 

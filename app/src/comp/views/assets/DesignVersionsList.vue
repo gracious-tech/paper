@@ -49,8 +49,8 @@ template(v-else)
         //- designed, which a mobile user needs to see just as much as a desktop one.
         v-alert(v-if='binding_warning' density='compact' type='error'
                 class='mt-3 text-left bg-error-lighten-2')
-            div {{ binding_warning }}
-            div(class='text-right')
+            div {{ binding_warning.text }}
+            div(v-if='binding_warning.too_many' class='text-right')
                 v-btn(@click='state.page_suggestions = true' size='small' variant='flat'
                     class='mt-2' color='error') {{ $t("page_suggestions.button") }}
         v-alert(v-if='sheets_warning' :color='sheets_warning.color' type='warning' density='compact'
@@ -172,7 +172,10 @@ const binding_warning = computed(() => {
     const key = issue.fewer
         ? 'view.version_list.binding_min_warning'
         : 'view.version_list.binding_max_warning'
-    return t(key, {name: issue.name, limit: issue.limit, final: version.pages})
+    // Suggestions only ever reduce the page count, so they're no help when the document is
+    // too short for the binding
+    return {text: t(key, {name: issue.name, limit: issue.limit, final: version.pages}),
+        too_many: !issue.fewer}
 })
 
 
