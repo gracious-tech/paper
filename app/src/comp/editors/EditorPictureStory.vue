@@ -12,9 +12,9 @@ v-divider
 v-card-text(class='flex-grow-1 d-flex flex-column overflow-y-auto')
     //- Story-level fields: the optional auto title page (same props as a passage); title also
     //- doubles as the item's label in the content list (see gen_content_name)
-    div
+    div(class='mb-6')
         v-text-field(v-model='item.title' :label='$t("common.title")')
-    div
+    div(class='mb-6')
         v-text-field(v-model='item.title_subtitle' :label='$t("common.subtitle")')
     IconField(v-model:icon='item.title_icon')
 

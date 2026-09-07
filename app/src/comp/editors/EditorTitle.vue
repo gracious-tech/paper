@@ -7,9 +7,9 @@ v-card-title(class='d-flex justify-space-between align-center')
 v-divider
 
 v-card-text(class='overflow-y-auto')
-    div
+    div(class='mb-6')
         v-text-field(v-model='item.title' :label='$t("common.title")')
-    div
+    div(class='mb-6')
         v-text-field(v-model='item.title_subtitle' :label='$t("common.subtitle")')
     IconField(v-model:icon='item.title_icon')
 
@@ -38,9 +38,5 @@ const done = () => {
 
 .v-card-text
     padding-bottom: 30vh
-
-
-.v-text-field
-    margin-bottom: 24px
 
 </style>

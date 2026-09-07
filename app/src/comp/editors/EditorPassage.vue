@@ -13,9 +13,9 @@ v-divider
 v-card-text(class='flex-grow-1 d-flex flex-column')
     PassageField(v-model:passage='tmp_passage' v-model:error='passage_error'
         @resolved='on_resolved')
-    div
+    div(class='mb-6')
         v-text-field(v-model='tmp_title' :label='$t("common.title")')
-    div
+    div(class='mb-6')
         v-text-field(v-model='tmp_title_subtitle' :label='$t("common.subtitle")')
     IconField(v-model:icon='tmp_title_icon')
     ImageField(v-model:image='tmp_image')
