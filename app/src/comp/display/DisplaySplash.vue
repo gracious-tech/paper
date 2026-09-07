@@ -3,14 +3,14 @@
 
 div.cont
 
-    h1
+    h1(class='mb-12')
         BrandIcon
         | Paper Bible
 
-    img(src='@/assets/splash.webp')
-
     h2 {{$t("display.splash.tagline")}}
     h2 {{$t("display.splash.languages")}}
+
+    DisplayHelp.video
 
     v-btn(@click='start' color='secondary' size='large' rounded class='my-4') {{$t("display.splash.get_started")}}
 
@@ -22,6 +22,7 @@ div.cont
 import {useRouter} from 'vue-router'
 
 import BrandIcon from '@/assets/icon.svg?component'
+import DisplayHelp from '@/comp/display/DisplayHelp.vue'
 import {state} from '@/services/state'
 import {designs} from '@/services/designs'
 
@@ -54,7 +55,7 @@ const start = () => {
     width: 100%
     flex-direction: column
     align-items: center
-    padding: 40px 16px
+    padding: 40px 0  // Sides padded per-child so the video can reach the screen edges
     color: white
     text-align: center
 
@@ -63,9 +64,12 @@ const start = () => {
             font-size: 40px
             svg
                 width: 40px
+        h2
+            font-size: 18px
 
 h1, h2
     font-family: "Crimson Pro", serif
+    padding: 0 16px
 
 h1
     display: flex
@@ -77,11 +81,18 @@ h1
 
 h2
     font-size: 24px
+    margin-bottom: 24px
 
-img
+.video
     width: 100%
-    max-width: 60vh  // So less likely to require scrolling on short screens
-    margin: 48px
-    border-radius: 2px
+    max-width: 1000px
+    aspect-ratio: 16 / 9
+    margin: 24px 0
+    overflow: hidden
+
+    // Only round the corners when the max-width caps it, otherwise it's spanning the full
+    // width of the screen and should meet the edges cleanly
+    @media (min-width: 1000px)
+        border-radius: 16px
 
 </style>
