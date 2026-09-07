@@ -301,7 +301,7 @@ describe('compile_pdf_spread_preview', () => {
     // A passage long enough to span several pages
     const long_passage = {
         type: 'passage' as const,
-        bibles: [{content: Array.from({length: 20}, (_, i) =>
+        bibles: [{content: Array.from({length: 200}, (_, i) =>
             `#vn(${i + 1})Verse ${i + 1} with text long enough to wrap onto several lines and `
             + `flow across multiple pages of the document.`).join(' ')}],
         multi_layout: 'columns' as const,
@@ -326,20 +326,38 @@ describe('compile_pdf_spread_preview', () => {
             content: [long_passage], arrangement: 'book',
         }))
         const doc = await PDFDocument.load(result)
-        const {width, height} = doc.getPage(0).getSize()
         const page_w = 148 * 2.8346
         const page_h = 210 * 2.8346
-        // Each spread is one landscape page holding two portrait pages side by side
-        expect(width).toBeCloseTo(page_w * 2, 0)
-        expect(height).toBeCloseTo(page_h, 0)
+        // No preview_cover_label here, so page 1 stands alone on a single-width page — a book
+        // opens on a recto, so it has no facing page (see arrange_spreads)
+        const first = doc.getPage(0).getSize()
+        expect(first.width).toBeCloseTo(page_w, 0)
+        expect(first.height).toBeCloseTo(page_h, 0)
+        // Every spread after it is one landscape page holding two portrait pages side by side
+        const spread = doc.getPage(1).getSize()
+        expect(spread.width).toBeCloseTo(page_w * 2, 0)
+        expect(spread.height).toBeCloseTo(page_h, 0)
     }, 15000)
 
-    it('produces one spread per pair of pages, with a leading blank page', async () => {
+    it('starts on a full spread when a cover label is set', async () => {
+        // With a cover, the inside face of it fills the first spread's left slot so page 1
+        // lands on the right — there's no standalone single-width page
+        const result = await compile_pdf_spread_preview(make_request({
+            content: [long_passage], arrangement: 'book', preview_cover_label: 'Front cover',
+        }))
+        const doc = await PDFDocument.load(result)
+        const {width, height} = doc.getPage(0).getSize()
+        expect(width).toBeCloseTo(148 * 2.8346 * 2, 0)
+        expect(height).toBeCloseTo(210 * 2.8346, 0)
+    }, 15000)
+
+    it('produces one spread per pair of pages, after the standalone first page', async () => {
         const request = make_request({content: [long_passage], arrangement: 'book'})
         // Reading-order page count from a plain book compile
         const reading = await PDFDocument.load(await compile_pdf(request))
         const n = reading.getPageCount()
-        // Spread count accounts for the prepended blank (n + 1 slots, paired)
+        // Page 1 stands alone and the remaining n - 1 pages pair up, which comes to the same
+        // total as pairing n + 1 slots
         const spreads = await PDFDocument.load(await compile_pdf_spread_preview(request))
         expect(spreads.getPageCount()).toBe(Math.ceil((n + 1) / 2))
     }, 15000)
