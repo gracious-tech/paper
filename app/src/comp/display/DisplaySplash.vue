@@ -10,7 +10,7 @@ div.cont
     h2 {{$t("display.splash.tagline")}}
     h2 {{$t("display.splash.languages")}}
 
-    DisplayHelp.video
+    IntroVideo.video
 
     v-btn(@click='start' color='secondary' size='large' rounded class='my-4') {{$t("display.splash.get_started")}}
 
@@ -22,7 +22,7 @@ div.cont
 import {useRouter} from 'vue-router'
 
 import BrandIcon from '@/assets/icon.svg?component'
-import DisplayHelp from '@/comp/display/DisplayHelp.vue'
+import IntroVideo from '@/comp/reuseable/IntroVideo.vue'
 import {state} from '@/services/state'
 import {designs} from '@/services/designs'
 

@@ -25,15 +25,15 @@ div.cont(class='text-body-medium')
             v-btn(href='https://github.com/gracious-tech/paper' target='_blank' variant='tonal')
                 | {{$t("view.about.source_code")}}
 
-    DisplayHelp.display
+    IntroVideo.display
 
 </template>
 
 
 <script lang='ts' setup>
 
-//- The video panel is shared with the help view; on narrow screens it renders inline here
-import DisplayHelp from '@/comp/display/DisplayHelp.vue'
+//- The video panel is shared with the display area; on narrow screens it renders inline here
+import IntroVideo from '@/comp/reuseable/IntroVideo.vue'
 
 //- Inline link to the creator, substituted into the {org} placeholder of the body text
 const org_link = '<a href="https://gracious.tech" target="_blank" rel="noopener">Gracious Tech</a>'
