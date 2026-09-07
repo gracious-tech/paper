@@ -170,6 +170,9 @@ export interface TypstPassage {
     // a separate synthetic TypstTitlePage item injected before this one, see bible_content.ts)
     passage_title:string|null
     passage_subtitle:string|null
+    // Recolored SVG for the decorative icon shown under the heading ('heading' mode only, and
+    // only alongside a title) — null when there's no icon or it failed to resolve
+    passage_icon:string|null
     // Passage reference for progress reporting only (always set, regardless of passage_title)
     progress_label:string
 }

@@ -466,6 +466,19 @@ export class BibleContent {
         const image = passage.image
             ? await resolve_passage_image(passage.image, passage.id)
             : null
+
+        // Heading-mode icon — 'titlepage' mode renders its own via the synthetic title page, so
+        // this is only for the inline heading. Recolored with the same icon color as title pages;
+        // a failed fetch just drops the icon rather than breaking the whole document
+        let passage_icon:string|null = null
+        if (show_heading && passage.title_icon) {
+            try {
+                passage_icon = await resolve_icon(
+                    passage.title_icon, blue.titlepage_color_icon ?? '#000000')
+            } catch {
+                passage_icon = null
+            }
+        }
         return {
             type: 'passage',
             bibles: await this.gen_passage_bibles(blue, passage, report_fetch),
@@ -489,6 +502,7 @@ export class BibleContent {
             start_chapter: passage.start_chapter ?? 1,
             passage_title: show_heading ? passage.title : null,
             passage_subtitle: show_heading && passage.title_subtitle ? passage.title_subtitle : null,
+            passage_icon,
             progress_label: reference,
         }
     }

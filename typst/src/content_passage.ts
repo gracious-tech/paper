@@ -1,7 +1,8 @@
 
 import {escape_typst_str} from 'typst-utils'
 
-import {LARGE_POETRY, LOTS_OF_POETRY, escape_typst, parse_unit} from './helpers.js'
+import {LARGE_POETRY, LOTS_OF_POETRY, escape_typst, escape_svg_for_typst, parse_unit}
+    from './helpers.js'
 import {build_aligned_rows} from './bilingual.js'
 
 import type {ImageStyle, PageConfig, TypstPassage, TypstPassageImage} from './types.js'
@@ -53,18 +54,22 @@ const PASSAGE_SUBTITLE_SIZE = '0.9em'
 // more than the title's own leading (1.4 x 1.2em), so the subtitle reads as a separate line
 // attached to the title rather than as another wrapped line of it
 const PASSAGE_SUBTITLE_GAP = '1.6em'
+// Gap from the heading text down to the decorative icon below it
+const PASSAGE_ICON_GAP = '3em'
 
 
-// Generate the centred title (+ optional subtitle) shown above a passage when passage titles
-// render inline ('heading' mode) rather than as their own title page. Returned as a bare content
-// expression so the caller can put it in the flow, float it to page scope, or repeat it once per
-// facing half. Leading is fixed at 1.4x each line's own size (em resolves per line) rather than
-// inherited from the body, so a wrapped title spaces the same in every design — the same
-// treatment a full title page gets. Justification and hyphenation are always off: a centred
+// Generate the centred title (+ optional subtitle + icon) shown above a passage when passage
+// titles render inline ('heading' mode) rather than as their own title page. Returned as a bare
+// content expression so the caller can put it in the flow, float it to page scope, or repeat it
+// once per facing half. Leading is fixed at 1.4x each line's own size (em resolves per line)
+// rather than inherited from the body, so a wrapped title spaces the same in every design — the
+// same treatment a full title page gets. Justification and hyphenation are always off: a centred
 // title must never be stretched to the measure or broken across lines. Paragraph spacing is
 // zeroed so the title/subtitle gap is exactly PASSAGE_SUBTITLE_GAP — the document's own
 // paragraph spacing would otherwise stack on top of it and vary with the user's line height.
-function gen_passage_title(title:string, subtitle:string|null):string {
+function gen_passage_title(
+    title:string, subtitle:string|null, icon:string|null, page:PageConfig,
+):string {
     const lines = [
         'set par(leading: 1.4em, spacing: 0pt, justify: false)',
         'set text(hyphenate: false)',
@@ -75,6 +80,18 @@ function gen_passage_title(title:string, subtitle:string|null):string {
         lines.push(`v(${PASSAGE_SUBTITLE_GAP})`)
         lines.push(`align(center, text(size: ${PASSAGE_SUBTITLE_SIZE},`
             + ` [${escape_typst(subtitle)}]))`)
+    }
+    // Decorative icon under the heading, embedded as a recolored SVG. Assumed square, so it's
+    // sized to the smaller of 80% of the trim width and 40% of its height (page.width/height
+    // always share a unit — see gen_page in bible_content.ts)
+    if (icon) {
+        const page_w = parse_unit(page.width)
+        const page_h = parse_unit(page.height)
+        const icon_w = Math.min(page_w.num * 0.4, page_h.num * 0.3)
+        const icon_bytes = `bytes("${escape_svg_for_typst(icon)}")`
+        lines.push(`v(${PASSAGE_ICON_GAP})`)
+        lines.push(`align(center, image.decode(${icon_bytes},`
+            + ` width: ${icon_w.toFixed(2)}${page_w.unit}))`)
     }
     return `{\n    ${lines.join('\n    ')}\n}`
 }
@@ -98,11 +115,12 @@ export function gen_passage(
         parts.push('')
     }
 
-    // Optional passage title + subtitle (no icon — that's only for full title pages). On a
-    // 2-column page it floats at the parent (page) scope so it spans the full width above both
-    // columns — a plain block would sit inside the first column
+    // Optional passage title + subtitle + icon. On a 2-column page it floats at the parent
+    // (page) scope so it spans the full width above both columns — a plain block would sit
+    // inside the first column
     if (passage.passage_title) {
-        const block = gen_passage_title(passage.passage_title, passage.passage_subtitle)
+        const block = gen_passage_title(
+            passage.passage_title, passage.passage_subtitle, passage.passage_icon, page)
         if (passage_columns(passage) === 2) {
             parts.push(`#place(top + center, scope: "parent", float: true,
     block(width: 100%, ${block}))`)
@@ -158,7 +176,8 @@ export function gen_passage_facing(
     // The passage title (+ optional subtitle) repeats on both halves, since each becomes its
     // own physical page
     if (passage.passage_title) {
-        const block = gen_passage_title(passage.passage_title, passage.passage_subtitle)
+        const block = gen_passage_title(
+            passage.passage_title, passage.passage_subtitle, passage.passage_icon, page)
         // Generous bottom margin so the book title stands clearly apart from the passage (a
         // bare paragraph break would leave it only one line's gap above the first verse)
         parts.push(`#block(width: 100%, below: 2.8em, grid(columns: (1fr, 1fr), column-gutter: ${gutter},

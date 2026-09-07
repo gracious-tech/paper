@@ -81,6 +81,7 @@ function make_request(overrides:Partial<TypstRequest> = {}):TypstRequest {
             start_chapter: 1,
             passage_title: null,
             passage_subtitle: null,
+            passage_icon: null,
         }],
         arrangement: 'normal',
         running_pages: false,
@@ -179,6 +180,7 @@ describe('compile_pdf', () => {
                     start_chapter: 1,
                     passage_title: null,
                     passage_subtitle: null,
+                    passage_icon: null,
                 },
                 {
                     type: 'custom',
@@ -319,6 +321,7 @@ describe('compile_pdf_spread_preview', () => {
         start_chapter: 1,
         passage_title: null,
         passage_subtitle: null,
+        passage_icon: null,
     }
 
     it('lays out spreads as 2-up landscape pages (twice the page width)', async () => {
