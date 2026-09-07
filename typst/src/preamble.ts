@@ -29,9 +29,14 @@ function gen_page_furniture_row(request:TypstRequest):string {
 
     // Page number cell. No font: override — inherits the document-wide #set text(font: (...))
     // below (font_text + its regular fallbacks), same as any other text. Size is 0.7em so the
-    // running furniture tracks the user's body font_size instead of a frozen point size
+    // running furniture tracks the user's body font_size instead of a frozen point size. Gated
+    // on running-active the same as the heading cell below, so title/custom/lines/picture-story
+    // pages carry no furniture at all (the page counter still advances, so later passage pages
+    // keep the right numbers)
     const number = request.running_pages
-        ? 'text(size: 0.7em, counter(page).display())'
+        ? `if state("running-active", false).at(here()) {
+            text(size: 0.7em, counter(page).display())
+        } else { none }`
         : 'none'
 
     // Running heading cell — only shows once a passage is the active content item (title/
