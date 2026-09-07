@@ -21,11 +21,11 @@ v-card-text(class='overflow-y-auto')
         v-text-field(v-model.number='blue.margin_outer' type='number' variant='underlined'
             density='compact' :label='$t("options.layout.outer")' class='mr-4')
 
-    div(class='d-flex align-center my-2')
+    div(class='d-flex align-center mt-6 mb-2')
         v-text-field(v-model.number='blue.column_gap' type='number' variant='underlined'
             density='compact' :label='$t("options.layout.column_gap")' class='mr-4'
             style='max-width: 90px' :disabled='blue.columns === false')
-        AppOptionToggle(v-model='margin_unit' :items='margin_unit_items')
+        AppOptionToggle(v-model='margin_unit' :items='margin_unit_items' size='small' density='compact')
 
     v-checkbox(v-model='gutter_checked' :label='$t("editor.advanced.auto_gutter")'
         :disabled='!service_provides_gutter' hide-details)
@@ -197,7 +197,7 @@ const done = () => {
 // Measurement unit for the margin fields (literal labels, not translated)
 const margin_unit_items = [
     {value: 'mm', title: "mm"},
-    {value: 'in', title: "inches"},
+    {value: 'in', title: "inch"},
 ]
 
 

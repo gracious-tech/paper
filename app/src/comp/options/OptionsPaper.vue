@@ -43,7 +43,8 @@ template(v-else)
         v-text-field(v-model.number='blue.custom_trim_height' type='number' variant='underlined'
             density='compact' :label='$t("common.height")' class='mr-4')
         //- Unit select only in regular-service mode (custom-service mode uses the toggle above)
-        AppOptionToggle(v-if='!is_custom' v-model='blue.custom_unit' :items='custom_unit_items')
+        AppOptionToggle(v-if='!is_custom' v-model='blue.custom_unit' :items='custom_unit_items'
+            size='small' density='compact')
 
     //- Custom-service mode: bleed and spine width (units follow the toggle above)
     div(v-if='is_custom' class='d-flex align-center ml-2 mb-4')
@@ -107,7 +108,7 @@ const home_size_items = [
 // Measurement unit for custom dimensions (regular-service mode)
 const custom_unit_items = [
     {value: 'mm', title: "mm"},
-    {value: 'inch', title: "inches"},
+    {value: 'inch', title: "inch"},
 ]
 
 

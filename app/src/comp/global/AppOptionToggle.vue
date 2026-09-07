@@ -7,9 +7,9 @@
 div(class='option-toggle')
     div(v-if='props.label' class='option-toggle-label') {{ props.label }}
     v-btn-toggle(:model-value='model' @update:model-value='on_update' :disabled='props.disabled'
-            variant='outlined' divided density='comfortable' mandatory role='group'
+            variant='outlined' divided :density='props.density' mandatory role='group'
             :aria-label='props.label')
-        v-btn(v-for='opt in props.items' :key='opt.value' :value='opt.value')
+        v-btn(v-for='opt in props.items' :key='opt.value' :value='opt.value' :size='props.size')
             | {{ opt.title }}
 
 </template>
@@ -24,11 +24,16 @@ interface ToggleItem {
 }
 
 
-const props = defineProps<{
+const props = withDefaults(defineProps<{
     label?:string
     items:ToggleItem[]
     disabled?:boolean
-}>()
+    size?:'x-small'|'small'|'default'|'large'|'x-large'
+    density?:'default'|'comfortable'|'compact'
+}>(), {
+    size: 'default',
+    density: 'comfortable',
+})
 
 
 // The selected value — always a string, mirroring the string-wrapped computeds callers pass
