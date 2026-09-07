@@ -311,6 +311,11 @@ function gen_heading_rules(passage:TypstPassage, font_size:string, line_height:n
     // other side's first text line, whose paragraph top-edge is likewise collapsed to 0. The
     // float-chapter case keeps the natural top-edge — its target is the big margin numeral, not
     // a text baseline.
+    //
+    // Justification and hyphenation are always off here regardless of the document-wide settings
+    // (see preamble.ts) — a heading that wraps must never be stretched to the measure or broken
+    // across lines. Headings wrap often enough for this to matter: long section headings in a
+    // 2-column layout, or in a half-width bilingual grid cell.
     const lead = (before:number, mult:number) => `it => context {
     let open = state("ch-float-open", false).get()
     state("ch-float-open", false).update(false)
@@ -318,6 +323,8 @@ function gen_heading_rules(passage:TypstPassage, font_size:string, line_height:n
     state("bilingual-cell-top", false).update(false)
     if not open and not cell_top { v(${gap(before)}) }
     block(above: 0pt, {
+        set par(justify: false)
+        set text(hyphenate: false)
         set text(top-edge: 0pt) if cell_top
         text(weight: ${weight}, style: ${style}, size: ${size(mult)}, it.body)
     })`

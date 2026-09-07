@@ -48,6 +48,11 @@ function gen_page_furniture_row(request:TypstRequest):string {
     const center = request.running_align === 'outer' ? heading : number
 
     return `{
+        // Never stretched or hyphenated, regardless of the document-wide settings below — each
+        // cell is only a third of the text width (a third of a half page in the facing layout),
+        // so a long localised book name plus chapter number can wrap in it
+        set par(justify: false)
+        set text(hyphenate: false)
         // Odd = recto/right by convention, matching the parity pdf_postprocess.ts already
         // encodes for blank-page insertion. running-side overrides this for half_blank
         // passages, whose physical side is fixed regardless of the Typst-internal page

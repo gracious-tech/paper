@@ -244,6 +244,9 @@ function gen_facing_furniture(request:TypstRequest, start_page:number, gutter:st
     const center_right = request.running_align === 'outer' ? heading : number_right
 
     return `{
+        // Same no-justify/no-hyphenate treatment as gen_page_furniture_row in preamble.ts
+        set par(justify: false)
+        set text(hyphenate: false)
         let n = counter(page).get().first()
         grid(columns: (1fr, 1fr), column-gutter: ${gutter},
             ${furniture_half_row(false, outer_left, center_left)},
