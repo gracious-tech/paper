@@ -1,11 +1,6 @@
 
 <template lang='pug'>
 
-//- v-radio-group(v-model='state.crossref' inline label="Cross-references")
-//-     v-radio(:value='null' label="None")
-//-     v-radio(value='small' label="Most relevant")
-//-     v-radio(value='medium' label="All available")
-
 v-checkbox(v-model='notes' label="Tyndale Open Study Notes" :hide-details='false')
 
 </template>
