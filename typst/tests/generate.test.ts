@@ -155,6 +155,119 @@ describe('page-level columns', () => {
 })
 
 
+describe('justification', () => {
+
+    // Typography with justification left on 'auto', the case the per-item measure resolves
+    const auto = {...TEST_TYPOGRAPHY, justify: null}
+
+    // A one-slide picture story, whose body is fitted to its box at render time
+    const story = {type: 'picture_story',
+        slides: [{image: null, body: 'Jesus calmed the storm.', body2: null}]} as const
+
+    // The preamble justifies for everything but an explicit `false`, so a justified item needs
+    // no rule of its own — only turning justification back off is ever emitted
+    it('leaves a full-measure passage to the preamble', () => {
+        const result = generate_typst(make_request({
+            typography: auto,
+            content: [make_passage({columns: 1})],
+        }))
+        expect(result).toContain('justify: true,')
+        expect(result).not.toContain('#set par(justify:')
+    })
+
+    it('justifies 2-column and bilingual measures at a normal body size', () => {
+        // ~32 characters a line on the test page — narrow, but what printed bibles do
+        const two_col = generate_typst(make_request({
+            typography: auto,
+            content: [make_passage({columns: 2})],
+        }))
+        expect(two_col).not.toContain('#set par(justify:')
+
+        const bilingual = generate_typst(make_request({
+            typography: auto,
+            content: [make_passage({
+                bibles: [{content: 'a'}, {content: 'b'}],
+                multi_layout: 'columns',
+            })],
+        }))
+        expect(bilingual).not.toContain('#set par(justify:')
+    })
+
+    it('stops justifying once the font size eats the measure', () => {
+        // Same half-width columns as above, but ~20 characters a line at 16pt
+        const two_col = generate_typst(make_request({
+            typography: {...auto, font_size: '16pt'},
+            content: [make_passage({columns: 2})],
+        }))
+        expect(two_col).toContain('#set par(justify: false)')
+
+        // Large print alone is enough, even across the full page width
+        const large_print = generate_typst(make_request({
+            typography: {...auto, font_size: '26pt'},
+            content: [make_passage({columns: 1})],
+        }))
+        expect(large_print).toContain('#set par(justify: false)')
+    })
+
+    it('demands a wider measure when hyphenation is off', () => {
+        const typography = {...auto, hyphenate: false}
+        const two_col = generate_typst(make_request({
+            typography,
+            content: [make_passage({columns: 2})],
+        }))
+        expect(two_col).toContain('#set par(justify: false)')
+
+        const full = generate_typst(make_request({
+            typography,
+            content: [make_passage({columns: 1})],
+        }))
+        expect(full).not.toContain('#set par(justify:')
+    })
+
+    it('never justifies anything but a passage or custom page', () => {
+        // Title pages, lines pages and picture stories, even with justification forced on
+        for (const item of [make_title(), make_lines(), story]) {
+            const result = generate_typst(make_request({
+                typography: {...TEST_TYPOGRAPHY, justify: true},
+                content: [item],
+            }))
+            expect(result).toContain('#set par(justify: false)')
+            expect(result).not.toContain('#set par(justify: true)')
+        }
+    })
+
+    it('applies an explicit choice to running text, whatever the measure', () => {
+        for (const justify of [true, false]) {
+            const result = generate_typst(make_request({
+                typography: {...TEST_TYPOGRAPHY, justify, font_size: '26pt'},
+                content: [make_passage({columns: 2}), make_custom()],
+            }))
+            // The preamble's rule carries it — neither item disagrees with it
+            expect(result).toContain(`justify: ${justify},`)
+            expect(result).not.toContain('#set par(justify:')
+        }
+    })
+
+    it('emits one rule for a run of items that agree', () => {
+        const result = generate_typst(make_request({
+            typography: {...auto, font_size: '16pt'},
+            content: [make_passage({columns: 2}), make_passage({columns: 2}), story],
+        }))
+        expect(result.match(/#set par\(justify: false\)/g)).toHaveLength(1)
+    })
+
+    it('does not leak an unjustified item\'s setting into the items that follow', () => {
+        const result = generate_typst(make_request({
+            typography: {...auto, font_size: '16pt'},
+            content: [make_passage({columns: 2}), make_passage({columns: 1})],
+        }))
+        expect(result.indexOf('#set par(justify: false)'))
+            .toBeLessThan(result.indexOf('#set par(justify: true)'))
+    })
+
+})
+
+
 describe('custom page positioning', () => {
 
     it('positions a custom alone on its page, falling back to flow when it overflows', () => {

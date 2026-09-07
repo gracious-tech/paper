@@ -109,14 +109,14 @@ export function gen_preamble(request:TypstRequest, overrides:PreambleOverrides =
         .map(f => `"${f}"`)
         .join(', ')
 
-    // Determine justification
-    let justify = 'false'
-    if (typography.justify === true) {
-        justify = 'true'
-    } else if (typography.justify === null) {
-        // Auto: justify if page is wide enough (heuristic: > 80mm text width)
-        justify = 'true'
-    }
+    // Determine justification. The blueprint's setting is NOT the final word — it is resolved
+    // per content item (see item_justifies in generate.ts, which owns the decision): only
+    // passages and custom pages can ever be justified, and 'auto' (null) additionally opts out
+    // of any measure too narrow to justify well. This rule is the justified-at-full-measure
+    // answer, which is what every item wanting justification needs, so items only override it
+    // where they turn justification back off. Also what the paths rendering no item list of
+    // their own — facing-page passages, standalone blank/lines pages — end up using.
+    const justify = typography.justify === false ? 'false' : 'true'
 
     // Build margin specification (inside/outside so Typst swaps on alternating pages).
     // Typst's inside/outside swap follows the *physical* first page of this compile (always

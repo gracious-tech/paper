@@ -7,6 +7,7 @@ import {gen_title} from './content_title.js'
 import {gen_custom} from './content_custom.js'
 import {gen_lines} from './content_lines.js'
 import {gen_picture_story} from './content_picture_story.js'
+import {parse_unit, to_pt} from './helpers.js'
 
 import type {PreambleOverrides} from './preamble.js'
 import type {PageConfig, TypstRequest, TypstContentItem, TypstPassage} from './types.js'
@@ -70,6 +71,11 @@ export function generate_typst(request:TypstRequest, start_page = 1, margin_mode
     // Document preamble (page, fonts, paragraph, footer)
     parts.push(gen_preamble(request, margin_overrides(request.page, mode)))
 
+    // What the preamble's own justification rule left in effect — items only emit their own
+    // where their answer differs from it, and each one that does stays in effect for the items
+    // after it (a set rule at this level runs to the end of the document), so this tracks it
+    let justified = request.typography.justify !== false
+
     // Render each content item on its own page(s)
     for (let i = 0; i < request.content.length; i++) {
         const item = request.content[i]!
@@ -81,6 +87,12 @@ export function generate_typst(request:TypstRequest, start_page = 1, margin_mode
         // Set the item's column count on the page itself (a set page rule on the fresh empty
         // page reconfigures it without inserting another break)
         parts.push(gen_page_columns(item))
+
+        // Justification for this item's own text — see item_justifies
+        if (item_justifies(item, request) !== justified) {
+            justified = !justified
+            parts.push(`#set par(justify: ${justified})`)
+        }
 
         // Reset the running-heading state for this item — see gen_running_state_reset
         parts.push(gen_running_state_reset(item))
@@ -137,6 +149,60 @@ function gen_page_columns(item:TypstContentItem):string {
         return `#set columns(gutter: ${item.column_gap})\n#set page(columns: 2)`
     }
     return '#set page(columns: 1)'
+}
+
+
+// Average character advance of a text serif as a fraction of the font size — enough to turn a
+// measure into an approximate characters-per-line count. The thresholds below are soft, so a
+// wider or narrower face shifting this a little doesn't change the outcome.
+const AVG_CHAR_EM = 0.5
+
+// Characters-per-line floors for justifying. Printed bibles justify two-column text at ~30
+// characters a line, which optimal line breaking plus hyphenation fills cleanly. Without
+// hyphenation the breaker can't split a word to fill a line, so it needs a comfortably wider
+// measure before justification stops opening rivers of whitespace.
+const JUSTIFY_MIN_CHARS = 30
+const JUSTIFY_MIN_CHARS_NO_HYPHEN = 45
+
+
+// Approximate characters per line of an item's measure: the page's text width, or half of it
+// (less the gap) when a passage sets its text in two columns — either a 2-column page or the
+// bilingual 'columns' layout's grid cells, which are mutually exclusive (a multi-bible passage
+// is always single-column, see passage_columns). Facing pages aren't narrow — each half of the
+// double page is a full page's measure — and they never reach here anyway (generate_typst_facing).
+function item_chars_per_line(item:TypstContentItem, page:PageConfig, font_size:string):number {
+    const pt = (value:string) => {
+        const {num, unit} = parse_unit(value)
+        return to_pt(num, unit)
+    }
+    let measure = pt(page.width) - pt(page.margin_left) - pt(page.margin_right)
+    if (item.type === 'passage'
+            && (passage_columns(item) === 2
+                || (item.bibles.length > 1 && item.multi_layout === 'columns'))) {
+        measure = (measure - pt(item.column_gap)) / 2
+    }
+    return measure / (AVG_CHAR_EM * pt(font_size))
+}
+
+
+// Whether an item's text is justified (the caller emits a rule only where this differs from
+// what the preamble already set). Only running text ever is — a passage or a custom page —
+// so title pages, lines pages and picture stories are never justified whatever the blueprint
+// says: their text is display-size, hand-placed or fitted to its box at render time (a picture
+// story's body runs up to 3x the body size, a few words a line), none of which is a measure
+// worth stretching to. For running text an explicit blueprint choice wins, and 'auto' (null)
+// justifies only where the measure holds enough characters to fill a line without opening
+// rivers of whitespace.
+function item_justifies(item:TypstContentItem, request:TypstRequest):boolean {
+    if (item.type !== 'passage' && item.type !== 'custom') {
+        return false
+    }
+    const {justify, hyphenate, font_size} = request.typography
+    if (justify !== null) {
+        return justify
+    }
+    const min = hyphenate ? JUSTIFY_MIN_CHARS : JUSTIFY_MIN_CHARS_NO_HYPHEN
+    return item_chars_per_line(item, request.page, font_size) >= min
 }
 
 
