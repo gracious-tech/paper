@@ -1,7 +1,8 @@
 
 import {escape_typst_str} from 'typst-utils'
 
-import {gen_preamble} from './preamble.js'
+import {gen_preamble, gen_furniture_cell, gen_furniture_slots, FURNITURE_HEADING,
+    FURNITURE_RULES} from './preamble.js'
 import {gen_passage, gen_passage_facing, passage_columns} from './content_passage.js'
 import {gen_title} from './content_title.js'
 import {gen_custom} from './content_custom.js'
@@ -292,31 +293,21 @@ function gen_facing_furniture(request:TypstRequest, start_page:number, gutter:st
         return 'none'
     }
 
-    // Same running heading text on both halves. 0.7em (not a fixed point size) so the running
-    // furniture tracks the user's body font_size — matches gen_page_furniture_row in preamble.ts
-    const heading = request.running_headings
-        ? `text(size: 0.7em, state("running-book", "").at(here()) + " "
-            + str(state("running-chapter", 0).at(here())))`
-        : 'none'
-    const number = (expr:string) => request.running_pages
-        ? `text(size: 0.7em, str(${expr}))`
-        : 'none'
-    const number_left = number(`${start_page} + 2 * (n - 1)`)
-    const number_right = number(`${start_page} + 2 * n - 1`)
-
-    const outer_left = request.running_align === 'outer' ? number_left : heading
-    const center_left = request.running_align === 'outer' ? heading : number_left
-    const outer_right = request.running_align === 'outer' ? number_right : heading
-    const center_right = request.running_align === 'outer' ? heading : number_right
+    // Same running heading text on both halves, but each half computes its own page number.
+    // Ungated (unlike the general case) — a facing compile is a single passage end to end, so
+    // every one of its pages is a passage page
+    const heading = gen_furniture_cell(request.running_headings, FURNITURE_HEADING, false)
+    const number = (expr:string) =>
+        gen_furniture_cell(request.running_pages, `str(${expr})`, false)
+    const left = gen_furniture_slots(request, number(`${start_page} + 2 * (n - 1)`), heading)
+    const right = gen_furniture_slots(request, number(`${start_page} + 2 * n - 1`), heading)
 
     return `{
-        // Same no-justify/no-hyphenate treatment as gen_page_furniture_row in preamble.ts
-        set par(justify: false)
-        set text(hyphenate: false)
+        ${FURNITURE_RULES}
         let n = counter(page).get().first()
         grid(columns: (1fr, 1fr), column-gutter: ${gutter},
-            ${furniture_half_row(false, outer_left, center_left)},
-            ${furniture_half_row(true, outer_right, center_right)},
+            ${furniture_half_row(false, left.outer, left.center)},
+            ${furniture_half_row(true, right.outer, right.center)},
         )
     }`
 }

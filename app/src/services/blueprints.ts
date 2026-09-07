@@ -59,7 +59,7 @@ export function get_default_blueprint():Blueprint{
         running_pages: true,
         running_headings: true,
         running_position: 'header',
-        running_align: 'center',
+        running_align: 'outer',
         show_footnotes: true,
         show_wj: false,
         show_wj_color: '#cc0000',
@@ -75,7 +75,7 @@ export function get_default_blueprint():Blueprint{
         // P.S. Fournier's 18th-century types). Picked as a deliberate middle ground: crisper
         // and more even than an old-style face like Crimson Pro, but softer and rounder than
         // something rigid like Times. Chosen mainly for space efficiency — its x-height
-        // (0.475 em) is mid-range, so it reads comfortably at font_size 10 / line_height 1.75
+        // (0.475 em) is mid-range, so it reads comfortably at font_size 10 / line_height 1.35
         // with no per-font compensation, and at matched apparent size it sets ~10-13% fewer
         // pages than Crimson Pro (measured: Gospels+Acts and the whole NT). Crimson Pro
         // (x-height 0.420) and EB Garamond (0.400) are shorter: to read at the same size they
@@ -87,10 +87,9 @@ export function get_default_blueprint():Blueprint{
         font_text2: null,
         font_headings: null,
 
-        // Max pages 30 (15 sheets) but ideally not greater than 20 (10 sheets)
-        font_size: 10,  // Pref 10, lowest 8
+        font_size: 10,
         font_size2: 1,  // 2nd translation size as a multiple of font_size (1 = match)
-        line_height: 1.75,  // Pref 1.75, lowest 1.5
+        line_height: 1.35,
 
         justify: null,
         hyphenate: true,
@@ -124,7 +123,7 @@ export function get_default_blueprint():Blueprint{
         margin_inner: 15,
         margin_outer: 15,
         margin_gutter_auto: true,
-        column_gap: 8,
+        column_gap: 6,
 
         // Legal
         public_domain: true,

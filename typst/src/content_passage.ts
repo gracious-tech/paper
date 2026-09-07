@@ -279,9 +279,9 @@ function gen_passage_inner(
 
 // Heading margins, expressed as fractions of one body line's advance (the `line_height` setting
 // × font size — the same unit the body uses for its own leading/paragraph spacing) so a user's
-// line_height opens up or tightens the space around headings in step with the text. The values
-// are picked to land on the previous fixed ems at the default line_height (1.75) and heading
-// size (HEADING_MARGIN_REF_SIZE).
+// line_height opens up or tightens the space around headings in step with the text. A section
+// heading gets roughly a body line above it and half a line below: more space above than below,
+// so a heading reads as belonging to the text it introduces rather than the text it follows.
 const HEADING_MARGIN_LINES = {
     1: {before: 0.91, after: 0.51},
     2: {before: 1.09, after: 0.49},  // == Section: the common subheading

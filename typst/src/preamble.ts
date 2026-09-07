@@ -6,6 +6,52 @@ import {parse_unit} from './helpers.js'
 import type {TypstRequest} from './types.js'
 
 
+// Size of the running page number / heading, relative to the body text. An em (not a fixed
+// point size) so the furniture tracks the user's font_size. Books set their folio and running
+// head near the body size — a step down keeps them out of the way of the text without
+// shrinking them to a detail the eye has to hunt for
+const RUNNING_FURNITURE_SIZE = '0.9em'
+
+
+// The running heading's text: the book and chapter the page is currently in, read from the
+// state generate.ts's per-item loop keeps updated
+export const FURNITURE_HEADING = 'state("running-book", "").at(here()) + " "'
+    + ' + str(state("running-chapter", 0).at(here()))'
+
+
+// Rules a furniture row sets for itself, whatever the document-wide settings say: each cell is
+// only a third of the text width (a third of a half page in the facing layout), so a long
+// localised book name plus chapter number can wrap inside one and must not be stretched or
+// hyphenated. Interpolated at one indent level inside the row's own block
+export const FURNITURE_RULES = `set par(justify: false)
+        set text(hyphenate: false)`
+
+
+// One cell of a running-furniture row, at the shared size — 'none' when that piece of furniture
+// is switched off. No font: override, so it inherits the document-wide #set text(font: (...))
+// like any other text. `gated` wraps the cell in the running-active check, so title/custom/
+// lines/picture-story pages carry no furniture at all (the page counter still advances, so later
+// passage pages keep the right numbers); the facing layout passes false — such a compile is a
+// single passage end to end, so every one of its pages is a passage page
+export function gen_furniture_cell(enabled:boolean, expr:string, gated:boolean):string {
+    if (!enabled) {
+        return 'none'
+    }
+    const cell = `text(size: ${RUNNING_FURNITURE_SIZE}, ${expr})`
+    return gated ? `if state("running-active", false).at(here()) { ${cell} } else { none }` : cell
+}
+
+
+// Assign the two furniture cells to their slots: the page number takes the blueprint's chosen
+// alignment and the running heading takes whichever slot is left over
+export function gen_furniture_slots(request:TypstRequest, number:string, heading:string)
+        :{outer:string, center:string} {
+    return request.running_align === 'outer'
+        ? {outer: number, center: heading}
+        : {outer: heading, center: number}
+}
+
+
 // Optional page-geometry overrides for special documents — facing-pages compiles double the
 // width with fixed margins and a per-half header/footer row (see generate_typst_facing)
 export interface PreambleOverrides {
@@ -27,37 +73,14 @@ function gen_page_furniture_row(request:TypstRequest):string {
         return 'none'
     }
 
-    // Page number cell. No font: override — inherits the document-wide #set text(font: (...))
-    // below (font_text + its regular fallbacks), same as any other text. Size is 0.7em so the
-    // running furniture tracks the user's body font_size instead of a frozen point size. Gated
-    // on running-active the same as the heading cell below, so title/custom/lines/picture-story
-    // pages carry no furniture at all (the page counter still advances, so later passage pages
-    // keep the right numbers)
-    const number = request.running_pages
-        ? `if state("running-active", false).at(here()) {
-            text(size: 0.7em, counter(page).display())
-        } else { none }`
-        : 'none'
-
-    // Running heading cell — only shows once a passage is the active content item (title/
-    // custom/lines/picture-story pages have no book/chapter to show)
-    const heading = request.running_headings
-        ? `if state("running-active", false).at(here()) {
-            text(size: 0.7em, state("running-book", "").at(here()) + " "
-                + str(state("running-chapter", 0).at(here())))
-        } else { none }`
-        : 'none'
-
-    // The page number takes request.running_align; the running heading takes the other slot
-    const outer = request.running_align === 'outer' ? number : heading
-    const center = request.running_align === 'outer' ? heading : number
+    // Both cells are gated on running-active, so they only show once a passage is the active
+    // content item — title/custom/lines/picture-story pages have no book/chapter to show
+    const number = gen_furniture_cell(request.running_pages, 'counter(page).display()', true)
+    const heading = gen_furniture_cell(request.running_headings, FURNITURE_HEADING, true)
+    const {outer, center} = gen_furniture_slots(request, number, heading)
 
     return `{
-        // Never stretched or hyphenated, regardless of the document-wide settings below — each
-        // cell is only a third of the text width (a third of a half page in the facing layout),
-        // so a long localised book name plus chapter number can wrap in it
-        set par(justify: false)
-        set text(hyphenate: false)
+        ${FURNITURE_RULES}
         // Odd = recto/right by convention, matching the parity pdf_postprocess.ts already
         // encodes for blank-page insertion. running-side overrides this for half_blank
         // passages, whose physical side is fixed regardless of the Typst-internal page
