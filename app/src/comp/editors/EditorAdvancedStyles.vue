@@ -25,9 +25,7 @@ v-card-text(class='overflow-y-auto')
         v-text-field(v-model.number='blue.column_gap' type='number' variant='underlined'
             density='compact' :label='$t("options.layout.column_gap")' class='mr-4'
             style='max-width: 90px' :disabled='blue.columns === false')
-        v-radio-group(v-model='margin_unit' inline)
-            v-radio(value='mm' label="mm")
-            v-radio(value='in' label="inches")
+        AppOptionToggle(v-model='margin_unit' :items='margin_unit_items')
 
     v-checkbox(v-model='gutter_checked' :label='$t("editor.advanced.auto_gutter")'
         :disabled='!service_provides_gutter' hide-details)
@@ -42,14 +40,12 @@ v-card-text(class='overflow-y-auto')
 
     p(v-if='!blue.running_pages && !blue.running_headings' class='hint') {{$t("editor.advanced.running_disabled_note")}}
 
-    v-radio-group(v-model='blue.running_position' inline :label='$t("common.position")'
-            :disabled='!blue.running_pages && !blue.running_headings' class='my-4')
-        v-radio(value='footer' :label='$t("common.bottom")')
-        v-radio(value='header' :label='$t("common.top")')
-    v-radio-group(v-model='blue.running_align' inline :label='$t("editor.advanced.page_num_align")'
-            :disabled='!blue.running_pages && !blue.running_headings' class='my-4')
-        v-radio(value='center' :label='$t("common.center")')
-        v-radio(value='outer' :label='$t("editor.advanced.outer_edge")')
+    AppOptionToggle(v-model='blue.running_position' :label='$t("common.position")'
+        :items='running_position_items'
+        :disabled='!blue.running_pages && !blue.running_headings' class='my-4')
+    AppOptionToggle(v-model='blue.running_align' :label='$t("editor.advanced.page_num_align")'
+        :items='running_align_items'
+        :disabled='!blue.running_pages && !blue.running_headings' class='my-4')
 
     v-divider(class='my-8')
 
@@ -131,30 +127,23 @@ v-card-text(class='overflow-y-auto')
     v-slider(v-model='blue.titlepage_icon_size' :label='$t("common.icon_size")' :min='0.4' :max='2'
         :step='0.1' thumb-label class='my-4')
 
-    v-radio-group(v-model='titlepage_always' inline
-            :label='$t("editor.advanced.titlepage_side")' class='my-6')
-        v-radio(value='null' :label='$t("editor.advanced.either_side")')
-        v-radio(value='left' :label='$t("common.left")')
-        v-radio(value='right' :label='$t("common.right")')
+    AppOptionToggle(v-model='titlepage_always' :label='$t("editor.advanced.titlepage_side")'
+        :items='titlepage_always_items' class='my-6')
 
     v-divider(class='my-8')
 
     h2(class='mb-4') {{$t("common.images")}}
     p(class='hint') {{$t("editor.advanced.images_note")}}
 
-    v-radio-group(v-model='blue.image_style' inline :label='$t("common.style")')
-        v-radio(value='padded' :label='$t("editor.advanced.image_padded")')
-        v-radio(value='painted' :label='$t("editor.advanced.image_painted")')
-        v-radio(value='torn' :label='$t("editor.advanced.image_torn")')
-        v-radio(value='borderless' :label='$t("editor.advanced.image_borderless")')
+    AppOptionToggle(v-model='blue.image_style' :label='$t("editor.advanced.image_border")'
+        :items='image_style_items')
 
     v-divider(class='my-8')
 
     h2(class='mb-4') {{$t("editor.advanced.stories")}}
 
-    v-radio-group(v-model='blue.story_layout' inline :label='$t("common.layout")' class='mb-2')
-        v-radio(value='single' :label='$t("editor.advanced.story_single")')
-        v-radio(value='grid' :label='$t("editor.advanced.story_grid")')
+    AppOptionToggle(v-model='blue.story_layout' :label='$t("editor.advanced.images_per_page")'
+        :items='story_layout_items' class='mb-2')
 
     v-checkbox(v-model='blue.story_alternate' :label='$t("editor.advanced.alt_image_side")' hide-details)
     p(class='hint') {{$t("editor.advanced.alt_image_side_note")}}
@@ -203,6 +192,48 @@ const {t} = useI18n()
 const done = () => {
     state.editor = null
 }
+
+
+// Measurement unit for the margin fields (literal labels, not translated)
+const margin_unit_items = [
+    {value: 'mm', title: "mm"},
+    {value: 'in', title: "inches"},
+]
+
+
+// Where the running heading / page number sits, and how it's aligned across the page
+const running_position_items = computed(() => [
+    {value: 'footer', title: t("common.bottom")},
+    {value: 'header', title: t("common.top")},
+])
+const running_align_items = computed(() => [
+    {value: 'center', title: t("common.center")},
+    {value: 'outer', title: t("editor.advanced.outer_edge")},
+])
+
+
+// Which side title pages are forced onto (null = either)
+const titlepage_always_items = computed(() => [
+    {value: 'null', title: t("editor.advanced.either_side")},
+    {value: 'left', title: t("common.left")},
+    {value: 'right', title: t("common.right")},
+])
+
+
+// Edge treatment for every passage image
+const image_style_items = computed(() => [
+    {value: 'borderless', title: t("editor.advanced.image_borderless")},
+    {value: 'padded', title: t("editor.advanced.image_padded")},
+    {value: 'painted', title: t("editor.advanced.image_painted")},
+    {value: 'torn', title: t("editor.advanced.image_torn")},
+])
+
+
+// Picture-story density: one image/passage per page, or a 2×2 grid of four
+const story_layout_items = computed(() => [
+    {value: 'single', title: t("editor.advanced.story_single")},
+    {value: 'grid', title: t("editor.advanced.story_grid")},
+])
 
 
 // Wrap margin_unit so switching mm/inches converts existing margin values rather than
@@ -289,7 +320,7 @@ const pattern_items = Object.entries(patterns).map(([pattern, svg]) => {
 })
 
 
-// Wrap titlepage_always so the radio group can use string values (null isn't a valid radio value)
+// Wrap titlepage_always so the toggle can use string values (null isn't a valid option value)
 const titlepage_always = computed({
     get: () => String(blue.titlepage_always),
     set: value => {

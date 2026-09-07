@@ -7,7 +7,8 @@
 div(class='option-toggle')
     div(v-if='props.label' class='option-toggle-label') {{ props.label }}
     v-btn-toggle(:model-value='model' @update:model-value='on_update' :disabled='props.disabled'
-            variant='outlined' divided mandatory role='group' :aria-label='props.label')
+            variant='outlined' divided density='comfortable' mandatory role='group'
+            :aria-label='props.label')
         v-btn(v-for='opt in props.items' :key='opt.value' :value='opt.value')
             | {{ opt.title }}
 

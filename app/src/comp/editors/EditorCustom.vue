@@ -13,19 +13,16 @@ v-card-text(class='flex-grow-1 d-flex flex-column')
     div(class='mb-4')
         v-text-field(v-model='item.name' :placeholder='$t("common.label") + "..."')
     app-prose(v-model='item.doc' class='flex-grow-1')
-    div(class='mt-4 mb-4')
-        p(class='text-body-small') {{$t("editor.custom.vertical_position") + ":"}}
-        v-radio-group(v-model='item.position' inline)
-            v-radio(value='top' :label='$t("common.top")')
-            v-radio(value='middle' :label='$t("common.middle")')
-            v-radio(value='bottom' :label='$t("common.bottom")')
+    AppOptionToggle(v-model='item.position' :label='$t("editor.custom.vertical_position")'
+        :items='position_items' class='mt-4 mb-4')
 
 </template>
 
 
 <script lang='ts' setup>
 
-import {reactive} from 'vue'
+import {computed, reactive} from 'vue'
+import {useI18n} from '@/services/i18n'
 
 import {blue, state} from '@/services/state'
 import {generate_token} from '@/services/utils'
@@ -34,6 +31,16 @@ import type {ContentCustom} from '@/services/types'
 
 
 const props = defineProps<{item:ContentCustom|null}>()
+
+const {t} = useI18n()
+
+
+// Vertical placement of the custom content on its page
+const position_items = computed(() => [
+    {value: 'top', title: t("common.top")},
+    {value: 'middle', title: t("common.middle")},
+    {value: 'bottom', title: t("common.bottom")},
+])
 
 
 // Keep copy of original so can restore if cancel
