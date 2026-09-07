@@ -12,10 +12,8 @@ p(v-if='blue.font_size > 15' class='hint text-error') {{ $t("options.style.large
 v-slider(v-model='blue.line_height' :label='$t("options.style.line_height")' :min='1' :max='4' thumb-label
     class='my-4')
 
-v-radio-group(v-model='justify' inline :label='$t("options.style.justify")' class='mt-4')
-    v-radio(value='null' :label='$t("common.auto")')
-    v-radio(value='true' :label='$t("common.yes")')
-    v-radio(value='false' :label='$t("common.no")')
+AppOptionToggle(v-model='justify' :label='$t("options.style.justify")' :items='justify_items'
+    class='mt-4')
 p(class='hint') {{$t("options.style.justify_auto_note")}}
 
 </template>
@@ -24,9 +22,23 @@ p(class='hint') {{$t("options.style.justify_auto_note")}}
 <script lang='ts' setup>
 
 import {computed} from 'vue'
+import {useI18n} from '@/services/i18n'
 
 import {blue} from '@/services/state'
 
+
+const {t} = useI18n()
+
+
+// Justify options — string-valued so the toggle can carry the null ("auto") choice
+const justify_items = computed(() => [
+    {value: 'null', title: t("common.auto")},
+    {value: 'true', title: t("common.yes")},
+    {value: 'false', title: t("common.no")},
+])
+
+
+// Wrap justify so the toggle works with string values (null isn't a valid option value)
 const justify = computed({
     get: () => String(blue.justify),
     set: value => {

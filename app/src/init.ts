@@ -29,6 +29,7 @@ import AppIcon from './comp/global/AppIcon.vue'
 import AppProse from './comp/global/AppProse.vue'
 import AppColor from './comp/global/AppColor.vue'
 import AppFontSelect from './comp/global/AppFontSelect.vue'
+import AppOptionToggle from './comp/global/AppOptionToggle.vue'
 import AppRoot from './comp/AppRoot.vue'
 import locales_meta from './locales.json'
 import {i18n, load_locale} from '@/services/i18n'
@@ -50,6 +51,7 @@ app.component('AppIcon', AppIcon)
 app.component('AppProse', AppProse)
 app.component('AppColor', AppColor)
 app.component('AppFontSelect', AppFontSelect)
+app.component('AppOptionToggle', AppOptionToggle)
 
 
 // Register i18n — eng is bundled as the fallback, the detected locale is fetched on demand

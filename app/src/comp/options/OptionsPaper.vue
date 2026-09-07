@@ -7,9 +7,7 @@ v-select(v-model='blue.service_id' :items='service_items' :label='$t("options.pa
 
 //- Home mode: a simple A4 / US Letter choice, plus the fold-at-home booklet option
 template(v-if='is_home')
-    v-radio-group(v-model='blue.size_id' inline class='mt-2')
-        v-radio(value='a4' label="A4")
-        v-radio(value='us_letter' label="US Letter")
+    AppOptionToggle(v-model='blue.size_id' :items='home_size_items' class='mt-2')
 
     v-switch(v-model='blue.booklet' :label='$t("common.booklet_home")' color='primary'
         density='compact' hide-details)
@@ -45,9 +43,7 @@ template(v-else)
         v-text-field(v-model.number='blue.custom_trim_height' type='number' variant='underlined'
             density='compact' :label='$t("common.height")' class='mr-4')
         //- Unit select only in regular-service mode (custom-service mode uses the toggle above)
-        v-radio-group(v-if='!is_custom' v-model='blue.custom_unit' inline)
-            v-radio(value='mm' label="mm")
-            v-radio(value='inch' label="inches")
+        AppOptionToggle(v-if='!is_custom' v-model='blue.custom_unit' :items='custom_unit_items')
 
     //- Custom-service mode: bleed and spine width (units follow the toggle above)
     div(v-if='is_custom' class='d-flex align-center ml-2 mb-4')
@@ -99,6 +95,20 @@ const {t} = useI18n()
 
 // Unit options for custom sizes (printing-services uses 'inch', not 'in')
 const unit_items = ['mm', 'inch']
+
+
+// A4 / US Letter choice for home printing
+const home_size_items = [
+    {value: 'a4', title: "A4"},
+    {value: 'us_letter', title: "US Letter"},
+]
+
+
+// Measurement unit for custom dimensions (regular-service mode)
+const custom_unit_items = [
+    {value: 'mm', title: "mm"},
+    {value: 'inch', title: "inches"},
+]
 
 
 // Service dropdown items: "Home" + real services + a "Custom…" entry
