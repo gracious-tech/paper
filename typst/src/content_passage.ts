@@ -280,12 +280,18 @@ function gen_passage_inner(
 // Heading margins, expressed as fractions of one body line's advance (the `line_height` setting
 // × font size — the same unit the body uses for its own leading/paragraph spacing) so a user's
 // line_height opens up or tightens the space around headings in step with the text. The values
-// are picked to land on the previous fixed ems at the default line_height (1.75).
+// are picked to land on the previous fixed ems at the default line_height (1.75) and heading
+// size (HEADING_MARGIN_REF_SIZE).
 const HEADING_MARGIN_LINES = {
     1: {before: 0.91, after: 0.51},
     2: {before: 1.09, after: 0.49},  // == Section: the common subheading
     3: {before: 0.54, after: 0.34},
 }
+// The values above are calibrated against this heading-size multiplier (the Blueprint
+// show_headings_size default) — both the gap above and the gap below a heading are scaled by
+// headings_size / this, so the space around a heading grows and shrinks with the user's heading
+// size while leaving the default design untouched.
+const HEADING_MARGIN_REF_SIZE = 0.9
 // The two-column grid can't use a heading's own leading `v()` for its top margin (a heading
 // that opens a grid cell has that `v()` suppressed — see gen_heading_rules); it puts
 // `HEADING_MARGIN_LINES[2].before + GRID_LEAD_EXTRA_LINES` on the whole row instead. The extra
@@ -310,8 +316,12 @@ function gen_heading_rules(passage:TypstPassage, font_size:string, line_height:n
     const style = passage.headings_italic ? '"italic"' : '"normal"'
     const size = (mult:number) => `${(passage.headings_size * mult).toFixed(2)}em`
 
-    // A vertical gap of `lines` body-line advances, as an em of the body text size
-    const gap = (lines:number) => `${(lines * line_height).toFixed(3)}em`
+    // A vertical gap around a heading: `lines` body-line advances, scaled by the user's
+    // heading-size multiplier (relative to HEADING_MARGIN_REF_SIZE, so the default design is
+    // unchanged) so a larger subheading gets proportionately more breathing room on both sides.
+    // Expressed as an em of the body text size.
+    const size_scale = passage.headings_size / HEADING_MARGIN_REF_SIZE
+    const gap = (lines:number) => `${(lines * line_height * size_scale).toFixed(3)}em`
 
     // Reset the heading base size to the document text size (absolute, so Typst's built-in
     // per-level em scaling — 1.4em/1.2em/1em — can't compound with the em sizes below).
@@ -455,9 +465,12 @@ function gen_multi_bible_grids(
     // heading's own leading v() is suppressed at a cell top (see gen_heading_rules) — on the
     // whole grid, so both columns shift together and stay aligned. Matches the single-column
     // heading's top margin (see the HEADING_MARGIN_LINES / GRID_LEAD_EXTRA_LINES notes) and
-    // scales with line_height the same way. Weak so it collapses away at a page top.
+    // scales with line_height and heading size the same way. Weak so it collapses away at a
+    // page top.
+    const size_scale = passage.headings_size / HEADING_MARGIN_REF_SIZE
     const row_lead_em =
-        ((HEADING_MARGIN_LINES[2].before + GRID_LEAD_EXTRA_LINES) * line_height).toFixed(3)
+        ((HEADING_MARGIN_LINES[2].before + GRID_LEAD_EXTRA_LINES) * line_height * size_scale)
+            .toFixed(3)
     const row_lead = `#v(${row_lead_em}em, weak: true)\n`
 
     return rows.map(([a, b], i) => {
