@@ -13,10 +13,49 @@ import type {TypstRequest} from './types.js'
 const RUNNING_FURNITURE_SIZE = '0.9em'
 
 
+// What the running furniture shows before any of the compile's own content has updated the
+// state it reads. A page's header/footer is laid out before that page's body, so state updates
+// emitted at the top of the body aren't visible to it — and since every content item compiles
+// as its own document (see compile_item in pdf_postprocess.ts), that is every item's opening
+// page. So the values the item's own state reset would set are also handed to the states as
+// their *initial* values, which is exactly "what the state reads as until an update precedes
+// the reader" (see gen_running_states / running_seed in generate.ts)
+export interface RunningSeed {
+    // Whether the compile opens on content with a running heading at all (i.e. a passage)
+    active:boolean
+    // Book name and chapter the compile opens on
+    book:string
+    chapter:number
+    // Fixed physical side of a half-blank passage, or null to fall back to live page parity
+    side:'left'|'right'|null
+}
+
+
+// Seed for a compile opening on content that has no running heading of its own — the states'
+// plain inert defaults
+export const INERT_RUNNING_SEED:RunningSeed = {active: false, book: '', chapter: 0, side: null}
+
+
+// The running-head states, each with the compile's seed as its initial value. Every read and
+// write of these keys is built from here, so a key can never end up with two different initial
+// values in one document
+export function gen_running_states(seed:RunningSeed)
+        :{active:string, book:string, chapter:string, side:string} {
+    return {
+        active: `state("running-active", ${seed.active})`,
+        book: `state("running-book", "${escape_typst_str(seed.book)}")`,
+        chapter: `state("running-chapter", ${seed.chapter})`,
+        side: `state("running-side", ${seed.side ? `"${seed.side}"` : 'none'})`,
+    }
+}
+
+
 // The running heading's text: the book and chapter the page is currently in, read from the
 // state generate.ts's per-item loop keeps updated
-export const FURNITURE_HEADING = 'state("running-book", "").at(here()) + " "'
-    + ' + str(state("running-chapter", 0).at(here()))'
+export function gen_furniture_heading(seed:RunningSeed):string {
+    const states = gen_running_states(seed)
+    return `${states.book}.at(here()) + " " + str(${states.chapter}.at(here()))`
+}
 
 
 // Rules a furniture row sets for itself, whatever the document-wide settings say: each cell is
@@ -29,16 +68,17 @@ export const FURNITURE_RULES = `set par(justify: false)
 
 // One cell of a running-furniture row, at the shared size — 'none' when that piece of furniture
 // is switched off. No font: override, so it inherits the document-wide #set text(font: (...))
-// like any other text. `gated` wraps the cell in the running-active check, so title/custom/
-// lines/picture-story pages carry no furniture at all (the page counter still advances, so later
-// passage pages keep the right numbers); the facing layout passes false — such a compile is a
-// single passage end to end, so every one of its pages is a passage page
-export function gen_furniture_cell(enabled:boolean, expr:string, gated:boolean):string {
+// like any other text. `gate` is the running-active state accessor (see gen_running_states),
+// wrapping the cell in a check so title/custom/lines/picture-story pages carry no furniture at
+// all (the page counter still advances, so later passage pages keep the right numbers); the
+// facing layout passes null — such a compile is a single passage end to end, so every one of
+// its pages is a passage page
+export function gen_furniture_cell(enabled:boolean, expr:string, gate:string|null):string {
     if (!enabled) {
         return 'none'
     }
     const cell = `text(size: ${RUNNING_FURNITURE_SIZE}, ${expr})`
-    return gated ? `if state("running-active", false).at(here()) { ${cell} } else { none }` : cell
+    return gate ? `if ${gate}.at(here()) { ${cell} } else { none }` : cell
 }
 
 
@@ -60,6 +100,10 @@ export interface PreambleOverrides {
     header?:string
     footer?:string
     binding?:'left'|'right'
+    // What the running-head states read as before this compile's content updates them — see
+    // RunningSeed. Callers that render their own content list pass the seed of the item the
+    // compile opens on; anything else gets the inert defaults
+    seed?:RunningSeed
 }
 
 
@@ -68,15 +112,19 @@ export interface PreambleOverrides {
 // chose. Returns 'none' when neither feature is on. The returned expression must be evaluated
 // inside a #context block by the caller — it reads state set up in generate.ts's per-item loop
 // (running-active/running-book/running-chapter/running-side) via state(...).at(here())
-function gen_page_furniture_row(request:TypstRequest):string {
+function gen_page_furniture_row(request:TypstRequest, seed:RunningSeed):string {
     if (!request.running_pages && !request.running_headings) {
         return 'none'
     }
 
+    const states = gen_running_states(seed)
+
     // Both cells are gated on running-active, so they only show once a passage is the active
     // content item — title/custom/lines/picture-story pages have no book/chapter to show
-    const number = gen_furniture_cell(request.running_pages, 'counter(page).display()', true)
-    const heading = gen_furniture_cell(request.running_headings, FURNITURE_HEADING, true)
+    const number = gen_furniture_cell(request.running_pages, 'counter(page).display()',
+        states.active)
+    const heading = gen_furniture_cell(request.running_headings, gen_furniture_heading(seed),
+        states.active)
     const {outer, center} = gen_furniture_slots(request, number, heading)
 
     return `{
@@ -85,7 +133,7 @@ function gen_page_furniture_row(request:TypstRequest):string {
         // encodes for blank-page insertion. running-side overrides this for half_blank
         // passages, whose physical side is fixed regardless of the Typst-internal page
         // counter (see process_faced in pdf_postprocess.ts)
-        let side = state("running-side", none).at(here())
+        let side = ${states.side}.at(here())
         let recto = if side != none { side == "right" }
             else { calc.odd(counter(page).at(here()).first()) }
         let outer_cell = align(if recto { right } else { left }, ${outer})
@@ -153,7 +201,9 @@ export function gen_preamble(request:TypstRequest, overrides:PreambleOverrides =
 
     // Page number + running heading, combined into whichever slot (header/footer) the
     // blueprint chose — see gen_page_furniture_row
-    const furniture_row = gen_page_furniture_row(request)
+    const seed = overrides.seed ?? INERT_RUNNING_SEED
+    const running = gen_running_states(seed)
+    const furniture_row = gen_page_furniture_row(request, seed)
 
     const header = overrides.header
         ?? (request.running_position === 'header' && furniture_row !== 'none'
@@ -174,7 +224,7 @@ export function gen_preamble(request:TypstRequest, overrides:PreambleOverrides =
     // are hidden entirely
     let chapter:string
     if (!features.show_chapters) {
-        chapter = '#let ch(n) = state("running-chapter", 0).update(n)'
+        chapter = `#let ch(n) = ${running.chapter}.update(n)`
     } else if (features.show_chapters_style === 'divider') {
         // Centered divider with the number flanked by solid drawn rules (rather than dashes,
         // which can leave font-dependent gaps), hidden for chapter 1. Each rule is a fixed-width
@@ -204,7 +254,7 @@ export function gen_preamble(request:TypstRequest, overrides:PreambleOverrides =
         [#rule #str(n) #rule]
     })))
 #let ch(n) = {
-    state("running-chapter", 0).update(n)
+    ${running.chapter}.update(n)
     if n > 1 {
         ch_divider(n)
     }
@@ -233,7 +283,7 @@ export function gen_preamble(request:TypstRequest, overrides:PreambleOverrides =
         // heading, or by the first verse marker (#vn) when a chapter opens straight into text, so
         // later mid-chapter headings keep their normal spacing.
         chapter = `#let ch(n) = {
-    state("running-chapter", 0).update(n)
+    ${running.chapter}.update(n)
     context {
         let num = text(size: 2.5em, weight: "bold", top-edge: "bounds", bottom-edge: "bounds",
             str(n))
@@ -246,7 +296,7 @@ export function gen_preamble(request:TypstRequest, overrides:PreambleOverrides =
         // 'heading' — Chapter N as a heading (font comes from the document-wide heading
         // show rule below, same as any other heading)
         chapter = `#let ch(n) = {
-    state("running-chapter", 0).update(n)
+    ${running.chapter}.update(n)
     heading(level: 1, "Chapter " + str(n))
 }`
     }
@@ -256,7 +306,7 @@ export function gen_preamble(request:TypstRequest, overrides:PreambleOverrides =
     // translation: the divider style draws a single divider at full grid width and the drop-cap
     // style keeps only the primary translation's margin numeral (see gen_multi_bible_grids in
     // content_passage.ts)
-    chapter += '\n#let ch_quiet(n) = state("running-chapter", 0).update(n)'
+    chapter += `\n#let ch_quiet(n) = ${running.chapter}.update(n)`
 
     // Verse marker (#vn) — superscript bold number glued to the next word with a narrow
     // no-break space (U+202F) so it can't be stranded at a line end when the text wraps

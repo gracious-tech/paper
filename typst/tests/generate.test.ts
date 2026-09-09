@@ -281,6 +281,44 @@ describe('custom page positioning', () => {
 })
 
 
+describe('running-head state', () => {
+
+    // A page's header/footer lays out before its own body, so the furniture on the compile's
+    // first page can only see the states' initial values — those must therefore already carry
+    // what the opening item's state reset sets, or that page shows an empty book and chapter 0
+
+    it('seeds the states from the item the compile opens on', () => {
+        const result = generate_typst(make_request({
+            content: [make_passage({book_name: 'Exodus', start_chapter: 3})],
+        }))
+        expect(result).toContain('state("running-active", true)')
+        expect(result).toContain('state("running-book", "Exodus")')
+        expect(result).toContain('state("running-chapter", 3)')
+    })
+
+    it('seeds a half-blank passage with its fixed physical side', () => {
+        const result = generate_typst(make_request({
+            content: [make_passage({half_blank: 'left'})],
+        }))
+        expect(result).toContain('state("running-side", "right")')
+    })
+
+    it('leaves the states inert when the compile opens on a title page', () => {
+        const result = generate_typst(make_request({content: [make_title(), make_passage()]}))
+        expect(result).toContain('state("running-active", false)')
+        expect(result).toContain('state("running-chapter", 0)')
+        expect(result).not.toContain('state("running-chapter", 1)')
+    })
+
+    it('resets the states at each further item', () => {
+        const result = generate_typst(make_request({
+            content: [make_passage(), make_passage({book_name: 'Exodus'})],
+        }))
+        expect(result).toContain('.update("Exodus")')
+    })
+})
+
+
 describe('generate_typst_facing', () => {
 
     // Distinct margins so the geometry assertions can tell inner (left) from outer (right)
@@ -317,6 +355,14 @@ describe('generate_typst_facing', () => {
         const request = {...facing_request(), running_pages: false}
         const result = generate_typst_facing(request, facing_passage())
         expect(result).toContain('footer: none')
+    })
+
+    it('seeds the running heading from the passage, so the first spread is not blank', () => {
+        const result = generate_typst_facing(
+            {...facing_request(), running_headings: true},
+            {...facing_passage(), book_name: 'Exodus', start_chapter: 3})
+        expect(result).toContain('state("running-book", "Exodus").at(here())')
+        expect(result).toContain('str(state("running-chapter", 3).at(here()))')
     })
 
     it('confines footnote entries to the left half', () => {

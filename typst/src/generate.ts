@@ -1,8 +1,8 @@
 
 import {escape_typst_str} from 'typst-utils'
 
-import {gen_preamble, gen_furniture_cell, gen_furniture_slots, FURNITURE_HEADING,
-    FURNITURE_RULES} from './preamble.js'
+import {gen_preamble, gen_furniture_cell, gen_furniture_slots, gen_furniture_heading,
+    gen_running_states, INERT_RUNNING_SEED, FURNITURE_RULES} from './preamble.js'
 import {gen_passage, gen_passage_facing, passage_columns} from './content_passage.js'
 import {gen_title} from './content_title.js'
 import {gen_custom} from './content_custom.js'
@@ -10,7 +10,7 @@ import {gen_lines} from './content_lines.js'
 import {gen_picture_story} from './content_picture_story.js'
 import {parse_unit, to_pt} from './helpers.js'
 
-import type {PreambleOverrides} from './preamble.js'
+import type {PreambleOverrides, RunningSeed} from './preamble.js'
 import type {PageConfig, TypstRequest, TypstContentItem, TypstPassage} from './types.js'
 
 
@@ -69,8 +69,12 @@ export function generate_typst(request:TypstRequest, start_page = 1, margin_mode
     // correct physical side (see margin_overrides)
     const mode = margin_mode ?? {kind: 'alternating', binding: start_page % 2 === 0 ? 'right' : 'left'}
 
-    // Document preamble (page, fonts, paragraph, footer)
-    parts.push(gen_preamble(request, margin_overrides(request.page, mode)))
+    // Document preamble (page, fonts, paragraph, footer). The first item's running-head values
+    // seed the states, so the furniture on this compile's own first page — laid out before any
+    // of that page's content has run — already shows the right book/chapter (see RunningSeed)
+    const seed = running_seed(request.content[0])
+    const states = gen_running_states(seed)
+    parts.push(gen_preamble(request, {...margin_overrides(request.page, mode), seed}))
 
     // What the preamble's own justification rule left in effect — items only emit their own
     // where their answer differs from it, and each one that does stays in effect for the items
@@ -96,7 +100,7 @@ export function generate_typst(request:TypstRequest, start_page = 1, margin_mode
         }
 
         // Reset the running-heading state for this item — see gen_running_state_reset
-        parts.push(gen_running_state_reset(item))
+        parts.push(gen_running_state_reset(item, states))
 
         parts.push(gen_content_item(item, request))
     }
@@ -120,24 +124,43 @@ export function half_blank_content_side(half_blank:'left'|'right'|null):'left'|'
 }
 
 
-// Reset the running-heading state (read by preamble.ts's page-furniture row) at the start of
-// each content item. Passages seed book/chapter/side from their own data — further updated by
-// #ch(n) calls as content progresses through the item, see preamble.ts — while every other item
-// type just marks the running heading inactive, since title/custom/lines/picture-story pages
-// have no book/chapter to show
-function gen_running_state_reset(item:TypstContentItem):string {
-    if (item.type !== 'passage') {
-        return '#state("running-active", false).update(false)'
+// The running-head values an item starts on. Passages take book/chapter from their own data,
+// while every other item type is inactive, since title/custom/lines/picture-story pages have no
+// book/chapter to show. Used both for the state resets below and as the state seed of a compile
+// opening on this item (see RunningSeed)
+function running_seed(item:TypstContentItem|undefined):RunningSeed {
+    if (item?.type !== 'passage') {
+        return INERT_RUNNING_SEED
     }
-    // half_blank passages always land on a fixed physical side regardless of the page — see
-    // process_faced in pdf_postprocess.ts — so the live per-page parity check in preamble.ts
-    // is overridden with that fixed side instead
-    const content_side = half_blank_content_side(item.half_blank)
-    const side = content_side ? `"${content_side}"` : 'none'
-    return `#state("running-active", false).update(true)
-#state("running-book", "").update("${escape_typst_str(item.book_name)}")
-#state("running-chapter", 0).update(${item.start_chapter})
-#state("running-side", none).update(${side})`
+    return {
+        active: true,
+        book: item.book_name,
+        chapter: item.start_chapter,
+        // half_blank passages always land on a fixed physical side regardless of the page — see
+        // process_faced in pdf_postprocess.ts — so the live per-page parity check in preamble.ts
+        // is overridden with that fixed side instead
+        side: half_blank_content_side(item.half_blank),
+    }
+}
+
+
+// Reset the running-heading state (read by preamble.ts's page-furniture row) at the start of
+// each content item, so a compile holding several items switches over at each one — further
+// updated by #ch(n) calls as content progresses through a passage, see preamble.ts. `states`
+// carries the compile's seeded state accessors, so every access to a key shares one initial
+// value (see gen_running_states)
+function gen_running_state_reset(
+    item:TypstContentItem, states:ReturnType<typeof gen_running_states>,
+):string {
+    const seed = running_seed(item)
+    if (!seed.active) {
+        return `#${states.active}.update(false)`
+    }
+    const side = seed.side ? `"${seed.side}"` : 'none'
+    return `#${states.active}.update(true)
+#${states.book}.update("${escape_typst_str(seed.book)}")
+#${states.chapter}.update(${seed.chapter})
+#${states.side}.update(${side})`
 }
 
 
@@ -236,8 +259,13 @@ export function generate_typst_facing(
     // gen_preamble's own default, since that default's dynamic left/right parity check
     // doesn't apply to a facing document's fixed left-half/right-half layout
     const gutter = `2 * ${page.margin_left}`
-    const furniture = gen_facing_furniture(request, start_page, gutter)
-    const overrides:PreambleOverrides = {width: `2 * ${page.width}`, margin}
+    // The passage's own values seed the running-head states, so the furniture on the first
+    // double page — laid out before any of that page's content has run — already shows the
+    // right book/chapter rather than the states' empty defaults (see RunningSeed)
+    const seed = running_seed(passage)
+    const states = gen_running_states(seed)
+    const furniture = gen_facing_furniture(request, seed, start_page, gutter)
+    const overrides:PreambleOverrides = {width: `2 * ${page.width}`, margin, seed}
     if (request.running_position === 'footer') {
         overrides.footer = furniture === 'none' ? 'none' : `context ${furniture}`
     } else {
@@ -256,9 +284,9 @@ export function generate_typst_facing(
     // facing passage can itself span multiple chapters, so #ch(n) calls within its content
     // (via gen_passage_facing below) keep advancing the chapter from here, same as any other
     // passage. running-side isn't relevant here — facing pages don't interact with half_blank
-    parts.push(`#state("running-active", false).update(true)
-#state("running-book", "").update("${escape_typst_str(passage.book_name)}")
-#state("running-chapter", 0).update(${passage.start_chapter})`)
+    parts.push(`#${states.active}.update(true)
+#${states.book}.update("${escape_typst_str(passage.book_name)}")
+#${states.chapter}.update(${passage.start_chapter})`)
     parts.push(gen_passage_facing(passage, page, request.image_style,
         typography.font_size, typography.font_text2,
         typography.font_headings2, typography.font_size2, typography.font_fallbacks2,
@@ -288,7 +316,9 @@ function furniture_half_row(is_recto:boolean, outer:string, center:string):strin
 // Returns a raw block expression (not context-wrapped, matching gen_page_furniture_row's
 // contract) or 'none' when neither feature is on — see generate_typst_facing for how it's
 // combined with the header's footnote-counter reset
-function gen_facing_furniture(request:TypstRequest, start_page:number, gutter:string):string {
+function gen_facing_furniture(
+    request:TypstRequest, seed:RunningSeed, start_page:number, gutter:string,
+):string {
     if (!request.running_pages && !request.running_headings) {
         return 'none'
     }
@@ -296,9 +326,9 @@ function gen_facing_furniture(request:TypstRequest, start_page:number, gutter:st
     // Same running heading text on both halves, but each half computes its own page number.
     // Ungated (unlike the general case) — a facing compile is a single passage end to end, so
     // every one of its pages is a passage page
-    const heading = gen_furniture_cell(request.running_headings, FURNITURE_HEADING, false)
+    const heading = gen_furniture_cell(request.running_headings, gen_furniture_heading(seed), null)
     const number = (expr:string) =>
-        gen_furniture_cell(request.running_pages, `str(${expr})`, false)
+        gen_furniture_cell(request.running_pages, `str(${expr})`, null)
     const left = gen_furniture_slots(request, number(`${start_page} + 2 * (n - 1)`), heading)
     const right = gen_furniture_slots(request, number(`${start_page} + 2 * n - 1`), heading)
 
