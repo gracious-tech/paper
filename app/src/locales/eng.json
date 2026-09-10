@@ -314,6 +314,7 @@
   "editor.advanced.design_link_warning": "Disabling this will prevent people from sharing the design, printing additional copies, and using it in other useful ways. We do not recommend disabling it unless you are including material from third-parties that is not openly licensed.",
   "editor.advanced.divider": "Divider",
   "editor.advanced.drop_cap": "Drop cap",
+  "editor.advanced.drop_cap_columns_note": "This style is not available when there are two columns of text.",
   "editor.advanced.either_side": "Either side",
   "editor.advanced.emphasis_color": "Color of emphasized text",
   "editor.advanced.emphasis_note": "Italicize questions and embolden exclamations in picture story passages, enlarged and colored.",
