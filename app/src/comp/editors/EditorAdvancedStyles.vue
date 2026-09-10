@@ -304,18 +304,18 @@ const gutter_amount = computed(() => {
 // Chapter number style options
 const chapter_styles = [
     {value: 'divider', title: t("editor.advanced.divider") + " / --- 2 ---"},
-    {value: 'float', title: t("editor.advanced.drop_cap") + " / 2"},
+    {value: 'float', title: t("editor.advanced.margin_number") + " / 2"},
     {value: 'heading', title: t("editor.advanced.heading_chapter") + " 2"},
 ]
 
 
-// The drop cap hangs in the page margin, which a second column of text doesn't have, so
+// The margin number hangs in the page margin, which a second column of text doesn't have, so
 // two-column passages draw a divider instead (see gen_passage_inner in
 // typst/src/content_passage.ts) — worth saying, since columns are set per-passage while the
 // chapter style is document-wide, so the fallback can apply to only part of a design
 const chapter_style_hint = computed(() => {
     return blue.show_chapters && blue.show_chapters_style === 'float'
-        ? t("editor.advanced.drop_cap_columns_note")
+        ? t("editor.advanced.margin_number_columns_note")
         : ''
 })
 
