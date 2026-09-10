@@ -303,11 +303,13 @@ async function open_other_design(deleted_id:string):Promise<void>{
 }
 
 
-export async function create_design(from?:Blueprint, wizard_draft?:NewDesignDraft):Promise<string>{
+export async function create_design(from?:Blueprint, wizard_draft?:NewDesignDraft,
+        simple_mode = true):Promise<string>{
     // Create a new design (optionally copying an existing blueprint) and open it. `wizard_draft`
-    // is only passed by the new-design wizard's finish step — it marks the design as starting in
-    // simple_mode and stashes the draft so its steps can be reopened/summarised accurately later
-    // (see design_wizard above)
+    // is passed by the new-design wizard's finish step and when duplicating a wizard-created
+    // design — it stashes the draft so its steps can be reopened/summarised accurately later
+    // (see design_wizard above). `simple_mode` only matters when a draft is given, and is only
+    // false when copying a design that has already left simple mode
     const uid = user.value!.uid
     const id = generate_token()
     const blueprint = clean_blueprint(from ? cloneDeep(from) : undefined)
@@ -323,7 +325,7 @@ export async function create_design(from?:Blueprint, wizard_draft?:NewDesignDraf
         modified: serverTimestamp(),
         category: null,
         latest_version: null,
-        ...(wizard_draft ? {simple_mode: true, wizard_draft: cloneDeep(wizard_draft)} : {}),
+        ...(wizard_draft ? {simple_mode, wizard_draft: cloneDeep(wizard_draft)} : {}),
         ...split_blueprint_doc(blueprint),
     })
     await open_design(id)
@@ -422,10 +424,15 @@ export async function clear_category(name:string):Promise<void>{
 
 
 export async function duplicate_design(id:string):Promise<string>{
-    // Copy a design's live blueprint into a brand new design (no version history copied)
+    // Copy a design's live blueprint into a brand new design (no version history copied).
+    // A wizard-created design's draft comes along too, so a copy of a simple design is still
+    // simple (and a copy of one that has left simple mode still knows its wizard answers)
     const snap = await getDoc(doc(firestore, 'designs', id))
-    const blueprint = doc_to_blueprint(snap.data() ?? {})
-    return await create_design(blueprint)
+    const data = snap.data() ?? {}
+    const blueprint = doc_to_blueprint(data)
+    const draft = data['wizard_draft']
+        ? cloneDeep(data['wizard_draft'] as NewDesignDraft) : undefined
+    return await create_design(blueprint, draft, !!data['simple_mode'])
 }
 
 
