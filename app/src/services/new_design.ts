@@ -86,23 +86,28 @@ export function get_default_draft():NewDesignDraft{
 export const TYPE_PRESETS:{id:NewDesignType, image:string, diff:Partial<Blueprint>}[] = [
     {id: 'regular', image: img_type_regular, diff: {}},
     {id: 'reading', image: img_type_reading, diff: {
+        columns: false,
         show_headings: false,
         show_chapters: false,
         show_verses: false,
         show_footnotes: false,
     }},
     {id: 'notes', image: img_type_notes, diff: {
+        // NOTE Haven't increased line height since half_blank will double page size already
         show_footnotes: false,
-        line_height: 2.5,
         half_blank: 'right',
-        bibles_layout: 'columns',  // Required for half_blank
+        bibles_layout: 'columns',  // Can't use other half
     }},
     {id: 'study', image: img_type_study, diff: {
         show_footnotes: false,
         notes: 'eng_tyndale',
     }},
     {id: 'bilingual', image: img_type_bilingual, diff: {
-        show_footnotes: false,
+        // Twice as much text, so reduce sizes a bit
+        font_size: 9,
+        line_height: 1.2,
+        show_headings: false,  // Often don't align/match
+        show_footnotes: false,  // Only one would get them anyway
     }},
     {id: 'picture_story', image: '/wizard/type_picture_story.webp', diff: {
         hyphenate: false,
