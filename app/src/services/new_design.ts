@@ -202,6 +202,31 @@ export function wizard_cover_label(id:NewDesignCover, t:(key:string) => string):
 }
 
 
+// The professional trim sizes the wizard offers, each an exact match to a Lulu size id —
+// hoisted out of NewDesignPrint.vue so the simple-mode summary row can name the size the same
+// way the wizard did ("Small" rather than "Novella")
+export function wizard_size_options(t:(key:string) => string):
+        {id:string, label:string, dims:string, subtitle:string}[]{
+    return [
+        {id: 'novella', label: t("wizard.print.small"), dims: '5 × 8 inches',
+            subtitle: t("wizard.print.size_small_desc")},
+        {id: 'digest', label: t("wizard.print.medium"), dims: '5.5 × 8.5 inches',
+            subtitle: t("wizard.print.size_medium_desc")},
+        {id: 'us_trade', label: t("wizard.print.large"), dims: '6 × 9 inches',
+            subtitle: t("wizard.print.size_large_desc")},
+        {id: 'executive', label: t("wizard.print.extra_large"), dims: '7 × 10 inches',
+            subtitle: t("wizard.print.size_xl_desc")},
+    ]
+}
+
+
+// The wizard's label for a professional trim size, or null if it isn't one the wizard offers
+// (the design was taken beyond the wizard's own choices in the full editor)
+export function wizard_size_label(size_id:string, t:(key:string) => string):string|null{
+    return wizard_size_options(t).find(option => option.id === size_id)?.label ?? null
+}
+
+
 // The wizard never offers booklet / binding / ink / paper as choices — they all follow from
 // the chosen service and design type. Applied by both wizard_preview_blueprint() and the final
 // build_new_blueprint() so the cover preview matches what gets created.

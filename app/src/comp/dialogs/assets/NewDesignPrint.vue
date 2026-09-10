@@ -41,6 +41,8 @@ import NewDesignCard from '@/comp/dialogs/assets/NewDesignCard.vue'
 import img_btn_home from '@/assets/images/btn_home.avif'
 import img_btn_pro from '@/assets/images/btn_pro.avif'
 
+import {wizard_size_options} from '@/services/new_design'
+
 import type {NewDesignDraft} from '@/services/new_design'
 
 
@@ -72,13 +74,8 @@ const home_size_id = computed({
 })
 
 
-// The only trim sizes offered, each an exact match to a Lulu size id
-const SIZE_OPTIONS = computed(() => [
-    {id: 'novella', label: t("wizard.print.small"), dims: '5 × 8 inches', subtitle: t("wizard.print.size_small_desc")},
-    {id: 'digest', label: t("wizard.print.medium"), dims: '5.5 × 8.5 inches', subtitle: t("wizard.print.size_medium_desc")},
-    {id: 'us_trade', label: t("wizard.print.large"), dims: '6 × 9 inches', subtitle: t("wizard.print.size_large_desc")},
-    {id: 'executive', label: t("wizard.print.extra_large"), dims: '7 × 10 inches', subtitle: t("wizard.print.size_xl_desc")},
-])
+// The only trim sizes offered (shared with the simple-mode summary, see new_design.ts)
+const SIZE_OPTIONS = computed(() => wizard_size_options(t))
 
 
 // Methods
