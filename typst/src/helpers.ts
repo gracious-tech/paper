@@ -1,4 +1,17 @@
 
+// Marker emitted in the flow wherever a passage renders its title inline (see gen_passage in
+// content_passage.ts), so the page the title lands on can be identified after layout. metadata
+// draws nothing and takes no space, so it can sit in the flow without disturbing it
+export const TITLE_MARKER = '#metadata(none)<pb-title>'
+
+// Whether the page currently being laid out carries one of those markers — the test the running
+// header/footer makes to leave itself off a book-opening page (see gen_title_page_gate in
+// preamble.ts). Both page numbers are physical (unaffected by counter(page).update), so they
+// compare directly. Must be evaluated inside a #context block
+export const TITLE_ON_PAGE =
+    'query(<pb-title>).any(m => m.location().page() == here().page())'
+
+
 // Escape text for use in Typst markup content
 export function escape_typst(text:string):string {
     return text.replace(/[\\#\[\]$*_`<>@~]/g, '\\$&')

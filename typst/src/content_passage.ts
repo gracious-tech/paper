@@ -1,8 +1,8 @@
 
 import {escape_typst_str} from 'typst-utils'
 
-import {LARGE_POETRY, LOTS_OF_POETRY, escape_typst, escape_svg_for_typst, parse_unit}
-    from './helpers.js'
+import {LARGE_POETRY, LOTS_OF_POETRY, TITLE_MARKER, escape_typst, escape_svg_for_typst,
+    parse_unit} from './helpers.js'
 import {build_aligned_rows} from './bilingual.js'
 
 import type {ImageStyle, PageConfig, TypstContentItem, TypstPassage, TypstPassageImage}
@@ -154,6 +154,8 @@ export function gen_passage(
     if (passage.passage_title) {
         const block = gen_passage_title(
             passage.passage_title, passage.passage_subtitle, passage.passage_icon, page)
+        // Flag the page for the running header/footer, which leaves itself off it entirely
+        parts.push(TITLE_MARKER)
         if (passage_columns(passage) === 2) {
             // A float's gap to the columns below is its `clearance`, not the block's `below`
             // (which a float ignores) — Typst's 1.5em default leaves the title almost touching
@@ -212,6 +214,9 @@ export function gen_passage_facing(
     if (passage.passage_title) {
         const block = gen_passage_title(
             passage.passage_title, passage.passage_subtitle, passage.passage_icon, page)
+        // Same page flag as the single-page path — both halves of the double page carry the
+        // title, so the whole spread's furniture goes (see gen_facing_furniture in generate.ts)
+        parts.push(TITLE_MARKER)
         parts.push(`#block(width: 100%, below: ${PASSAGE_TITLE_BELOW}, grid(columns: (1fr, 1fr), column-gutter: ${gutter},
     ${block},
     ${block}))`)

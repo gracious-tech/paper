@@ -448,6 +448,13 @@ describe('gen_passage', () => {
             expect(result.indexOf('Genesis 1:1-31')).toBeLessThan(result.indexOf('The Creation'))
         })
 
+        it('marks the title page so the running header/footer leaves it off', () => {
+            expect(call(make_passage({passage_title: 'Genesis 1:1-31'})))
+                .toContain('#metadata(none)<pb-title>')
+            expect(call(make_passage({passage_title: null})))
+                .not.toContain('<pb-title>')
+        })
+
         it('omits the subtitle line when passage_subtitle is null', () => {
             const result = call(make_passage({
                 passage_title: 'Genesis 1:1-31',

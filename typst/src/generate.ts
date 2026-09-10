@@ -2,7 +2,8 @@
 import {escape_typst_str} from 'typst-utils'
 
 import {gen_preamble, gen_furniture_cell, gen_furniture_slots, gen_furniture_heading,
-    gen_running_states, INERT_RUNNING_SEED, FURNITURE_RULES} from './preamble.js'
+    gen_running_states, gen_title_page_gate, INERT_RUNNING_SEED, FURNITURE_RULES}
+    from './preamble.js'
 import {gen_passage, gen_passage_facing, passage_columns} from './content_passage.js'
 import {gen_title} from './content_title.js'
 import {gen_custom} from './content_custom.js'
@@ -264,7 +265,8 @@ export function generate_typst_facing(
     // right book/chapter rather than the states' empty defaults (see RunningSeed)
     const seed = running_seed(passage)
     const states = gen_running_states(seed)
-    const furniture = gen_facing_furniture(request, seed, start_page, gutter)
+    const furniture = gen_facing_furniture(request, seed, start_page, gutter,
+        !!passage.passage_title)
     const overrides:PreambleOverrides = {width: `2 * ${page.width}`, margin, seed}
     if (request.running_position === 'footer') {
         overrides.footer = furniture === 'none' ? 'none' : `context ${furniture}`
@@ -317,7 +319,7 @@ function furniture_half_row(is_recto:boolean, outer:string, center:string):strin
 // contract) or 'none' when neither feature is on — see generate_typst_facing for how it's
 // combined with the header's footnote-counter reset
 function gen_facing_furniture(
-    request:TypstRequest, seed:RunningSeed, start_page:number, gutter:string,
+    request:TypstRequest, seed:RunningSeed, start_page:number, gutter:string, has_title:boolean,
 ):string {
     if (!request.running_pages && !request.running_headings) {
         return 'none'
@@ -332,13 +334,17 @@ function gen_facing_furniture(
     const left = gen_furniture_slots(request, number(`${start_page} + 2 * (n - 1)`), heading)
     const right = gen_furniture_slots(request, number(`${start_page} + 2 * n - 1`), heading)
 
+    // A facing document renders exactly one passage, so its own title (if any) is what decides
+    // whether the double page it opens on carries furniture at all — see gen_title_page_gate
+    const row = `grid(columns: (1fr, 1fr), column-gutter: ${gutter},
+            ${furniture_half_row(false, left.outer, left.center)},
+            ${furniture_half_row(true, right.outer, right.center)},
+        )`
+
     return `{
         ${FURNITURE_RULES}
         let n = counter(page).get().first()
-        grid(columns: (1fr, 1fr), column-gutter: ${gutter},
-            ${furniture_half_row(false, left.outer, left.center)},
-            ${furniture_half_row(true, right.outer, right.center)},
-        )
+        ${gen_title_page_gate(has_title, row)}
     }`
 }
 

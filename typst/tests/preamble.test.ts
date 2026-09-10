@@ -2,7 +2,8 @@
 import {describe, it, expect} from 'vitest'
 
 import {gen_preamble} from '../src/preamble.js'
-import {make_request, TEST_PAGE, TEST_TYPOGRAPHY, TEST_FEATURES} from './fixtures.js'
+import {make_passage, make_request, TEST_PAGE, TEST_TYPOGRAPHY, TEST_FEATURES}
+    from './fixtures.js'
 
 
 describe('gen_preamble', () => {
@@ -110,6 +111,17 @@ describe('gen_preamble', () => {
         expect(result).toContain('footer: none')
     })
 
+    it('drops the furniture on a page carrying an inline passage title', () => {
+        const result = gen_preamble(make_request({running_pages: true,
+            content: [make_passage({passage_title: 'Genesis'})]}))
+        expect(result).toContain('query(<pb-title>)')
+    })
+
+    it('skips the title-page query when no item has an inline title', () => {
+        const result = gen_preamble(make_request({running_pages: true}))
+        expect(result).not.toContain('query(<pb-title>)')
+    })
+
     it('footer text has no font: override, so it inherits font_text + its fallbacks', () => {
         const result = gen_preamble(make_request({running_pages: true}))
         const footer_source = result.slice(
@@ -177,6 +189,9 @@ describe('gen_preamble', () => {
             expect(result).toContain('size: 2.2em')
             // Flags the chapter as just-opened so a following heading can rise level with it
             expect(result).toContain('state("ch-float-open", false).update(true)')
+            // The zero-height block sticks to the text it opens, so a break right after it can't
+            // strand the numeral at the foot of the previous page
+            expect(result).toContain('block(below: 0pt, height: 0pt, sticky: true,')
         })
 
         it('steps the float numeral down as the chapter number gets longer', () => {

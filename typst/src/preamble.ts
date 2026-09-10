@@ -1,7 +1,7 @@
 
 import {escape_typst_str} from 'typst-utils'
 
-import {parse_unit, to_pt} from './helpers.js'
+import {TITLE_ON_PAGE, parse_unit, to_pt} from './helpers.js'
 
 import type {TypstRequest} from './types.js'
 
@@ -82,6 +82,16 @@ export function gen_furniture_cell(enabled:boolean, expr:string, gate:string|nul
 }
 
 
+// Wrap a built furniture row so a page carrying an inline passage title prints no furniture at
+// all — neither running heading nor page number. A book opening is announced by its own title,
+// and leaving the running head and folio off that page is standard book practice. `has_title`
+// says whether the document being generated has such a title anywhere, so documents without one
+// never pay for the per-page query (see TITLE_MARKER / TITLE_ON_PAGE in helpers.ts)
+export function gen_title_page_gate(has_title:boolean, row:string):string {
+    return has_title ? `if ${TITLE_ON_PAGE} { none } else { ${row} }` : row
+}
+
+
 // Assign the two furniture cells to their slots: the page number takes the blueprint's chosen
 // alignment and the running heading takes whichever slot is left over
 export function gen_furniture_slots(request:TypstRequest, number:string, heading:string)
@@ -127,6 +137,11 @@ function gen_page_furniture_row(request:TypstRequest, seed:RunningSeed):string {
         states.active)
     const {outer, center} = gen_furniture_slots(request, number, heading)
 
+    // Whether any item in this document opens with an inline title, which suppresses the
+    // furniture on the page it lands on — see gen_title_page_gate
+    const has_title = request.content.some(
+        item => item.type === 'passage' && item.passage_title)
+
     return `{
         ${FURNITURE_RULES}
         // Odd = recto/right by convention, matching the parity pdf_postprocess.ts already
@@ -138,11 +153,12 @@ function gen_page_furniture_row(request:TypstRequest, seed:RunningSeed):string {
             else { calc.odd(counter(page).at(here()).first()) }
         let outer_cell = align(if recto { right } else { left }, ${outer})
         let center_cell = align(center, ${center})
-        grid(columns: (1fr, 1fr, 1fr), align: horizon,
+        let row = grid(columns: (1fr, 1fr, 1fr), align: horizon,
             if recto { none } else { outer_cell },
             center_cell,
             if recto { outer_cell } else { none },
         )
+        ${gen_title_page_gate(has_title, 'row')}
     }`
 }
 
@@ -345,7 +361,10 @@ export function gen_preamble(request:TypstRequest, overrides:PreambleOverrides =
         // sits at the numeral's top edge; the block's default `above` spacing is kept so a new
         // chapter is still separated from the previous one. top-edge/bottom-edge "bounds"
         // tightens the frame to the digit's own glyph bounds, so place(top + ...) puts the top of
-        // the numeral level with the top of the following line.
+        // the numeral level with the top of the following line. `sticky: true` keeps it with what
+        // it opens — the block has no height of its own, so a page/column break falling right
+        // after it would otherwise fit it at the foot of the page and start the chapter's text
+        // overleaf, leaving a bare numeral under the previous chapter's last line.
         //
         // The one thing that would still push the following content below the numeral is a
         // section heading's own leading space. So #ch flags the chapter as just-opened; a heading
@@ -359,7 +378,7 @@ export function gen_preamble(request:TypstRequest, overrides:PreambleOverrides =
     context {
         let num = text(size: ${num_size}em, weight: "bold",
             top-edge: "bounds", bottom-edge: "bounds", str(n))
-        block(below: 0pt, height: 0pt,
+        block(below: 0pt, height: 0pt, sticky: true,
             place(top + left, dx: -(measure(num).width + ${FLOAT_CHAPTER_GAP}em), num))
     }
     state("ch-float-open", false).update(true)
