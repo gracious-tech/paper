@@ -104,10 +104,10 @@ export interface TypographyConfig {
                              // preamble.ts's leading calc for how this maps to Typst's `leading`
     justify:boolean|null    // null = auto (justify when width permits)
     hyphenate:boolean       // Whether to hyphenate wrapped words
-    // In books that are mostly poetry (LOTS_OF_POETRY in helpers.ts), drop the baseline indent:
-    // prose paragraphs lose their first-line indent and every poetry level shifts one step
-    // left, so a first-level line (#q(1)) sits flush at the margin like normal text rather than
-    // permanently indented (see gen_passage_inner in content_passage.ts)
+    // In books that are mostly poetry (LOTS_OF_POETRY in helpers.ts), drop the baseline poetry
+    // indent: every poetry level shifts one step left, so a first-level line (#q(1)) sits flush
+    // at the margin like normal text rather than permanently indented. Prose paragraphs keep
+    // their normal first-line indent (see gen_passage_inner in content_passage.ts)
     poetry_outdent:boolean
     text_color:string|null  // Hex color for all text; unset = no fill rule (Typst default)
 }

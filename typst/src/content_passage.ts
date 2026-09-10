@@ -278,12 +278,12 @@ function gen_passage_inner(
     lines.push(gen_footnote_rules(passage, entry_width))
 
     // Flatten the baseline indent for poetry-heavy books (opt-out via the poetry_outdent
-    // setting): drop the prose first-line indent, and re-bind #q/#qm so every poetry level
-    // shifts one step left — a first-level line then sits flush at the margin like normal
-    // text rather than permanently indented (nearly every line in these books is poetry, so
-    // the standard "quoted stanza" indent just wastes the measure)
+    // setting): re-bind #q/#qm so every poetry level shifts one step left — a first-level line
+    // then sits flush at the margin like normal text rather than permanently indented (nearly
+    // every line in these books is poetry, so the standard "quoted stanza" indent just wastes
+    // the measure). Prose paragraphs keep their normal first-line indent — poetry levels are all
+    // this setting touches, and books like Ecclesiastes are largely prose
     if (poetry_outdent && LOTS_OF_POETRY.includes(passage.book)) {
-        lines.push('#set par(first-line-indent: 0em)')
         lines.push('#let q(n, c) = q_base(n, c, base: 1)')
         lines.push('#let qm(n, c) = qm_base(n, c, base: 1)')
     }

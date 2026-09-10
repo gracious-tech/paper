@@ -186,9 +186,9 @@ describe('gen_passage', () => {
 
     describe('poetry indent', () => {
 
-        it('disables first-line-indent for poetry books', () => {
+        it('keeps the prose first-line indent for poetry books', () => {
             const result = call(make_passage({book: 'psa'}))
-            expect(result).toContain('#set par(first-line-indent: 0em)')
+            expect(result).not.toContain('first-line-indent: 0em')
         })
 
         it('keeps default indent for non-poetry books', () => {
@@ -210,7 +210,6 @@ describe('gen_passage', () => {
         it('respects poetry_outdent = false even for poetry books', () => {
             const result = call(make_passage({book: 'psa'}), undefined, undefined, undefined,
                 undefined, undefined, 'none', false)
-            expect(result).not.toContain('first-line-indent: 0em')
             expect(result).not.toContain('q_base(n, c, base: 1)')
         })
     })
