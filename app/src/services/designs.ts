@@ -10,7 +10,7 @@ import {split_blueprint_doc, join_blueprint_doc, SCHEMA_VERSION} from 'paper-bib
 import {firestore} from '@/services/firebase'
 import {api} from '@/services/api'
 import {user} from '@/services/auth'
-import {blue, state} from '@/services/state'
+import {blue, state, estimated_pages} from '@/services/state'
 import {clean_blueprint, gen_content_name, content_preview, get_default_blueprint}
     from '@/services/blueprints'
 import {generate_token} from '@/services/utils'
@@ -252,6 +252,10 @@ export async function open_design(id:string):Promise<void>{
     current_design_id.value = id
     design_wizard.simple_mode = false
     design_wizard.draft = null
+    // The page estimate belongs to the design that produced it — anything reading it (cover
+    // spine, binding validity, the derived binding) must wait for this design's first preview
+    // rather than size itself from the previous design's length
+    estimated_pages.value = null
 
     await new Promise<void>((resolve, reject) => {
         unsub_doc = onSnapshot(doc(firestore, 'designs', id), snap => {
@@ -343,7 +347,7 @@ export async function apply_wizard_edit(id:string, draft:NewDesignDraft):Promise
     // blank, keep whatever title was already there (e.g. set via the /designs list rename
     // action) rather than blanking it
     const previous_title = blue.title
-    Object.assign(blue, await build_new_blueprint(draft))
+    Object.assign(blue, await build_new_blueprint(draft, estimated_pages.value))
     if (!(draft.title ?? '').trim()){
         blue.title = previous_title
     }

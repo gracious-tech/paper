@@ -1,9 +1,11 @@
 
 import {watch} from 'vue'
 
-import {blue} from '@/services/state'
+import {blue, estimated_pages} from '@/services/state'
 import {content, bible_content, resolve_passage_examples, ensure_bible_books_loaded}
     from '@/services/content'
+import {auto_binding} from '@/services/blueprints'
+import {design_wizard} from '@/services/designs'
 
 import type {ContentPassage, ContentTitle} from '@/services/types'
 
@@ -89,4 +91,28 @@ export function start_watchers(){
         content.example_text.heading = heading
         content.example_text.verse = verse
     }, {deep: true, immediate: true})
+
+    // Keep a simple-mode design's binding suited to how long the document actually turns out to
+    // be. Simple mode never offers the binding as a choice, so it has to be right without the
+    // user's help — and it can only be known once the document has been laid out, so it's
+    // re-derived from every fresh page estimate (exact for anything short enough to preview
+    // whole, which is the full range where the choice is in any doubt). The full editor is left
+    // alone: there the user owns the setting, with binding_page_issue() warning if it doesn't
+    // suit. A binding change shifts the auto gutter and so the page count, feeding back in here —
+    // but only above 100 pages for Lulu (the only service simple mode offers), by which point
+    // saddle stitch is long out of range and the remaining coil/perfect choice doesn't depend on
+    // the count at all, so the derivation settles rather than oscillating
+    watch([() => estimated_pages.value, () => design_wizard.simple_mode, () => blue.service_id,
+            () => blue.half_blank], () => {
+        // Only once this design's own preview has produced an estimate — with the length unknown
+        // auto_binding() assumes a full-length book, which would flip a correctly-bound short
+        // design on every app load (and mark it as having unrendered changes)
+        if (!design_wizard.simple_mode || estimated_pages.value === null){
+            return
+        }
+        const binding = auto_binding(blue, estimated_pages.value)
+        if (binding !== blue.binding_type){
+            blue.binding_type = binding
+        }
+    }, {immediate: true})
 }

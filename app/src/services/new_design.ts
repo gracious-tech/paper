@@ -5,7 +5,8 @@
 import {PassageReference} from '@gracious.tech/fetch-client'
 
 import {content} from '@/services/content'
-import {get_default_blueprint, get_passages, font_default_for_bibles} from '@/services/blueprints'
+import {get_default_blueprint, get_passages, font_default_for_bibles, auto_binding}
+    from '@/services/blueprints'
 import {seed_cover_preset} from '@/services/cover'
 import {generate_token} from '@/services/utils'
 import {fetch_stories, story_to_slides, story_reference_label, story_canonical_cmp}
@@ -203,13 +204,18 @@ export function wizard_cover_label(id:NewDesignCover, t:(key:string) => string):
 
 // The wizard never offers booklet / binding / ink / paper as choices — they all follow from
 // the chosen service and design type. Applied by both wizard_preview_blueprint() and the final
-// build_new_blueprint() so the cover preview matches what gets created
-function apply_wizard_print_defaults(blueprint:Blueprint, draft:NewDesignDraft):void{
+// build_new_blueprint() so the cover preview matches what gets created.
+// The binding also depends on how long the document turns out to be (auto_binding), so `pages`
+// passes the open design's current page estimate when the wizard is re-run for an existing
+// design — null for a brand new one, which has never been compiled. Either way the simple-mode
+// watcher keeps it right from the first preview onwards (see watchers.ts)
+function apply_wizard_print_defaults(blueprint:Blueprint, draft:NewDesignDraft,
+        pages:number|null):void{
     blueprint.booklet = draft.service_id === 'home'
-    // Coil binding suits a notes bible's flat-lay writing space, otherwise perfect bound
-    blueprint.binding_type = draft.type === 'notes' ? 'paperback_coil' : 'paperback'
     blueprint.ink_type = 'bw'
     blueprint.paper_type = 'white'
+    // Last, since the suitable bindings depend on the ink/paper/size set above
+    blueprint.binding_type = auto_binding(blueprint, pages)
 }
 
 
@@ -219,12 +225,15 @@ function apply_wizard_print_defaults(blueprint:Blueprint, draft:NewDesignDraft):
 // the print/translation fields plus a single representative content item are needed — those are
 // the only fields the cover form-builder reads (title, bibles[0], service_id/size_id/binding_
 // type/ink_type/paper_type). Picture-story stories aren't tied to a single book id, so content
-// stays empty in that mode (the cover preset falls back to an untitled/unthemed preview)
-export function wizard_preview_blueprint(draft:NewDesignDraft):Blueprint{
+// stays empty in that mode (the cover preset falls back to an untitled/unthemed preview).
+// The type preset is applied as well, even though the cover doesn't read its style fields, so
+// the derived binding sees the same blueprint build_new_blueprint() will derive it from
+export function wizard_preview_blueprint(draft:NewDesignDraft, pages:number|null = null):Blueprint{
     const blueprint = get_default_blueprint()
+    Object.assign(blueprint, TYPE_PRESETS.find(preset => preset.id === draft.type)?.diff ?? {})
     blueprint.service_id = draft.service_id ?? blueprint.service_id
     blueprint.size_id = draft.size_id ?? blueprint.size_id
-    apply_wizard_print_defaults(blueprint, draft)
+    apply_wizard_print_defaults(blueprint, draft, pages)
     blueprint.title = (draft.title ?? '').trim()
     if (draft.bibles.length){
         blueprint.bibles = [...draft.bibles] as [string, ...string[]]
@@ -277,8 +286,11 @@ export function wizard_auto_title(draft:NewDesignDraft):string{
 // then each step's selections. Content becomes whole-book passages in canonical order (or the
 // user's own passage list). No copyright page is added — the auto-copyright statement lives on
 // the back of the cover. Async because the picture_story type looks up the predefined story
-// list (already cached by the time the wizard reaches this step)
-export async function build_new_blueprint(draft:NewDesignDraft):Promise<Blueprint>{
+// list (already cached by the time the wizard reaches this step). `pages` is the open design's
+// current page estimate when rebuilding an existing design from an edited draft (see
+// apply_wizard_edit), null for a brand new design — it only feeds the derived binding
+export async function build_new_blueprint(draft:NewDesignDraft, pages:number|null = null):
+        Promise<Blueprint>{
 
     const blueprint = get_default_blueprint()
     Object.assign(blueprint, TYPE_PRESETS.find(preset => preset.id === draft.type)!.diff)
@@ -287,7 +299,7 @@ export async function build_new_blueprint(draft:NewDesignDraft):Promise<Blueprin
     // ink / paper are derived (see apply_wizard_print_defaults)
     blueprint.service_id = draft.service_id!
     blueprint.size_id = draft.size_id!
-    apply_wizard_print_defaults(blueprint, draft)
+    apply_wizard_print_defaults(blueprint, draft, pages)
 
     // Translations (the wizard's step validation guarantees 1-2)
     blueprint.bibles = [...draft.bibles] as [string, ...string[]]
