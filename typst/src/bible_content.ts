@@ -14,6 +14,7 @@ import {resolve_icon} from './icon_cache.js'
 import {resolve_passage_image} from './image_cache.js'
 import {PATTERNS} from './generated/patterns.js'
 import {inject_study_notes} from './content_notes.js'
+import {max_chapter_in_content} from './content_passage.js'
 import {detect_font_fallbacks} from './fonts_detect.js'
 import {resolve_lang} from './lang.js'
 
@@ -382,6 +383,7 @@ export class BibleContent {
                 show_wj_italic: blue.show_wj_italic,
             },
             content: items,
+            max_chapter: max_chapter_in_content(items),
             arrangement: blue.booklet ? 'booklet' : 'book',
             running_pages: blue.running_pages,
             running_headings: blue.running_headings,

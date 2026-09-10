@@ -130,6 +130,7 @@ export function make_request(overrides:Partial<TypstRequest> = {}):TypstRequest 
         titlepage: TEST_TITLEPAGE,
         features: TEST_FEATURES,
         content: [make_passage()],
+        max_chapter: 1,
         arrangement: 'normal',
         running_pages: true,
         running_headings: false,

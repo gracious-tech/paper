@@ -5,13 +5,41 @@ import {LARGE_POETRY, LOTS_OF_POETRY, escape_typst, escape_svg_for_typst, parse_
     from './helpers.js'
 import {build_aligned_rows} from './bilingual.js'
 
-import type {ImageStyle, PageConfig, TypstPassage, TypstPassageImage} from './types.js'
+import type {ImageStyle, PageConfig, TypstContentItem, TypstPassage, TypstPassageImage}
+    from './types.js'
 
 
 // How chapter markers are drawn document-wide (Blueprint show_chapters_style, or 'none' when
-// chapter numbers are hidden). Only consulted for the bilingual columns layout, where the
-// marker otherwise renders once inside each translation's cell — see gen_multi_bible_grids
+// chapter numbers are hidden). Consulted where a layout can't render the document-wide marker as
+// is: the bilingual columns layout, where it would otherwise draw once inside each translation's
+// cell (see gen_multi_bible_grids), and two-column passages, which have no margin for the 'float'
+// style's numeral (see gen_passage_inner)
 export type ChapterStyle = 'divider' | 'float' | 'heading' | 'none'
+
+
+// The chapter marker the USX->Typst converter emits at each chapter's opening verse
+const CH_MARKER = /#ch\((\d+)\)/g
+
+
+// The highest chapter number the given content reaches — what the 'float' chapter style sizes its
+// margin numeral to fit (see float_chapter_size in preamble.ts). Read off the #ch() markers in the
+// already-rendered passage markup: a passage records the chapter it opens on but not the one it
+// ends on, so its own content is the only place the real range is written down
+export function max_chapter_in_content(content:TypstContentItem[]):number {
+    let max = 1
+    for (const item of content) {
+        if (item.type !== 'passage') {
+            continue
+        }
+        max = Math.max(max, item.start_chapter)
+        for (const bible of item.bibles) {
+            for (const match of bible.content.matchAll(CH_MARKER)) {
+                max = Math.max(max, Number(match[1]))
+            }
+        }
+    }
+    return max
+}
 
 
 // Generate Typst markup for a passage's image, shown in the top half of its first page before
@@ -253,6 +281,17 @@ function gen_passage_inner(
         lines.push('#set par(first-line-indent: 0em)')
         lines.push('#let q(n, c) = q_base(n, c, base: 1)')
         lines.push('#let qm(n, c) = qm_base(n, c, base: 1)')
+    }
+
+    // The 'float' style's numeral hangs in the margin to the left of the text block, and a page
+    // column has no margin there — the second column's numeral would land in the inter-column
+    // gutter (a few mm, against a numeral several times wider) and overprint the first column's
+    // text. Two-column passages re-bind #ch to draw the chapter divider instead, which needs no
+    // horizontal room of its own (see gen_ch_divider_binding in preamble.ts). Bilingual passages
+    // never reach this — they're always single-column (see passage_columns)
+    if (chapter_style === 'float' && passage_columns(passage) === 2) {
+        lines.push('#let ch = ch_columns')
+        lines.push('#let ch_tight = ch_columns_tight')
     }
 
     // A heading (or the 'float' chapter marker's own block(), see chapter in preamble.ts)
@@ -530,7 +569,7 @@ function gen_multi_bible_grids(
         // The chapter marker sits in the pre-rendered markup of *both* translations, so left
         // alone it renders twice — once per column. For the 'divider' style, quiet both in-cell
         // markers and draw one divider across the full grid width instead; for the 'float'
-        // (drop-cap) style, keep the primary translation's margin numeral and quiet the second's
+        // (margin number) style, keep the primary translation's numeral and quiet the second's
         // (it would otherwise land in the column gutter). 'heading' and 'none' are left as-is.
         let cell_a = a
         let cell_b = b
@@ -598,7 +637,7 @@ function tighten_chapter_before_heading(markup:string):string {
 // (see preamble.ts) — it advances the running chapter without drawing anything, used where the
 // bilingual columns layout draws the marker itself rather than once per translation cell
 function quiet_chapter_markers(markup:string):string {
-    return markup.replace(/#ch\((\d+)\)/g, '#ch_quiet($1)')
+    return markup.replace(CH_MARKER, '#ch_quiet($1)')
 }
 
 

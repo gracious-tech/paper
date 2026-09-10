@@ -172,11 +172,57 @@ describe('gen_preamble', () => {
             }))
             expect(result).toContain('#let ch(n) =')
             expect(result).toContain('place(')
-            // Sized to a fixed em value (not scaled to a measured line height), placed in the
-            // page's left margin (measure() is still used, only to offset by the numeral's width)
-            expect(result).toContain('size: 2.5em')
+            // The single-digit design size, kept whenever the margin can hold it (measure() is
+            // still used, only to offset the numeral by its own width)
+            expect(result).toContain('size: 2.2em')
             // Flags the chapter as just-opened so a following heading can rise level with it
             expect(result).toContain('state("ch-float-open", false).update(true)')
+        })
+
+        it('steps the float numeral down as the chapter number gets longer', () => {
+            // The design ladder, applied whether or not the margin is under pressure — sized once
+            // for the whole document, so every chapter number matches rather than stepping down at
+            // 10 and again at 100. Wide margins, so nothing here is capped by the fit
+            const float_preamble = (max_chapter:number, margin = '30mm') => gen_preamble(
+                make_request({
+                    max_chapter,
+                    page: {...TEST_PAGE, margin_left: margin, margin_right: margin},
+                    features: {...TEST_FEATURES, show_chapters: true,
+                        show_chapters_style: 'float'},
+                }))
+            expect(float_preamble(9)).toContain('size: 2.2em')
+            expect(float_preamble(50)).toContain('size: 1.8em')
+            expect(float_preamble(150)).toContain('size: 1.5em')
+            // A very narrow margin still caps it below the ladder
+            expect(float_preamble(150, '10mm')).toContain('size: 1.2em')
+            // Narrower margins shrink it further, but never below the floor where it would stop
+            // reading as a chapter opener
+            const tight = gen_preamble(make_request({
+                max_chapter: 150,
+                page: {...TEST_PAGE, margin_left: '6mm', margin_right: '6mm'},
+                features: {...TEST_FEATURES, show_chapters: true, show_chapters_style: 'float'},
+            }))
+            expect(tight).toContain('size: 1.2em')
+        })
+
+        it('gives the float style a divider fallback for two-column passages', () => {
+            // A page column has no margin to hang the numeral in, so two-column passages re-bind
+            // #ch to this pair (see gen_passage_inner in content_passage.ts)
+            const result = gen_preamble(make_request({
+                features: {...TEST_FEATURES, show_chapters: true, show_chapters_style: 'float'},
+            }))
+            expect(result).toContain('#let ch_divider(n) =')
+            expect(result).toContain('#let ch_columns(n) = {')
+            expect(result).toContain('#let ch_columns_tight(n) = {')
+            // Defined before use — Typst closures capture the scope they're created in
+            expect(result.indexOf('#let ch_divider(n)'))
+                .toBeLessThan(result.indexOf('#let ch_columns(n)'))
+            // No other style needs it
+            for (const style of ['divider', 'heading'] as const) {
+                expect(gen_preamble(make_request({
+                    features: {...TEST_FEATURES, show_chapters: true, show_chapters_style: style},
+                }))).not.toContain('#let ch_columns(n)')
+            }
         })
 
         it('generates heading chapter style', () => {

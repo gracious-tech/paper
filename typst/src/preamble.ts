@@ -1,7 +1,7 @@
 
 import {escape_typst_str} from 'typst-utils'
 
-import {parse_unit} from './helpers.js'
+import {parse_unit, to_pt} from './helpers.js'
 
 import type {TypstRequest} from './types.js'
 
@@ -147,6 +147,109 @@ function gen_page_furniture_row(request:TypstRequest, seed:RunningSeed):string {
 }
 
 
+// The 'float' chapter numeral's design size by digit count, as a multiple of the body text. A
+// longer number is a visually heavier block at the same type size, so each extra digit steps the
+// size down — "150" then reads as the same weight of chapter opener as "5" rather than as three
+// times the object. Indexed by digits; numbers past the last entry keep its size
+const FLOAT_CHAPTER_SIZES = [2.2, 1.8, 1.5]
+// The smallest it may shrink to when the margin can't hold the design size (see
+// float_chapter_size) — much below this it stops reading as a chapter opener at all
+const FLOAT_CHAPTER_MIN_SIZE = 1.2
+// Approximate advance of one bold digit, as a fraction of its own font size. Deliberately a
+// little generous — measured across bundled faces, bold figures run 0.51em (Libertinus Serif) to
+// 0.70em (DejaVu Sans), with text serifs near 0.55em — so a fitted size errs towards fitting
+const FLOAT_CHAPTER_DIGIT = 0.6
+// Gap between the numeral and the text block, in body em — the same value #ch's own dx offsets by
+const FLOAT_CHAPTER_GAP = 0.3
+// Clearance kept between the numeral's outer edge and the trim, as a fraction of the margin.
+// Proportional rather than a fixed em so the numeral reads as sitting *in* the margin at any page
+// size, instead of grazing the page edge on the small trims where the margin is tightest
+const FLOAT_CHAPTER_CLEARANCE = 0.15
+
+
+// Size (in body em) of the 'float' style's margin numeral, from the document's longest chapter
+// number (Psalm 150 is three digits; most books only reach two). Two rules, both taking the
+// smaller answer: the design ladder above steps the size down per digit unconditionally, and the
+// margin then caps it wherever even that wouldn't fit. The numeral hangs in whichever margin is on
+// the left of the text block — the inside margin on a recto, the outside on a verso — so the fit
+// is against the narrower of the two.
+//
+// Resolved once for the whole document rather than per marker: stepping the size at chapter 10 and
+// again at 100 would put two sizes on the same spread and read as a rendering fault, not a design.
+function float_chapter_size(request:TypstRequest):number {
+    const pt = (value:string) => {
+        const {num, unit} = parse_unit(value)
+        return to_pt(num, unit)
+    }
+    const margin = Math.min(pt(request.page.margin_left), pt(request.page.margin_right))
+    const available = margin * (1 - FLOAT_CHAPTER_CLEARANCE) / pt(request.typography.font_size)
+        - FLOAT_CHAPTER_GAP
+    const digits = String(Math.max(request.max_chapter, 1)).length
+    const design = FLOAT_CHAPTER_SIZES[Math.min(digits, FLOAT_CHAPTER_SIZES.length) - 1]!
+    const fitted = available / (digits * FLOAT_CHAPTER_DIGIT)
+    return Math.max(FLOAT_CHAPTER_MIN_SIZE, Math.min(design, fitted))
+}
+
+
+// The 'divider' chapter visual (#ch_divider): the number flanked by solid drawn rules (rather
+// than dashes, which can leave font-dependent gaps). Three paths draw it — the 'divider' style
+// itself, the bilingual columns layout (one divider across both translations at full grid width
+// rather than one inside each cell, see gen_multi_bible_grids) and the 'float' style's two-column
+// fallback (see gen_ch_divider_binding). Each rule is a fixed-width box with its baseline raised
+// so the line sits centred on the number rather than at the text baseline. No font: override, so
+// it inherits the document-wide font like any other text.
+//
+// A single full-width block: width: 100% gives align(center) the text column to centre against,
+// and sticky: true keeps the divider with the chapter's text so it can never be stranded at the
+// foot of a page. Explicit v() around it gets trimmed — #ch(n) sits at a paragraph edge in the
+// fetched markup — so the block's own margins are the spacing.
+//
+// above + below total two leadings, so the divider takes one line slot out of the baseline grid
+// and the rhythm is unchanged. They're deliberately unequal though: every body line is a
+// zero-height box on its baseline (see gen_preamble's leading calc), so the line
+// *following* the divider hangs its whole ascent up into the gap beneath it, while the line above
+// ends flat at its baseline. Equal margins therefore read as visibly top-heavy. Shifting up by
+// half that imbalance — roughly half of a body ascent (~0.95em) less the divider's own cap-height
+// (0.7 x 0.8em) — evens it out. A constant rather than a measured value: it's within ~0.05em
+// across the font range, well below perception, and this runs once per chapter (1189x for a full
+// Bible).
+function gen_ch_divider(leading:string):string {
+    return `#let ch_divider(n) = block(width: 100%, sticky: true,
+    above: ${leading} - 0.2em, below: ${leading} + 0.2em,
+    align(center, text(size: 0.8em, weight: "regular", {
+        let rule = box(width: 2em, baseline: -0.28em, line(length: 100%, stroke: 0.5pt))
+        [#rule #str(n) #rule]
+    })))`
+}
+
+
+// A #ch / #ch_tight pair (named `name` and `name`_tight) that draws the divider visual, hidden
+// for chapter 1 — nothing precedes it there to divide from.
+//
+// The _tight variant is what the generator swaps in wherever a chapter opens straight into a
+// section heading (see tighten_chapter_before_heading in content_passage.ts). The divider already
+// leaves a full line's gap below itself and the heading's own leading space would stack on top of
+// that, leaving the divider hugging the previous chapter's last line and adrift from the chapter
+// it opens. Raising the "heading-tight" flag makes the heading drop that space and sit one line
+// slot below the divider — exactly where the chapter's first line of text would have sat if there
+// were no heading (see gen_heading_rules). The n > 1 test mirrors the divider's: chapter 1 draws
+// nothing, so its heading has nothing to sit against and keeps its normal spacing
+function gen_ch_divider_binding(name:string, chapter_state:string):string {
+    return `#let ${name}(n) = {
+    ${chapter_state}.update(n)
+    if n > 1 {
+        ch_divider(n)
+    }
+}
+#let ${name}_tight(n) = {
+    ${name}(n)
+    if n > 1 {
+        state("heading-tight", false).update(true)
+    }
+}`
+}
+
+
 // Generate the document preamble: page setup, fonts, paragraph settings, footer, and the
 // consumer-function definitions emitted by the USX→Typst converter
 export function gen_preamble(request:TypstRequest, overrides:PreambleOverrides = {}):string {
@@ -226,46 +329,14 @@ export function gen_preamble(request:TypstRequest, overrides:PreambleOverrides =
     if (!features.show_chapters) {
         chapter = `#let ch(n) = ${running.chapter}.update(n)`
     } else if (features.show_chapters_style === 'divider') {
-        // Centered divider with the number flanked by solid drawn rules (rather than dashes,
-        // which can leave font-dependent gaps), hidden for chapter 1. Each rule is a fixed-width
-        // box with its baseline raised so the line sits centred on the number rather than at the
-        // text baseline. No font: override — see footer. The visual is factored into #ch_divider
-        // so the bilingual columns layout can draw one divider across both translations at full
-        // grid width rather than one inside each cell (see gen_multi_bible_grids).
-        //
-        // A single full-width block: width: 100% gives align(center) the text column to centre
-        // against, and sticky: true keeps the divider with the chapter's text so it can never be
-        // stranded at the foot of a page. Explicit v() around it gets trimmed — #ch(n) sits at a
-        // paragraph edge in the fetched markup — so the block's own margins are the spacing.
-        //
-        // above + below total two leadings, so the divider takes one line slot out of the
-        // baseline grid and the rhythm is unchanged. They're deliberately unequal though: every
-        // body line is a zero-height box on its baseline (see the top-edge/bottom-edge note
-        // below), so the line *following* the divider hangs its whole ascent up into the gap
-        // beneath it, while the line above ends flat at its baseline. Equal margins therefore
-        // read as visibly top-heavy. Shifting up by half that imbalance — roughly half of a body
-        // ascent (~0.95em) less the divider's own cap-height (0.7 x 0.8em) — evens it out. A
-        // constant rather than a measured value: it's within ~0.05em across the font range,
-        // well below perception, and this runs once per chapter (1189x for a full Bible).
-        chapter = `#let ch_divider(n) = block(width: 100%, sticky: true,
-    above: ${leading} - 0.2em, below: ${leading} + 0.2em,
-    align(center, text(size: 0.8em, weight: "regular", {
-        let rule = box(width: 2em, baseline: -0.28em, line(length: 100%, stroke: 0.5pt))
-        [#rule #str(n) #rule]
-    })))
-#let ch(n) = {
-    ${running.chapter}.update(n)
-    if n > 1 {
-        ch_divider(n)
-    }
-}`
+        chapter = `${gen_ch_divider(leading)}\n${gen_ch_divider_binding('ch', running.chapter)}`
     } else if (features.show_chapters_style === 'float') {
         // Large numeral placed in the page's left margin, right-edge-aligned to the text (not
         // wrapped by it — Typst has no CSS-style float/text-wrap-around-a-shape, so reserving
         // exact line-space beside the numeral would need measuring the paragraph itself, which
         // #ch(n) doesn't have access to; it's just a marker inline in already-fetched markup).
-        // Sized to a fixed em value regardless of digit count — multi-digit chapter numbers
-        // (e.g. 150) rely on the margin being wide enough, same as any other marginal note.
+        // The size is one value for the whole document, fitted to the margin and the longest
+        // chapter number the document reaches (see float_chapter_size).
         //
         // A zero-height block (rather than a bare place()) roots the numeral at #ch(n)'s own
         // position in the flow — non-floating place() anchors to its enclosing container's
@@ -282,16 +353,24 @@ export function gen_preamble(request:TypstRequest, overrides:PreambleOverrides =
         // the numeral (see gen_heading_rules in content_passage.ts). The flag is cleared by that
         // heading, or by the first verse marker (#vn) when a chapter opens straight into text, so
         // later mid-chapter headings keep their normal spacing.
+        const num_size = parseFloat(float_chapter_size(request).toFixed(2))
         chapter = `#let ch(n) = {
     ${running.chapter}.update(n)
     context {
-        let num = text(size: 2.5em, weight: "bold", top-edge: "bounds", bottom-edge: "bounds",
-            str(n))
+        let num = text(size: ${num_size}em, weight: "bold",
+            top-edge: "bounds", bottom-edge: "bounds", str(n))
         block(below: 0pt, height: 0pt,
-            place(top + left, dx: -(measure(num).width + 0.3em), num))
+            place(top + left, dx: -(measure(num).width + ${FLOAT_CHAPTER_GAP}em), num))
     }
     state("ch-float-open", false).update(true)
 }`
+        // A two-column passage has no margin on the left of its text to hang a numeral in — only
+        // the inter-column gutter, a few mm against a numeral several times wider, so the second
+        // column's numeral would overprint the first column's text. Such passages re-bind #ch to
+        // this divider pair instead, which needs no horizontal room of its own (see
+        // gen_passage_inner in content_passage.ts)
+        chapter += `\n${gen_ch_divider(leading)}`
+            + `\n${gen_ch_divider_binding('ch_columns', running.chapter)}`
     } else {
         // 'heading' — Chapter N as a heading (font comes from the document-wide heading
         // show rule below, same as any other heading)
@@ -303,30 +382,20 @@ export function gen_preamble(request:TypstRequest, overrides:PreambleOverrides =
 
     // Quiet chapter marker — advances the running-chapter state without drawing anything. The
     // bilingual columns layout swaps the in-cell #ch for this so the marker isn't drawn once per
-    // translation: the divider style draws a single divider at full grid width and the drop-cap
-    // style keeps only the primary translation's margin numeral (see gen_multi_bible_grids in
+    // translation: the divider style draws a single divider at full grid width and the margin
+    // number style keeps only the primary translation's numeral (see gen_multi_bible_grids in
     // content_passage.ts)
     chapter += `\n#let ch_quiet(n) = ${running.chapter}.update(n)`
 
     // Chapter marker for a chapter that opens straight into a section heading — the generator
     // swaps #ch for it wherever the markup has one directly followed by a heading (see
-    // tighten_chapter_before_heading in content_passage.ts). Only the divider style does anything
-    // extra: its divider already leaves a full line's gap below itself, and the heading's own
-    // leading space stacks on top of that, so the divider ends up hugging the previous chapter's
-    // last line and drifting away from the chapter it opens. Raising the "heading-tight" flag
-    // makes the following heading drop that leading space and sit on the baseline grid, one line
-    // slot below the divider — exactly where the chapter's first line of text would sit if there
-    // were no heading (see gen_heading_rules). The n > 1 test mirrors #ch above: chapter 1 draws
-    // no divider, so its heading has nothing to sit against and keeps its normal spacing
+    // tighten_chapter_before_heading in content_passage.ts). Only the divider visual has anything
+    // extra to do there, and it defines its own alongside #ch (see gen_ch_divider_binding), so
+    // every other style just aliases #ch_tight to #ch
     const divider_chapters = features.show_chapters && features.show_chapters_style === 'divider'
-    chapter += divider_chapters
-        ? `\n#let ch_tight(n) = {
-    ch(n)
-    if n > 1 {
-        state("heading-tight", false).update(true)
+    if (!divider_chapters) {
+        chapter += '\n#let ch_tight(n) = ch(n)'
     }
-}`
-        : '\n#let ch_tight(n) = ch(n)'
 
     // Verse marker (#vn) — superscript bold number glued to the next word with a narrow
     // no-break space (U+202F) so it can't be stranded at a line end when the text wraps

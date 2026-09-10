@@ -17,6 +17,13 @@ export interface TypstRequest {
     titlepage:TitlepageConfig
     features:FeatureConfig
     content:TypstContentItem[]
+    // Highest chapter number anywhere in `content` — how wide the 'float' chapter style's margin
+    // numeral has to be allowed to get (see float_chapter_size in preamble.ts). Resolved when the
+    // request is built rather than from `content` at generate time, because the per-item and
+    // preview compiles each narrow `content` to a slice of the document (see make_item_request in
+    // pdf_postprocess.ts) and would otherwise each fit the numeral to their own slice, so the same
+    // document's chapter numbers would render at different sizes from one book to the next
+    max_chapter:number
     arrangement:'normal'|'book'|'booklet'
     running_pages:boolean
     // Book + chapter shown alongside the page number (e.g. "Genesis 3")

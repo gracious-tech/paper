@@ -1,8 +1,8 @@
 
 import {describe, it, expect} from 'vitest'
 
-import {gen_passage, passage_columns} from '../src/content_passage.js'
-import {make_passage, TEST_PAGE} from './fixtures.js'
+import {gen_passage, passage_columns, max_chapter_in_content} from '../src/content_passage.js'
+import {make_passage, make_title, TEST_PAGE} from './fixtures.js'
 
 import type {ChapterStyle} from '../src/content_passage.js'
 import type {TypstPassage} from '../src/types.js'
@@ -154,6 +154,30 @@ describe('gen_passage', () => {
                     bibles: [{content: 'a'}, {content: 'b'}],
                     multi_layout,
                 }))).toBe(1)
+            }
+        })
+
+        // These only vary the column count and chapter style, so every font arg is a default
+        const columned_chapters = (columns:1|2, chapter_style:ChapterStyle) =>
+            call(make_passage({columns}), FONT_TEXT2, FONT_HEADINGS2, FONT_FALLBACKS, FONT_SIZE2,
+                LINE_HEIGHT, chapter_style)
+
+        it('swaps the float chapter numeral for a divider in two columns', () => {
+            // A page column has no margin to hang the numeral in — it would land in the
+            // inter-column gutter and overprint the neighbouring column
+            const result = columned_chapters(2, 'float')
+            expect(result).toContain('#let ch = ch_columns')
+            expect(result).toContain('#let ch_tight = ch_columns_tight')
+        })
+
+        it('keeps the float chapter numeral in a single column', () => {
+            expect(columned_chapters(1, 'float')).not.toContain('#let ch = ch_columns')
+        })
+
+        it('leaves the other chapter styles alone in two columns', () => {
+            // Only the float style needs horizontal room of its own
+            for (const style of ['divider', 'heading', 'none'] as const) {
+                expect(columned_chapters(2, style)).not.toContain('#let ch = ch_columns')
             }
         })
     })
@@ -500,5 +524,34 @@ describe('gen_passage', () => {
             expect(result).toContain('#[')
             expect(result.trimEnd().endsWith(']')).toBe(true)
         })
+    })
+})
+
+
+describe('max_chapter_in_content', () => {
+
+    it('reads the highest chapter off the passage markup', () => {
+        expect(max_chapter_in_content([
+            make_passage({bibles: [{content: '#ch(1)a #ch(2)b'}]}),
+            make_passage({bibles: [{content: '#ch(148)a #ch(150)b #ch(149)c'}]}),
+        ])).toBe(150)
+    })
+
+    it('falls back to the opening chapter when the markup has no marker', () => {
+        // A passage starting mid-chapter carries no #ch() marker of its own
+        expect(max_chapter_in_content([
+            make_passage({start_chapter: 22, bibles: [{content: '#vn(12)Verse twelve.'}]}),
+        ])).toBe(22)
+    })
+
+    it('ignores non-passage content and empty documents', () => {
+        expect(max_chapter_in_content([make_title()])).toBe(1)
+        expect(max_chapter_in_content([])).toBe(1)
+    })
+
+    it('covers every translation of a bilingual passage', () => {
+        expect(max_chapter_in_content([make_passage({
+            bibles: [{content: '#ch(3)a'}, {content: '#ch(4)b'}],
+        })])).toBe(4)
     })
 })
