@@ -400,29 +400,25 @@ export function binding_page_issue(blueprint:Blueprint, pages:number):BindingPag
 }
 
 
-// How far a preview-derived page count can fall short of the printed document: a preview drops
-// the run of blank pages at the very end that a printed copy keeps (see generate_pdf's `preview`
-// flag), so the estimate can undercount by a page or two and never overcounts. auto_binding()
-// adds this before judging a length against a binding's limits, so a document sitting right on
-// saddle stitch's upper limit doesn't get bound in something it turns out not to fit
-const PAGE_ESTIMATE_ALLOWANCE = 2
-
-
 // Binding types a design could use, in order of preference — the first one the service supports
-// at the document's length wins (see auto_binding). Saddle stitch leads, since a thin book lies
-// flattest and binds cheapest. A design with a blank half to write on then prefers coil (it lies
-// flat under a pen), falling through to perfect bound only past coil's page limit; everything
-// else goes straight to perfect bound
+// at the document's length wins (see auto_binding). A design with a blank half to write on
+// prefers coil (it lies flat under a pen), everything else perfect bound. Saddle stitch comes
+// last in both: it's only for documents too thin for any proper book binding
 function binding_preference(blueprint:Blueprint):BindingTypeId[]{
     return blueprint.half_blank !== null
-        ? ['paperback_stitch', 'paperback_coil', 'paperback']
-        : ['paperback_stitch', 'paperback']
+        ? ['paperback_coil', 'paperback', 'paperback_stitch']
+        : ['paperback', 'paperback_stitch']
 }
 
 
 // The binding that suits a document of `pages` pages: the first preference the chosen service
-// actually supports at that length. `pages` is the preview's estimate, hence the allowance added
-// to it (see PAGE_ESTIMATE_ALLOWANCE).
+// actually supports at that length.
+// `pages` is the preview's estimate, which can undercount the printed document by a page or two
+// (a preview drops the run of blank pages at the very end that a printed copy keeps — see
+// generate_pdf's `preview` flag) and never overcounts. That only ever errs towards the thinner
+// binding, which is the safe direction here: saddle stitch is only reached below the preferred
+// binding's minimum, well inside saddle stitch's own maximum (32 vs 48 pages on Lulu), so a
+// document that prints longer than estimated stays within whatever was chosen for it.
 // Only used for wizard/simple-mode designs, which is why the preference list can stay this
 // short — the wizard offers Lulu as its only printing service (see NewDesignPrint.vue), and
 // home/custom modes have no service to ask, so their binding is left untouched
@@ -437,27 +433,26 @@ export function auto_binding(blueprint:Blueprint, pages:number|null):string{
     const preference = binding_preference(blueprint)
 
     // Page count not known yet (nothing compiled since the design was opened) — assume a book of
-    // real length, i.e. the first preference past the thin-book saddle stitch. Most designs are
-    // whole books, and a short one is corrected as soon as the first preview estimate lands
-    // (see the simple-mode watcher in watchers.ts)
+    // real length, i.e. the top preference. Most designs are whole books, and a thin one is
+    // corrected as soon as the first preview estimate lands (see the watcher in watchers.ts)
     if (pages === null){
-        return preference[1]!
+        return preference[0]!
     }
 
     // Which bindings the service supports for this document — page count, trim size (omitted
     // for custom dimensions) and the ink/paper already chosen, since a binding can exclude
     // those (Lulu's saddle stitch doesn't take standard color ink)
     const supported = service.get_binding_types({
-        pages: pages + PAGE_ESTIMATE_ALLOWANCE,
+        pages,
         ...blueprint.size_id && {size: blueprint.size_id as SizeId},
         ...blueprint.ink_type && {ink_type: blueprint.ink_type as InkTypeId},
         ...blueprint.paper_type && {paper_type: blueprint.paper_type as PaperTypeId},
     }).map(item => item.id)
 
-    // Nothing fits — a document past every binding's maximum, or under every minimum. Settle on
-    // the roomiest preference (they're listed thinnest-first) and leave binding_page_issue() to
-    // warn that the length itself is the problem
-    return preference.find(id => supported.includes(id)) ?? preference.at(-1)!
+    // Nothing fits — a document past every binding's maximum, or under every minimum. Leave the
+    // top preference in place (never saddle stitch, the narrowest range of the lot) and let
+    // binding_page_issue() warn that the length itself is the problem
+    return preference.find(id => supported.includes(id)) ?? preference[0]!
 }
 
 
