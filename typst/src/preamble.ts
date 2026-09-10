@@ -308,6 +308,26 @@ export function gen_preamble(request:TypstRequest, overrides:PreambleOverrides =
     // content_passage.ts)
     chapter += `\n#let ch_quiet(n) = ${running.chapter}.update(n)`
 
+    // Chapter marker for a chapter that opens straight into a section heading — the generator
+    // swaps #ch for it wherever the markup has one directly followed by a heading (see
+    // tighten_chapter_before_heading in content_passage.ts). Only the divider style does anything
+    // extra: its divider already leaves a full line's gap below itself, and the heading's own
+    // leading space stacks on top of that, so the divider ends up hugging the previous chapter's
+    // last line and drifting away from the chapter it opens. Raising the "heading-tight" flag
+    // makes the following heading drop that leading space and sit on the baseline grid, one line
+    // slot below the divider — exactly where the chapter's first line of text would sit if there
+    // were no heading (see gen_heading_rules). The n > 1 test mirrors #ch above: chapter 1 draws
+    // no divider, so its heading has nothing to sit against and keeps its normal spacing
+    const divider_chapters = features.show_chapters && features.show_chapters_style === 'divider'
+    chapter += divider_chapters
+        ? `\n#let ch_tight(n) = {
+    ch(n)
+    if n > 1 {
+        state("heading-tight", false).update(true)
+    }
+}`
+        : '\n#let ch_tight(n) = ch(n)'
+
     // Verse marker (#vn) — superscript bold number glued to the next word with a narrow
     // no-break space (U+202F) so it can't be stranded at a line end when the text wraps
     const verse_mark = features.show_verses

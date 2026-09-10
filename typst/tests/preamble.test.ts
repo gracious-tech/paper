@@ -145,6 +145,27 @@ describe('gen_preamble', () => {
             }
         })
 
+        it('flags a following heading as tight, under the divider style only', () => {
+            // A chapter opening straight into a heading uses #ch_tight, which tells that heading
+            // to sit one line slot below the divider rather than adding its own leading space
+            // (see tighten_chapter_before_heading in content_passage.ts)
+            const divider = gen_preamble(make_request({
+                features: {...TEST_FEATURES, show_chapters: true, show_chapters_style: 'divider'},
+            }))
+            expect(divider).toContain('#let ch_tight(n) = {')
+            expect(divider).toContain('state("heading-tight", false).update(true)')
+            // Every other style has nothing to add, so the marker is just the plain one
+            for (const style of ['float', 'heading'] as const) {
+                const result = gen_preamble(make_request({
+                    features: {...TEST_FEATURES, show_chapters: true, show_chapters_style: style},
+                }))
+                expect(result).toContain('#let ch_tight(n) = ch(n)')
+            }
+            expect(gen_preamble(make_request({
+                features: {...TEST_FEATURES, show_chapters: false},
+            }))).toContain('#let ch_tight(n) = ch(n)')
+        })
+
         it('generates float chapter style', () => {
             const result = gen_preamble(make_request({
                 features: {...TEST_FEATURES, show_chapters: true, show_chapters_style: 'float'},

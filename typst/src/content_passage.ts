@@ -273,14 +273,15 @@ function gen_passage_inner(
     // quiet_leading_chapter_marker); the grid path does the same per translation
     const content = use_grid ? null : quiet_leading_chapter_marker(passage.bibles[0]!.content)
 
-    // The "passage-top" flag, set only when the passage actually opens with a heading, so that
-    // heading drops its leading space and sits where the first line of text would (see
+    // The "heading-tight" flag, set here only when the passage actually opens with a heading, so
+    // that heading drops its leading space and sits where the first line of text would (see
     // gen_heading_rules). Nothing precedes it to separate from: it opens either straight under
     // the passage title (whose own bottom margin is the gap) or at the top of a page column,
     // where a gap would drop it a line below the other column's first line. The grid path has
     // its own per-cell flag, so it only ever clears this one — as does a passage that opens with
-    // text, so a flag no heading consumed can't leak into a later passage
-    lines.push(`#state("passage-top", false).update(${content !== null
+    // text, so a flag no heading consumed can't leak into a later passage. Tested before the
+    // rewrite below, which puts the flag's other producer (#ch_tight) in front of such a heading
+    lines.push(`#state("heading-tight", false).update(${content !== null
         && HEADING_FIRST.test(content)})`)
 
     if (content === null) {
@@ -289,7 +290,9 @@ function gen_passage_inner(
             line_height,
             chapter_style))
     } else {
-        lines.push(content)
+        // Only worth rewriting when headings actually render — with them hidden the flag would
+        // be set and never consumed, and could then flatten the first heading of a later passage
+        lines.push(passage.show_headings ? tighten_chapter_before_heading(content) : content)
     }
 
     return lines.join('\n')
@@ -360,19 +363,22 @@ function gen_heading_rules(passage:TypstPassage, font_size:string, line_height:n
     //     (see gen_multi_bible_grids). With no content above it in the cell there's nothing to
     //     separate from, and the leading space would drop it a whole line below the other
     //     translation's first line (which opens straight into text).
-    //   - "passage-top": the heading opens the passage (see gen_passage_inner), so the gap above
-    //     it is already the passage title's bottom margin, or the top of a page column — where
-    //     it would drop the heading a line below the second column's first line. A heading at a
-    //     later column top doesn't need this: `sticky` moves it to the next column and leaves
-    //     the `v()` behind at the foot of the previous one.
+    //   - "heading-tight": the heading has something directly above it that already provides the
+    //     gap — it either opens the passage (see gen_passage_inner), where the space above is the
+    //     passage title's bottom margin or the top of a page column (a gap would drop the heading
+    //     a line below the second column's first line), or it follows a 'divider'-style chapter
+    //     marker, whose divider carries its own line's gap beneath it (see #ch_tight in
+    //     preamble.ts). A heading at a later column top doesn't need this: `sticky` moves it to
+    //     the next column and leaves the `v()` behind at the foot of the previous one.
     // All three flags are read then cleared here, so only the first heading of the
     // chapter/cell/passage is affected. On top of dropping the leading `v()`, the cell-top and
-    // passage-top cases also flatten the heading's top-edge to the baseline (`block(above: 0pt)`
+    // heading-tight cases also flatten the heading's top-edge to the baseline (`block(above: 0pt)`
     // alone still leaves the font's ascent as a visible gap above the glyphs) so the heading
-    // baseline lands level with the first text line it's aligning to — the other grid cell's, or
-    // the second column's — whose paragraph top-edge is likewise collapsed to 0. The
-    // float-chapter case keeps the natural top-edge — its target is the big margin numeral, not
-    // a text baseline — and wins over passage-top when a passage opens on a float chapter.
+    // baseline lands where a line of body text would — level with the other grid cell's first
+    // line, or the second column's, whose paragraph top-edge is likewise collapsed to 0, or one
+    // line slot below a chapter divider. The float-chapter case keeps the natural top-edge — its
+    // target is the big margin numeral, not a text baseline — and wins over heading-tight when a
+    // passage opens on a float chapter.
     //
     // Justification and hyphenation are always off here regardless of the document-wide settings
     // (see preamble.ts) — a heading that wraps must never be stretched to the measure or broken
@@ -388,10 +394,10 @@ function gen_heading_rules(passage:TypstPassage, font_size:string, line_height:n
     state("ch-float-open", false).update(false)
     let cell_top = state("bilingual-cell-top", false).get()
     state("bilingual-cell-top", false).update(false)
-    let passage_top = state("passage-top", false).get()
-    state("passage-top", false).update(false)
-    let flatten = cell_top or (passage_top and not open)
-    if not open and not cell_top and not passage_top { v(${gap(before)}) }
+    let tight = state("heading-tight", false).get()
+    state("heading-tight", false).update(false)
+    let flatten = cell_top or (tight and not open)
+    if not open and not cell_top and not tight { v(${gap(before)}) }
     block(above: 0pt, sticky: true, {
         set par(justify: false)
         set text(hyphenate: false)
@@ -545,7 +551,19 @@ function gen_multi_bible_grids(
             cell_b = quiet_chapter_markers(b)
         }
 
-        const lead = i > 0 && (a_heading || b_heading) ? row_lead : ''
+        // A chapter marker left in a cell (no full-width divider drawn for this row) that is
+        // followed by a heading further down the cell gets the same tightening as the
+        // single-column path — quieted markers draw nothing, so the rewrite finds nothing there
+        if (passage.show_headings) {
+            cell_a = tighten_chapter_before_heading(cell_a)
+            cell_b = tighten_chapter_before_heading(cell_b)
+        }
+
+        // The row-level heading margin is skipped when a full-width divider opens the row: the
+        // divider's own bottom margin is already the gap, and stacking the two would leave the
+        // divider adrift from the chapter it opens (the same imbalance #ch_tight fixes for the
+        // single-column path, where the divider and heading likewise meet)
+        const lead = i > 0 && !full_divider && (a_heading || b_heading) ? row_lead : ''
         return `${full_divider}${lead}#grid(
     columns: (1fr, 1fr),
     column-gutter: ${gutter},
@@ -560,6 +578,19 @@ ${cell_b}
 ],
 )`
     }).join('\n\n')
+}
+
+
+// Swap a chapter marker that is immediately followed by a section heading for #ch_tight (see
+// preamble.ts), which tells that heading to drop its own leading space — the marker it follows
+// already provides the gap, and the two would otherwise stack into a lopsided break with the
+// chapter number stranded against the previous chapter's last line. Matched on the markup rather
+// than decided in Typst so the flag is only ever raised directly in front of a heading that
+// consumes it, instead of every verse having to clear a leftover. Markers already quieted (in a
+// bilingual cell, or a passage's own opening chapter) draw nothing and so are left alone
+function tighten_chapter_before_heading(markup:string):string {
+    // The line break is required: Typst only reads `=` as a heading at the start of a line
+    return markup.replace(/#ch\((\d+)\)(\s*\n\s*)(={1,6}\s)/g, '#ch_tight($1)$2$3')
 }
 
 
