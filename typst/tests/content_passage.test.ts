@@ -57,14 +57,28 @@ describe('gen_passage', () => {
             expect(level2_match).not.toBeNull()
         })
 
-        it('drops heading leading space when a float chapter just opened or at a cell top', () => {
-            // A heading immediately after a 'float' #ch, or first in a side-by-side grid cell,
-            // reads the shared flag(s) and skips its leading v() (see gen_heading_rules)
+        it('drops heading leading space at a float chapter, cell top, or passage top', () => {
+            // A heading immediately after a 'float' #ch, first in a side-by-side grid cell, or
+            // opening the passage reads the shared flag(s) and skips its leading v() (see
+            // gen_heading_rules)
             const result = call(make_passage({show_headings: true}))
-            expect(result).toContain('if not open and not cell_top { v(')
-            expect(result).toContain('set text(top-edge: 0pt) if cell_top')
+            expect(result).toContain('if not open and not cell_top and not passage_top { v(')
+            expect(result).toContain('let flatten = cell_top or (passage_top and not open)')
+            expect(result).toContain('set text(top-edge: 0pt) if flatten')
             expect(result).toContain('state("ch-float-open", false).get()')
             expect(result).toContain('state("bilingual-cell-top", false).get()')
+            expect(result).toContain('state("passage-top", false).get()')
+        })
+
+        it('flags a passage that opens with a heading, and clears the flag otherwise', () => {
+            // The flag is what the heading rule above reads (see gen_passage_inner)
+            const heading_first = call(make_passage({
+                show_headings: true,
+                bibles: [{content: '== Section\n\n#vn(1)Text'}],
+            }))
+            expect(heading_first).toContain('#state("passage-top", false).update(true)')
+            const text_first = call(make_passage({show_headings: true}))
+            expect(text_first).toContain('#state("passage-top", false).update(false)')
         })
     })
 

@@ -56,6 +56,11 @@ const PASSAGE_SUBTITLE_SIZE = '1.2em'
 const PASSAGE_SUBTITLE_GAP = '3em'
 // Gap from the heading text down to the decorative icon below it
 const PASSAGE_ICON_GAP = '3em'
+// Space between an inline passage title and the passage text below it. Generous, so the book
+// title stands clearly apart from the passage (a bare paragraph break would leave it only one
+// line's gap above the first verse). Measured from the title's baseline, since paragraph line
+// boxes are collapsed to their baseline document-wide (see preamble.ts)
+const PASSAGE_TITLE_BELOW = '2.8em'
 
 
 // Generate the centred title (+ optional subtitle + icon) shown above a passage when passage
@@ -122,14 +127,15 @@ export function gen_passage(
         const block = gen_passage_title(
             passage.passage_title, passage.passage_subtitle, passage.passage_icon, page)
         if (passage_columns(passage) === 2) {
+            // A float's gap to the columns below is its `clearance`, not the block's `below`
+            // (which a float ignores) — Typst's 1.5em default leaves the title almost touching
+            // the first line of text, so it's set to the same gap the single-column path uses
             parts.push(`#place(top + center, scope: "parent", float: true,
-    block(width: 100%, ${block}))`)
+    clearance: ${PASSAGE_TITLE_BELOW}, block(width: 100%, ${block}))`)
         } else {
-            // Generous bottom margin so the book title stands clearly apart from the passage
-            // (a bare paragraph break would leave it only one line's gap above the first verse).
             // width: 100% so the inner align(center) centres across the page, not the block's
             // shrink-wrapped content width
-            parts.push(`#block(width: 100%, below: 2.8em, ${block})`)
+            parts.push(`#block(width: 100%, below: ${PASSAGE_TITLE_BELOW}, ${block})`)
         }
         parts.push('')
     }
@@ -178,9 +184,7 @@ export function gen_passage_facing(
     if (passage.passage_title) {
         const block = gen_passage_title(
             passage.passage_title, passage.passage_subtitle, passage.passage_icon, page)
-        // Generous bottom margin so the book title stands clearly apart from the passage (a
-        // bare paragraph break would leave it only one line's gap above the first verse)
-        parts.push(`#block(width: 100%, below: 2.8em, grid(columns: (1fr, 1fr), column-gutter: ${gutter},
+        parts.push(`#block(width: 100%, below: ${PASSAGE_TITLE_BELOW}, grid(columns: (1fr, 1fr), column-gutter: ${gutter},
     ${block},
     ${block}))`)
         parts.push('')
@@ -267,13 +271,25 @@ function gen_passage_inner(
     // A passage that opens exactly on a chapter boundary has its own opening chapter marker
     // quieted — the passage reference already announces that chapter (see
     // quiet_leading_chapter_marker); the grid path does the same per translation
-    if (use_grid) {
+    const content = use_grid ? null : quiet_leading_chapter_marker(passage.bibles[0]!.content)
+
+    // The "passage-top" flag, set only when the passage actually opens with a heading, so that
+    // heading drops its leading space and sits where the first line of text would (see
+    // gen_heading_rules). Nothing precedes it to separate from: it opens either straight under
+    // the passage title (whose own bottom margin is the gap) or at the top of a page column,
+    // where a gap would drop it a line below the other column's first line. The grid path has
+    // its own per-cell flag, so it only ever clears this one — as does a passage that opens with
+    // text, so a flag no heading consumed can't leak into a later passage
+    lines.push(`#state("passage-top", false).update(${content !== null
+        && HEADING_FIRST.test(content)})`)
+
+    if (content === null) {
         lines.push(gen_multi_bible_grids(
             passage, gutter, font_text2, font_headings2, font_size2, font_fallbacks2, lang2,
             line_height,
             chapter_style))
     } else {
-        lines.push(quiet_leading_chapter_marker(passage.bibles[0]!.content))
+        lines.push(content)
     }
 
     return lines.join('\n')
@@ -304,6 +320,11 @@ const HEADING_MARGIN_REF_SIZE = 0.9
 const GRID_LEAD_EXTRA_LINES = 0.4
 
 
+// A chunk of content that opens with a section heading (after an optional #ch / #ch_quiet
+// marker — quiet_leading_chapter_marker rewrites a passage's opening #ch before this is tested)
+const HEADING_FIRST = /^\s*(#ch(?:_quiet)?\(\d+\)\s*)?={1,6}\s/
+
+
 // Generate heading show rules. line_height is the body line advance multiplier (Blueprint
 // line_height) — heading margins scale with it, see HEADING_MARGIN_LINES.
 function gen_heading_rules(passage:TypstPassage, font_size:string, line_height:number):string {
@@ -331,7 +352,7 @@ function gen_heading_rules(passage:TypstPassage, font_size:string, line_height:n
     // Wrap each heading body in a `block` so it isn't treated as a continuation
     // paragraph — otherwise the document's first-line-indent would indent it.
     //
-    // Each rule drops its leading `v()` in two cases, so a heading doesn't get pushed below
+    // Each rule drops its leading `v()` in three cases, so a heading doesn't get pushed below
     // where it should sit:
     //   - "ch-float-open": the heading immediately follows a 'float'-style chapter marker (see
     //     preamble.ts), so it should rise to sit level with the big margin numeral.
@@ -339,13 +360,19 @@ function gen_heading_rules(passage:TypstPassage, font_size:string, line_height:n
     //     (see gen_multi_bible_grids). With no content above it in the cell there's nothing to
     //     separate from, and the leading space would drop it a whole line below the other
     //     translation's first line (which opens straight into text).
-    // Both flags are read then cleared here, so only the first heading of the chapter/cell is
-    // affected. On top of dropping the leading `v()`, the cell-top case also flattens the
-    // heading's top-edge to the baseline (`block(above: 0pt)` alone still leaves the font's
-    // ascent as a visible gap above the glyphs) so the heading baseline lands level with the
-    // other side's first text line, whose paragraph top-edge is likewise collapsed to 0. The
+    //   - "passage-top": the heading opens the passage (see gen_passage_inner), so the gap above
+    //     it is already the passage title's bottom margin, or the top of a page column — where
+    //     it would drop the heading a line below the second column's first line. A heading at a
+    //     later column top doesn't need this: `sticky` moves it to the next column and leaves
+    //     the `v()` behind at the foot of the previous one.
+    // All three flags are read then cleared here, so only the first heading of the
+    // chapter/cell/passage is affected. On top of dropping the leading `v()`, the cell-top and
+    // passage-top cases also flatten the heading's top-edge to the baseline (`block(above: 0pt)`
+    // alone still leaves the font's ascent as a visible gap above the glyphs) so the heading
+    // baseline lands level with the first text line it's aligning to — the other grid cell's, or
+    // the second column's — whose paragraph top-edge is likewise collapsed to 0. The
     // float-chapter case keeps the natural top-edge — its target is the big margin numeral, not
-    // a text baseline.
+    // a text baseline — and wins over passage-top when a passage opens on a float chapter.
     //
     // Justification and hyphenation are always off here regardless of the document-wide settings
     // (see preamble.ts) — a heading that wraps must never be stretched to the measure or broken
@@ -361,11 +388,14 @@ function gen_heading_rules(passage:TypstPassage, font_size:string, line_height:n
     state("ch-float-open", false).update(false)
     let cell_top = state("bilingual-cell-top", false).get()
     state("bilingual-cell-top", false).update(false)
-    if not open and not cell_top { v(${gap(before)}) }
+    let passage_top = state("passage-top", false).get()
+    state("passage-top", false).update(false)
+    let flatten = cell_top or (passage_top and not open)
+    if not open and not cell_top and not passage_top { v(${gap(before)}) }
     block(above: 0pt, sticky: true, {
         set par(justify: false)
         set text(hyphenate: false)
-        set text(top-edge: 0pt) if cell_top
+        set text(top-edge: 0pt) if flatten
         text(weight: ${weight}, style: ${style}, size: ${size(mult)}, it.body)
     })`
     // The `v()` before (via lead()) and after each heading are its top and bottom margins —
@@ -438,10 +468,6 @@ function gen_multi_bible_grids(
 ):string {
     const fonts2 = [font_text2, ...font_fallbacks2].map(f => `"${escape_typst_str(f)}"`).join(', ')
 
-    // A chunk that opens with a section heading (after an optional #ch / #ch_quiet marker —
-    // quiet_leading_chapter_marker rewrites a passage's opening #ch before the rows are built)
-    const heading_row = /^\s*(#ch(?:_quiet)?\(\d+\)\s*)?={1,6}\s/
-
     // Every cell opens with this:
     //   - A zero-height block, so the cell's first paragraph counts as following a block —
     //     that's what makes the document's `#show par: set text(top-edge/bottom-edge: 0)`
@@ -492,8 +518,8 @@ function gen_multi_bible_grids(
         }
 
         // Tested on the original markup — quiet_chapter_markers below rewrites the #ch calls
-        const a_heading = heading_row.test(a)
-        const b_heading = heading_row.test(b)
+        const a_heading = HEADING_FIRST.test(a)
+        const b_heading = HEADING_FIRST.test(b)
 
         // The chapter marker sits in the pre-rendered markup of *both* translations, so left
         // alone it renders twice — once per column. For the 'divider' style, quiet both in-cell
