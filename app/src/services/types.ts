@@ -8,6 +8,8 @@ export type {Blueprint, CoverConfig, ContentItem, ContentTitle, ContentPassage,
 
 import type {Blueprint} from 'paper-bible-typst'
 
+import type {NewDesignDraft} from '@/services/new_design'
+
 
 // Summary of a design for the designs list (the open design's content lives in `blue`)
 export interface DesignMeta {
@@ -55,6 +57,11 @@ export interface Version {
     copied_from:string|null  // Source version id if this is a kept copy
     custom_fonts:{family:string, style:'serif'|'sans', files:string[]}[]  // Snapshot paths
     save_token:string  // Copied from the parent design's save_token at freeze time
+    // The parent design's wizard state, frozen alongside the blueprint (null if the design
+    // wasn't wizard-created). Copying this version into a new design restores it, so the copy
+    // is as simple as the source was — reading the parent design's live draft instead could
+    // describe edits made after this version was frozen
+    wizard:{draft:NewDesignDraft, simple_mode:boolean}|null
     error:string|null
     error_id:string|null  // Id of the saved error report (for support links)
 }

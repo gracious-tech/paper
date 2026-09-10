@@ -23,6 +23,7 @@ import {page_count_guess} from '@/services/state'
 import {report_error, error_to_string} from '@/services/errors'
 
 import type {CustomFont} from 'typst-fonts'
+import type {NewDesignDraft} from '@/services/new_design'
 import type {Blueprint, DesignMeta, Version} from '@/services/types'
 
 
@@ -102,6 +103,7 @@ function version_from_doc(id:string, data:DocumentData):Version{
         copied_from: (data['copied_from'] ?? null) as string|null,
         custom_fonts: (data['custom_fonts'] ?? []) as Version['custom_fonts'],
         save_token: data['save_token'] as string,
+        wizard: (data['wizard'] ?? null) as Version['wizard'],
         error: (data['error'] ?? null) as string|null,
         error_id: (data['error_id'] ?? null) as string|null,
     }
@@ -152,6 +154,11 @@ export async function create_pending_version(design_id:string, blueprint:Bluepri
     const id = generate_token()
     const design_snap = await getDoc(doc(firestore, 'designs', design_id))
     const save_token = design_snap.data()?.['save_token'] as string
+    // The design's wizard state is frozen alongside the blueprint, from the same doc read, so
+    // copying this version later can restore a simple design as simple (see Version['wizard'])
+    const wizard_draft = design_snap.data()?.['wizard_draft'] as NewDesignDraft|undefined
+    const wizard = wizard_draft ? {draft: cloneDeep(wizard_draft),
+        simple_mode: !!design_snap.data()?.['simple_mode']} : null
     const fonts = plan_version_fonts(id, blueprint)
     // The cover's bg image is likewise snapshotted under the version's own Storage prefix
     // (the frozen blueprint's cover points at the snapshot path, not the mutable library)
@@ -173,6 +180,7 @@ export async function create_pending_version(design_id:string, blueprint:Bluepri
         copied_from: null,
         custom_fonts: fonts.meta,
         save_token,
+        wizard,
         error: null,
         error_id: null,
     })

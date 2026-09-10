@@ -294,8 +294,11 @@ const retry = async () => {
 }
 
 const duplicate = async () => {
-    // Fork the version's blueprint into a brand new design (non-destructive)
-    const new_id = await create_design(props.version.blueprint)
+    // Fork the version's blueprint into a brand new design (non-destructive), along with the
+    // wizard state frozen into it, so forking a simple design gives another simple design
+    const wizard = props.version.wizard
+    const new_id = await create_design(props.version.blueprint, wizard?.draft,
+        wizard?.simple_mode ?? false)
     await router.push({name: 'design', params: {id: new_id}})
 }
 

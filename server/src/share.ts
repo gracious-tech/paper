@@ -155,6 +155,10 @@ export async function handle_copy_version(uid:string, version_id:string)
     const blueprint = data['blueprint'] as Blueprint
     // cover_status carries over verbatim — the copy's cover.pdf (if any) was copied above
     const cover_status = (data['cover_status'] ?? null) as 'available'|'failed'|null
+    // The wizard state frozen into the version at creation (null for designs the wizard never
+    // made), so a copy of a simple design is simple for the recipient too. Client-written like
+    // the blueprint beside it, and only ever read back by the client's own wizard steps
+    const wizard = (data['wizard'] ?? null) as {draft:unknown, simple_mode:boolean}|null
 
     await admin_db.doc(`designs/${new_design_id}`).set({
         schema: SCHEMA_VERSION,
@@ -168,6 +172,7 @@ export async function handle_copy_version(uid:string, version_id:string)
         modified: Timestamp.now(),
         category: null,
         latest_version: {status: data['status'], pages: data['pages'], save_token},
+        ...(wizard ? {simple_mode: !!wizard.simple_mode, wizard_draft: wizard.draft} : {}),
         ...split_blueprint_doc(blueprint),
     })
 
@@ -188,6 +193,7 @@ export async function handle_copy_version(uid:string, version_id:string)
         copied_from: version_id,
         custom_fonts: new_fonts,
         save_token,
+        wizard,  // Carried over so a copy of the copy is still simple
         error: (data['error'] ?? null),
     })
 
