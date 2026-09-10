@@ -363,7 +363,7 @@ export function gen_preamble(request:TypstRequest, overrides:PreambleOverrides =
     header-ascent: 40%,
     footer-descent: 40%,
 )
-#set text(font: (${fonts}), size: ${typography.font_size}, hyphenate: ${
+#set text(font: (${fonts}), size: ${typography.font_size}, lang: "${typography.lang}", hyphenate: ${
         typography.hyphenate}${
         typography.text_color ? `, fill: rgb("${typography.text_color}")` : ''})
 // Widow/orphan/runt/hyphenation break penalties pinned to Typst's current defaults so a

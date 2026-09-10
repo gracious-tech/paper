@@ -15,6 +15,7 @@ import {resolve_passage_image} from './image_cache.js'
 import {PATTERNS} from './generated/patterns.js'
 import {inject_study_notes} from './content_notes.js'
 import {detect_font_fallbacks} from './fonts_detect.js'
+import {resolve_lang} from './lang.js'
 
 import type {CjkVariant, FontStyle} from 'typst-fonts'
 import type {QuoteState} from './helpers.js'
@@ -322,6 +323,14 @@ export class BibleContent {
         // font_size2 is a multiple of the primary text size (1 = match)
         const font_size2 = blue.font_size * blue.font_size2
 
+        // Document language comes from the primary translation; the second translation only
+        // carries its own where the two actually differ (see resolve_lang)
+        const lang = resolve_lang(resources[blue.bibles[0]]?.language)
+        const second_lang = blue.bibles[1]
+            ? resolve_lang(resources[blue.bibles[1]]?.language)
+            : null
+        const lang2 = second_lang === lang ? null : second_lang
+
         // Collect every resolved passage image's bytes into one asset map, keyed by the virtual
         // filename generated Typst source references (see gen_passage_image in content_passage.ts)
         const assets:Record<string, Uint8Array> = {}
@@ -354,6 +363,8 @@ export class BibleContent {
                         : undefined),
                 font_size: `${blue.font_size}pt`,
                 font_size2: `${font_size2}pt`,
+                lang,
+                lang2,
                 line_height: blue.line_height,
                 justify: blue.justify,
                 hyphenate: blue.hyphenate,

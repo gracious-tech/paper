@@ -104,7 +104,7 @@ function gen_passage_title(
 export function gen_passage(
     passage:TypstPassage, page:PageConfig, image_style:ImageStyle,
     font_size:string, font_text2:string, font_headings2:string, font_size2:string,
-    font_fallbacks2:string[], line_height:number, chapter_style:ChapterStyle,
+    font_fallbacks2:string[], lang2:string|null, line_height:number, chapter_style:ChapterStyle,
     poetry_outdent:boolean,
 ):string {
     const parts:string[] = []
@@ -139,7 +139,7 @@ export function gen_passage(
 
     // Build the scoped block with passage-specific function definitions and show rules
     const inner = gen_passage_inner(passage, use_grid, font_size, font_text2, font_headings2,
-        font_size2, font_fallbacks2, line_height, passage.column_gap, null, chapter_style,
+        font_size2, font_fallbacks2, lang2, line_height, passage.column_gap, null, chapter_style,
         poetry_outdent)
 
     // Wrap in a scoped block so settings don't leak to other content
@@ -159,8 +159,8 @@ ${inner}
 export function gen_passage_facing(
     passage:TypstPassage, page:PageConfig, image_style:ImageStyle,
     font_size:string, font_text2:string, font_headings2:string, font_size2:string,
-    font_fallbacks2:string[], line_height:number, gutter:string, entry_width:string,
-    poetry_outdent:boolean,
+    font_fallbacks2:string[], lang2:string|null, line_height:number, gutter:string,
+    entry_width:string, poetry_outdent:boolean,
 ):string {
     const parts:string[] = []
 
@@ -191,7 +191,8 @@ export function gen_passage_facing(
     // so a full-width divider would be cut in two and the second half's margin numeral lands in
     // a real inside margin — both already correct without the columns-layout adjustment.
     const inner = gen_passage_inner(passage, true, font_size, font_text2, font_headings2,
-        font_size2, font_fallbacks2, line_height, gutter, entry_width, 'none', poetry_outdent)
+        font_size2, font_fallbacks2, lang2, line_height, gutter, entry_width, 'none',
+        poetry_outdent)
     parts.push(`#[
 ${inner}
 ]`)
@@ -226,7 +227,8 @@ export function passage_columns(passage:TypstPassage):1|2 {
 function gen_passage_inner(
     passage:TypstPassage, use_grid:boolean,
     font_size:string, font_text2:string, font_headings2:string, font_size2:string,
-    font_fallbacks2:string[], line_height:number, gutter:string, entry_width:string|null,
+    font_fallbacks2:string[], lang2:string|null, line_height:number, gutter:string,
+    entry_width:string|null,
     chapter_style:ChapterStyle, poetry_outdent:boolean,
 ):string {
     const lines:string[] = []
@@ -267,7 +269,8 @@ function gen_passage_inner(
     // quiet_leading_chapter_marker); the grid path does the same per translation
     if (use_grid) {
         lines.push(gen_multi_bible_grids(
-            passage, gutter, font_text2, font_headings2, font_size2, font_fallbacks2, line_height,
+            passage, gutter, font_text2, font_headings2, font_size2, font_fallbacks2, lang2,
+            line_height,
             chapter_style))
     } else {
         lines.push(quiet_leading_chapter_marker(passage.bibles[0]!.content))
@@ -431,7 +434,7 @@ function gen_footnote_rules(passage:TypstPassage, entry_width:string|null):strin
 function gen_multi_bible_grids(
     passage:TypstPassage, gutter:string,
     font_text2:string, font_headings2:string, font_size2:string, font_fallbacks2:string[],
-    line_height:number, chapter_style:ChapterStyle,
+    lang2:string|null, line_height:number, chapter_style:ChapterStyle,
 ):string {
     const fonts2 = [font_text2, ...font_fallbacks2].map(f => `"${escape_typst_str(f)}"`).join(', ')
 
@@ -460,7 +463,7 @@ function gen_multi_bible_grids(
     // prelude (shadowing #footnote in an outer scope wouldn't reach markup evaluated here)
     const prelude2 = (opens_with_heading:boolean) => `${cell_open(opens_with_heading)}
 #let footnote(..args) = none
-#set text(font: (${fonts2}), size: ${font_size2})
+#set text(font: (${fonts2}), size: ${font_size2}${lang2 ? `, lang: "${lang2}"` : ''})
 #show heading: set text(font: "${escape_typst_str(font_headings2)}")`
 
     const rows = build_aligned_rows(

@@ -49,20 +49,20 @@ const FIT_GUTTER_EM = 0.12
 export function gen_picture_story(
     story:TypstPictureStory, page:PageConfig, image_style:ImageStyle,
     story_layout:'single'|'grid', story_alternate:boolean, line_height:number, font_size:string,
-    font_text2:string, font_size2:string, font_fallbacks2:string[],
+    font_text2:string, font_size2:string, font_fallbacks2:string[], lang2:string|null,
 ):string {
     const story_key = `story-fit-${crypto.randomUUID()}`
     if (story_layout === 'grid') {
         return gen_grid_pages(
             story.slides, page, image_style, story_alternate, line_height, font_size, font_text2,
-            font_size2, font_fallbacks2, story_key)
+            font_size2, font_fallbacks2, lang2, story_key)
     }
     // Each slide is its own page; separate them with hard page breaks. Not alternating always
     // places the image on top; alternating flips it per slide (even = top, odd = bottom)
     return story.slides
         .map((slide, i) => gen_slide(
             slide, page, image_style, story_alternate && i % 2 !== 0 ? 'bottom' : 'top',
-            line_height, font_size, font_text2, font_size2, font_fallbacks2, story_key))
+            line_height, font_size, font_text2, font_size2, font_fallbacks2, lang2, story_key))
         .join('\n\n#pagebreak()\n\n')
 }
 
@@ -76,7 +76,7 @@ export function gen_picture_story(
 // and gen_fit_body's dynamically-searched size never share a single concrete size value
 function gen_stack_body(
     body:string|null, body2:string|null, line_height:number, font_text2:string,
-    font_size2:string, font_fallbacks2:string[],
+    font_size2:string, font_fallbacks2:string[], lang2:string|null,
 ):string|null {
     if (!body) {
         return null
@@ -91,7 +91,7 @@ function gen_stack_body(
 ${body}
 #v(1em)
 #[
-#set text(font: (${fonts2}), size: ${font_size2})
+#set text(font: (${fonts2}), size: ${font_size2}${lang2 ? `, lang: "${lang2}"` : ''})
 ${body2}
 ]
 ]`
@@ -121,7 +121,8 @@ ${body2}
 // concrete width
 function gen_fit_body(
     body:string, body2:string|null, line_height:number, font_size:string, font_size2:string,
-    font_text2:string, font_fallbacks2:string[], avail_w:string, avail_h:string, story_key:string,
+    font_text2:string, font_fallbacks2:string[], lang2:string|null, avail_w:string,
+    avail_h:string, story_key:string,
     target_ratio:number,
 ):string {
     const min_size = parse_unit(font_size).num
@@ -149,7 +150,7 @@ ${body}
         body_content
         if body2_content != none {
             v(1em)
-            set text(size: size * ${ratio2}, font: (${fonts2}))
+            set text(size: size * ${ratio2}, font: (${fonts2})${lang2 ? `, lang: "${lang2}"` : ''})
             body2_content
         }
     })
@@ -177,7 +178,7 @@ ${body}
 function gen_slide(
     slide:TypstPictureStorySlide, page:PageConfig, image_style:ImageStyle,
     image_position:'top'|'bottom', line_height:number, font_size:string, font_text2:string,
-    font_size2:string, font_fallbacks2:string[], story_key:string,
+    font_size2:string, font_fallbacks2:string[], lang2:string|null, story_key:string,
 ):string {
     // Full page height (for a borderless bleed) and half of it
     const page_h = parse_unit(page.height)
@@ -195,7 +196,7 @@ function gen_slide(
     // existing fit-or-flow overflow protection instead
     if (!slide.image) {
         const body = gen_stack_body(
-            slide.body, slide.body2, line_height, font_text2, font_size2, font_fallbacks2)
+            slide.body, slide.body2, line_height, font_text2, font_size2, font_fallbacks2, lang2)
         return body ? gen_centered(body, content_h) : reserve
     }
 
@@ -213,7 +214,7 @@ function gen_slide(
         filename, page, image_style, image_top ? 'top' : 'bottom', half_content, half_page)
     const fit = gen_fit_body(
         slide.body, slide.body2, line_height, font_size, font_size2, font_text2, font_fallbacks2,
-        content_w, half_content, story_key, FIT_TARGET_RATIO_SINGLE)
+        lang2, content_w, half_content, story_key, FIT_TARGET_RATIO_SINGLE)
     const body_place = `#place(top + left, dy: ${image_top ? half_content : '0pt'},
     block(width: 100%, height: ${half_content}, clip: true, ${fit}))`
     return `${reserve}\n${image_place}\n${body_place}`
@@ -284,7 +285,7 @@ ${body}
 function gen_grid_pages(
     slides:TypstPictureStorySlide[], page:PageConfig, image_style:ImageStyle,
     story_alternate:boolean, line_height:number, font_size:string, font_text2:string,
-    font_size2:string, font_fallbacks2:string[], story_key:string,
+    font_size2:string, font_fallbacks2:string[], lang2:string|null, story_key:string,
 ):string {
     const content_w = `(${page.width}) - (${page.margin_left}) - (${page.margin_right})`
     const content_h = `${page.height} - ${page.margin_top} - ${page.margin_bottom}`
@@ -300,7 +301,7 @@ function gen_grid_pages(
             const image_left = !story_alternate || (start + row) % 2 === 0
             return gen_grid_row(
                 slide, row, image_left, page, image_style, cell_w, cell_h, content_w, line_height,
-                font_size, font_text2, font_size2, font_fallbacks2, story_key)
+                font_size, font_text2, font_size2, font_fallbacks2, lang2, story_key)
         })
         pages.push(`${reserve}\n${rows.join('\n')}`)
     }
@@ -314,7 +315,7 @@ function gen_grid_row(
     slide:TypstPictureStorySlide, row:number, image_left:boolean, page:PageConfig,
     image_style:ImageStyle, cell_w:string, cell_h:string, content_w:string,
     line_height:number, font_size:string, font_text2:string, font_size2:string,
-    font_fallbacks2:string[], story_key:string,
+    font_fallbacks2:string[], lang2:string|null, story_key:string,
 ):string {
     const dy = `(${cell_h}) * ${row}`
     const is_top = row === 0
@@ -328,7 +329,7 @@ function gen_grid_row(
         }
         const fit = gen_fit_body(
             slide.body, slide.body2, line_height, font_size, font_size2, font_text2,
-            font_fallbacks2, content_w, cell_h, story_key, FIT_TARGET_RATIO_GRID)
+            font_fallbacks2, lang2, content_w, cell_h, story_key, FIT_TARGET_RATIO_GRID)
         return gen_grid_text_place('0pt', dy, content_w, cell_h, '0pt', fit)
     }
 
@@ -355,7 +356,7 @@ function gen_grid_row(
     const text_w = `(${cell_w}) - (${inset_side})`
     const fit = gen_fit_body(
         slide.body, slide.body2, line_height, font_size, font_size2, font_text2, font_fallbacks2,
-        text_w, cell_h, story_key, FIT_TARGET_RATIO_GRID)
+        lang2, text_w, cell_h, story_key, FIT_TARGET_RATIO_GRID)
     const text_place = gen_grid_text_place(text_dx, dy, cell_w, cell_h, text_inset, fit)
     return `${image_place}\n${text_place}`
 }

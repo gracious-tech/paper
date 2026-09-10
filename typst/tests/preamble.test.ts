@@ -83,6 +83,13 @@ describe('gen_preamble', () => {
         expect(result).toContain('justify: true')
     })
 
+    it('sets the document language', () => {
+        const result = gen_preamble(make_request({
+            typography: {...TEST_TYPOGRAPHY, lang: 'vi'},
+        }))
+        expect(result).toContain('lang: "vi"')
+    })
+
     it('includes first-line-indent', () => {
         const result = gen_preamble(make_request())
         expect(result).toContain('first-line-indent')

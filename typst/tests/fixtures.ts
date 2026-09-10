@@ -26,6 +26,8 @@ export const TEST_TYPOGRAPHY:TypographyConfig = {
     font_fallbacks2: ['Georgia', 'serif'],
     font_size: '10pt',
     font_size2: '10pt',
+    lang: 'en',
+    lang2: null,
     line_height: 1.75,
     justify: true,
     hyphenate: true,

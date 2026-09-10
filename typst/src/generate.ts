@@ -290,7 +290,7 @@ export function generate_typst_facing(
     parts.push(gen_passage_facing(passage, page, request.image_style,
         typography.font_size, typography.font_text2,
         typography.font_headings2, typography.font_size2, typography.font_fallbacks2,
-        typography.line_height,
+        typography.lang2, typography.line_height,
         `2 * ${page.margin_left}`,
         `${page.width} - ${page.margin_left} - ${page.margin_right}`,
         typography.poetry_outdent))
@@ -380,7 +380,7 @@ function gen_content_item(item:TypstContentItem, request:TypstRequest):string {
                 request.typography.font_size,
                 request.typography.font_text2, request.typography.font_headings2,
                 request.typography.font_size2, request.typography.font_fallbacks2,
-                request.typography.line_height,
+                request.typography.lang2, request.typography.line_height,
                 request.features.show_chapters ? request.features.show_chapters_style : 'none',
                 request.typography.poetry_outdent)
         case 'title':
@@ -396,6 +396,7 @@ function gen_content_item(item:TypstContentItem, request:TypstRequest):string {
             return gen_picture_story(item, request.page, request.image_style,
                 request.story_layout, request.story_alternate, request.typography.line_height,
                 request.typography.font_size, request.typography.font_text2,
-                request.typography.font_size2, request.typography.font_fallbacks2)
+                request.typography.font_size2, request.typography.font_fallbacks2,
+                request.typography.lang2)
     }
 }

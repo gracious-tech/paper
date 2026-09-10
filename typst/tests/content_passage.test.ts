@@ -20,10 +20,10 @@ const LINE_HEIGHT = 1.75
 function call(
     passage:TypstPassage, font_text2 = FONT_TEXT2, font_headings2 = FONT_HEADINGS2,
     font_fallbacks = FONT_FALLBACKS, font_size2 = FONT_SIZE2, line_height = LINE_HEIGHT,
-    chapter_style:ChapterStyle = 'none', poetry_outdent = true,
+    chapter_style:ChapterStyle = 'none', poetry_outdent = true, lang2:string|null = null,
 ):string {
     return gen_passage(passage, TEST_PAGE, 'padded', FONT_SIZE, font_text2, font_headings2,
-        font_size2, font_fallbacks, line_height, chapter_style, poetry_outdent)
+        font_size2, font_fallbacks, lang2, line_height, chapter_style, poetry_outdent)
 }
 
 
@@ -301,7 +301,7 @@ describe('gen_passage', () => {
                 ],
                 multi_layout: 'columns',
             }), TEST_PAGE, 'padded', FONT_SIZE, 'Second Font', 'Second Heading Font', FONT_SIZE2,
-                ['Fallback Font'], LINE_HEIGHT, 'none')
+                ['Fallback Font'], null, LINE_HEIGHT, 'none')
 
             // First cell carries no font override — the override sits ahead of the second only
             const second_cell_start = result.indexOf('#set text(font: ("Second Font"')
@@ -312,6 +312,25 @@ describe('gen_passage', () => {
                 .toContain(`#set text(font: ("Second Font", "Fallback Font"), size: ${FONT_SIZE2})`)
             expect(second_cell).toContain('#show heading: set text(font: "Second Heading Font")')
             expect(second_cell).toContain('Bible 2 content')
+        })
+
+        it('gives the second cell its own language, only when it differs', () => {
+            const passage = make_passage({
+                bibles: [{content: '#vn(1)Bible 1 content'}, {content: '#vn(1)Bible 2 content'}],
+                multi_layout: 'columns',
+            })
+
+            // The document language covers both translations unless the second has its own
+            const same = call(passage)
+            expect(same).not.toContain('lang:')
+
+            const differs = call(passage, FONT_TEXT2, FONT_HEADINGS2, FONT_FALLBACKS, FONT_SIZE2,
+                LINE_HEIGHT, 'none', true, 'vi')
+            const cells = differs.split(`size: ${FONT_SIZE2}, lang: "vi"`)
+            expect(cells).toHaveLength(2)
+            // Only the second translation's own scope carries it
+            expect(cells[0]).toContain('Bible 1 content')
+            expect(cells[1]).toContain('Bible 2 content')
         })
 
         it('suppresses footnotes in the second translation only', () => {

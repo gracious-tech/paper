@@ -86,6 +86,13 @@ export interface TypographyConfig {
     font_size:string        // e.g. "10pt"
     // Font size for the second translation, when 2 bibles are selected (defaults to font_size)
     font_size2:string
+    // Document language, as Typst's `lang` (ISO 639-1 where the language has one — see
+    // resolve_lang in lang.ts), taken from the primary translation. Drives which hyphenation
+    // patterns and quote style apply, so a wrong value hyphenates by another language's rules
+    lang:string
+    // The second translation's own language, when it differs from `lang` (null = same, or no
+    // second translation) — applied to just that translation's own text scopes
+    lang2:string|null
     line_height:number      // Literal multiplier of font_size (2 = double line height) — see
                              // preamble.ts's leading calc for how this maps to Typst's `leading`
     justify:boolean|null    // null = auto (justify when width permits)
