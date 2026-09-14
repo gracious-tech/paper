@@ -5,6 +5,7 @@ node_modules/
 /ui-debug.log
 /firebase-debug.log
 /firestore-debug.log
+/firebase-export-*
 
 /.bin/typst
 /.emulator_cache/
