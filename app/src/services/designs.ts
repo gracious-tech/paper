@@ -5,7 +5,8 @@ import {collection, doc, query, where, orderBy, onSnapshot, getDoc, getDocs, set
     deleteDoc, deleteField, arrayRemove, serverTimestamp, FieldPath, Timestamp, writeBatch}
     from 'firebase/firestore'
 import type {DocumentData, Unsubscribe} from 'firebase/firestore'
-import {split_blueprint_doc, join_blueprint_doc, SCHEMA_VERSION} from 'paper-bible-typst'
+import {split_blueprint_doc, join_blueprint_doc, resolve_design_name, get_cover_title,
+    COVER_TITLE_KEY, SCHEMA_VERSION} from 'paper-bible-typst'
 
 import {firestore} from '@/services/firebase'
 import {api} from '@/services/api'
@@ -15,10 +16,11 @@ import {clean_blueprint, gen_content_name, content_preview, get_default_blueprin
     from '@/services/blueprints'
 import {generate_token} from '@/services/utils'
 import {report_error} from '@/services/errors'
+import {translate} from '@/services/i18n'
 
 import {build_new_blueprint} from '@/services/new_design'
 
-import type {Blueprint, ContentItem, DesignMeta, ViewedDesign, DesignEditorInfo}
+import type {Blueprint, ContentItem, CoverConfig, DesignMeta, ViewedDesign, DesignEditorInfo}
     from '@/services/types'
 import type {NewDesignDraft} from '@/services/new_design'
 
@@ -82,16 +84,36 @@ function doc_to_blueprint(data:DocumentData):Blueprint{
         blueprint: (data['blueprint'] ?? {}) as Record<string, unknown>,
         content_items: (data['content_items'] ?? {}) as Record<string, ContentItem>,
         content_order: (data['content_order'] ?? []) as string[],
+        name: (data['name'] ?? '') as string,
     }))
 }
 
 
-function design_name(blueprint:Blueprint):string{
-    // Derive the denormalized list name for a design from its blueprint
-    if (blueprint.title.trim()){
-        return blueprint.title.trim()
+export function gen_name_auto(blueprint:Blueprint):string{
+    // Derive a design's fallback name from its content — the label of the first item, e.g.
+    // "Genesis". Needs the Bible collection (book names come from the chosen translation), so
+    // it's computed here, where the collection is always loaded, and cached on the design doc
+    // as `name_auto` for readers that have no collection (see resolve_design_name)
+    const item = blueprint.content[0]
+    if (!item){
+        return ''
     }
-    return blueprint.content.length ? gen_content_name(blueprint.content[0]!) : ''
+    // A passage the user has titled is named by that title, falling through to its reference
+    // otherwise. gen_content_name() isn't given this preference wholesale because it also feeds
+    // content_preview(), whose whole job is to list references
+    if (item.type === 'passage' && item.title.trim()){
+        return item.title.trim()
+    }
+    return gen_content_name(item, blueprint.bibles[0])
+}
+
+
+export function design_display_name(blueprint:Blueprint, name_auto:string):string{
+    // A design's resolved name for *storing* (a version's frozen title), so unlike the list's
+    // own lookup it can't leave the blank case to the template — it resolves the placeholder
+    // here. `designs` list rows keep the raw '' and fall back in the markup, as they already did
+    return resolve_design_name(blueprint.name, get_cover_title(blueprint.cover), name_auto)
+        || translate('common.unnamed_design')
 }
 
 
@@ -115,11 +137,17 @@ function gen_updates(prev:Blueprint, next:Blueprint):[string|FieldPath, unknown]
 
     const updates:[string|FieldPath, unknown][] = []
 
-    // Scalar options (everything except the content array)
+    // Scalar options (everything except the content array and the name, both of which are
+    // stored as their own doc fields — see split_blueprint_doc)
     for (const key of Object.keys(next) as (keyof Blueprint)[]){
-        if (key !== 'content' && !isEqual(prev[key], next[key])){
+        if (key !== 'content' && key !== 'name' && !isEqual(prev[key], next[key])){
             updates.push([`blueprint.${key}`, cloneDeep(next[key])])
         }
+    }
+
+    // The design's name — a sibling doc field, not a blueprint option
+    if (prev.name !== next.name){
+        updates.push(['name', next.name])
     }
 
     // Changed/added content items (whole-item granularity — an editor working on one item
@@ -162,18 +190,31 @@ export async function flush_changes():Promise<void>{
         return
     }
 
+    // Whether anything that actually gets rendered changed. A rename on its own doesn't — the
+    // name reaches the PDF only as metadata — so it must not flag existing versions as needing
+    // a rebuild (see rename_design)
+    const render_affecting = updates.some(([path]) => path !== 'name')
+
     // Optimistically advance the sync base so the write's own echo isn't re-applied over any
     // newer local edits (restored on failure so the next flush re-diffs everything)
     const pre_flush = synced
     synced = cloneDeep({...blue})
 
-    updates.push(['name', design_name(blue)])
+    // The derived fallback name is only recomputed when its inputs moved: the first content
+    // item (the label is taken from it) or the primary translation (book names are that
+    // translation's). Renames never touch it — that's `blueprint.name`, a separate field
+    if (!isEqual(pre_flush.content[0], blue.content[0])
+            || pre_flush.bibles[0] !== blue.bibles[0]){
+        updates.push(['name_auto', gen_name_auto(blue)])
+    }
     updates.push(['modified', serverTimestamp()])
     // A fresh opaque marker every time the design's persisted content changes — versions copy
     // this verbatim at freeze time, so comparing by equality (not timestamp order, which can't
     // be relied on across two independently-resolved serverTimestamp()s) tells whether a
     // version is still up to date with the live design
-    updates.push(['save_token', generate_token()])
+    if (render_affecting){
+        updates.push(['save_token', generate_token()])
+    }
     try {
         const [first, ...rest] = updates as [[string|FieldPath, unknown], ...[string|FieldPath, unknown][]]
         await updateDoc(doc(firestore, 'designs', id), first[0], first[1], ...rest.flat())
@@ -319,7 +360,7 @@ export async function create_design(from?:Blueprint, wizard_draft?:NewDesignDraf
         editor_uids: [uid],
         editors: {},
         share_token: generate_token(),
-        name: design_name(blueprint),
+        name_auto: gen_name_auto(blueprint),
         save_token: generate_token(),
         created: serverTimestamp(),
         modified: serverTimestamp(),
@@ -345,14 +386,11 @@ export async function leave_simple_mode(id:string):Promise<void>{
 // later "Change" on another step still shows accurate values. Only valid while `id` is the open
 // design (blue is mutated directly, riding the existing debounced autosave in start_design_sync())
 export async function apply_wizard_edit(id:string, draft:NewDesignDraft):Promise<void>{
-    // build_new_blueprint() sets `title` from the wizard's title field; when that field was left
-    // blank, keep whatever title was already there (e.g. set via the /designs list rename
-    // action) rather than blanking it
-    const previous_title = blue.title
+    // The wizard never sets `blueprint.name` (its title field is the cover's title), so a name
+    // set from the /designs list survives the rebuild without needing to be carried over
+    const previous_name = blue.name
     Object.assign(blue, await build_new_blueprint(draft, estimated_pages.value))
-    if (!(draft.title ?? '').trim()){
-        blue.title = previous_title
-    }
+    blue.name = previous_name
     design_wizard.draft = cloneDeep(draft)  // Optimistic, mirrors leave_simple_mode() above
     await updateDoc(doc(firestore, 'designs', id), {wizard_draft: cloneDeep(draft)})
 }
@@ -373,25 +411,33 @@ export async function delete_design(id:string):Promise<void>{
 }
 
 
-export async function rename_design(id:string, title:string):Promise<void>{
-    // Rename a design without opening its editor (e.g. from the /designs list). Writes through
-    // the same field-update path flush_changes() uses, so it also bumps save_token — correctly
-    // flipping design_needs_editor back to true, since the next compile's embedded PDF title
-    // would otherwise no longer match a rendered version's
-    const trimmed = title.trim()
+export async function rename_design(id:string, name:string):Promise<void>{
+    // Rename a design from the /designs list, without needing to open it.
+    // A rename alone isn't a content edit (the name reaches the PDF only as metadata), so it
+    // deliberately leaves save_token alone rather than flagging rendered versions as stale.
+    // It does carry through to the cover's printed title while the user hasn't set that
+    // themselves — and *that* is a real render change, so it bumps save_token when it happens
+    const trimmed = name.trim()
+
+    // Open design: mutate and let the debounced sync diff it (flush_changes decides on
+    // save_token by looking at what actually changed)
     if (id === current_design_id.value){
-        blue.title = trimmed
+        blue.name = trimmed  // The cover title follows via the watcher in watchers.ts
         await flush_changes()
         return
     }
+
+    // Closed design: read it only to decide whether the cover title should follow
     const snap = await getDoc(doc(firestore, 'designs', id))
-    const blueprint = doc_to_blueprint(snap.data() ?? {})
-    await updateDoc(doc(firestore, 'designs', id), {
-        'blueprint.title': trimmed,
-        name: design_name({...blueprint, title: trimmed}),
-        save_token: generate_token(),
-        modified: serverTimestamp(),
-    })
+    const cover = ((snap.data()?.['blueprint'] ?? {}) as Record<string, unknown>)['cover'] as
+        CoverConfig|null|undefined
+    const updates:Record<string, unknown> = {name: trimmed}
+    if (trimmed && cover && !cover.title_custom){
+        updates[`blueprint.cover.form.${COVER_TITLE_KEY}`] = trimmed
+        updates['save_token'] = generate_token()
+        updates['modified'] = serverTimestamp()
+    }
+    await updateDoc(doc(firestore, 'designs', id), updates)
 }
 
 
@@ -441,12 +487,14 @@ export async function restore_version_into_design(design_id:string,
     // Destructive: bulk-replace the live design's content with a frozen version's content.
     // Callers must warn the user first — any unsaved/unrendered changes are lost
     save.cancel()
+    // `name` is deliberately dropped from the split here: restoring a version restores what the
+    // document *is*, not what the design is called — the user's current name stays put
     const fields = split_blueprint_doc(cloneDeep(version.blueprint))
     await updateDoc(doc(firestore, 'designs', design_id), {
         blueprint: fields.blueprint,
         content_items: fields.content_items,
         content_order: fields.content_order,
-        name: design_name(version.blueprint),
+        name_auto: gen_name_auto(version.blueprint),
         save_token: version.save_token,
         modified: serverTimestamp(),
     })
@@ -505,7 +553,13 @@ function meta_from_doc(id:string, data:DocumentData):DesignMeta{
     const bibles = (blueprint['bibles'] ?? []) as string[]
     return {
         id,
-        name: data['name'] as string,
+        // Resolved at read time off the raw doc fields, like content_summary below — nothing
+        // needs the fully-resolved name stored, and deriving it means it can never drift
+        name: resolve_design_name(
+            (data['name'] ?? '') as string,
+            get_cover_title(blueprint['cover'] as CoverConfig|null),
+            (data['name_auto'] ?? '') as string,
+        ),
         owner: data['owner'] as string,
         shared: (data['editor_uids'] as string[]).length > 1,
         editor_count: (data['editor_uids'] as string[]).length,

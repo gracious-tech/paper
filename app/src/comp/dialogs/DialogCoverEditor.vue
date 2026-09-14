@@ -26,7 +26,7 @@ import {COVER_EDITOR_URL, COVER_EDITOR_ORIGIN, default_cover_preset, load_cover_
     upload_cover_bg, hash_bytes, cover_font_families} from '@/services/cover'
 import {custom_fonts, add_custom_fonts} from '@/services/custom_fonts'
 import {report_error} from '@/services/errors'
-import {cover_form_for_render} from 'paper-bible-typst'
+import {cover_form_for_render, get_cover_title, get_cover_title_from_form} from 'paper-bible-typst'
 
 import type {EmbedFormState} from 'bookcover-core'
 import type {InitMessage, WidgetMessage} from 'bookcover-web'
@@ -123,7 +123,12 @@ const handle_finished = async (
         }
 
         const form = message.data as unknown as Record<string, unknown>
-        blue.cover = {form, bg_image, font_families: cover_font_families(form)}
+        // Editing any of the cover's title lines here makes the title the user's own, so it
+        // stops following later renames of the design. An unchanged title leaves the flag as it
+        // was — merely opening and saving the editor shouldn't detach it
+        const title_custom = blue.cover?.title_custom
+            || get_cover_title_from_form(form) !== get_cover_title(blue.cover)
+        blue.cover = {form, bg_image, font_families: cover_font_families(form), title_custom}
     } catch (error){
         report_error('banner', error)
     }

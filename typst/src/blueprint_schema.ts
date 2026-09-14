@@ -117,6 +117,9 @@ export const cover_config_schema = z.object({
     form: z.record(z.string(), z.unknown()),
     bg_image: cover_bg_image_schema.nullable(),
     font_families: z.array(z.string()),
+    // Per-field .catch() so covers saved before the follow-the-name behaviour existed load as
+    // "not hand-edited" rather than dropping the whole cover
+    title_custom: z.boolean().catch(false),
 }) satisfies z.ZodType<CoverConfig>
 
 
@@ -148,7 +151,7 @@ export function make_blueprint_schema(defaults:Blueprint):z.ZodType<Blueprint>{
     // values are referenced, not cloned, so a shared defaults object could leak mutations
     return z.object({
 
-        title: z.string().catch(defaults.title),
+        name: z.string().catch(defaults.name),
 
         // Cover
         cover: cover_config_schema.nullable().catch(defaults.cover),

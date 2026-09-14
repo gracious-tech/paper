@@ -50,6 +50,9 @@ export interface BlueprintCompileOptions extends NodeCompileOptions {
     // on to size the binding gutter added to the inner margin (a thicker book needs a deeper
     // gutter). Omitted falls back to a mid-range guess inside the resolver
     page_count?:number
+    // The document's resolved display name, for PDF metadata. Callers compiling a version pass
+    // its frozen title; omitted falls back to what the blueprint itself carries
+    doc_name?:string
 }
 
 
@@ -96,7 +99,7 @@ export async function compile_pdf_from_blueprint(
     // whichever compile is running
     const request = await content.resolve(
         blueprint, custom_font_styles, options?.on_progress, options?.share_url,
-        options?.page_count)
+        options?.page_count, options?.doc_name)
     const font_paths = await resolve_font_paths(request, options)
     return generate_pdf(request, make_compile_fn(options, font_paths), options?.on_progress)
 }

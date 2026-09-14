@@ -27,7 +27,8 @@ export {BibleContent} from './bible_content.js'
 export type {BibleContentOptions} from './bible_content.js'
 
 // Blueprint <-> Firestore doc-shape splitting (shared so client and server never diverge)
-export {split_blueprint_doc, join_blueprint_doc} from './blueprint_doc.js'
+export {split_blueprint_doc, join_blueprint_doc, resolve_design_name, get_cover_title,
+    get_cover_title_from_form, COVER_TITLE_KEY} from './blueprint_doc.js'
 export type {BlueprintDocFields} from './blueprint_doc.js'
 
 // Constants shared between the app and the server

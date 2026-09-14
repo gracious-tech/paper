@@ -302,14 +302,20 @@ export interface CoverConfig {
     bg_image:CoverBgImage|null
     // Custom font families the cover references (resolved from the user's font library)
     font_families:string[]
+    // Whether the user typed the cover's title themselves. While false, form.title1 follows
+    // Blueprint.name automatically; once true it's theirs and stops following
+    title_custom:boolean
 }
 
 
 // A complete set of user-selected options for generating a document
 export interface Blueprint {
 
-    // Title used in PDF meta and download file name
-    title:string
+    // The design's own name, set by the user renaming it from the designs list. Blank is the
+    // normal state — the displayed name then falls back to the cover's title and finally to a
+    // name derived from the content (see resolve_design_name in blueprint_doc.ts). Never
+    // printed inside the document; it reaches the PDF only as metadata and the download filename
+    name:string
 
     // Optional book cover (null = no cover)
     cover:CoverConfig|null

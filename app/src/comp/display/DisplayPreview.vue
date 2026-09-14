@@ -317,11 +317,23 @@ async function compile(){
 const compile_debounced = debounce(compile, 500)
 
 
-// Recompile whenever the blueprint, fetched Typst content, or compiler availability changes
+// Everything in the blueprint the preview actually renders from. `name` is deliberately left
+// out: it reaches the PDF as metadata only, so renaming the design must never cost a recompile.
+// The cover's own title *is* visible, and stays watched as part of blue.cover
+function render_signature():string {
+    const {name: _name, ...rest} = blue
+    return JSON.stringify(rest)
+}
+
+// Recompile whenever the blueprint changes. Keyed on the signature rather than deep-watching
+// `blue` directly, so a change that doesn't alter what gets rendered doesn't queue a compile
+watch(render_signature, () => compile_debounced(), {immediate: true})
+
+// ...and whenever the fetched Typst content or compiler availability changes
 watch(
-    [() => blue, () => content.loaded, () => typst_generator.value],
+    [() => content.loaded, () => typst_generator.value],
     () => compile_debounced(),
-    {deep: true, immediate: true},
+    {deep: true},
 )
 
 // Build a signature of every "discrete choice" field in the blueprint: checkboxes, selects,

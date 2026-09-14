@@ -11,8 +11,8 @@ import {ref as storage_ref, uploadBytes, getBytes} from 'firebase/storage'
 import {make_blank_form_values, asset_path, BACKGROUNDS_DIR, resolve_dimensions}
     from 'bookcover-core'
 import {cover_form_for_render, cover_render_key, STOCK_BG_PHOTOS, KNOWN_BUILTIN_BACKGROUNDS,
-    doc_has_copyright, gen_copyright_typst, COPYRIGHT_MARKER, resolve_reading_trim, convert_unit}
-    from 'paper-bible-typst'
+    doc_has_copyright, gen_copyright_typst, COPYRIGHT_MARKER, resolve_reading_trim, convert_unit,
+    COVER_TITLE_KEY} from 'paper-bible-typst'
 import {PDFDocument, rgb} from 'pdf-lib'
 
 import {firebase_storage} from '@/services/firebase'
@@ -388,14 +388,16 @@ export function default_cover_preset(blueprint:Blueprint):Record<string, unknown
     const {bg_image: _, ...blank} = make_blank_form_values()
     const form:Record<string, unknown> = blank
 
-    // Title from the design, falling back to the first passage's reference ("Titus" etc)
+    // Title from the design's name, falling back to the first passage's reference ("Titus"
+    // etc). Seeded, not owned — it keeps following the design's name until the user edits it
+    // here or in the cover editor (see apply_name_to_cover)
     const passage = get_passages(blueprint)[0]
-    let title = blueprint.title
+    let title = blueprint.name.trim()
     if (!title && passage){
         title = content.collection.reference_to_string(
             new PassageReference(passage), blueprint.bibles[0])
     }
-    form['title1'] = title
+    form[COVER_TITLE_KEY] = title
 
     // Rear blurb: the AUTO-COPYRIGHT marker (same one the interior "Copyright" page uses),
     // resolved to the design's full attribution statement at render time (render_cover here,
@@ -421,7 +423,7 @@ export function default_cover_preset(blueprint:Blueprint):Record<string, unknown
     // Size fields always mirror the blueprint (the widget's size UI is hidden when embedded),
     // with the current page-count guess standing in for the not-yet-compiled interior
     return cover_form_for_render(
-        {form, bg_image: null, font_families: []}, blueprint,
+        {form, bg_image: null, font_families: [], title_custom: false}, blueprint,
         page_count_guess())
 }
 
@@ -491,7 +493,18 @@ export function seed_cover_preset(kind:'photo'|'pattern'|'icon'|'minimal', bluep
         :CoverConfig{
     const {form, bg_image_id} = build_cover_preset_form(kind, blueprint)
     return {form, bg_image: bg_image_id ? {kind: 'builtin', id: bg_image_id} : null,
-        font_families: []}
+        font_families: [], title_custom: false}
+}
+
+
+// Carry a design's name through to the cover's printed title, unless the user has set that
+// title themselves. A blank name is skipped — it would wipe the cover's title rather than
+// track it (what the name falls back to *is* the cover title, see resolve_design_name)
+export function apply_name_to_cover(blueprint:Blueprint):void{
+    const name = blueprint.name.trim()
+    if (name && blueprint.cover && !blueprint.cover.title_custom){
+        blueprint.cover.form[COVER_TITLE_KEY] = name
+    }
 }
 
 
@@ -531,7 +544,8 @@ export async function render_wizard_cover_preview(kind:'photo'|'pattern'|'icon'|
         blueprint:Blueprint):Promise<string> {
     const {form, bg_image_id} = build_cover_preset_form(kind, blueprint)
     const cover:CoverConfig = {form,
-        bg_image: bg_image_id ? {kind: 'builtin', id: bg_image_id} : null, font_families: []}
+        bg_image: bg_image_id ? {kind: 'builtin', id: bg_image_id} : null, font_families: [],
+        title_custom: false}
     let image_override:{data:Uint8Array, type:string, name:string}|undefined
     let image_regions:ImageRegions|undefined
     if (bg_image_id){

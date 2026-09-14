@@ -45,7 +45,10 @@ export interface DraftPassage {
 // so going back and changing e.g. the type never needs to un-apply a previous choice
 export interface NewDesignDraft {
     type:NewDesignType|null
-    title:string  // Cover/design title; blank falls back to the first passage's reference
+    // The cover's printed title; blank falls back to the first passage's reference. Also what
+    // the design is listed as, since the wizard never sets `blueprint.name` (renaming a design
+    // is done from the /designs list — see resolve_design_name)
+    title:string
     // Which of the two content sources below is used at build. For `picture_story`, 'books'
     // means the predefined story list (`stories`) rather than whole books
     book_mode:'books'|'passages'
@@ -259,7 +262,9 @@ export function wizard_preview_blueprint(draft:NewDesignDraft, pages:number|null
     blueprint.service_id = draft.service_id ?? blueprint.service_id
     blueprint.size_id = draft.size_id ?? blueprint.size_id
     apply_wizard_print_defaults(blueprint, draft, pages)
-    blueprint.title = (draft.title ?? '').trim()
+    // Staged on `name` because that's where default_cover_preset() reads the title from; this
+    // blueprint is a throwaway that only ever feeds the cover builder
+    blueprint.name = (draft.title ?? '').trim()
     if (draft.bibles.length){
         blueprint.bibles = [...draft.bibles] as [string, ...string[]]
     }
@@ -333,9 +338,9 @@ export async function build_new_blueprint(draft:NewDesignDraft, pages:number|nul
     // font_default_for_bibles)
     blueprint.font_text = font_default_for_bibles(draft.bibles)
 
-    // Title: the wizard's optional title field — blank means the design/cover falls back to the
-    // first passage's reference (see design_name() and default_cover_preset())
-    blueprint.title = (draft.title ?? '').trim()
+    // Title: the wizard's optional title field is the *cover's* title, not blueprint.name (a
+    // design is renamed from the /designs list). Staged on `name` here only so the cover preset
+    // below picks it up, then cleared — see the end of this function
 
     // Content: either one whole-book passage per selected book (canonical order regardless of
     // the order the user clicked them in), or the user's own passage list (their order, since
@@ -434,8 +439,15 @@ export async function build_new_blueprint(draft:NewDesignDraft, pages:number|nul
             } as ContentPassage
         })
     }
-    // Cover: a seeded preset the user refines later in the cover widget
+    // Cover: a seeded preset the user refines later in the cover widget. The wizard's title
+    // field lands here (and marks the title as the user's own, so it stops following any later
+    // rename), after which `name` goes back to blank — the design's listed name then resolves
+    // through the cover title anyway (see resolve_design_name)
+    const wizard_title = (draft.title ?? '').trim()
+    blueprint.name = wizard_title
     blueprint.cover = seed_cover_preset(draft.cover!, blueprint)
+    blueprint.cover.title_custom = !!wizard_title
+    blueprint.name = ''
 
     return blueprint
 }

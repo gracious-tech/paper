@@ -23,7 +23,9 @@ export function get_default_blueprint():Blueprint{
 
     return {
 
-        title: '',
+        // Blank is normal — the displayed name falls back to the cover title, then to the
+        // design's derived name_auto (see resolve_design_name)
+        name: '',
 
         // Cover (null = no cover)
         cover: null,

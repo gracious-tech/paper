@@ -7,8 +7,10 @@ div.cont(v-if='!trigger_rerender')
     div.generate
         BtnGenerate
 
-    v-text-field(v-model='blue.title' :label='$t("common.title")' density='compact' hide-details
-        class='mb-8')
+    //- The design's own name. Blank is fine — it then falls back to the cover's title and to a
+    //- name derived from the content (see resolve_design_name)
+    v-text-field(v-model='blue.name' :label='$t("common.name")' density='compact' hide-details
+        :placeholder='auto_name' persistent-placeholder class='mb-8')
 
     h2 {{$t("common.content")}}
     OptionsContent
@@ -52,7 +54,8 @@ div.cont(v-if='!trigger_rerender')
 
 <script lang='ts' setup>
 
-import {ref} from 'vue'
+import {ref, computed} from 'vue'
+import {get_cover_title} from 'paper-bible-typst'
 
 import BtnGenerate from './assets/BtnGenerate.vue'
 import OptionsContent from '@/comp/options/OptionsContent.vue'
@@ -65,9 +68,16 @@ import OptionsStudy from '@/comp/options/OptionsStudy.vue'
 import OptionsBibles from '@/comp/options/OptionsBibles.vue'
 
 import {blue, state} from '@/services/state'
+import {gen_name_auto} from '@/services/designs'
 
 
 const trigger_rerender = ref(false)
+
+
+// What the design will be listed as while the name field is left blank — the cover's own title,
+// else a name derived from the content. Computed live rather than read from the design's cached
+// name_auto, so it tracks edits without waiting for a flush
+const auto_name = computed(() => get_cover_title(blue.cover) || gen_name_auto(blue))
 
 
 // Open the advanced options editor (headings, text color, title pages, etc)

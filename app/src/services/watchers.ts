@@ -6,6 +6,7 @@ import {content, bible_content, resolve_passage_examples, ensure_bible_books_loa
     from '@/services/content'
 import {auto_binding} from '@/services/blueprints'
 import {design_wizard} from '@/services/designs'
+import {apply_name_to_cover} from '@/services/cover'
 
 import type {ContentPassage, ContentTitle} from '@/services/types'
 
@@ -72,6 +73,13 @@ export function start_watchers(){
             })
         }
     }, {deep: true, immediate: true})
+
+    // Carry the design's name through to the cover's printed title, for as long as the user
+    // hasn't set that title themselves. Covers every way the name can change (the editor field,
+    // renaming the open design from the list) in one place
+    watch(() => blue.name, () => {
+        apply_name_to_cover(blue)
+    })
 
     // Auto-refresh the font pickers' example text (title/heading/verse) as content or the
     // selected translations change

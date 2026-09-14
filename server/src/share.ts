@@ -1,11 +1,12 @@
 import {randomBytes} from 'node:crypto'
 
 import {FieldValue, Timestamp} from 'firebase-admin/firestore'
-import {split_blueprint_doc, SCHEMA_VERSION, PDF_LIFETIME_MS} from 'paper-bible-typst'
+import {split_blueprint_doc, resolve_design_name, get_cover_title, SCHEMA_VERSION,
+    PDF_LIFETIME_MS} from 'paper-bible-typst'
 
 import {admin_db, admin_bucket, admin_auth} from './firebase.ts'
 
-import type {Blueprint} from 'paper-bible-typst'
+import type {Blueprint, CoverConfig} from 'paper-bible-typst'
 
 
 interface HandlerResult {
@@ -43,7 +44,15 @@ export async function handle_design_invite_preview(design_id:string, token:strin
         // Same response whether missing or bad token (don't leak which)
         return {status: 404, body: {error: 'unknown_share'}}
     }
-    return {status: 200, body: {name: found.data['name'] as string}}
+    // Resolved from the doc's own fields (see resolve_design_name) — no Bible collection needed
+    // here, since the content-derived fallback was cached on the design when it was written
+    const blueprint = (found.data['blueprint'] ?? {}) as Record<string, unknown>
+    const name = resolve_design_name(
+        (blueprint['name'] ?? '') as string,
+        get_cover_title(blueprint['cover'] as CoverConfig|null),
+        (found.data['name_auto'] ?? '') as string,
+    )
+    return {status: 200, body: {name}}
 }
 
 
@@ -166,7 +175,9 @@ export async function handle_copy_version(uid:string, version_id:string)
         editor_uids: [uid],
         editors: {},
         share_token: randomBytes(15).toString('base64url'),
-        name: data['title'],
+        // The source version's frozen title is already a resolved name, so it seeds the copy's
+        // content-derived fallback without this service needing the Bible collection
+        name_auto: data['title'],
         save_token,
         created: Timestamp.now(),
         modified: Timestamp.now(),

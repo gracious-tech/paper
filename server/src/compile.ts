@@ -251,6 +251,8 @@ export async function handle_compile(uid:string, version_id:string, client_ip:st
             custom_fonts,
             share_url,
             page_count,
+            // The version's frozen display name, for the PDF's metadata title
+            doc_name: data['title'] as string|undefined,
         })
         const interior_ms = performance.now() - interior_start
         const pages = (await PDFDocument.load(bytes)).getPageCount()

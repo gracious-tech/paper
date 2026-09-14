@@ -21,7 +21,7 @@ import {current_design_id, flush_changes} from '@/services/designs'
 import {create_pending_version, compile_and_upload, selected_version_id, latest_version,
     has_seen_print_service_warning, record_seen_print_service_warning} from '@/services/versions'
 import {typst_generator} from '@/services/typst'
-import {gen_content_name, collect_passage_books, has_missing_books} from '@/services/blueprints'
+import {collect_passage_books, has_missing_books} from '@/services/blueprints'
 import {resolve_content_for_style} from '@/services/content_images'
 import {report_error} from '@/services/errors'
 
@@ -55,11 +55,6 @@ const generate = async () => {
         return
     }
 
-    // Auto-set title if none yet
-    if (!blue.title.trim()){
-        blue.title = gen_content_name(blue.content[0]!)
-    }
-
     // Shown as loading from here on — style resolution below can take a moment the first time a
     // painted/torn image needs processing, same as the compile step already did
     generating.value = true
@@ -85,15 +80,16 @@ const generate = async () => {
             await record_seen_print_service_warning()
         }
 
-        const version_id = await create_pending_version(design_id, blueprint)
+        const version = await create_pending_version(design_id, blueprint)
 
         // Switch to the version view
-        selected_version_id.value = version_id
-        await router.push({name: 'design', params: {id: design_id, version: version_id}})
+        selected_version_id.value = version.id
+        await router.push({name: 'design', params: {id: design_id, version: version.id}})
 
         // Compile the final PDF in-browser via Typst and upload it (status updates arrive via the
-        // versions Firestore sync)
-        await compile_and_upload(version_id, design_id, blueprint, true)
+        // versions Firestore sync). The frozen title is the document's resolved name, which the
+        // compile embeds as PDF metadata
+        await compile_and_upload(version.id, design_id, blueprint, true, undefined, version.title)
     } catch (error){
         // compile_and_upload handles its own failures; this covers the steps before it (freeze,
         // asset snapshotting, navigation) so a throw there surfaces to the user instead of

@@ -30,6 +30,7 @@ div.cont
 
 import {computed} from 'vue'
 import {get_service} from 'printing-services'
+import {get_cover_title} from 'paper-bible-typst'
 import {useI18n} from '@/services/i18n'
 
 import BtnGenerate from './assets/BtnGenerate.vue'
@@ -107,10 +108,11 @@ const print_notice = computed(() => {
     return t("view.simple.service_notice", {service: service.name, binding})
 })
 
-// The cover's own title (seeded from the design title, editable in the cover editor), with the
-// wizard's style label standing in until one exists
+// The cover's own title — which is exactly what this row's step edits (the wizard's title field
+// sets the cover title, not the design's name; renaming is done from the /designs list). Falls
+// back to the wizard's style label until a title exists
 const cover_summary = computed(() => {
-    const title = (blue.cover?.form['title1'] as string | undefined)?.trim()
+    const title = get_cover_title(blue.cover)
     if (title){
         return title
     }

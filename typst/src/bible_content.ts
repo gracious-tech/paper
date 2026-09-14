@@ -17,6 +17,7 @@ import {inject_study_notes} from './content_notes.js'
 import {max_chapter_in_content} from './content_passage.js'
 import {detect_font_fallbacks} from './fonts_detect.js'
 import {resolve_lang} from './lang.js'
+import {resolve_design_name, get_cover_title} from './blueprint_doc.js'
 
 import type {CjkVariant, FontStyle} from 'typst-fonts'
 import type {QuoteState} from './helpers.js'
@@ -257,7 +258,7 @@ export class BibleContent {
     // back to a mid-range guess when the caller has nothing better (e.g. the server fallback)
     async resolve(
         blue:Blueprint, custom_font_styles?:Record<string, FontStyle>, on_progress?:ProgressFn,
-        share_url?:string, page_count?:number,
+        share_url?:string, page_count?:number, doc_name?:string,
     ):Promise<TypstRequest> {
         const progress = on_progress ?? this.on_progress
         progress?.({stage: 'start'})
@@ -348,7 +349,11 @@ export class BibleContent {
         }
 
         return {
-            title: blue.title,
+            // PDF metadata + download filename. Callers compiling a version pass its frozen
+            // display name (which already resolved the content-derived fallback); without one
+            // we can still resolve the two halves the blueprint carries itself
+            title: doc_name?.trim()
+                || resolve_design_name(blue.name, get_cover_title(blue.cover), ''),
             page: this.gen_page(blue, page_count),
             typography: {
                 font_text: blue.font_text,

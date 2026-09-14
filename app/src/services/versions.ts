@@ -11,7 +11,7 @@ import {SCHEMA_VERSION, PDF_LIFETIME_MS, COMPILE_STATS_LIFETIME_MS} from 'paper-
 import {firestore, firebase_storage} from '@/services/firebase'
 import {api, ApiError} from '@/services/api'
 import {user} from '@/services/auth'
-import {designs, current_design_id} from '@/services/designs'
+import {designs, current_design_id, design_display_name} from '@/services/designs'
 import {bible_content} from '@/services/content'
 import {typst_generator} from '@/services/typst'
 import {custom_fonts, get_custom_font_styles, plan_version_fonts, upload_version_fonts,
@@ -145,8 +145,9 @@ export async function fetch_latest_version_id(design_id:string):Promise<string|n
 
 
 export async function create_pending_version(design_id:string, blueprint:Blueprint)
-        :Promise<string>{
-    // Freeze a blueprint into a new pending version doc and return its id. Any uploaded fonts
+        :Promise<{id:string, title:string}>{
+    // Freeze a blueprint into a new pending version doc and return its id + frozen display name
+    // (the caller passes that name back into the compile, for PDF metadata). Any uploaded fonts
     // it references are snapshotted into the version's own Storage paths so regeneration never
     // depends on the user's mutable font library. Reads the parent design's save_token directly
     // (rather than trusting the `designs` list's own listener to have caught up yet) so the
@@ -159,6 +160,11 @@ export async function create_pending_version(design_id:string, blueprint:Bluepri
     const wizard_draft = design_snap.data()?.['wizard_draft'] as NewDesignDraft|undefined
     const wizard = wizard_draft ? {draft: cloneDeep(wizard_draft),
         simple_mode: !!design_snap.data()?.['simple_mode']} : null
+    // The design's *resolved* name, frozen — a version is a snapshot of what was rendered, and
+    // its name must not shift later when the design is renamed or its content changes.
+    // name_auto comes from the same doc read as save_token above
+    const title = design_display_name(
+        blueprint, (design_snap.data()?.['name_auto'] ?? '') as string)
     const fonts = plan_version_fonts(id, blueprint)
     // The cover's bg image is likewise snapshotted under the version's own Storage prefix
     // (the frozen blueprint's cover points at the snapshot path, not the mutable library)
@@ -171,7 +177,7 @@ export async function create_pending_version(design_id:string, blueprint:Bluepri
         owner: user.value!.uid,
         created: serverTimestamp(),
         compile_started: serverTimestamp(),
-        title: blueprint.title,
+        title,
         blueprint: {...cloneDeep(blueprint), cover: cover.frozen, content: images.frozen},
         status: 'pending',
         pages: null,
@@ -204,7 +210,7 @@ export async function create_pending_version(design_id:string, blueprint:Bluepri
             {status: 'failed', error: error_to_string(error)}).catch(() => undefined)
         throw error
     }
-    return id
+    return {id, title}
 }
 
 
@@ -238,7 +244,7 @@ async function record_compile_stat(fields:{version_id:string, design_id:string, 
 
 
 export async function compile_and_upload(id:string, design_id:string, blueprint:Blueprint,
-        is_latest:boolean, fonts?:CustomFont[]):Promise<void>{
+        is_latest:boolean, fonts?:CustomFont[], doc_name?:string):Promise<void>{
     // Compile a version's PDF in-browser and upload it, updating the doc's status. If the
     // in-browser compile fails (e.g. device lacks memory for large docs) fall back to compiling
     // server-side, which updates the doc itself.
@@ -279,7 +285,7 @@ export async function compile_and_upload(id:string, design_id:string, blueprint:
                 : get_custom_font_styles()
             interior_start = performance.now()
             const request = await bible_content.resolve(
-                blueprint, font_styles, undefined, share_url, page_estimate)
+                blueprint, font_styles, undefined, share_url, page_estimate, doc_name)
 
             // Compile in the worker (temporarily adding snapshotted fonts when regenerating),
             // then count pages for the history badge
@@ -429,7 +435,8 @@ export async function regenerate_version(version:Version):Promise<void>{
         await updateDoc(doc(firestore, 'designs', version.design_id),
             {'latest_version.status': 'pending'})
     }
-    await compile_and_upload(version.id, version.design_id, version.blueprint, is_latest, fonts)
+    await compile_and_upload(version.id, version.design_id, version.blueprint, is_latest, fonts,
+        version.title)
 }
 
 
@@ -550,7 +557,7 @@ export async function retry_version(version:Version):Promise<void>{
     const fonts = await Promise.all(version.custom_fonts.map(meta => load_font_from_meta(meta)))
     await updateDoc(doc(firestore, 'versions', version.id), {error: null})
     await compile_and_upload(version.id, version.design_id, version.blueprint, is_latest,
-        fonts.length ? fonts : undefined)
+        fonts.length ? fonts : undefined, version.title)
 }
 
 
