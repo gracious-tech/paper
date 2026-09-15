@@ -26,7 +26,8 @@ import {COVER_EDITOR_URL, COVER_EDITOR_ORIGIN, default_cover_preset, load_cover_
     upload_cover_bg, hash_bytes, cover_font_families} from '@/services/cover'
 import {custom_fonts, add_custom_fonts} from '@/services/custom_fonts'
 import {report_error} from '@/services/errors'
-import {cover_form_for_render, get_cover_title, get_cover_title_from_form} from 'paper-bible-typst'
+import {cover_form_for_render, get_cover_title, get_cover_title_from_form, is_builtin_background}
+    from 'paper-bible-typst'
 
 import type {EmbedFormState} from 'bookcover-core'
 import type {InitMessage, WidgetMessage} from 'bookcover-web'
@@ -43,8 +44,9 @@ const frame = ref<HTMLIFrameElement|null>(null)
 const loaded = ref(false)
 
 // Content hash of the bg image bytes last sent to the widget via send_init(), so
-// handle_finished() can tell an unchanged image (echoed back byte-for-byte) from a genuinely
-// new one without needing a stored hash — builtins have none of their own
+// handle_finished() can tell an unchanged upload (echoed back byte-for-byte) from a genuinely
+// new one, and skip re-uploading identical bytes under a fresh Storage path. Only used for
+// uploads now — a builtin identifies itself via the widget's bg_image_builtin field
 let sent_bg_hash:string|null = null
 
 
@@ -66,16 +68,21 @@ const send_init = async () => {
         : default_cover_preset(blue)
 
     // Restore the stored bg image as a File beside the pure-JSON preset, named after the
-    // builtin id when applicable so the widget's own fast color lookup can match it too
+    // builtin id when applicable so the widget's own fast color lookup can match it too.
+    // A builtin is also named explicitly via bg_image_builtin: without it the widget has only
+    // the bytes, and would report the restored image back as an upload on its first message
     let bg_image:File|null = null
+    let bg_image_builtin:string|null = null
     sent_bg_hash = null
     if (cover?.bg_image){
         const image = await load_cover_bg(cover)
         if (image){
-            const name = cover.bg_image.kind === 'builtin' ? cover.bg_image.id : 'background'
-            bg_image = new File([image.data as BlobPart], name, {type: image.type})
-            sent_bg_hash = cover.bg_image.kind === 'custom' ? cover.bg_image.hash
-                : await hash_bytes(image.data)
+            const builtin = cover.bg_image.kind === 'builtin' ? cover.bg_image.id : null
+            bg_image = new File([image.data as BlobPart], builtin ?? 'background',
+                {type: image.type})
+            bg_image_builtin = builtin
+            // Only uploads need byte-identity tracking (see handle_finished)
+            sent_bg_hash = cover.bg_image.kind === 'custom' ? cover.bg_image.hash : null
         }
     }
 
@@ -84,6 +91,7 @@ const send_init = async () => {
         // JSON round-trip so no Vue reactive proxies reach structured clone
         preset: JSON.parse(JSON.stringify(preset)) as Partial<EmbedFormState>,
         bg_image,
+        bg_image_builtin,
         // The user's whole font library, so cover fonts match what the book can use
         custom_fonts: [...toRaw(custom_fonts)],
         finished_mode: true,
@@ -107,11 +115,16 @@ const handle_finished = async (
             await add_custom_fonts(message.custom_fonts)
         }
 
-        // Upload the bg image only when its content actually changed (content-addressed) —
-        // an unchanged image (matching what send_init() sent) keeps its prior identity as-is,
-        // builtin or custom, with no upload
+        // Resolve the bg image's identity. A builtin the widget names is stored as a reference
+        // — no bytes kept, since it's already durably hosted in the public assets bucket. The
+        // name is advisory and untrusted (the widget is a separate origin), so it's shape-checked
+        // first; anything malformed falls through to being treated as an upload. An upload is
+        // content-addressed, and re-uploading is skipped when the bytes came back unchanged, so
+        // merely opening and closing the editor never mints a new Storage path
         let bg_image:CoverConfig['bg_image'] = null
-        if (message.bg_image){
+        if (message.bg_image_builtin && is_builtin_background(message.bg_image_builtin)){
+            bg_image = {kind: 'builtin', id: message.bg_image_builtin}
+        } else if (message.bg_image){
             const bytes = new Uint8Array(await message.bg_image.arrayBuffer())
             const hash = await hash_bytes(bytes)
             if (hash === sent_bg_hash && blue.cover?.bg_image){

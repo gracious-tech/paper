@@ -1,12 +1,27 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
+# The Typst CLI version must match the engine vendored by the typst.ts packages the browser
+# compiles with, or the same blueprint renders differently in the browser and on the server
+# (and a rebuilt Cloud Run image could change output with no code change). Both are pinned:
+# @myriaddreamin/* are exact versions in app/package.json and typst-web/package.json, and the
+# mapping between the two is:
+#     typst.ts v0.7.0 -> typst 0.14.2
+#     typst.ts v0.8.1 -> typst 0.15.1
+# Bump this together with those, never on its own.
+TYPST_VERSION="v0.14.2"
+
 ASSET="typst-x86_64-unknown-linux-musl.tar.xz"
 BIN_DIR="$(dirname "$0")"
-
-URL=$(curl -fsSL https://api.github.com/repos/typst/typst/releases/latest \
-    | grep -o "https://[^\"]*$ASSET")
+URL="https://github.com/typst/typst/releases/download/$TYPST_VERSION/$ASSET"
 
 # Extract only the typst binary directly into the .bin dir
 curl -fsSL "$URL" | tar -xJ -C "$BIN_DIR" --strip-components=1 \
     "typst-x86_64-unknown-linux-musl/typst"
+
+# Fail loudly if the downloaded binary isn't the version pinned above
+INSTALLED=$("$BIN_DIR/typst" --version | awk '{print $2}')
+if [ "$INSTALLED" != "${TYPST_VERSION#v}" ]; then
+    echo "typst version mismatch: wanted ${TYPST_VERSION#v}, got $INSTALLED" >&2
+    exit 1
+fi

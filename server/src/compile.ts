@@ -6,7 +6,7 @@ import {mkdtemp, writeFile, readFile, rm} from 'node:fs/promises'
 import {Timestamp} from 'firebase-admin/firestore'
 import {PDFDocument} from 'pdf-lib'
 import {PDF_LIFETIME_MS, COMPILE_STATS_LIFETIME_MS, cover_form_for_render,
-    KNOWN_BUILTIN_BACKGROUNDS, doc_has_copyright, replace_copyright_marker,
+    is_builtin_background, doc_has_copyright, replace_copyright_marker,
     gen_copyright_typst} from 'paper-bible-typst'
 import {compile_pdf_from_blueprint} from 'paper-bible-typst-node'
 import {generate as generate_cover, build_schema} from 'bookcover-node'
@@ -84,9 +84,11 @@ async function render_cover(blueprint:Blueprint, custom_fonts:CustomFont[], page
             const [bg_bytes] = await admin_bucket.file(cover.bg_image.path).download()
             await writeFile(path.join(tmp_dir, `background${ext}`), bg_bytes)
         } else if (cover.bg_image?.kind === 'builtin'){
-            // id is already validated against KNOWN_BUILTIN_BACKGROUNDS in handle_compile()
-            // before this ever runs — required, since it's client-controlled and used to build
-            // a filesystem path against the assets mount
+            // id is already shape-checked by is_builtin_background() in handle_compile() before
+            // this ever runs — required, since it's client-controlled and used to build a
+            // filesystem path against the assets mount (a plain filename can't escape it).
+            // A background bookcover has since retired fails the read here, which fails only
+            // the cover render — the interior is already compiled and published by then
             const id = cover.bg_image.id
             const bg_bytes = await readFile(path.join(config.assets_dir, 'backgrounds', id))
             // Written under its real filename (not a generic one) — load-bearing: this is
@@ -203,7 +205,7 @@ export async function handle_compile(uid:string, version_id:string, client_ip:st
             }
         } else if (rec['kind'] === 'builtin'){
             const id = rec['id']
-            if (typeof id !== 'string' || !KNOWN_BUILTIN_BACKGROUNDS.has(id)){
+            if (typeof id !== 'string' || !is_builtin_background(id)){
                 return {status: 400, body: {error: 'bad_cover_image'}}
             }
         } else {

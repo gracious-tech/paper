@@ -25,8 +25,12 @@ RUN for module in typst typst-node; \
     do (cd "$module" && npx tsc); done
 
 # The Typst CLI binary (see .bin/setup_typst) — a harmless ~50MB in the light service's image,
-# not worth a second image to avoid
+# not worth a second image to avoid. The build context's copy is version-pinned by that script;
+# this asserts it, so an image built from a stale .bin/typst fails here rather than silently
+# shipping an engine that renders differently from the browser's
 COPY .bin/typst /usr/local/bin/typst
+RUN test "$(typst --version | awk '{print $2}')" = "0.14.2" \
+    || (echo "typst must be 0.14.2 — re-run .bin/setup_typst" >&2 && exit 1)
 
 # The server itself (run directly by node — type stripping, no build step)
 COPY server/src/ server/src/

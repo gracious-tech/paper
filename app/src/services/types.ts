@@ -51,6 +51,9 @@ export interface Version {
     // still publishes when only the wraparound cover failed. null = no cover configured, or a
     // version created before cover failures were survivable (its cover, if any, succeeded)
     cover_status:'available'|'failed'|null
+    // bookcover's RENDER_VERSION at freeze time (null = no cover). A regeneration under a
+    // different value is a cover that may not match the PDF the user originally got
+    cover_render_version:number|null
     pages:number|null
     pdf_path:string
     pdf_expires:Date|null  // null until first generated

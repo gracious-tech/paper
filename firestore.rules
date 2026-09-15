@@ -79,7 +79,8 @@ service cloud.firestore {
             allow update: if signed_in() && request.auth.uid == resource.data.owner
                 && !request.resource.data.diff(resource.data).affectedKeys()
                     .hasAny(['blueprint', 'owner', 'created', 'design_id', 'copied_from',
-                        'custom_fonts', 'save_token', 'wizard', 'pdf_path', 'title']);
+                        'custom_fonts', 'save_token', 'wizard', 'pdf_path', 'title',
+                        'cover_render_version']);
 
             allow delete: if signed_in() && request.auth.uid == resource.data.owner;
         }

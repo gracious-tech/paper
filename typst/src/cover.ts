@@ -22,12 +22,14 @@ export const STOCK_BG_PHOTOS = [
 ]
 
 
-// Every builtin background filename this app is allowed to reference (STOCK_BG_PHOTOS plus
-// every value used by the app's own book-themed BOOK_BG_PHOTO map, duplicated here since a
-// shared core package can't depend on app-only code). Used both to validate a client-supplied
-// cover's bg_image.id (blueprint_schema.ts, server compile.ts) and, indirectly, as the set a
-// fast builtin-color lookup can ever match — keep in sync with BOOK_BG_PHOTO's values (a
-// DEV-only console check in app/src/services/cover.ts catches drift)
+// The builtin backgrounds this app seeds covers from (STOCK_BG_PHOTOS plus every value used by
+// the app's own book-themed BOOK_BG_PHOTO map, duplicated here since a shared core package
+// can't depend on app-only code) — keep in sync with BOOK_BG_PHOTO's values (a DEV-only console
+// check in app/src/services/cover.ts catches drift).
+// Curation only: it is NOT the validator for a client-supplied bg_image.id. bookcover publishes
+// far more backgrounds than these, and the user can pick any of them inside the cover widget —
+// validating against this set would reject those and force them to be stored as private uploads
+// instead of references. Identity is bounded by is_builtin_background() below
 export const KNOWN_BUILTIN_BACKGROUNDS = new Set<string>([
     ...STOCK_BG_PHOTOS,
     'earth_whole.jpg', 'israel.jpg', 'stars.jpg', 'wilderness.jpg', 'lost_sheep.jpg',
@@ -37,6 +39,27 @@ export const KNOWN_BUILTIN_BACKGROUNDS = new Set<string>([
     'awe.jpg', 'hills.jpg', 'grass.jpg', 'sheep.jpg', 'burning.jpg', 'green.jpg', 'cross.jpg',
     'earth.jpg',
 ])
+
+
+// Image extensions a builtin background filename may have (bookcover publishes .jpg only today,
+// the rest are accepted so a future format doesn't need a coordinated release here)
+const BG_EXTENSIONS = ['.jpg', '.jpeg', '.png', '.webp']
+
+
+// Whether a client-supplied bg_image.id is a usable builtin background reference. bookcover's
+// contract is that the published filename IS the id: both the app (a URL against the assets
+// bucket) and the server (a path against the assets mount) join it onto their own base, so this
+// only has to bound it to a single plain filename — no separators, no traversal, real image
+// extension. Existence is left to the fetch/read that follows, which fails the cover render
+// (never the book compile) if bookcover has retired that background.
+// Deliberately a shape check rather than an allowlist: the widget offers the user every
+// background bookcover publishes, and an allowlist here would have to be kept in sync with that
+// catalogue across two repos — the exact duplicated-table problem the 0.11 contract removed
+export function is_builtin_background(id:string):boolean{
+    return id.length > 0 && id.length <= 128
+        && !id.includes('/') && !id.includes('\\') && !id.includes('..')
+        && BG_EXTENSIONS.some(ext => id.toLowerCase().endsWith(ext))
+}
 
 
 // Overlay the blueprint's live printing fields (plus the caller-derived page count) onto a
@@ -59,7 +82,12 @@ export function cover_form_for_render(cover:CoverConfig, blueprint:Blueprint,
     // is half of it — the cover must wrap a reading page, not the sheet. No named size can
     // express the halved dimensions, so pass them as custom size fields instead
     const trim = resolve_reading_trim(blueprint)
-    const size_id = blueprint.booklet ? '' : blueprint.size_id
+    // Two independent reasons a cover has no named size: a booklet (halved dimensions no named
+    // size can express, see above) and a blueprint whose own size_id is blank because the user
+    // entered custom dimensions. bookcover 0.11 carries that in size_mode rather than the old
+    // blank-size_id sentinel; size_id is still sent but is only meaningful when 'preset'
+    const size_mode = (blueprint.booklet || !blueprint.size_id) ? 'custom' : 'preset'
+    const size_id = size_mode === 'preset' ? blueprint.size_id : ''
     const unit = blueprint.booklet
         ? (trim.unit === 'mm' ? 'mm' : 'inch') : blueprint.custom_unit
     const trim_width = blueprint.booklet ? trim.width : blueprint.custom_trim_width
@@ -68,6 +96,7 @@ export function cover_form_for_render(cover:CoverConfig, blueprint:Blueprint,
     return {
         ...cover.form,
         service_id: manual ? 'custom' : blueprint.service_id,
+        size_mode,
         size_id,
         page_count,
         binding_type: blueprint.binding_type,

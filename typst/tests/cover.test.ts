@@ -1,8 +1,8 @@
 
 import {describe, it, expect} from 'vitest'
 
-import {cover_render_key, cover_config_schema, KNOWN_BUILTIN_BACKGROUNDS, STOCK_BG_PHOTOS}
-    from '../src/index.js'
+import {cover_render_key, cover_config_schema, cover_form_for_render,
+    KNOWN_BUILTIN_BACKGROUNDS, STOCK_BG_PHOTOS} from '../src/index.js'
 
 import type {Blueprint, CoverConfig} from '../src/types.js'
 
@@ -49,6 +49,34 @@ describe('cover_render_key', () => {
 })
 
 
+describe('cover_form_for_render size_mode', () => {
+
+    // Two independent reasons a cover has no named size, and missing either one sends bookcover
+    // a preset size the blueprint isn't actually using
+
+    it('is custom when the blueprint has no named size', () => {
+        const form = cover_form_for_render(make_cover(null), minimal_blueprint, 100)
+        expect(form['size_mode']).toBe('custom')
+    })
+
+    it('is custom for a booklet even when a named size is set', () => {
+        // A booklet's chosen size is the sheet that gets folded, so the cover must wrap a
+        // reading page (half of it) — dimensions no named size can express
+        const booklet = {...minimal_blueprint, size_id: 'a5', booklet: true} as Blueprint
+        const form = cover_form_for_render(make_cover(null), booklet, 100)
+        expect(form['size_mode']).toBe('custom')
+    })
+
+    it('is preset for a non-booklet with a named size', () => {
+        const preset = {...minimal_blueprint, size_id: 'a5', booklet: false} as Blueprint
+        const form = cover_form_for_render(make_cover(null), preset, 100)
+        expect(form['size_mode']).toBe('preset')
+        expect(form['size_id']).toBe('a5')
+    })
+
+})
+
+
 describe('cover_config_schema', () => {
 
     it('accepts a valid builtin bg_image', () => {
@@ -68,23 +96,39 @@ describe('cover_config_schema', () => {
         expect(result.success).toBe(true)
     })
 
-    it('rejects a builtin id outside the known allowlist', () => {
-        const result = cover_config_schema.safeParse(
-            make_cover({kind: 'builtin', id: 'not_a_real_file.jpg'}))
-        expect(result.success).toBe(false)
+    it('accepts a builtin bookcover publishes but this app never seeds from', () => {
+        // KNOWN_BUILTIN_BACKGROUNDS is the curated set the wizard seeds from, not a validator:
+        // the user can pick any background bookcover publishes inside the cover widget, and
+        // rejecting those would force them to be stored as private uploads instead
+        const id = 'some_other_published_background.jpg'
+        expect(KNOWN_BUILTIN_BACKGROUNDS.has(id)).toBe(false)
+        const result = cover_config_schema.safeParse(make_cover({kind: 'builtin', id}))
+        expect(result.success).toBe(true)
+        expect(result.data?.bg_image).toEqual({kind: 'builtin', id})
     })
 
-    it('rejects a path-traversal attempt disguised as a builtin id', () => {
+    it('drops a path-traversal attempt disguised as a builtin id', () => {
         const result = cover_config_schema.safeParse(
             make_cover({kind: 'builtin', id: '../../etc/passwd'}))
-        expect(result.success).toBe(false)
+        // The cover survives without its background rather than being discarded whole — the
+        // traversal string itself never reaches the config
+        expect(result.success).toBe(true)
+        expect(result.data?.bg_image).toBe(null)
     })
 
-    it('rejects the old flat bg_image_path/bg_image_hash shape', () => {
+    it('drops a builtin id that is not an image filename', () => {
+        const result = cover_config_schema.safeParse(
+            make_cover({kind: 'builtin', id: 'not_an_image.txt'}))
+        expect(result.success).toBe(true)
+        expect(result.data?.bg_image).toBe(null)
+    })
+
+    it('drops the old flat bg_image_path/bg_image_hash shape', () => {
         const old_shape = {form: {}, bg_image_path: 'some/path.jpg', bg_image_hash: 'h',
             font_families: []}
         const result = cover_config_schema.safeParse(old_shape)
-        expect(result.success).toBe(false)
+        expect(result.success).toBe(true)
+        expect(result.data?.bg_image).toBe(null)
     })
 
     it('every KNOWN_BUILTIN_BACKGROUNDS entry parses as a valid builtin', () => {

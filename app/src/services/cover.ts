@@ -7,8 +7,8 @@
 import {cloneDeep} from 'lodash-es'
 import {toRaw} from 'vue'
 import {ref as storage_ref, uploadBytes, getBytes} from 'firebase/storage'
-import {make_blank_form_values, asset_path, BACKGROUNDS_DIR, resolve_dimensions}
-    from 'bookcover-core'
+import {make_blank_form_values, asset_path, BACKGROUNDS_DIR, resolve_dimensions,
+    font_families_in_form} from 'bookcover-core'
 import {cover_form_for_render, cover_render_key, STOCK_BG_PHOTOS, KNOWN_BUILTIN_BACKGROUNDS,
     doc_has_copyright, gen_copyright_typst, COPYRIGHT_MARKER, resolve_reading_trim, convert_unit,
     COVER_TITLE_KEY} from 'paper-bible-typst'
@@ -23,7 +23,7 @@ import {custom_fonts} from '@/services/custom_fonts'
 import {book_icon} from '@/services/icons'
 import {get_passages, default_title} from '@/services/blueprints'
 
-import type {DimensionInputs} from 'bookcover-core'
+import type {DimensionInputs, EmbedFormState} from 'bookcover-core'
 import type {ImageRegions} from 'bookcover-web'
 import type {CustomFont} from 'typst-fonts'
 import type {PmDoc} from 'paper-bible-typst'
@@ -146,9 +146,10 @@ const BOOK_COLOR_GROUPS:{books:string[], color:string}[] = [
 const BOOK_BG_COLOR:Record<string, string> = Object.fromEntries(
     BOOK_COLOR_GROUPS.flatMap(group => group.books.map(book => [book, group.color])))
 
-// Dev-only guard: every BOOK_BG_PHOTO value must be a filename the shared package's
-// KNOWN_BUILTIN_BACKGROUNDS allowlist also recognises, or that book's cover would silently
-// fail schema validation and reset to no-cover on the next Firestore round-trip
+// Dev-only guard: every BOOK_BG_PHOTO value must also appear in the shared package's curated
+// KNOWN_BUILTIN_BACKGROUNDS set. A typo here wouldn't fail validation (any well-formed filename
+// is a valid reference — see is_builtin_background) — it would 404 against the assets bucket at
+// render time and lose that book's cover background, which is much harder to notice
 if (import.meta.env.DEV){
     for (const filename of Object.values(BOOK_BG_PHOTO)){
         if (!KNOWN_BUILTIN_BACKGROUNDS.has(filename)){
@@ -227,17 +228,15 @@ function get_cover_generator():CoverWorkerClient {
 }
 
 
-// The custom font families a cover form references — every *_font field holds a family name
-// ('' = widget default font), only those in the user's uploaded library count
+// The custom font families a cover form references. bookcover reports every family the form
+// names (its own fields, its own naming convention); intersecting with the user's uploaded
+// library is this app's part — a family bookcover bundles needs no snapshot, only an uploaded
+// one does
 export function cover_font_families(form:Record<string, unknown>):string[] {
     const library = new Set(toRaw(custom_fonts).map(font => font.family))
-    const used = new Set<string>()
-    for (const [key, value] of Object.entries(form)){
-        if (key.endsWith('_font') && typeof value === 'string' && library.has(value)){
-            used.add(value)
-        }
-    }
-    return [...used].sort()
+    return font_families_in_form(form as unknown as EmbedFormState)
+        .filter(family => library.has(family))
+        .sort()
 }
 
 

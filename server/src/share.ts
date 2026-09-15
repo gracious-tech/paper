@@ -196,6 +196,9 @@ export async function handle_copy_version(uid:string, version_id:string)
         blueprint,
         status: data['status'],
         cover_status,
+        // Carried over verbatim like cover_status: the copy's cover.pdf is the source's bytes,
+        // so what rendered it is the source's bookcover version, not today's
+        cover_render_version: (data['cover_render_version'] ?? null),
         pages: data['pages'],
         pdf_path: new_pdf_path,
         pdf_expires: pdf_copied

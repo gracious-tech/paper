@@ -37,10 +37,11 @@ export {SCHEMA_VERSION, PDF_LIFETIME_MS, COMPILE_STATS_LIFETIME_MS} from './cons
 // Blueprint shape validation (schema factory — callers supply the defaults to fall back to)
 export {make_blueprint_schema, clean_content_items, cover_config_schema} from './blueprint_schema.js'
 
-// Cover render helpers (blueprint size overlay + render cache key) and the shared allowlist
-// of known builtin background photos
-export {cover_form_for_render, cover_render_key, STOCK_BG_PHOTOS, KNOWN_BUILTIN_BACKGROUNDS}
-    from './cover.js'
+// Cover render helpers (blueprint size overlay + render cache key), the curated set of builtin
+// background photos the app seeds covers from, and the shape check that bounds any builtin
+// background reference (curation and validation are separate concerns — see cover.ts)
+export {cover_form_for_render, cover_render_key, STOCK_BG_PHOTOS, KNOWN_BUILTIN_BACKGROUNDS,
+    is_builtin_background} from './cover.js'
 
 // Trim-size resolution (service + named size, or custom dimensions) and a mm/in converter —
 // used for the interior margin clamp and, in the app, the cover's create-time back-margin seed

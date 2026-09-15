@@ -7,6 +7,7 @@ import type {DocumentData, Unsubscribe} from 'firebase/firestore'
 import {ref as storage_ref, uploadBytes, getDownloadURL} from 'firebase/storage'
 import {PDFDocument} from 'pdf-lib'
 import {SCHEMA_VERSION, PDF_LIFETIME_MS, COMPILE_STATS_LIFETIME_MS} from 'paper-bible-typst'
+import {RENDER_VERSION} from 'bookcover-core'
 
 import {firestore, firebase_storage} from '@/services/firebase'
 import {api, ApiError} from '@/services/api'
@@ -97,6 +98,7 @@ function version_from_doc(id:string, data:DocumentData):Version{
         blueprint: data['blueprint'] as Blueprint,
         status: data['status'] as Version['status'],
         cover_status: (data['cover_status'] ?? null) as Version['cover_status'],
+        cover_render_version: (data['cover_render_version'] ?? null) as number|null,
         pages: (data['pages'] ?? null) as number|null,
         pdf_path: data['pdf_path'] as string,
         pdf_expires: ((data['pdf_expires'] ?? null) as Timestamp|null)?.toDate() ?? null,
@@ -179,6 +181,13 @@ export async function create_pending_version(design_id:string, blueprint:Bluepri
         compile_started: serverTimestamp(),
         title,
         blueprint: {...cloneDeep(blueprint), cover: cover.frozen, content: images.frozen},
+        // What rendered this version's cover, frozen alongside the blueprint that describes it.
+        // A version's PDFs expire after a year and are regenerated from the frozen blueprint,
+        // possibly under a newer bookcover — recording this makes that drift detectable instead
+        // of silent. null when the version has no cover. Deliberately only bookcover's own
+        // version: the typst engine is pinned by exact dependency (see app/package.json and the
+        // Dockerfile), and a hand-maintained copy of its version here would drift from the pin
+        cover_render_version: cover.frozen ? RENDER_VERSION : null,
         status: 'pending',
         pages: null,
         pdf_path: `versions/${id}/doc.pdf`,

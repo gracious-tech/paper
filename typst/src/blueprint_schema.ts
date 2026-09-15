@@ -2,7 +2,7 @@
 import {z} from 'zod'
 
 import type {PmDoc} from 'pm-to-typst'
-import {KNOWN_BUILTIN_BACKGROUNDS} from './cover.js'
+import {is_builtin_background} from './cover.js'
 
 import type {Blueprint, ContentItem, ContentPassageImage, CoverConfig,
     PictureStorySlide} from './types.js'
@@ -106,16 +106,18 @@ const content_picture_story_schema = z.object({
 
 // Cover config — the widget form is only validated shallowly; the cover renderer re-parses
 // the derived schema with bookcover's own zod schema, so a bad co-editor value can only
-// break its own cover render (never the book compile). bg_image.id is checked against the
-// known-builtin allowlist here too (defense in depth alongside the server's own check in
-// compile.ts, which is the actual security boundary — this schema only runs app-side)
+// break its own cover render (never the book compile). bg_image.id is shape-checked here too
+// (defense in depth alongside the server's own check in compile.ts, which is the actual
+// security boundary — this schema only runs app-side)
 const cover_bg_image_schema = z.discriminatedUnion('kind', [
-    z.object({kind: z.literal('builtin'), id: z.string().refine(id => KNOWN_BUILTIN_BACKGROUNDS.has(id))}),
+    z.object({kind: z.literal('builtin'), id: z.string().refine(is_builtin_background)}),
     z.object({kind: z.literal('custom'), path: z.string(), hash: z.string()}),
 ])
 export const cover_config_schema = z.object({
     form: z.record(z.string(), z.unknown()),
-    bg_image: cover_bg_image_schema.nullable(),
+    // A bad image reference costs the cover its background, not the whole cover — dropping the
+    // cover entirely would silently discard the user's title, blurb and styling along with it
+    bg_image: cover_bg_image_schema.nullable().catch(null),
     font_families: z.array(z.string()),
     // Per-field .catch() so covers saved before the follow-the-name behaviour existed load as
     // "not hand-edited" rather than dropping the whole cover
