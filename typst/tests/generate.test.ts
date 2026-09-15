@@ -370,6 +370,17 @@ describe('generate_typst_facing', () => {
         expect(result).toContain('box(width: 148mm - 10mm - 20mm,')
     })
 
+    it('confines study-note entries with footnotes off, before shadowing #footnote', () => {
+        const result = generate_typst_facing(
+            facing_request(), {...facing_passage(), show_footnotes: false})
+        const rule = result.indexOf('#show footnote.entry: it => box(')
+        const shadow = result.indexOf('#let footnote(..args) = none')
+        expect(rule).toBeGreaterThan(-1)
+        // The shadow makes #footnote a user-defined function, and `footnote.entry` after it is
+        // a field access on that function — a compile error, so the rule has to come first
+        expect(rule).toBeLessThan(shadow)
+    })
+
     it('never uses page-level text columns', () => {
         const result = generate_typst_facing(
             facing_request(), {...facing_passage(), columns: 2})

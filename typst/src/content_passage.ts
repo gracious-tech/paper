@@ -471,15 +471,18 @@ function gen_heading_rules(passage:TypstPassage, font_size:string, line_height:n
 // element replaces an earlier one rather than composing with it.
 function gen_footnote_rules(passage:TypstPassage, entry_width:string|null):string {
     if (!passage.show_footnotes) {
-        // Shadow the footnote function so notes are never registered. A `#show footnote: none`
-        // rule only hides the in-text call — the entry and separator still render at page bottom
-        // (and entry show rules can't reach the page footnote area from this scoped block).
-        const lines = ['#let footnote(..args) = none']
+        const lines:string[] = []
         // Study notes call the preamble-captured footnote (see gen_preamble), so their entries
-        // still render — keep them within the left half on facing pages
+        // still render — keep them within the left half on facing pages. This must precede the
+        // shadow below: once #footnote names a user-defined function, `footnote.entry` is a
+        // field access on that function, not the element, and fails to compile
         if (entry_width !== null) {
             lines.push(`#show footnote.entry: it => box(width: ${entry_width}, it)`)
         }
+        // Shadow the footnote function so notes are never registered. A `#show footnote: none`
+        // rule only hides the in-text call — the entry and separator still render at page bottom
+        // (and entry show rules can't reach the page footnote area from this scoped block).
+        lines.push('#let footnote(..args) = none')
         return lines.join('\n')
     }
 
