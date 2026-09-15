@@ -1,9 +1,16 @@
 
 <template lang='pug'>
 
-//- Printing service ("Home" + real services + a "Custom…" entry for manual bleed/spine)
-v-select(v-model='blue.service_id' :items='service_items' :label='$t("options.paper.printing_service")'
-    variant='underlined' density='compact' hide-details style='max-width: 320px' class='mt-7')
+//- Printing service ("Print at home" + real services + a "Custom…" entry for manual
+//- bleed/spine), each with a line on who it suits, grouped by where the service prints
+v-select(v-model='blue.service_id' :items='service_items'
+        :label='$t("options.paper.printing_service")'
+        variant='underlined' density='compact' hide-details style='max-width: 320px'
+        class='mt-7' no-auto-scroll
+        :menu-props='{minWidth: 360, maxWidth: 420}')
+    template(#item='{internalItem: item, props: item_props}')
+        v-list-item(v-bind='item_props' class='service_item')
+            template(#subtitle) {{ item.raw.subtitle }}
 
 //- Home mode: a simple A4 / US Letter choice, plus the fold-at-home booklet option
 template(v-if='is_home')
@@ -81,14 +88,15 @@ template(v-else)
 
 import {computed, watch} from 'vue'
 import {useI18n} from '@/services/i18n'
-import {list_services, get_service, get_common_sizes} from 'printing-services'
+import {get_service, get_common_sizes} from 'printing-services'
 import type {ServicePublic, SizeId, BindingTypeId, InkTypeId} from 'printing-services'
 
 import {blue, state, estimated_pages} from '@/services/state'
 import {format_dims, binding_page_issue} from '@/services/blueprints'
+import {service_select_items} from '@/services/printing_services'
 
 
-const {t} = useI18n()
+const {t, locale} = useI18n()
 
 
 // A4 / US Letter choice for home printing
@@ -112,12 +120,8 @@ const unit_model = computed({
 })
 
 
-// Service dropdown items: "Home" + real services + a "Custom…" entry
-const service_items = computed(() => [
-    {title: t("common.home"), value: 'home'},
-    ...list_services().map(s => ({title: s.name, value: s.id})),
-    {title: t("common.custom_menu"), value: 'custom'},
-])
+// Service dropdown items: the service-less modes, then services grouped by where they print
+const service_items = computed(() => service_select_items(t, locale.value))
 
 
 // Whether we're in home mode (simple A4 / US Letter choice for home printing)
@@ -328,6 +332,12 @@ watch(() => blue.ink_type, () => {
 
 
 <style lang='sass' scoped>
+
+// Service descriptions are full sentences, so let them wrap — inside a select's list Vuetify
+// clamps a subtitle to a single line and ellipsises the rest away
+.service_item :deep(.v-list-item-subtitle)
+    white-space: normal
+    -webkit-line-clamp: unset
 
 // The measurement row wraps at two fields per line, while still leaving room for the unit
 // toggle to trail the last field on its line (width/height/unit, or width/height then
