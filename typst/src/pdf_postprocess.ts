@@ -102,17 +102,19 @@ export async function generate_pdf_spread_preview(
     const {final_doc: reading_doc, blank_doc, blank_flags} = await assemble_pages(
         reading_request, compile_fn, on_progress, !!pinned)
 
-    // Trailing blank pages carry no information on screen — arrange_spreads pads its slots to
-    // even itself, so they can all go
-    trim_trailing_blanks(reading_doc, blank_flags)
-
-    // A pinned item's own padding is the exception: those blanks are what puts it on the back
-    // of the book, so the preview keeps them (and pads to the *printed* arrangement's sheet
-    // size, not the substituted reading one) — otherwise the page the user pinned to the back
-    // would show on screen as just another next page
-    if (pinned) {
+    // End the preview exactly where the printed document ends, padding to the *printed*
+    // arrangement's sheet (a folded booklet's 4, not the book it's read as here) — a trailing
+    // blank is a page the reader will really turn to, so hiding it made the preview disagree
+    // with the file that gets created. A clipped window is the exception: its last page isn't
+    // the document's last, so it's given no ending at all rather than an invented one
+    if (request.preview_clipped) {
+        trim_trailing_blanks(reading_doc, blank_flags)
+    } else if (pinned) {
         await place_last_item(reading_doc, reading_request, blank_doc, blank_flags, compile_fn,
             pinned, pad_multiple(request.arrangement, false))
+    } else {
+        await pad_pages(reading_doc, blank_doc, blank_flags,
+            pad_multiple(request.arrangement, false))
     }
 
     on_progress?.({stage: 'arrange', label: 'spreads'})
@@ -144,8 +146,9 @@ function draw_slot_label(
 //
 // With a front cover (request.preview_cover_label is set for exactly that case), a leading gray
 // slot — the inside face of the cover — is prepended so page 1 lands on the right of the first
-// spread. Without a cover, page 1 is emitted on its own single-width page (a book opens on a
-// recto, so it has no facing page) and the full-width spreads start at page 2.
+// spread, and a trailing one closes it off as the inside face of the back cover. Without a
+// cover there are no such faces, so the first page (and the last, when nothing faces it) is
+// emitted on its own single-width page instead, and the full-width spreads run between them.
 async function arrange_spreads(
     reading_doc:PDFDocument, request:TypstRequest,
 ):Promise<Uint8Array> {
@@ -167,21 +170,35 @@ async function arrange_spreads(
 
     // Slot order for the spreads. With a cover: a leading gray slot (inside of front cover) so
     // page 1 lands on the right, then every page in reading order. Without one: skip page 1
-    // (emitted standalone below) and start the spreads at page 2. Pad to even so the final
-    // spread has both sides.
+    // (emitted standalone below) and start the spreads at page 2.
     const slots:(number|null)[] = has_cover ? [null] : []
     for (let p = has_cover ? 0 : 1; p < total; p++) {
         slots.push(p)
     }
+
+    // An odd slot count leaves the final page with nothing facing it. With a cover that empty
+    // half is a real surface — the inside of the back cover — so it takes a gray slot like the
+    // front one; without a cover there's nothing there at all, so the page stands alone just as
+    // page 1 does rather than being shown against a face the book doesn't have
+    let trailing_alone:number|null = null
     if (slots.length % 2 === 1) {
-        slots.push(null)
+        if (has_cover) {
+            slots.push(null)
+        } else {
+            trailing_alone = slots.pop() as number
+        }
     }
 
-    // No cover: page 1 stands alone on a single-width page ahead of the spreads
+    // Draw one reading page on a single-width page of its own, for the pages with no facing one
+    const add_standalone = async (index:number) => {
+        const page = spread_doc.addPage([page_w, page_h])
+        const [embed] = await spread_doc.embedPages([reading_doc.getPage(index)])
+        page.drawPage(embed!, {x: 0, y: 0, width: page_w, height: page_h})
+    }
+
+    // No cover: page 1 opens the preview on its own, ahead of the spreads
     if (!has_cover) {
-        const first_page = spread_doc.addPage([page_w, page_h])
-        const [first_embed] = await spread_doc.embedPages([reading_doc.getPage(0)])
-        first_page.drawPage(first_embed!, {x: 0, y: 0, width: page_w, height: page_h})
+        await add_standalone(0)
     }
 
     // Each pair of slots becomes one spread; a null slot isn't a real page (the inside of the
@@ -219,6 +236,11 @@ async function arrange_spreads(
             thickness: 1,
             color: NOT_A_PAGE_FILL,
         })
+    }
+
+    // No cover: the final page closes the preview on its own, mirroring page 1
+    if (trailing_alone !== null) {
+        await add_standalone(trailing_alone)
     }
 
     const pdf_bytes = await spread_doc.save()
@@ -460,6 +482,29 @@ function pad_multiple(arrangement:TypstRequest['arrangement'], preview:boolean):
 }
 
 
+// Append padding blanks until the document reaches `target` pages, each picking the binding
+// variant matching its own absolute position
+async function add_blank_pages(
+    final_doc:PDFDocument, blank_doc:BlankVariants, blank_flags:boolean[], target:number,
+):Promise<void> {
+    for (let page_number = final_doc.getPageCount() + 1; page_number <= target; page_number++) {
+        const [blank] = await final_doc.copyPages(blank_doc[binding_for_page(page_number)], [0])
+        final_doc.addPage(blank as PDFPage)
+        blank_flags.push(true)
+    }
+}
+
+
+// Pad a document out to a whole number of physical units (see pad_multiple)
+async function pad_pages(
+    final_doc:PDFDocument, blank_doc:BlankVariants, blank_flags:boolean[], multiple:number,
+):Promise<void> {
+    const count = final_doc.getPageCount()
+    await add_blank_pages(
+        final_doc, blank_doc, blank_flags, Math.ceil(count / multiple) * multiple)
+}
+
+
 // Place the pinned final item so the document ends on it, with the padding blanks that would
 // otherwise have followed it inserted before it instead.
 //
@@ -489,13 +534,8 @@ async function place_last_item(
         }
     }
 
-    // The blanks it was pushed back by, each picking the variant matching its own position
-    for (let page_number = assembled + 1; page_number < start; page_number++) {
-        const [blank] = await final_doc.copyPages(blank_doc[binding_for_page(page_number)], [0])
-        final_doc.addPage(blank as PDFPage)
-        blank_flags.push(true)
-    }
-
+    // The blanks it was pushed back by, then the item itself
+    await add_blank_pages(final_doc, blank_doc, blank_flags, start - 1)
     for (let p = 0; p < item_doc.getPageCount(); p++) {
         const [page] = await final_doc.copyPages(item_doc, [p])
         final_doc.addPage(page as PDFPage)

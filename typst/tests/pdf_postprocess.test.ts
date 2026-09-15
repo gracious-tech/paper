@@ -164,17 +164,16 @@ describe('last_item_at_end', () => {
         expect(heights).toEqual([PINNED_HEIGHT, 200, 200, 200])
     })
 
-    it('keeps a pinned item padding in the spread preview', async () => {
-        // The spread preview reads a booklet as a book and normally drops trailing blanks, but
-        // a pinned item's own padding is what puts it on the back, so it survives and pads to
-        // the printed sheet's multiple of 4. 1 passage page + the text page reads as
-        // [passage, blank, blank, text] = standalone page 1 plus 2 spreads; unpinned it's just
-        // [passage, text] = standalone page 1 plus 1 spread
+    it('pads a pinned document to the printed length in the spread preview', async () => {
+        // 1 passage page + the text page prints as a 4-page booklet either way — pinning only
+        // decides whether the 2 blanks fall before the text page or after it, which the spread
+        // preview can't be asked about directly (the page order above covers that), so this
+        // just holds place_last_item to the same total the unpinned path pads to
         const content = [make_passage(), pinned_text()]
         const pinned = make_request({arrangement: 'booklet', last_item_at_end: true, content})
         const plain = make_request({arrangement: 'booklet', content})
         expect(await page_count(await generate_pdf_spread_preview(pinned, fake_compile))).toBe(3)
-        expect(await page_count(await generate_pdf_spread_preview(plain, fake_compile))).toBe(2)
+        expect(await page_count(await generate_pdf_spread_preview(plain, fake_compile))).toBe(3)
     })
 
 })
@@ -182,39 +181,50 @@ describe('last_item_at_end', () => {
 
 describe('generate_pdf_spread_preview', () => {
 
-    it('drops trailing blank pages before arranging spreads', async () => {
-        // A lone title (1 page, no titlepage_always forcing) previews as a single standalone
-        // page — with no front cover, page 1 stands alone at half width
+    it('pads out to the page count the document will really print at', async () => {
+        // A lone title (1 page, no titlepage_always forcing) prints as a 4-page booklet, so the
+        // preview shows all 4: page 1 standalone (no front cover), then [2|3] and [4|gray pad]
         const request = make_request({arrangement: 'booklet', content: [make_title()]})
+        const bytes = await generate_pdf_spread_preview(request, fake_compile)
+        expect(await page_count(bytes)).toBe(3)
+    })
+
+    it('leaves a clipped window unpadded', async () => {
+        // Content past the window was dropped, so its last page isn't the document's last —
+        // padding it would invent an ending this preview has no business showing
+        const request = make_request({
+            arrangement: 'booklet', content: [make_title()], preview_clipped: true})
         const bytes = await generate_pdf_spread_preview(request, fake_compile)
         expect(await page_count(bytes)).toBe(1)
     })
 
-    it('gives page 1 its own half-width page when there is no front cover', async () => {
-        // No cover: page 1 is emitted standalone at single width, spreads start at page 2
+    it('stands the first and last pages alone when there is no front cover', async () => {
+        // Without a cover neither the front nor the back has an inside face to show a page
+        // against, so both outermost pages are emitted standalone at single width and the
+        // full-width spreads run between them: 1, then [2|3], then 4
         const doc = await PDFDocument.load(await generate_pdf_spread_preview(
             make_request({arrangement: 'booklet', content: [make_passage(), make_title()]}),
             fake_compile))
-        // Standalone page 1 (100 wide) then one full spread for page 2 + gray pad (200 wide)
-        expect(doc.getPageCount()).toBe(2)
+        expect(doc.getPageCount()).toBe(3)
         expect(doc.getPage(0).getWidth()).toBe(100)
         expect(doc.getPage(1).getWidth()).toBe(200)
+        expect(doc.getPage(2).getWidth()).toBe(100)
     })
 
     it('prepends the inside-of-cover slot only when the preview has a front cover', async () => {
         // preview_cover_label set (a front cover is shown) — the leading gray slot puts page 1
-        // on the right, so a lone 1-page title needs its own spread with a blank right half
+        // on the right of a full-width first spread, rather than standing alone at half width
+        // as it does without a cover (see the test above, same content)
+        const content = [make_passage(), make_title()]
         const with_cover = make_request({
-            arrangement: 'booklet', content: [make_title()],
-            preview_cover_label: 'Inside of cover',
-        })
-        expect(await page_count(await generate_pdf_spread_preview(with_cover, fake_compile)))
-            .toBe(1)
-        // 2-page content with a cover: [slot|p1] + [p2|blank] = 2 full-width spreads
-        const two_pages = {arrangement: 'booklet' as const, content: [make_passage(), make_title()]}
-        expect(await page_count(await generate_pdf_spread_preview(
-            make_request({...two_pages, preview_cover_label: 'Inside of cover'}), fake_compile)))
-            .toBe(2)
+            arrangement: 'booklet', content, preview_cover_label: 'Inside of cover'})
+        const doc = await PDFDocument.load(
+            await generate_pdf_spread_preview(with_cover, fake_compile))
+        expect(doc.getPage(0).getWidth()).toBe(200)
+        // [slot|1] [2|3] [4|slot] — every page is a spread, the trailing gray slot being the
+        // inside of the back cover (which is a real surface here, unlike the test above)
+        expect(doc.getPageCount()).toBe(3)
+        expect(doc.getPage(2).getWidth()).toBe(200)
     })
 
 })

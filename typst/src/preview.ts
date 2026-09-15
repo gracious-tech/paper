@@ -201,7 +201,8 @@ export function truncate_for_preview(
     // Pinning the final item only means anything while that item is still the window's last —
     // otherwise the preview would pin whichever item the cut happened to leave at the end
     const truncated_request:TypstRequest = {...request, content: kept,
-        last_item_at_end: request.last_item_at_end && !dropped_after}
+        last_item_at_end: request.last_item_at_end && !dropped_after,
+        preview_clipped: dropped_after}
 
     // Recomputed from the kept items (a tail-clipped passage weighs less), so page-count
     // estimates scale by what actually got compiled
