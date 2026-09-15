@@ -2,6 +2,7 @@
 import {describe, it, expect} from 'vitest'
 
 import {gen_passage, passage_columns, max_chapter_in_content} from '../src/content_passage.js'
+import {CHAPTER_HEADING_LEVEL, SECTION_HEADING_LEVELS} from '../src/helpers.js'
 import {make_passage, make_title, TEST_PAGE} from './fixtures.js'
 
 import type {ChapterStyle} from '../src/content_passage.js'
@@ -43,9 +44,23 @@ describe('gen_passage', () => {
             expect(result).toContain('#show heading.where(level: 3)')
         })
 
-        it('hides headings when show_headings is false', () => {
+        it('hides only the content\'s own heading levels when show_headings is false', () => {
             const result = call(make_passage({show_headings: false}))
-            expect(result).toContain('#show heading: none')
+            for (const level of SECTION_HEADING_LEVELS) {
+                expect(result).toContain(`#show heading.where(level: ${level}): none`)
+            }
+            // The 'heading' chapter style has its own level and keeps rendering — it's governed
+            // by the chapter settings, not this one
+            expect(result).not.toContain(
+                `#show heading.where(level: ${CHAPTER_HEADING_LEVEL}): none`)
+            expect(result).toContain(`#show heading.where(level: ${CHAPTER_HEADING_LEVEL}):`)
+        })
+
+        it('styles the chapter heading level whether or not headings are shown', () => {
+            for (const show_headings of [true, false]) {
+                const result = call(make_passage({show_headings}))
+                expect(result).toContain(`#show heading.where(level: ${CHAPTER_HEADING_LEVEL}):`)
+            }
         })
 
         it('level 2 headings are italic', () => {
@@ -79,6 +94,13 @@ describe('gen_passage', () => {
             expect(heading_first).toContain('#state("heading-tight", false).update(true)')
             const text_first = call(make_passage({show_headings: true}))
             expect(text_first).toContain('#state("heading-tight", false).update(false)')
+            // A hidden heading draws nothing, so it must not raise the flag either — a chapter
+            // heading further down the passage would otherwise consume it
+            const hidden = call(make_passage({
+                show_headings: false,
+                bibles: [{content: '== Section\n\n#vn(1)Text'}],
+            }))
+            expect(hidden).toContain('#state("heading-tight", false).update(false)')
         })
 
         it('tightens a chapter marker that is followed by a heading', () => {

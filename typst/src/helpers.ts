@@ -12,6 +12,17 @@ export const TITLE_ON_PAGE =
     'query(<pb-title>).any(m => m.location().page() == here().page())'
 
 
+// Heading level reserved for the 'heading' chapter style's "Chapter N" marker (see gen_preamble).
+// The fetched content's own headings only ever use levels 1-3 (title/section/minor), so a level
+// of its own is what lets chapter headings be styled and — crucially — kept visible independently
+// of the section headings the user may have switched off (see gen_heading_rules)
+export const CHAPTER_HEADING_LEVEL = 4
+
+// The levels the fetched content's own section headings use — the ones show_headings governs.
+// 5/6 are included so a source heading deeper than expected is still hidden with the rest
+export const SECTION_HEADING_LEVELS = [1, 2, 3, 5, 6]
+
+
 // Escape text for use in Typst markup content
 export function escape_typst(text:string):string {
     return text.replace(/[\\#\[\]$*_`<>@~]/g, '\\$&')

@@ -2,6 +2,7 @@
 import {describe, it, expect} from 'vitest'
 
 import {gen_preamble} from '../src/preamble.js'
+import {CHAPTER_HEADING_LEVEL} from '../src/helpers.js'
 import {make_passage, make_request, TEST_PAGE, TEST_TYPOGRAPHY, TEST_FEATURES}
     from './fixtures.js'
 
@@ -240,11 +241,15 @@ describe('gen_preamble', () => {
             }
         })
 
-        it('generates heading chapter style', () => {
+        it('generates heading chapter style at its own heading level', () => {
+            // Its own level is what keeps it visible when section headings are switched off
+            // (see gen_heading_rules in content_passage.ts)
             const result = gen_preamble(make_request({
                 features: {...TEST_FEATURES, show_chapters: true, show_chapters_style: 'heading'},
             }))
-            expect(result).toContain('heading(level: 1, "Chapter " + str(n))')
+            expect(result).toContain(
+                `heading(level: ${CHAPTER_HEADING_LEVEL}, "Chapter " + str(n))`)
+            expect(CHAPTER_HEADING_LEVEL).not.toBe(1)
         })
 
         it('hides chapters when show_chapters is false', () => {

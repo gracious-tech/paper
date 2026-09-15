@@ -1,7 +1,7 @@
 
 import {escape_typst_str} from 'typst-utils'
 
-import {TITLE_ON_PAGE, parse_unit, to_pt} from './helpers.js'
+import {CHAPTER_HEADING_LEVEL, TITLE_ON_PAGE, parse_unit, to_pt} from './helpers.js'
 
 import type {TypstRequest} from './types.js'
 
@@ -392,10 +392,12 @@ export function gen_preamble(request:TypstRequest, overrides:PreambleOverrides =
             + `\n${gen_ch_divider_binding('ch_columns', running.chapter)}`
     } else {
         // 'heading' — Chapter N as a heading (font comes from the document-wide heading
-        // show rule below, same as any other heading)
+        // show rule below, same as any other heading). It gets its own heading level so that
+        // turning section headings off doesn't take chapter headings with it — the passage's
+        // rules style this level and hide only the content's own levels (see gen_heading_rules)
         chapter = `#let ch(n) = {
     ${running.chapter}.update(n)
-    heading(level: 1, "Chapter " + str(n))
+    heading(level: ${CHAPTER_HEADING_LEVEL}, "Chapter " + str(n))
 }`
     }
 

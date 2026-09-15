@@ -1,8 +1,8 @@
 
 import {escape_typst_str} from 'typst-utils'
 
-import {LARGE_POETRY, LOTS_OF_POETRY, TITLE_MARKER, escape_typst, escape_svg_for_typst,
-    parse_unit} from './helpers.js'
+import {CHAPTER_HEADING_LEVEL, LARGE_POETRY, LOTS_OF_POETRY, SECTION_HEADING_LEVELS, TITLE_MARKER,
+    escape_typst, escape_svg_for_typst, parse_unit} from './helpers.js'
 import {build_aligned_rows} from './bilingual.js'
 
 import type {ImageStyle, PageConfig, TypstContentItem, TypstPassage, TypstPassageImage}
@@ -324,8 +324,11 @@ function gen_passage_inner(
     // where a gap would drop it a line below the other column's first line. The grid path has
     // its own per-cell flag, so it only ever clears this one — as does a passage that opens with
     // text, so a flag no heading consumed can't leak into a later passage. Tested before the
-    // rewrite below, which puts the flag's other producer (#ch_tight) in front of such a heading
-    lines.push(`#state("heading-tight", false).update(${content !== null
+    // rewrite below, which puts the flag's other producer (#ch_tight) in front of such a heading.
+    // Section headings being hidden also leaves the flag down: the heading that would have
+    // consumed it draws nothing, and a later chapter heading would otherwise take it and lose its
+    // own leading space
+    lines.push(`#state("heading-tight", false).update(${passage.show_headings && content !== null
         && HEADING_FIRST.test(content)})`)
 
     if (content === null) {
@@ -375,10 +378,6 @@ const HEADING_FIRST = /^\s*(#ch(?:_quiet)?\(\d+\)\s*)?={1,6}\s/
 // Generate heading show rules. line_height is the body line advance multiplier (Blueprint
 // line_height) — heading margins scale with it, see HEADING_MARGIN_LINES.
 function gen_heading_rules(passage:TypstPassage, font_size:string, line_height:number):string {
-    if (!passage.show_headings) {
-        return '#show heading: none'
-    }
-
     // User-configurable subheading styling — bold/italic apply to all levels, while size is a
     // multiplier relative to the body text (1 = same as text). Level 2 (== Section: s, s1-4, sr)
     // is the reference size, level 1 (= Title: ms, mr) renders slightly larger and level 3
@@ -452,16 +451,28 @@ function gen_heading_rules(passage:TypstPassage, font_size:string, line_height:n
     // enough space that a subheading reads as a clear break from the preceding text and as
     // attached to (not crammed against) the text it introduces
     const m = HEADING_MARGIN_LINES
-    return `#show heading: set text(size: ${font_size})
-#show heading.where(level: 1): ${lead(m[1].before, 1.2)}
-    v(${gap(m[1].after)})
-}
-#show heading.where(level: 2): ${lead(m[2].before, 1)}
-    v(${gap(m[2].after)})
-}
-#show heading.where(level: 3): ${lead(m[3].before, 0.9)}
-    v(${gap(m[3].after)})
+    const rule = (level:number, margins:{before:number, after:number}, mult:number) =>
+        `#show heading.where(level: ${level}): ${lead(margins.before, mult)}
+    v(${gap(margins.after)})
 }`
+
+    // Reset the base size for every heading, then style the 'heading' chapter style's own level
+    // (see gen_preamble) like a level-1 title. That rule is emitted whatever show_headings says:
+    // the setting governs the content's own section headings, while chapter headings are shown or
+    // hidden by the separate chapter-number settings
+    const rules = [`#show heading: set text(size: ${font_size})`]
+    rules.push(rule(CHAPTER_HEADING_LEVEL, m[1], 1.2))
+
+    // With section headings off, hide only the levels the fetched content itself uses
+    if (!passage.show_headings) {
+        for (const level of SECTION_HEADING_LEVELS) {
+            rules.push(`#show heading.where(level: ${level}): none`)
+        }
+        return rules.join('\n')
+    }
+
+    rules.push(rule(1, m[1], 1.2), rule(2, m[2], 1), rule(3, m[3], 0.9))
+    return rules.join('\n')
 }
 
 
@@ -570,9 +581,12 @@ function gen_multi_bible_grids(
             b = quiet_leading_chapter_marker(b)
         }
 
-        // Tested on the original markup — quiet_chapter_markers below rewrites the #ch calls
-        const a_heading = HEADING_FIRST.test(a)
-        const b_heading = HEADING_FIRST.test(b)
+        // Tested on the original markup — quiet_chapter_markers below rewrites the #ch calls.
+        // With section headings hidden nothing is drawn there, so the row takes neither the
+        // heading's top margin nor the cell-top flag (which a chapter heading further down the
+        // cell would otherwise consume, flattening it against the text above it)
+        const a_heading = passage.show_headings && HEADING_FIRST.test(a)
+        const b_heading = passage.show_headings && HEADING_FIRST.test(b)
 
         // The chapter marker sits in the pre-rendered markup of *both* translations, so left
         // alone it renders twice — once per column. For the 'divider' style, quiet both in-cell
