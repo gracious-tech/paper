@@ -108,6 +108,7 @@ paper_bible/
     i18n_status/_sync/_check/_extract  # Translation tooling (logic in app/i18n/); see i18n section
     test_e2e               # Playwright e2e tests (needs the dev stack running; see e2e/)
     audit_stress         # Compile stress ladder, browser (WASM) + server (see e2e/tiers.ts)
+    gen_lulu_prices        # Refresh Lulu's print prices (run by deploy_app)
     errors                 # Download + triage error reports (TUI; claude groups them)
   app/                     # The Vue SPA (workspace)
     src/
@@ -133,11 +134,16 @@ paper_bible/
         custom_fonts.ts    # Uploaded fonts: reactive set + online library + snapshots
         content.ts         # Bible data service (fetch-client via paper-bible-typst)
         blueprints.ts      # Default blueprint + clean_blueprint() validation
+        print_cost.ts      # Lulu cost estimates: Blueprint→POD package id, quote, country guess
+        lulu_prices.ts     # Price/page-limit lookups over lulu_prices.json (generated)
+        lulu_skus.ts       # Blueprint options <-> Lulu POD package ids (shared with tools/)
+        lulu_countries.ts  # Destinations Lulu delivers to + which currency to quote each in
         typst.ts           # TypstWorkerClient (WASM worker mgmt, worn-worker recycle)
         typst_worker.ts    # The worker: WASM compiler via paper-bible-typst-web
         watchers.ts        # Auto-fetch book content as the design changes
     i18n/                  # Translation tooling (node, own tsconfig; excluded from app tsconfig)
                             #   lib/status/sync/check/extract + context.json/glossary.json
+    tools/                 # Other node tooling (own tsconfig): gen_lulu_prices.ts
   server/                  # Cloud Run API server (workspace; run directly by node)
     Dockerfile             # Cloud Run image: node + workspaces + typst CLI (no fonts baked)
     deploy/                # Staged build context (gitignored; written by .bin/build_server)
@@ -283,6 +289,21 @@ ownership for writes via `firestore.get()`.
 - **Server caches are per-instance best-effort** (like the per-uid compile throttle):
   `server/src/content.ts` keeps the fetch.bible collection (1h TTL) and an LRU of fetched
   books warm across compiles, but a fresh instance starts cold — never rely on them
+- **Lulu cost estimates need no credentials, by design** (`print_cost.ts`): a quote is Lulu's
+  published print price (`lulu_prices.ts`) plus a live delivery quote from their
+  `/shipping-options/` endpoint, which is unauthenticated, CORS-open, and prices purely by
+  country — a street address changes nothing, so none is sent. Both halves were verified
+  byte-identical to Lulu's *authenticated* cost calculation, so this is the same arithmetic
+  without the secret. It deliberately can't see sales tax or Lulu's handling fee; the estimate
+  says it's pre-tax, and users buy on lulu.com retail where tax is presented separately anyway.
+  Beware two traps: Lulu prices each currency **independently** (the AUD/USD ratio ranges 1.21
+  to 2.11 across their catalogue), so never FX-convert one into another — pick the currency and
+  read that column. Prices are never hand-written: `.bin/gen_lulu_prices` fetches Lulu's
+  published spec sheet (a public .xlsx, unzipped and parsed with node built-ins — no library)
+  and regenerates `lulu_prices.json`, and `deploy_app` runs it, so each deploy ships current
+  prices and a Lulu re-price lands as a reviewable diff. They're only as fresh as the last
+  deploy. The generated limits are also stricter than the ones printing-services models
+  (landscape perfect-bound caps at 250 pages, not 800)
 
 
 ## i18n

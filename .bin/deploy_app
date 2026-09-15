@@ -8,5 +8,9 @@ cd "$(dirname "$0")/.."
 
 PROJECT="${1:-dev}"
 
+# Refresh Lulu's print prices from their published spec sheet, so each deploy ships current
+# ones (see app/tools/gen_lulu_prices.ts). Committed output, so this is usually a no-op diff
+.bin/gen_lulu_prices
+
 (cd app && npx vite build)
 npx firebase deploy --project "$PROJECT" --only hosting,firestore,storage

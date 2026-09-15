@@ -26,7 +26,13 @@ div.version
                 template(#prepend)
                     app-icon(name='download')
                 | {{ $t("display.version.download_cover") }}
-        //- Right: printing guidance, tailored to the version's printing service
+        //- Right: what having it printed would cost (Lulu only — it's the one service with a
+        //- pricing API), then printing guidance tailored to the version's printing service
+        v-btn.estimate_cost(v-if='quotable' variant='elevated' color=''
+                @click='show_estimate_cost')
+            template(#prepend)
+                app-icon(name='payments')
+            | {{ $t("display.version.estimate_cost") }}
         v-btn.how_to_print(v-if='selected_version' variant='elevated' color=''
                 @click='state.how_to_print = selected_version')
             template(#prepend)
@@ -91,6 +97,7 @@ import {selected_version, get_pdf_url, get_cover_pdf_url, download_version_pdf, 
     from '@/services/versions'
 import {designs, current_design_id} from '@/services/designs'
 import {state} from '@/services/state'
+import {lulu_pod_package_id} from '@/services/print_cost'
 import {report_error} from '@/services/errors'
 import AnimatedBook from '../reuseable/AnimatedBook.vue'
 
@@ -123,6 +130,22 @@ const stuck = computed(() => {
 const expired = computed(() => {
     return selected_version.value ? version_expired(selected_version.value) : false
 })
+
+
+// Whether this version can be priced: Lulu is the only service with a pricing API, and the
+// quote needs both a product it actually sells (see lulu_pod_package_id) and a page count
+const quotable = computed(() => {
+    const version = selected_version.value
+    return !!version?.pages && !!lulu_pod_package_id(version.blueprint)
+})
+
+
+// Open the Lulu cost estimate for the selected version
+const show_estimate_cost = () => {
+    if (selected_version.value){
+        state.estimate_cost = selected_version.value
+    }
+}
 
 
 // Whether the selected version's interior is available but its cover render failed
@@ -311,6 +334,7 @@ onUnmounted(() => {
         margin-left: auto
         margin-right: auto
 
+    .estimate_cost,
     .how_to_print
         flex-shrink: 0
 

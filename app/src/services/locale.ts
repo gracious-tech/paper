@@ -42,6 +42,35 @@ export function bcp47_to_locale(tag:string):string|null {
     return ISO_1_TO_3[primary] ?? (primary.length === 3 ? primary : null)
 }
 
+// Our locale code -> BCP-47, for the few browser APIs that only speak BCP-47 (Intl.*). Built
+// by reversing the table above, since a 639-3 code the browser has never heard of makes Intl
+// fall back to English rather than the user's language
+const ISO_3_TO_1:Record<string, string> = Object.fromEntries(
+    Object.entries(ISO_1_TO_3).map(([one, three]) => [three, one]))
+
+
+// Turn one of our locale codes into a BCP-47 tag Intl can use (e.g. "vie" -> "vi")
+export function locale_to_bcp47(locale:string):string {
+    const [base, ...rest] = locale.split('-')
+    return [ISO_3_TO_1[base ?? ''] ?? base, ...rest].join('-')
+}
+
+
+// A function naming countries in the user's own language, e.g. "au" -> "Australia".
+// Intl.DisplayNames throws on a tag it can't parse and has no data for many of our locales, so
+// English stands behind it, and the code itself behind that
+export function country_namer(locale:string):(code:string) => string {
+    const tag = locale_to_bcp47(locale)
+    let names:Intl.DisplayNames|null = null
+    try {
+        names = new Intl.DisplayNames([tag, 'en'], {type: 'region'})
+    } catch {
+        names = null
+    }
+    return code => names?.of(code.toUpperCase()) ?? code.toUpperCase()
+}
+
+
 // Pick the best supported locale for this browser, falling back to the source locale
 export function detect_locale(supported:string[], fallback = 'eng'):string {
     const wanted = navigator.languages?.length ? navigator.languages : [navigator.language]

@@ -79,7 +79,6 @@
   "options.layout.separate_pages": "Separate pages",
   "options.paper.binding": "Binding",
   "options.paper.bleed": "Bleed",
-  "options.paper.booklet_note": "Two pages will appear on each side of paper and will only appear in the correct order once the whole booklet has been folded.",
   "options.paper.ink_type": "Ink type",
   "options.paper.paper_type": "Paper type",
   "options.paper.printing_service": "Printing service",

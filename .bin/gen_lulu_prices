@@ -1,0 +1,4 @@
+#!/bin/bash
+# Refresh Lulu's print prices from their published spec sheet — see app/tools/gen_lulu_prices.ts
+cd "$(dirname "$(dirname "$0")")"
+node "app/tools/gen_lulu_prices.ts" "$@"

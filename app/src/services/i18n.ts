@@ -44,6 +44,11 @@ export function translate(key:string, params?:Params):string {
 // The translator signature, for helpers that take `t` as an argument rather than importing it
 export type Translate = typeof translate
 
+// Singular/plural variant of a "{n} thing" phrase, keyed <stem>.one / <stem>.other
+export function count_phrase(t:Translate, stem:string, n:number):string {
+    return t(n === 1 ? `${stem}.one` : `${stem}.other`, {n})
+}
+
 // Load a locale's catalog (if not already loaded) and switch the app to it
 export async function load_locale(code:string):Promise<void> {
     if (code !== SOURCE_LOCALE && !catalogs[code]){

@@ -52,6 +52,7 @@ DialogCoverEditor
 DialogNewDesign
 DialogPageSuggestions
 DialogHowToPrint
+DialogEstimateCost
 DialogPrintServiceWarning
 //- LEGACY Remove with app/src/legacy/ once old data no longer needs recovering
 DialogLegacy
@@ -79,6 +80,7 @@ import DialogCoverEditor from '@/comp/dialogs/DialogCoverEditor.vue'
 import DialogNewDesign from '@/comp/dialogs/DialogNewDesign.vue'
 import DialogPageSuggestions from '@/comp/dialogs/DialogPageSuggestions.vue'
 import DialogHowToPrint from '@/comp/dialogs/DialogHowToPrint.vue'
+import DialogEstimateCost from '@/comp/dialogs/DialogEstimateCost.vue'
 import DialogPrintServiceWarning from '@/comp/dialogs/DialogPrintServiceWarning.vue'
 import DisplaySplash from '@/comp/display/DisplaySplash.vue'
 import DisplayPreview from '@/comp/display/DisplayPreview.vue'

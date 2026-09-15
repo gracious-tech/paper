@@ -54,6 +54,11 @@ export const state = reactive({
     // Carries the whole version (not just a flag) so the guidance can match its printing
     // service and its walkthrough can offer interior/cover PDF downloads
     how_to_print: null as null|Version,
+    // The version whose Lulu printing cost is being estimated (null = hidden) — set by the
+    // "Estimate cost" buttons that sit beside "How to print" whenever the version is bound for
+    // Lulu, rendered by DialogEstimateCost (in AppRoot). Carries the whole version since the
+    // quote needs both its blueprint (which Lulu product it is) and its page count
+    estimate_cost: null as null|Version,
     // Reopens DialogNewDesign in "edit" mode, seeded from the open design's wizard_draft and
     // landing on the given step — set by ViewDesignSimple's Type row (the one wizard step whose
     // change can invalidate another step, so it needs the full stepper's cross-step validation

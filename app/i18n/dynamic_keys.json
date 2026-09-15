@@ -1,6 +1,7 @@
 [
   "svc.blueprint.pages.",
   "svc.blueprint.sheets.",
+  "dialog.estimate_cost.books.",
   "dialog.how_to_print.title_",
   "dialog.how_to_print.walk_",
   "dialog.how_to_print.lulu_walk_",
@@ -8,6 +9,7 @@
   "view.version.binding_max",
   "options.paper.binding_min_warning",
   "options.paper.binding_max_warning",
+  "options.paper.service_desc_",
   "view.version_list.binding_min_warning",
   "view.version_list.binding_max_warning"
 ]

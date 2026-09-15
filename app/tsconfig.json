@@ -1,6 +1,6 @@
 {
     "include": ["**/*.ts", "**/*.vue"],
-    "exclude": ["**/node_modules", "i18n"],  // i18n/ is node tooling with its own tsconfig
+    "exclude": ["**/node_modules", "i18n", "tools"],  // node tooling, own tsconfigs
     "compilerOptions": {
         "module": "ESNext",
         "moduleResolution": "Bundler",

@@ -69,6 +69,8 @@ template(v-else)
         v-btn(v-if='has_cover' @click='download_cover' variant='tonal'
                 color='secondary-darken-1' :disabled='cover_failed')
             | {{ $t("display.version.download_cover") }}
+        v-btn(v-if='quotable' variant='tonal' color='' @click='show_estimate_cost')
+            | {{ $t("display.version.estimate_cost") }}
         v-btn.how_to_print(variant='tonal' color='' @click='show_how_to_print')
             | {{ $t("display.version.how_to_print") }}
 
@@ -101,6 +103,7 @@ import {state} from '@/services/state'
 import {format_paper_size, format_service_label, format_pages_label, get_passages,
     binding_page_issue} from '@/services/blueprints'
 import {content} from '@/services/content'
+import {lulu_pod_package_id} from '@/services/print_cost'
 import DesignVersionItem from './DesignVersionItem.vue'
 
 
@@ -308,6 +311,21 @@ const download_cover = () => {
 const show_how_to_print = () => {
     if (latest_version.value){
         state.how_to_print = latest_version.value
+    }
+}
+
+
+// Whether the latest version can be priced (Lulu only — see DisplayDesignVersion's `quotable`)
+const quotable = computed(() => {
+    const version = latest_version.value
+    return !!version?.pages && !!lulu_pod_package_id(version.blueprint)
+})
+
+
+// Open the Lulu cost estimate for the latest version
+const show_estimate_cost = () => {
+    if (latest_version.value){
+        state.estimate_cost = latest_version.value
     }
 }
 

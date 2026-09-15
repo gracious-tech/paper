@@ -8,14 +8,10 @@ import type {BindingTypeId, SizeId, InkTypeId, PaperTypeId} from 'printing-servi
 import {content} from '@/services/content'
 import {blue} from '@/services/state'
 
+import {count_phrase} from '@/services/i18n'
+
 import type {Blueprint, ContentItem, ContentPassage} from '@/services/types'
 import type {Translate} from '@/services/i18n'
-
-
-// Singular/plural variant of a "{n} thing" phrase, keyed <stem>.one / <stem>.other
-function count_phrase(t:Translate, stem:string, n:number):string{
-    return t(n === 1 ? `${stem}.one` : `${stem}.other`, {n})
-}
 
 
 // Default blueprint for 1st use, reset, and base for saved old blueprint versions
