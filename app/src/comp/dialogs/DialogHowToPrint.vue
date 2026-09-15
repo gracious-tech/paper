@@ -270,10 +270,6 @@ const title_key = computed(() => {
 })
 
 
-// Whether the version carries a wraparound cover to hand to the printer separately
-const has_cover = computed(() => !!state.how_to_print?.blueprint.cover)
-
-
 // The exact print specification to reproduce at the service — shown for lulu/generic modes so
 // the "match the settings shown for this version" instruction has something concrete to point at
 const spec_rows = computed(() => {
