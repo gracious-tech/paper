@@ -16,6 +16,13 @@ v-card-text(class='flex-grow-1 d-flex flex-column')
     AppOptionToggle(v-model='item.position' :label='$t("editor.custom.vertical_position")'
         :items='position_items' class='mt-4 mb-4')
 
+    //- Only offered while this is the document's final item, since that's the only case the
+    //- setting can act on — it's a document-wide setting, not a property of this page
+    template(v-if='is_last')
+        v-checkbox(v-model='blue.last_item_at_end'
+            :label='$t("editor.custom.last_item_at_end")' hide-details)
+        p(class='hint') {{$t("editor.custom.last_item_at_end_note")}}
+
 </template>
 
 
@@ -43,8 +50,10 @@ const position_items = computed(() => [
 ])
 
 
-// Keep copy of original so can restore if cancel
+// Keep copy of original so can restore if cancel — including the document-wide "last item on
+// the last page" setting, which this editor offers (see is_last) and cancelling must also undo
 const original = props.item ? {...props.item} : null
+const original_at_end = blue.last_item_at_end
 
 
 // Create if a new item
@@ -61,12 +70,18 @@ if (!item){
 }
 
 
+// Whether this page is currently the document's last item. A new one always is (it's appended
+// above), and reordering the content list while this editor is open updates it
+const is_last = computed(() => blue.content.at(-1)?.id === item.id)
+
+
 const done = () => {
     state.editor = null
 }
 
 
 const cancel = () => {
+    blue.last_item_at_end = original_at_end
     if (original){
         Object.assign(item, original)
     } else {

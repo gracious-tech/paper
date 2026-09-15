@@ -46,6 +46,7 @@ export function get_default_blueprint():Blueprint{
 
         // Content
         content: [],
+        last_item_at_end: false,
         bibles: [content.collection.get_preferred_resource().id],
         bibles_layout: 'columns',
         bibles_align: 'paragraph',

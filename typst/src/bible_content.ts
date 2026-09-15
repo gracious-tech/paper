@@ -390,6 +390,7 @@ export class BibleContent {
             content: items,
             max_chapter: max_chapter_in_content(items),
             arrangement: blue.booklet ? 'booklet' : 'book',
+            last_item_at_end: blue.last_item_at_end,
             running_pages: blue.running_pages,
             running_headings: blue.running_headings,
             running_position: blue.running_position,

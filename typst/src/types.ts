@@ -25,6 +25,9 @@ export interface TypstRequest {
     // document's chapter numbers would render at different sizes from one book to the next
     max_chapter:number
     arrangement:'normal'|'book'|'booklet'
+    // Land the final content item on the document's physical last page, by inserting the
+    // arrangement's padding blanks before it rather than after (see Blueprint.last_item_at_end)
+    last_item_at_end:boolean
     running_pages:boolean
     // Book + chapter shown alongside the page number (e.g. "Genesis 3")
     running_headings:boolean
@@ -336,6 +339,13 @@ export interface Blueprint {
 
     // Content
     content:ContentItem[]
+    // Land the last content item on the physical last page — the back of a folded booklet —
+    // by putting the padding blanks a book-like layout adds at the end *before* it instead of
+    // after. Only takes effect when that item is a text page: a page of text is the short,
+    // self-contained kind a back cover is made of (a copyright notice above all), whereas
+    // pinning a long passage would shift those blanks into the middle of the book rather than
+    // removing them from the end. See pin_last_item() in pdf_postprocess.ts
+    last_item_at_end:boolean
     bibles:[string, ...string[]]
     bibles_layout:'alternate'|'columns'
     bibles_align:'verse'|'paragraph'|'chapter'

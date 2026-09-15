@@ -4,7 +4,7 @@ import {PDFDocument} from 'pdf-lib'
 
 import {generate_pdf, generate_pdf_spread_preview, add_preview_strip}
     from '../src/pdf_postprocess.js'
-import {make_request, make_passage, make_title, TEST_TITLEPAGE} from './fixtures.js'
+import {make_request, make_passage, make_title, make_custom, TEST_TITLEPAGE} from './fixtures.js'
 
 
 // Fake compiler: every source becomes a one-page PDF (with a content stream, since bare empty
@@ -17,10 +17,39 @@ async function fake_compile(_source:string):Promise<Uint8Array> {
 }
 
 
+// Markup only the pinned text page carries, and the page height marking_compile gives it —
+// every other page keeps the standard 200, so a document's page heights say exactly where the
+// pinned page ended up
+const PINNED_TEXT = 'PINNED-TEXT'
+const PINNED_HEIGHT = 300
+
+
+// As fake_compile, but the source carrying PINNED_TEXT compiles to `pinned_pages` taller pages.
+// More than one exercises place_last_item's recompile (its first compile assumes a single page)
+function marking_compile(pinned_pages = 1) {
+    return async (source:string):Promise<Uint8Array> => {
+        const doc = await PDFDocument.create()
+        const marked = source.includes(PINNED_TEXT)
+        for (let i = 0; i < (marked ? pinned_pages : 1); i++) {
+            const page = doc.addPage([100, marked ? PINNED_HEIGHT : 200])
+            page.drawLine({start: {x: 0, y: 0}, end: {x: 1, y: 1}})
+        }
+        return doc.save()
+    }
+}
+
+
 // Count the pages of generated PDF bytes
 async function page_count(bytes:Uint8Array):Promise<number> {
     const doc = await PDFDocument.load(bytes)
     return doc.getPageCount()
+}
+
+
+// Every page's height, in order (see PINNED_HEIGHT)
+async function page_heights(bytes:Uint8Array):Promise<number[]> {
+    const doc = await PDFDocument.load(bytes)
+    return doc.getPages().map(page => page.getHeight())
 }
 
 
@@ -70,6 +99,82 @@ describe('generate_pdf', () => {
             titlepage: {...TEST_TITLEPAGE, always: 'left'},
         })
         expect(await page_count(await generate_pdf(request, fake_compile))).toBe(2)
+    })
+
+})
+
+
+describe('last_item_at_end', () => {
+
+    // The text page to land on the document's final page (a copyright notice, in practice)
+    const pinned_text = () => make_custom({content: PINNED_TEXT})
+
+    it('puts the padding blank before the pinned text page rather than after it', async () => {
+        // 2 passage pages + the text page = 3, padded to an even 4 for the preview
+        const request = make_request({
+            arrangement: 'book', last_item_at_end: true,
+            content: [make_passage(), make_passage(), pinned_text()],
+        })
+        const heights = await page_heights(
+            await generate_pdf(request, marking_compile(), undefined, true))
+        expect(heights).toEqual([200, 200, 200, PINNED_HEIGHT])
+    })
+
+    it('leaves the padding blank after the text page when unset', async () => {
+        const request = make_request({
+            arrangement: 'book',
+            content: [make_passage(), make_passage(), pinned_text()],
+        })
+        const heights = await page_heights(
+            await generate_pdf(request, marking_compile(), undefined, true))
+        expect(heights).toEqual([200, 200, PINNED_HEIGHT, 200])
+    })
+
+    it('ends a multi-page pinned item on the last page', async () => {
+        // 1 passage page + a 2-page text item: it starts on page 3 and finishes on page 4,
+        // which only works because place_last_item recompiles it at its corrected start page
+        const request = make_request({
+            arrangement: 'book', last_item_at_end: true,
+            content: [make_passage(), pinned_text()],
+        })
+        const heights = await page_heights(
+            await generate_pdf(request, marking_compile(2), undefined, true))
+        expect(heights).toEqual([200, 200, PINNED_HEIGHT, PINNED_HEIGHT])
+    })
+
+    it('never changes a printed booklet page count', async () => {
+        // 4 passage pages + the text page pads to 8 either way — pinning only moves the blanks
+        const content = [make_passage(), make_passage(), make_passage(), make_passage(),
+            pinned_text()]
+        const pinned = make_request({arrangement: 'booklet', last_item_at_end: true, content})
+        const plain = make_request({arrangement: 'booklet', content})
+        expect(await page_count(await generate_pdf(pinned, fake_compile))).toBe(4)
+        expect(await page_count(await generate_pdf(plain, fake_compile))).toBe(4)
+    })
+
+    it('ignores the setting when the last item is not a text page', async () => {
+        // A passage can run to any length, so pinning one would shift the blanks into the
+        // middle of the book rather than off its end (see pin_last_item)
+        const request = make_request({
+            arrangement: 'book', last_item_at_end: true,
+            content: [pinned_text(), make_passage(), make_passage()],
+        })
+        const heights = await page_heights(
+            await generate_pdf(request, marking_compile(), undefined, true))
+        expect(heights).toEqual([PINNED_HEIGHT, 200, 200, 200])
+    })
+
+    it('keeps a pinned item padding in the spread preview', async () => {
+        // The spread preview reads a booklet as a book and normally drops trailing blanks, but
+        // a pinned item's own padding is what puts it on the back, so it survives and pads to
+        // the printed sheet's multiple of 4. 1 passage page + the text page reads as
+        // [passage, blank, blank, text] = standalone page 1 plus 2 spreads; unpinned it's just
+        // [passage, text] = standalone page 1 plus 1 spread
+        const content = [make_passage(), pinned_text()]
+        const pinned = make_request({arrangement: 'booklet', last_item_at_end: true, content})
+        const plain = make_request({arrangement: 'booklet', content})
+        expect(await page_count(await generate_pdf_spread_preview(pinned, fake_compile))).toBe(3)
+        expect(await page_count(await generate_pdf_spread_preview(plain, fake_compile))).toBe(2)
     })
 
 })

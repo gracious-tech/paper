@@ -104,6 +104,17 @@ describe('truncate_for_preview', () => {
         expect(end.dropped_after).toBe(false)
     })
 
+    it('unpins the last item only when the window cuts the document short', () => {
+        const request = make_request({last_item_at_end: true, content: [
+            make_book(2000, 'first'),
+            make_book(2000, 'second'),
+        ]})
+        // A start window ends mid-document, so whatever it left last isn't the pinned item
+        expect(truncate_for_preview(request, 'start').request.last_item_at_end).toBe(false)
+        // An end window still finishes on the real last item, so the pin still applies
+        expect(truncate_for_preview(request, 'end').request.last_item_at_end).toBe(true)
+    })
+
     it('keeps a large trailing book whole rather than clipping its end', () => {
         const request = make_request({content: [
             make_book(300, 'intro'),

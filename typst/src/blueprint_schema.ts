@@ -175,6 +175,7 @@ export function make_blueprint_schema(defaults:Blueprint):z.ZodType<Blueprint>{
         content: z.unknown().transform(value => {
             return Array.isArray(value) ? clean_content_items(value) : defaults.content
         }),
+        last_item_at_end: z.boolean().catch(defaults.last_item_at_end),
         bibles: z.tuple([z.string()], z.string()).catch(() => defaults.bibles),
         bibles_layout: z.enum(['alternate', 'columns']).catch(defaults.bibles_layout),
         bibles_align: z.enum(['verse', 'paragraph', 'chapter']).catch(defaults.bibles_align),

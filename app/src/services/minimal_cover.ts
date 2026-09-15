@@ -47,13 +47,16 @@ export function minimal_cover_copyright_item():ContentCustom{
 }
 
 
-// Wrap a design's content in the pair of pages that stand in for a cover
+// Wrap a design's content in the pair of pages that stand in for a cover. The copyright page is
+// pinned to the document's last page so it prints on the back of the folded booklet, opposite
+// the title page on the front — the two outer faces of the folded sheet
 export function apply_minimal_cover(blueprint:Blueprint):void{
     blueprint.content = [
         minimal_cover_title_item(blueprint),
         ...blueprint.content,
         minimal_cover_copyright_item(),
     ]
+    blueprint.last_item_at_end = true
 }
 
 

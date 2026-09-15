@@ -359,6 +359,8 @@
   "editor.advanced.titlepages_note": "Applies to every title page in the document.",
   "editor.advanced.workarounds": "Workarounds",
   "editor.custom.edit_text": "Edit text",
+  "editor.custom.last_item_at_end": "Place at the end",
+  "editor.custom.last_item_at_end_note": "Ensures the text always ends up as the last page. Any blank pages needed will be placed between it and the previous section.",
   "editor.custom.vertical_position": "Vertical position on page",
   "editor.icon.choose": "Choose an icon...",
   "editor.icon.enter_id": "Enter Iconify id...",

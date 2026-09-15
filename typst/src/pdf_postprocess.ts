@@ -7,8 +7,8 @@ import {optimize_pdf} from './pdf_optimize.js'
 import {parse_unit, to_pt} from './helpers.js'
 
 import type {MarginMode} from './generate.js'
-import type {TypstRequest, TypstContentItem, TypstPassage, CompileFn, ProgressFn,
-    } from './types.js'
+import type {TypstRequest, TypstContentItem, TypstPassage, TypstCustomPage, CompileFn,
+    ProgressFn} from './types.js'
 
 
 // Fill color for a spread-preview slot that isn't a real page (see arrange_spreads) — a subtle
@@ -48,14 +48,21 @@ export async function generate_pdf(
 ):Promise<Uint8Array> {
 
     // Assemble the printed page sequence (each section compiled separately, see assemble_pages),
-    // then arrange for print
+    // then arrange for print. A pinned final item is held back from the assembly and placed
+    // afterwards, once the padded length it has to land at the end of is known
+    const pinned = pin_last_item(request)
     const {final_doc, blank_doc, blank_flags} = await assemble_pages(
-        request, compile_fn, on_progress)
+        request, compile_fn, on_progress, !!pinned)
 
     // Previews drop the run of blank pages at the very end — they carry no information on
     // screen (evenness is restored below where it matters)
     if (preview) {
         trim_trailing_blanks(final_doc, blank_flags)
+    }
+
+    if (pinned) {
+        await place_last_item(final_doc, request, blank_doc, blank_flags, compile_fn, pinned,
+            pad_multiple(request.arrangement, preview))
     }
 
     if (request.arrangement === 'booklet') {
@@ -91,12 +98,22 @@ export async function generate_pdf_spread_preview(
     const arrangement = request.arrangement === 'booklet' ? 'book' : request.arrangement
     const reading_request:TypstRequest = {...request, arrangement}
 
-    const {final_doc: reading_doc, blank_flags} = await assemble_pages(
-        reading_request, compile_fn, on_progress)
+    const pinned = pin_last_item(request)
+    const {final_doc: reading_doc, blank_doc, blank_flags} = await assemble_pages(
+        reading_request, compile_fn, on_progress, !!pinned)
 
     // Trailing blank pages carry no information on screen — arrange_spreads pads its slots to
     // even itself, so they can all go
     trim_trailing_blanks(reading_doc, blank_flags)
+
+    // A pinned item's own padding is the exception: those blanks are what puts it on the back
+    // of the book, so the preview keeps them (and pads to the *printed* arrangement's sheet
+    // size, not the substituted reading one) — otherwise the page the user pinned to the back
+    // would show on screen as just another next page
+    if (pinned) {
+        await place_last_item(reading_doc, reading_request, blank_doc, blank_flags, compile_fn,
+            pinned, pad_multiple(request.arrangement, false))
+    }
 
     on_progress?.({stage: 'arrange', label: 'spreads'})
     on_progress?.({stage: 'finalize'})
@@ -210,12 +227,15 @@ async function arrange_spreads(
 
 
 // Build subjobs from content items, compile each, and assemble the printed page sequence
-// (reading order, including all blank/note pages) — before any booklet imposition
+// (reading order, including all blank/note pages) — before any booklet imposition.
+// hold_last leaves the final content item out, for a caller placing it itself once the padded
+// length is known (see place_last_item)
 async function assemble_pages(
-    request:TypstRequest, compile_fn:CompileFn, on_progress?:ProgressFn,
+    request:TypstRequest, compile_fn:CompileFn, on_progress?:ProgressFn, hold_last = false,
 ):Promise<{final_doc:PDFDocument, blank_doc:BlankVariants, blank_flags:boolean[]}> {
 
     const booklike = request.arrangement !== 'normal'
+    const items = hold_last ? request.content.slice(0, -1) : request.content
 
     // Compile both binding variants of the blank padding page — whichever absolute position
     // each padding page lands at (decided below, at insertion time) picks the matching one
@@ -259,7 +279,7 @@ async function assemble_pages(
     }
 
     // Process each content item (each compiles as its own document)
-    for (const [index, item] of request.content.entries()) {
+    for (const [index, item] of items.entries()) {
 
         // Report each item as it starts (passages by their reference, so long documents show
         // per-passage progress)
@@ -413,6 +433,73 @@ function trim_trailing_blanks(doc:PDFDocument, blank_flags:boolean[]):void {
         doc.removePage(count - 1)
         blank_flags.pop()
         count--
+    }
+}
+
+
+// The content item to land on the document's physical last page, or null for the usual
+// behaviour (padding blanks appended after the content). Only a text page qualifies — see
+// Blueprint.last_item_at_end for why a passage is deliberately left unpinnable
+function pin_last_item(request:TypstRequest):TypstCustomPage|null {
+    if (!request.last_item_at_end) {
+        return null
+    }
+    const last = request.content[request.content.length - 1]
+    return last?.type === 'custom' ? last : null
+}
+
+
+// How many pages one physical unit of an arrangement holds — the multiple the assembled page
+// count gets padded up to. A printed booklet's folded sheet carries 4; previews only need
+// recto/verso parity, and a book is only padded at all on screen (see generate_pdf)
+function pad_multiple(arrangement:TypstRequest['arrangement'], preview:boolean):number {
+    if (arrangement === 'booklet') {
+        return preview ? 2 : 4
+    }
+    return arrangement === 'book' && preview ? 2 : 1
+}
+
+
+// Place the pinned final item so the document ends on it, with the padding blanks that would
+// otherwise have followed it inserted before it instead.
+//
+// This can only happen here, after everything else is assembled: an item's start page is baked
+// into its compile — deciding both its printed page number and which physical side "inside"
+// falls on (see generate_typst) — so a compiled page can't be shuffled to a new position
+// afterwards. The item is therefore compiled on the assumption it takes a single page, which a
+// text page effectively always does, and recompiled only if it turned out longer *and* that
+// moved its start page. A multi-page item simply ends on the last page rather than filling it.
+async function place_last_item(
+    final_doc:PDFDocument, request:TypstRequest, blank_doc:BlankVariants, blank_flags:boolean[],
+    compile_fn:CompileFn, pinned:TypstCustomPage, multiple:number,
+):Promise<void> {
+
+    // Where the item has to start for `pages` of it to finish exactly on a padded boundary
+    const assembled = final_doc.getPageCount()
+    const start_for = (pages:number) =>
+        Math.ceil((assembled + pages) / multiple) * multiple - pages + 1
+
+    let start = start_for(1)
+    let item_doc = await compile_item(request, pinned, compile_fn, start)
+    if (item_doc.getPageCount() !== 1) {
+        const corrected = start_for(item_doc.getPageCount())
+        if (corrected !== start) {
+            start = corrected
+            item_doc = await compile_item(request, pinned, compile_fn, start)
+        }
+    }
+
+    // The blanks it was pushed back by, each picking the variant matching its own position
+    for (let page_number = assembled + 1; page_number < start; page_number++) {
+        const [blank] = await final_doc.copyPages(blank_doc[binding_for_page(page_number)], [0])
+        final_doc.addPage(blank as PDFPage)
+        blank_flags.push(true)
+    }
+
+    for (let p = 0; p < item_doc.getPageCount(); p++) {
+        const [page] = await final_doc.copyPages(item_doc, [p])
+        final_doc.addPage(page as PDFPage)
+        blank_flags.push(false)
     }
 }
 

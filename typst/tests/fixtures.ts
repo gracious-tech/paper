@@ -132,6 +132,7 @@ export function make_request(overrides:Partial<TypstRequest> = {}):TypstRequest 
         content: [make_passage()],
         max_chapter: 1,
         arrangement: 'normal',
+        last_item_at_end: false,
         running_pages: true,
         running_headings: false,
         running_position: 'footer',
