@@ -4,6 +4,7 @@
 // in typst.ts via simple id-tagged request/response messages.
 
 import {version as compiler_version} from '@myriaddreamin/typst-ts-web-compiler/package.json'
+import {version as renderer_version} from '@myriaddreamin/typst-ts-renderer/package.json'
 import {init as init_typst} from 'paper-bible-typst-web'
 
 import type {TypstWeb} from 'paper-bible-typst-web'
@@ -17,6 +18,7 @@ export type WorkerAction =
     | {action:'set_custom_fonts', fonts:CustomFont[]}
     | {action:'compile_pdf', request:TypstRequest, preview?:boolean}
     | {action:'compile_pdf_preview', request:TypstRequest}
+    | {action:'compile_svg', request:TypstRequest}
 
 // Every request carries an id, echoed back in the matching response
 export type WorkerRequest = WorkerAction & {id:number}
@@ -25,13 +27,14 @@ export type WorkerRequest = WorkerAction & {id:number}
 // number of these may arrive before the matching WorkerResult
 export type WorkerProgress = {id:number, kind:'progress', event:ProgressEvent}
 
-// Final response to a request: PDF bytes for compile actions, null for init/set_custom_fonts.
+// Final response to a request: PDF bytes for the PDF compile actions, an SVG string for
+// compile_svg, null for init/set_custom_fonts.
 // worn = the WASM compiler has permanently accumulated enough memory that this whole worker
 // should be recycled (see TypstWeb.worn). fatal = the error was a WASM trap (e.g. an
 // out-of-memory abort), which poisons the compiler for good — the worker must be recycled
 // before any further compile can succeed. Both are acted on by TypstWorkerClient in typst.ts.
 export type WorkerResult =
-    | {id:number, kind:'result', ok:true, result:Uint8Array|null, worn:boolean}
+    | {id:number, kind:'result', ok:true, result:Uint8Array|string|null, worn:boolean}
     | {id:number, kind:'result', ok:false, error:string, fatal:boolean}
 
 export type WorkerResponse = WorkerProgress | WorkerResult
@@ -44,19 +47,23 @@ let generator:TypstWeb|null = null
 let queue:Promise<void> = Promise.resolve()
 
 
-// Perform a single action, returning PDF bytes for compile actions. Compile actions report
-// progress via on_progress, posted back to the main thread as separate WorkerProgress messages
-// (see below) ahead of the final result
+// Perform a single action, returning PDF bytes (or an SVG string) for compile actions. Compile
+// actions report progress via on_progress, posted back to the main thread as separate
+// WorkerProgress messages (see below) ahead of the final result
 async function handle_action(
     message:WorkerRequest, on_progress:(event:ProgressEvent) => void,
-):Promise<Uint8Array|null> {
+):Promise<Uint8Array|string|null> {
     if (message.action === 'init'){
         // The compiler WASM comes from the shared assets tree's typst/ dir (vendored per npm
         // version by the bookcover repo), keyed by the installed npm version, so upgrading
         // the package also requires the bookcover repo publishing the new version dir
-        const wasm_url = `${message.assets_prefix.replace(/\/+$/, '')}` +
-            `/typst/${compiler_version}/typst_ts_web_compiler_bg.wasm`
-        generator = await init_typst({wasm_url, assets_prefix: message.assets_prefix})
+        const assets = message.assets_prefix.replace(/\/+$/, '')
+        const wasm_url = `${assets}/typst/${compiler_version}/typst_ts_web_compiler_bg.wasm`
+        // Only compile_svg (the wizard's minimal-ink cover card) needs the renderer, and
+        // typst-web only fetches its module once one is actually asked for
+        const renderer_wasm_url = `${assets}/typst/${renderer_version}/typst_ts_renderer_bg.wasm`
+        generator = await init_typst(
+            {wasm_url, renderer_wasm_url, assets_prefix: message.assets_prefix})
         return null
     }
     if (!generator){
@@ -68,6 +75,9 @@ async function handle_action(
     }
     if (message.action === 'compile_pdf'){
         return generator.compile_pdf(message.request, on_progress, message.preview ?? false)
+    }
+    if (message.action === 'compile_svg'){
+        return generator.compile_svg(message.request)
     }
     return generator.compile_pdf_preview(message.request, on_progress)
 }

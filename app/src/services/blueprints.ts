@@ -585,6 +585,20 @@ export function get_passages(blueprint:Blueprint):ContentPassage[]{
 }
 
 
+// The printed title a design starts out with: its name, falling back to the first passage's
+// reference ("Titus" etc). Seeded, not owned — whatever displays it (a cover, a minimal-ink
+// design's opening title page) keeps its own copy from then on
+export function default_title(blueprint:Blueprint):string{
+    const name = blueprint.name.trim()
+    const passage = get_passages(blueprint)[0]
+    if (name || !passage){
+        return name
+    }
+    return content.collection.reference_to_string(
+        new PassageReference(passage), blueprint.bibles[0])
+}
+
+
 // Printing service pill label, e.g. a real service's name, or "Booklet (fold at home)"/"Home"/
 // "Custom…" for the service-less modes. `t` is the caller's own useI18n() translator (see
 // missing_book_warnings() above for why these helpers take it rather than importing useI18n).

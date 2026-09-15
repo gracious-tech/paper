@@ -7,7 +7,8 @@ import {PassageReference} from '@gracious.tech/fetch-client'
 import {content} from '@/services/content'
 import {get_default_blueprint, get_passages, font_default_for_bibles, auto_binding}
     from '@/services/blueprints'
-import {seed_cover_preset} from '@/services/cover'
+import {seed_cover_preset, render_wizard_cover_preview} from '@/services/cover'
+import {apply_minimal_cover, render_minimal_cover_preview} from '@/services/minimal_cover'
 import {generate_token} from '@/services/utils'
 import {fetch_stories, story_to_slides, story_reference_label, story_canonical_cmp}
     from '@/services/stories'
@@ -205,6 +206,18 @@ export function wizard_cover_label(id:NewDesignCover, t:(key:string) => string):
 }
 
 
+// Render a cover style's front panel as an SVG string for the wizard's selection cards. Both
+// paths render the real thing the style produces — bookcover's front panel for the three cover
+// styles, the opening title page for minimal ink (which has no cover at all)
+export async function render_wizard_preview(id:NewDesignCover, blueprint:Blueprint)
+        :Promise<string>{
+    if (id === 'minimal'){
+        return render_minimal_cover_preview(blueprint)
+    }
+    return render_wizard_cover_preview(id, blueprint)
+}
+
+
 // The professional trim sizes the wizard offers, each an exact match to a Lulu size id —
 // hoisted out of NewDesignPrint.vue so the simple-mode summary row can name the size the same
 // way the wizard did ("Small" rather than "Novella")
@@ -268,6 +281,9 @@ export function wizard_preview_blueprint(draft:NewDesignDraft, pages:number|null
     if (draft.bibles.length){
         blueprint.bibles = [...draft.bibles] as [string, ...string[]]
     }
+    // Matters only to the minimal-ink preview, which renders a real title page in the body font
+    // (the cover styles use the cover widget's own fonts)
+    blueprint.font_text = font_default_for_bibles(blueprint.bibles)
 
     let ref_args:{book:string, start_chapter:number|null, start_verse:number|null,
         end_chapter:number|null, end_verse:number|null}|null = null
@@ -439,14 +455,22 @@ export async function build_new_blueprint(draft:NewDesignDraft, pages:number|nul
             } as ContentPassage
         })
     }
-    // Cover: a seeded preset the user refines later in the cover widget. The wizard's title
-    // field lands here (and marks the title as the user's own, so it stops following any later
-    // rename), after which `name` goes back to blank — the design's listed name then resolves
-    // through the cover title anyway (see resolve_design_name)
+    // Cover: a seeded preset the user refines later in the cover widget, or (minimal ink) a
+    // pair of content pages instead of a cover. The wizard's title field lands on whichever
+    // one prints it — for a cover it also marks the title as the user's own, so it stops
+    // following any later rename — after which `name` goes back to blank, since the design's
+    // listed name resolves through the title anyway (see resolve_design_name/gen_name_auto)
     const wizard_title = (draft.title ?? '').trim()
     blueprint.name = wizard_title
-    blueprint.cover = seed_cover_preset(draft.cover!, blueprint)
-    blueprint.cover.title_custom = !!wizard_title
+    if (draft.cover === 'minimal'){
+        // Minimal ink has no cover — the content itself opens with a title page and closes with
+        // the copyright statement (see minimal_cover.ts). The name falls back through the first
+        // content item instead of a cover title (see gen_name_auto)
+        apply_minimal_cover(blueprint)
+    } else {
+        blueprint.cover = seed_cover_preset(draft.cover!, blueprint)
+        blueprint.cover.title_custom = !!wizard_title
+    }
     blueprint.name = ''
 
     return blueprint

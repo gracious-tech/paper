@@ -20,8 +20,9 @@ import {useI18n} from '@/services/i18n'
 import {debounce} from 'lodash-es'
 
 import NewDesignCard from '@/comp/dialogs/assets/NewDesignCard.vue'
-import {wizard_auto_title, wizard_cover_label, wizard_preview_blueprint} from '@/services/new_design'
-import {render_wizard_cover_preview} from '@/services/cover'
+import {wizard_auto_title, wizard_cover_label, wizard_preview_blueprint, render_wizard_preview}
+    from '@/services/new_design'
+import {typst_generator} from '@/services/typst'
 
 import type {NewDesignDraft, NewDesignCover} from '@/services/new_design'
 
@@ -64,16 +65,24 @@ function svg_ratio(svg:string):number|null {
     return width && height ? Number(width) / Number(height) : null
 }
 
-// Render live SVG previews for photo/pattern/icon, reflecting the draft's current book/
-// translation/print selections — goes through the same build_cover_preset_form()+render_cover()
-// real design creation uses, just with a thumbnail image and svg output (see cover.ts). Each
-// card's previous blob URL is revoked once its replacement is ready, so re-renders don't leak
+// Render live SVG previews for every style, reflecting the draft's current book/translation/
+// print selections — each goes through the same builders real design creation uses (a cover
+// render for photo/pattern/icon, the opening title page for minimal ink — see
+// render_wizard_preview). Each card's previous blob URL is revoked once its replacement is
+// ready, so re-renders don't leak
 async function render_previews(){
     const blueprint = wizard_preview_blueprint(draft)
-    const kinds:NewDesignCover[] = ['photo', 'pattern', 'icon', 'minimal']
+    // Only the styles currently on offer — minimal ink costs a Typst compile of its own, so
+    // don't render it for a draft that isn't printing at home
+    const kinds:NewDesignCover[] = ['photo', 'pattern', 'icon']
+    // Minimal ink is only offered for home printing, and needs the book's own Typst compiler
+    // (still initialising on a fresh page load — the watcher below re-renders once it's ready)
+    if (draft.service_id === 'home' && typst_generator.value){
+        kinds.push('minimal')
+    }
     await Promise.all(kinds.map(async kind => {
         try {
-            const svg = await render_wizard_cover_preview(kind, blueprint)
+            const svg = await render_wizard_preview(kind, blueprint)
             const url = URL.createObjectURL(new Blob([svg], {type: 'image/svg+xml'}))
             const previous = preview_images[kind]
             preview_images[kind] = url
@@ -96,7 +105,7 @@ async function render_previews(){
 // books) only triggers one render pass
 const debounced_render = debounce(() => {void render_previews()}, 400)
 watch(() => [draft.type, draft.title, draft.book_mode, draft.books, draft.passages,
-    draft.bibles, draft.service_id, draft.size_id],
+    draft.bibles, draft.service_id, draft.size_id, typst_generator.value],
     debounced_render, {deep: true, immediate: true})
 
 onBeforeUnmount(() => {

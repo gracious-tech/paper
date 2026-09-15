@@ -109,10 +109,12 @@ const print_notice = computed(() => {
 })
 
 // The cover's own title — which is exactly what this row's step edits (the wizard's title field
-// sets the cover title, not the design's name; renaming is done from the /designs list). Falls
+// sets the cover title, not the design's name; renaming is done from the /designs list). A
+// minimal-ink design has no cover, so its opening title page carries the title instead. Falls
 // back to the wizard's style label until a title exists
 const cover_summary = computed(() => {
     const title = get_cover_title(blue.cover)
+        || (blue.content[0]?.type === 'title' ? blue.content[0].title.trim() : '')
     if (title){
         return title
     }

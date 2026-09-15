@@ -1,12 +1,15 @@
 
 import {createTypstCompiler, CompileFormatEnum} from '@myriaddreamin/typst.ts/compiler'
+import {createTypstRenderer} from '@myriaddreamin/typst.ts/renderer'
 import {loadFonts} from '@myriaddreamin/typst.ts'
 
 import {load_fonts_prefix, font_urls_for, fonts_to_blob_urls, revoke_blob_urls} from 'typst-fonts/web'
 
-import {generate_pdf, generate_pdf_spread_preview, collect_fonts} from 'paper-bible-typst'
+import {generate_pdf, generate_pdf_spread_preview, generate_typst, collect_fonts}
+    from 'paper-bible-typst'
 
 import type {TypstCompiler} from '@myriaddreamin/typst.ts/compiler'
+import type {TypstRenderer} from '@myriaddreamin/typst.ts/renderer'
 import type {CustomFont} from 'typst-fonts'
 import type {TypstRequest, CompileFn, ProgressFn} from 'paper-bible-typst'
 
@@ -28,6 +31,9 @@ export interface InitOptions {
     // URL prefix under which bundled fonts are served (default '/generator_assets/').
     // Font files are fetched from `${assets_prefix}/fonts/<family>/<file>.ttf`.
     assets_prefix?:string
+    // URL to the typst_ts_renderer_bg.wasm module — only needed for compile_svg(), and only
+    // fetched the first time one is asked for (see ensure_renderer)
+    renderer_wasm_url?:string
 }
 
 
@@ -54,8 +60,11 @@ function throw_compile_error(diagnostics:unknown):never {
 // with the appropriate fonts whenever the set of fonts a request needs changes.
 export class TypstWeb {
     private wasm_url:string
+    private renderer_wasm_url:string|null
     private fonts_prefix:string
     private compiler:TypstCompiler
+    // Created on first compile_svg() only (SVG output is preview-only — see ensure_renderer)
+    private renderer:TypstRenderer|null = null
     // Comma-joined font families (+ custom font names) last used to init the compiler
     // ('' = base fonts only)
     private active_fonts = ''
@@ -79,8 +88,10 @@ export class TypstWeb {
     // sources count toward the budget above
     private seen_sources = new Set<number>()
 
-    constructor(wasm_url:string, assets_prefix:string, compiler:TypstCompiler) {
+    constructor(wasm_url:string, assets_prefix:string, compiler:TypstCompiler,
+            renderer_wasm_url:string|null = null) {
         this.wasm_url = wasm_url
+        this.renderer_wasm_url = renderer_wasm_url
         this.fonts_prefix = `${assets_prefix.replace(/\/+$/, '')}/${FONTS_DIR}`
         this.compiler = compiler
         this.fonts_manifest_ready = load_fonts_prefix(this.fonts_prefix)
@@ -111,21 +122,45 @@ export class TypstWeb {
         return this.compiled_bytes > COMPILE_BYTES_BUDGET
     }
 
-    // Build a compile function that turns a single Typst source string into PDF bytes. assets
-    // (e.g. passage images) are registered in the compiler's shadow filesystem by virtual
+    // Create the renderer WASM instance on first use — SVG output is a preview-only extra, so
+    // its module is never fetched for a host that only ever compiles PDFs
+    private async ensure_renderer():Promise<TypstRenderer> {
+        if (this.renderer) {
+            return this.renderer
+        }
+        if (!this.renderer_wasm_url) {
+            throw new Error('[typst-web] SVG output requires renderer_wasm_url in init() options')
+        }
+        const renderer = createTypstRenderer()
+        // Base fonts only — glyph shapes are embedded in the compiled vector data
+        await renderer.init({
+            getModule: () => ({module_or_path: this.renderer_wasm_url!}),
+            beforeBuild: [loadFonts([])],
+        })
+        this.renderer = renderer
+        return renderer
+    }
+
+    // Register one source (plus any assets) in the compiler's shadow filesystem, counting its
+    // bytes toward the wear budget above. assets (e.g. passage images) are mapped by virtual
     // filename, the same primitive the bookcover-web pipeline uses for its own images
+    private load_source(source:string, assets?:Record<string, Uint8Array>):void {
+        const hash = hash_source(source)
+        if (!this.seen_sources.has(hash)) {
+            this.seen_sources.add(hash)
+            this.compiled_bytes += source.length
+        }
+        this.compiler.resetShadow()
+        this.compiler.addSource('/main.typ', source)
+        for (const [filename, bytes] of Object.entries(assets ?? {})) {
+            this.compiler.mapShadow(`/${filename}`, bytes)
+        }
+    }
+
+    // Build a compile function that turns a single Typst source string into PDF bytes
     private make_compile_fn():CompileFn {
         return async (source:string, assets?:Record<string, Uint8Array>):Promise<Uint8Array> => {
-            const hash = hash_source(source)
-            if (!this.seen_sources.has(hash)) {
-                this.seen_sources.add(hash)
-                this.compiled_bytes += source.length
-            }
-            this.compiler.resetShadow()
-            this.compiler.addSource('/main.typ', source)
-            for (const [filename, bytes] of Object.entries(assets ?? {})) {
-                this.compiler.mapShadow(`/${filename}`, bytes)
-            }
+            this.load_source(source, assets)
             const result = await this.compiler.compile({
                 mainFilePath: '/main.typ',
                 format: CompileFormatEnum.pdf,
@@ -194,6 +229,35 @@ export class TypstWeb {
         await this.ensure_fonts(request)
         return generate_pdf_spread_preview(request, this.make_compile_fn(), on_progress)
     }
+
+    // Compile a request straight to an SVG string, skipping the PDF post-processing pipeline
+    // (no booklet imposition, no blank padding) — so this is for single-page requests shown
+    // on screen as an image, such as the wizard's minimal-ink cover card, not for printing
+    async compile_svg(request:TypstRequest):Promise<string> {
+        const renderer = await this.ensure_renderer()
+        await this.ensure_fonts(request)
+        this.load_source(generate_typst(request), request.assets)
+        const result = await this.compiler.compile({
+            mainFilePath: '/main.typ',
+            format: CompileFormatEnum.vector,
+        })
+        if (!result.result) {
+            throw_compile_error(result.diagnostics)
+        }
+        const svg = await renderer.renderSvg({
+            artifactContent: result.result,
+            format: 'vector',
+            data_selection: {js: false, css: true, body: true, defs: true},
+        })
+        // Typst's SVG output sizes in pt but writes the numbers unitless — add the suffix back
+        // so browsers lay the image out at 96 CSS px per inch rather than 1px per pt
+        return svg.replace(/<svg([^>]*)>/, (_match:string, attrs:string) => {
+            const patched = attrs
+                .replace(/width="([\d.]+)"/, 'width="$1pt"')
+                .replace(/height="([\d.]+)"/, 'height="$1pt"')
+            return `<svg${patched}>`
+        })
+    }
 }
 
 
@@ -208,5 +272,6 @@ export async function init(options:InitOptions):Promise<TypstWeb> {
         beforeBuild: [loadFonts([], {assets: false})],
     })
 
-    return new TypstWeb(options.wasm_url, assets_prefix, compiler)
+    return new TypstWeb(options.wasm_url, assets_prefix, compiler,
+        options.renderer_wasm_url ?? null)
 }

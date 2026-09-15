@@ -4,7 +4,6 @@
 // (book-only edits reuse the previous cover render), bg-image Storage handling, and the
 // freeze-time snapshot planning for versions.
 
-import {PassageReference} from '@gracious.tech/fetch-client'
 import {cloneDeep} from 'lodash-es'
 import {toRaw} from 'vue'
 import {ref as storage_ref, uploadBytes, getBytes} from 'firebase/storage'
@@ -22,7 +21,7 @@ import {user} from '@/services/auth'
 import {content} from '@/services/content'
 import {custom_fonts} from '@/services/custom_fonts'
 import {book_icon} from '@/services/icons'
-import {get_passages} from '@/services/blueprints'
+import {get_passages, default_title} from '@/services/blueprints'
 
 import type {DimensionInputs} from 'bookcover-core'
 import type {ImageRegions} from 'bookcover-web'
@@ -31,6 +30,11 @@ import type {PmDoc} from 'paper-bible-typst'
 import type {Blueprint, CoverConfig} from '@/services/types'
 import type {CoverWorkerRequest, CoverWorkerResponse, CoverRenderResult, DistributiveOmit}
     from './cover_worker'
+
+
+// The wizard cover styles that are actually bookcover covers (its fourth, Minimal ink, is a
+// title page instead — see minimal_cover.ts)
+export type CoverPreset = 'photo'|'pattern'|'icon'
 
 
 // The embedded cover editor (the bookcover widget) — a separate deployment/origin
@@ -391,13 +395,7 @@ export function default_cover_preset(blueprint:Blueprint):Record<string, unknown
     // Title from the design's name, falling back to the first passage's reference ("Titus"
     // etc). Seeded, not owned — it keeps following the design's name until the user edits it
     // here or in the cover editor (see apply_name_to_cover)
-    const passage = get_passages(blueprint)[0]
-    let title = blueprint.name.trim()
-    if (!title && passage){
-        title = content.collection.reference_to_string(
-            new PassageReference(passage), blueprint.bibles[0])
-    }
-    form[COVER_TITLE_KEY] = title
+    form[COVER_TITLE_KEY] = default_title(blueprint)
 
     // Rear blurb: the AUTO-COPYRIGHT marker (same one the interior "Copyright" page uses),
     // resolved to the design's full attribution statement at render time (render_cover here,
@@ -428,11 +426,13 @@ export function default_cover_preset(blueprint:Blueprint):Record<string, unknown
 }
 
 
-// Build the form for the new-design wizard's Photo / Pattern / Icon / Minimal presets, plus the
-// builtin background id for the photo preset — shared by seed_cover_preset() and
+// Build the form for the new-design wizard's Photo / Pattern / Icon presets, plus the builtin
+// background id for the photo preset — shared by seed_cover_preset() and
 // render_wizard_cover_preview(). No I/O: the photo preset only picks a filename here, bytes
-// (thumbnail for preview, full-res on demand for a real render) are fetched by the caller
-function build_cover_preset_form(kind:'photo'|'pattern'|'icon'|'minimal', blueprint:Blueprint)
+// (thumbnail for preview, full-res on demand for a real render) are fetched by the caller.
+// The wizard's fourth style, Minimal ink, has no cover at all — it's a title page instead
+// (see minimal_cover.ts)
+function build_cover_preset_form(kind:CoverPreset, blueprint:Blueprint)
         :{form:Record<string, unknown>, bg_image_id:string|null} {
 
     // Base: blank values plus the title from the first passage, its book's icon and a credit
@@ -456,18 +456,12 @@ function build_cover_preset_form(kind:'photo'|'pattern'|'icon'|'minimal', bluepr
         }
         return {form, bg_image_id: null}
     }
-    if (kind === 'icon' || kind === 'minimal'){
+    if (kind === 'icon'){
         form['icon_id'] = passage?.book ? book_icon[passage.book] : 'game-icons:open-book'
-        if (kind === 'minimal'){
-            // Ink-efficient for home printing: no pattern, plain (unfilled) background, and a
-            // solid black icon rather than a book-themed tint
-            form['icon_color'] = '#000000'
-        } else {
-            form['pattern_id'] = 'diagonal-lines'
-            // Tint the background to match the first included passage's book grouping
-            if (passage && BOOK_BG_COLOR[passage.book]){
-                form['bg_color'] = BOOK_BG_COLOR[passage.book]
-            }
+        form['pattern_id'] = 'diagonal-lines'
+        // Tint the background to match the first included passage's book grouping
+        if (passage && BOOK_BG_COLOR[passage.book]){
+            form['bg_color'] = BOOK_BG_COLOR[passage.book]
         }
         return {form, bg_image_id: null}
     }
@@ -484,13 +478,12 @@ function build_cover_preset_form(kind:'photo'|'pattern'|'icon'|'minimal', bluepr
 }
 
 
-// Seed a cover config for the new-design wizard's Photo / Pattern / Icon / Minimal presets — a
-// complete form the user refines later in the cover widget (DialogCoverEditor round-trips
-// cover.form through cover_form_for_render on open, so any full form shape here reopens cleanly
-// there). The photo preset references a builtin stock/thematic background directly — no fetch,
-// no upload, it's already durably hosted in the public assets bucket
-export function seed_cover_preset(kind:'photo'|'pattern'|'icon'|'minimal', blueprint:Blueprint)
-        :CoverConfig{
+// Seed a cover config for the new-design wizard's Photo / Pattern / Icon presets — a complete
+// form the user refines later in the cover widget (DialogCoverEditor round-trips cover.form
+// through cover_form_for_render on open, so any full form shape here reopens cleanly there).
+// The photo preset references a builtin stock/thematic background directly — no fetch, no
+// upload, it's already durably hosted in the public assets bucket
+export function seed_cover_preset(kind:CoverPreset, blueprint:Blueprint):CoverConfig{
     const {form, bg_image_id} = build_cover_preset_form(kind, blueprint)
     return {form, bg_image: bg_image_id ? {kind: 'builtin', id: bg_image_id} : null,
         font_families: [], title_custom: false}
@@ -535,13 +528,13 @@ async function get_bg_regions(id:string):Promise<ImageRegions> {
 }
 
 
-// Render one of the wizard's Photo / Pattern / Icon / Minimal presets straight to an SVG string
-// (front panel only, no Storage upload — this is a disposable preview, not a saved cover) for
-// the wizard's cover-selection cards. Goes through the exact same build_cover_preset_form() +
+// Render one of the wizard's Photo / Pattern / Icon presets straight to an SVG string (front
+// panel only, no Storage upload — this is a disposable preview, not a saved cover) for the
+// wizard's cover-selection cards. Goes through the exact same build_cover_preset_form() +
 // render_cover() as real creation/compiling; only the image variant (thumbnail) and output
 // format (svg) differ
-export async function render_wizard_cover_preview(kind:'photo'|'pattern'|'icon'|'minimal',
-        blueprint:Blueprint):Promise<string> {
+export async function render_wizard_cover_preview(kind:CoverPreset, blueprint:Blueprint)
+        :Promise<string> {
     const {form, bg_image_id} = build_cover_preset_form(kind, blueprint)
     const cover:CoverConfig = {form,
         bg_image: bg_image_id ? {kind: 'builtin', id: bg_image_id} : null, font_families: [],

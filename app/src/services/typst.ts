@@ -17,7 +17,7 @@ export const ASSETS_PREFIX = import.meta.env.DEV
 // Handlers awaiting a response from the worker, keyed by request id. on_progress is undefined
 // for actions that never emit progress (init, set_custom_fonts)
 interface PendingHandlers {
-    resolve:(result:Uint8Array|null)=>void
+    resolve:(result:Uint8Array|string|null)=>void
     reject:(error:Error)=>void
     on_progress:ProgressFn|undefined
 }
@@ -125,7 +125,7 @@ export class TypstWorkerClient {
 
     // Post one request to the current worker and await its matching result. on_progress, if
     // given, is called for every progress update the worker reports before the result arrives
-    private post(action:WorkerAction, on_progress?:ProgressFn):Promise<Uint8Array|null> {
+    private post(action:WorkerAction, on_progress?:ProgressFn):Promise<Uint8Array|string|null> {
         const id = this.next_id++
         return new Promise((resolve, reject) => {
             this.pending.set(id, {resolve, reject, on_progress})
@@ -135,7 +135,8 @@ export class TypstWorkerClient {
 
     // As post(), but first waits out any in-progress worker recycle (all public API goes
     // through this)
-    private async send(action:WorkerAction, on_progress?:ProgressFn):Promise<Uint8Array|null> {
+    private async send(action:WorkerAction, on_progress?:ProgressFn)
+            :Promise<Uint8Array|string|null> {
         await this.gate
         return this.post(action, on_progress)
     }
@@ -143,17 +144,17 @@ export class TypstWorkerClient {
     // Send a compile action, retrying once if it poisoned the worker: the failure triggers a
     // recycle (see onmessage above), so when it was caused by accumulated memory rather than
     // by the document itself, the retry succeeds on the fresh worker
-    private async send_compile(
+    private async send_compile<T extends Uint8Array|string>(
         action:WorkerAction, on_progress?:ProgressFn,
-    ):Promise<Uint8Array> {
+    ):Promise<T> {
         try {
-            return await this.send(action, on_progress) as Uint8Array
+            return await this.send(action, on_progress) as T
         } catch (error){
             if (!(error instanceof FatalWorkerError)){
                 throw error
             }
             try {
-                return await this.send(action, on_progress) as Uint8Array
+                return await this.send(action, on_progress) as T
             } catch (retry_error){
                 // A fresh worker failing the same way means the document itself exceeds the
                 // 32-bit WASM heap — surface something clearer than the raw trap message
@@ -195,6 +196,13 @@ export class TypstWorkerClient {
     // on-screen preview only.
     async compile_pdf_preview(request:TypstRequest, on_progress?:ProgressFn):Promise<Uint8Array> {
         return await this.send_compile({action: 'compile_pdf_preview', request}, on_progress)
+    }
+
+    // Compile a single-page request straight to an SVG string, for showing a page as an image
+    // on screen (the wizard's minimal-ink cover card) — not a printable path, see compile_svg
+    // in typst-web
+    async compile_svg(request:TypstRequest):Promise<string> {
+        return await this.send_compile({action: 'compile_svg', request})
     }
 }
 
