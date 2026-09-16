@@ -16,11 +16,10 @@ const out_file = join(here, 'src', 'generated', 'patterns.ts')
 
 // Display order shown in the title-page editor (grouped by style)
 const ORDER = [
-    'simple', 'short', 'subtle',
-    'twist', 'vine', 'royal', 'abstract', 'burst',
-    'straight', 'detailed', 'formal',
+    'subtle', 'simple', 'short',
+    'twist', 'vine', 'abstract', 'burst',
+    'straight',
     'path', 'logic',
-    'rays',
 ]
 
 
