@@ -11,8 +11,7 @@ v-card-title(class='d-flex align-center')
 v-divider
 
 v-card-text(class='flex-grow-1 d-flex flex-column')
-    PassageField(v-model:passage='tmp_passage' v-model:error='passage_error'
-        @resolved='on_resolved')
+    PassageField(v-model:passage='tmp_passage' v-model:error='passage_error')
 
     v-divider(class='my-4')
 
@@ -42,7 +41,6 @@ import {PassageReference} from '@gracious.tech/fetch-client'
 import {blue, state} from '@/services/state'
 import {content} from '@/services/content'
 import {generate_token} from '@/services/utils'
-import {book_icon} from '@/services/icons'
 import IconField from '@/comp/editors/assets/IconField.vue'
 import ImageField from '@/comp/editors/assets/ImageField.vue'
 import PassageField from '@/comp/editors/assets/PassageField.vue'
@@ -96,13 +94,6 @@ const tmp_title_display = computed({
 
 // The title's effective value to write to the item: null while auto, else the custom text
 const compute_title = ():string|null => tmp_title_auto.value ? null : tmp_title.value
-
-// Default the book icon from a freshly resolved reference (new items only)
-const on_resolved = (_reference:string, book:string) => {
-    if (!item && !tmp_title_icon.value){
-        tmp_title_icon.value = book_icon[book] ?? null
-    }
-}
 
 
 // Create the item on first valid reference, or apply ref changes to the existing item
