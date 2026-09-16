@@ -101,7 +101,7 @@ export function get_default_blueprint():Blueprint{
         story_alternate: false,
 
         // Title pages
-        titlepage_frame: 'straight',
+        titlepage_frame: 'subtle',
         titlepage_color_text: null,
         titlepage_color_icon: null,
         titlepage_color_frame: null,
