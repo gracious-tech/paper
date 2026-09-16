@@ -183,6 +183,12 @@ export function clean_blueprint(blueprint:unknown):Blueprint{
         valid.bibles.push(content.collection.get_preferred_resource().id)
     }
 
+    // Booklet (fold in half) only makes sense for self-managed printing (home/custom) —
+    // real print services always expect false
+    if (valid.service_id !== 'home' && valid.service_id !== 'custom'){
+        valid.booklet = false
+    }
+
     return valid
 }
 

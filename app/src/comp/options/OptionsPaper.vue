@@ -57,6 +57,11 @@ template(v-else)
         AppOptionToggle(v-model='unit_model' :items='custom_unit_items' size='small'
             density='compact')
 
+        //- Custom mode can still be a fold-in-half booklet (real services can't be manually
+        //- folded)
+        v-switch(v-if='is_custom' v-model='blue.booklet' :label='$t("common.booklet_home")'
+            color='primary' density='compact' hide-details)
+
     //- Regular-service mode: binding, ink and paper type (page count isn't asked for — it's
     //- determined by the document itself, estimated from the preview until a version compiles)
     template(v-else)
@@ -295,15 +300,16 @@ watch(() => blue.service_id, () => {
         }
         return
     }
-    // Booklet (fold-at-home) only applies to home printing
-    blue.booklet = false
     if (is_custom.value){
-        // Custom service: default to the first common size and a plain paperback binding
+        // Custom service: default to the first common size and a plain paperback binding.
+        // Booklet is left as-is here since custom (self-managed printing) can still fold
         const sizes = get_common_sizes({numbers: 'number'})
         blue.size_id = sizes.length ? sizes[0]!.id : ''
         blue.binding_type = 'paperback'
         return
     }
+    // Booklet (fold in half) doesn't apply to real print services
+    blue.booklet = false
     const sizes = service.value!.get_sizes()
     blue.size_id = sizes.length ? sizes[0]!.id : ''
     const bindings = service.value!.get_binding_types()
