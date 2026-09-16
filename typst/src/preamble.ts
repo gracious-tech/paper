@@ -251,13 +251,13 @@ function gen_ch_divider(leading:string):string {
 // were no heading (see gen_heading_rules). The n > 1 test mirrors the divider's: chapter 1 draws
 // nothing, so its heading has nothing to sit against and keeps its normal spacing
 function gen_ch_divider_binding(name:string, chapter_state:string):string {
-    return `#let ${name}(n) = {
+    return `#let ${name}(n, ..rest) = {
     ${chapter_state}.update(n)
     if n > 1 {
         ch_divider(n)
     }
 }
-#let ${name}_tight(n) = {
+#let ${name}_tight(n, ..rest) = {
     ${name}(n)
     if n > 1 {
         state("heading-tight", false).update(true)
@@ -343,7 +343,7 @@ export function gen_preamble(request:TypstRequest, overrides:PreambleOverrides =
     // are hidden entirely
     let chapter:string
     if (!features.show_chapters) {
-        chapter = `#let ch(n) = ${running.chapter}.update(n)`
+        chapter = `#let ch(n, ..rest) = ${running.chapter}.update(n)`
     } else if (features.show_chapters_style === 'divider') {
         chapter = `${gen_ch_divider(leading)}\n${gen_ch_divider_binding('ch', running.chapter)}`
     } else if (features.show_chapters_style === 'float') {
@@ -373,7 +373,7 @@ export function gen_preamble(request:TypstRequest, overrides:PreambleOverrides =
         // heading, or by the first verse marker (#vn) when a chapter opens straight into text, so
         // later mid-chapter headings keep their normal spacing.
         const num_size = parseFloat(float_chapter_size(request).toFixed(2))
-        chapter = `#let ch(n) = {
+        chapter = `#let ch(n, ..rest) = {
     ${running.chapter}.update(n)
     context {
         let num = text(size: ${num_size}em, weight: "bold",
@@ -395,7 +395,7 @@ export function gen_preamble(request:TypstRequest, overrides:PreambleOverrides =
         // show rule below, same as any other heading). It gets its own heading level so that
         // turning section headings off doesn't take chapter headings with it — the passage's
         // rules style this level and hide only the content's own levels (see gen_heading_rules)
-        chapter = `#let ch(n) = {
+        chapter = `#let ch(n, ..rest) = {
     ${running.chapter}.update(n)
     heading(level: ${CHAPTER_HEADING_LEVEL}, "Chapter " + str(n))
 }`
@@ -406,7 +406,7 @@ export function gen_preamble(request:TypstRequest, overrides:PreambleOverrides =
     // translation: the divider style draws a single divider at full grid width and the margin
     // number style keeps only the primary translation's numeral (see gen_multi_bible_grids in
     // content_passage.ts)
-    chapter += `\n#let ch_quiet(n) = ${running.chapter}.update(n)`
+    chapter += `\n#let ch_quiet(n, ..rest) = ${running.chapter}.update(n)`
 
     // Chapter marker for a chapter that opens straight into a section heading — the generator
     // swaps #ch for it wherever the markup has one directly followed by a heading (see
@@ -415,7 +415,7 @@ export function gen_preamble(request:TypstRequest, overrides:PreambleOverrides =
     // every other style just aliases #ch_tight to #ch
     const divider_chapters = features.show_chapters && features.show_chapters_style === 'divider'
     if (!divider_chapters) {
-        chapter += '\n#let ch_tight(n) = ch(n)'
+        chapter += '\n#let ch_tight(n, ..rest) = ch(n)'
     }
 
     // Verse marker (#vn) — superscript bold number glued to the next word with a narrow
@@ -428,11 +428,11 @@ export function gen_preamble(request:TypstRequest, overrides:PreambleOverrides =
     // leading; other styles keep the plain one-line definition
     const float_chapters = features.show_chapters && features.show_chapters_style === 'float'
     const verse = float_chapters
-        ? `#let vn(n) = {
+        ? `#let vn(n, ..rest) = {
     state("ch-float-open", false).update(false)
     ${verse_mark}
 }`
-        : `#let vn(n) = ${verse_mark}`
+        : `#let vn(n, ..rest) = ${verse_mark}`
 
     // Words of Jesus (#wj) — plain unless color/bold/italic styling is enabled
     const wj_styles:string[] = []
@@ -448,8 +448,8 @@ export function gen_preamble(request:TypstRequest, overrides:PreambleOverrides =
         }
     }
     const wj = wj_styles.length
-        ? `#let wj(body) = text(${wj_styles.join(', ')}, body)`
-        : '#let wj(body) = body'
+        ? `#let wj(body, ..rest) = text(${wj_styles.join(', ')}, body)`
+        : '#let wj(body, ..rest) = body'
 
     // The whole preamble, with the computed values substituted in. The chapter/verse/wj
     // markers vary with the feature options above; the poetry (#q, #qm), list (#li, #lim) and
@@ -541,41 +541,45 @@ ${wj}
     left: 1em * calc.max(n + 1 - base, 0),
     par(hanging-indent: 2em, c),
 )
-#let q(n, c) = q_base(n, c)
-#let qm(n, c) = qm_base(n, c)
+#let q(n, c, ..rest) = q_base(n, c)
+#let qm(n, c, ..rest) = qm_base(n, c)
 // List entry (USFM \li) — same 1em grid as poetry: one step per level, and a wrapped
 // line hangs two steps so it can't be mistaken for a deeper-level item
-#let li(n, c) = pad(
+#let li(n, c, ..rest) = pad(
     left: 1em * n,
     par(hanging-indent: 2em, c),
 )
 // Embedded list entry — one step deeper than the equivalent li level
-#let lim(n, c) = pad(
+#let lim(n, c, ..rest) = pad(
     left: 1em * (n + 1),
     par(hanging-indent: 2em, c),
 )
 // Stanza break (USFM \b) — a deliberate blank line between poetry stanzas
-#let b() = v(1em)
+#let b(..rest) = v(1em)
 // Non-leveled wrapped paragraphs
-#let qc(c) = align(center, c)
-#let qr(c) = align(right, c)
+#let qc(c, ..rest) = align(center, c)
+#let qr(c, ..rest) = align(right, c)
 // Poetic descriptor (USFM \qd) — a rare Hebrew musical postscript; just italicise it
 // like the other paratextual notes (\qs etc.), no bespoke indent for now
-#let qd(c) = emph(c)
-#let lh(c) = strong(c)
-#let lf(c) = c
+#let qd(c, ..rest) = emph(c)
+// Descriptive title (USFM \d) — a Psalm's Hebrew superscription (e.g. "A Psalm of David,
+// to the tune of..."); italicised like the other paratextual notes above, no bespoke
+// indent for now
+#let d(c, ..rest) = emph(c)
+#let lh(c, ..rest) = strong(c)
+#let lf(c, ..rest) = c
 // Character styles with no native Typst equivalent
-#let qac(c) = emph(c)
-#let qs(c) = emph(c)
-#let bk(c) = emph(c)
-#let tl(c) = emph(c)
-#let add(c) = emph(c)
-#let sig(c) = emph(c)
+#let qac(c, ..rest) = emph(c)
+#let qs(c, ..rest) = emph(c)
+#let bk(c, ..rest) = emph(c)
+#let tl(c, ..rest) = emph(c)
+#let add(c, ..rest) = emph(c)
+#let sig(c, ..rest) = emph(c)
 // Original-language word glosses used by study notes — no special styling for now
-#let greek(c) = c
-#let hebrew(c) = c
-#let aramaic(c) = c
-#let latin(c) = c
+#let greek(c, ..rest) = c
+#let hebrew(c, ..rest) = c
+#let aramaic(c, ..rest) = c
+#let latin(c, ..rest) = c
 // Study note footnote — hidden in-text marker and entry mark (verse numbers are the reference).
 // Defined here (global scope) so it keeps working even when a passage scope later shadows
 // #footnote to disable regular translator footnotes — closures capture this binding, not that one.

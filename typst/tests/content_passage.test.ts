@@ -220,8 +220,8 @@ describe('gen_passage', () => {
 
         it('outdents poetry levels for poetry books', () => {
             const result = call(make_passage({book: 'psa'}))
-            expect(result).toContain('#let q(n, c) = q_base(n, c, base: 1)')
-            expect(result).toContain('#let qm(n, c) = qm_base(n, c, base: 1)')
+            expect(result).toContain('#let q(n, c, ..rest) = q_base(n, c, base: 1)')
+            expect(result).toContain('#let qm(n, c, ..rest) = qm_base(n, c, base: 1)')
         })
 
         it('leaves poetry levels alone for non-poetry books', () => {

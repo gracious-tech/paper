@@ -284,8 +284,8 @@ function gen_passage_inner(
     // the measure). Prose paragraphs keep their normal first-line indent — poetry levels are all
     // this setting touches, and books like Ecclesiastes are largely prose
     if (poetry_outdent && LOTS_OF_POETRY.includes(passage.book)) {
-        lines.push('#let q(n, c) = q_base(n, c, base: 1)')
-        lines.push('#let qm(n, c) = qm_base(n, c, base: 1)')
+        lines.push('#let q(n, c, ..rest) = q_base(n, c, base: 1)')
+        lines.push('#let qm(n, c, ..rest) = qm_base(n, c, base: 1)')
     }
 
     // The 'float' style's numeral hangs in the margin to the left of the text block, and a page

@@ -145,7 +145,7 @@ describe('gen_preamble', () => {
             expect(result).toContain('#let ch_divider(n) =')
             // No font: override — inherits font_text + its fallbacks, same as regular body text
             const divider_source = result.slice(
-                result.indexOf('#let ch_divider(n)'), result.indexOf('#let vn(n)'))
+                result.indexOf('#let ch_divider(n)'), result.indexOf('#let vn(n, ..rest)'))
             expect(divider_source).not.toContain('font:')
         })
 
@@ -154,7 +154,7 @@ describe('gen_preamble', () => {
                 const result = gen_preamble(make_request({
                     features: {...TEST_FEATURES, show_chapters: true, show_chapters_style: style},
                 }))
-                expect(result).toContain('#let ch_quiet(n) = state("running-chapter", 0).update(n)')
+                expect(result).toContain('#let ch_quiet(n, ..rest) = state("running-chapter", 0).update(n)')
             }
         })
 
@@ -165,25 +165,25 @@ describe('gen_preamble', () => {
             const divider = gen_preamble(make_request({
                 features: {...TEST_FEATURES, show_chapters: true, show_chapters_style: 'divider'},
             }))
-            expect(divider).toContain('#let ch_tight(n) = {')
+            expect(divider).toContain('#let ch_tight(n, ..rest) = {')
             expect(divider).toContain('state("heading-tight", false).update(true)')
             // Every other style has nothing to add, so the marker is just the plain one
             for (const style of ['float', 'heading'] as const) {
                 const result = gen_preamble(make_request({
                     features: {...TEST_FEATURES, show_chapters: true, show_chapters_style: style},
                 }))
-                expect(result).toContain('#let ch_tight(n) = ch(n)')
+                expect(result).toContain('#let ch_tight(n, ..rest) = ch(n)')
             }
             expect(gen_preamble(make_request({
                 features: {...TEST_FEATURES, show_chapters: false},
-            }))).toContain('#let ch_tight(n) = ch(n)')
+            }))).toContain('#let ch_tight(n, ..rest) = ch(n)')
         })
 
         it('generates float chapter style', () => {
             const result = gen_preamble(make_request({
                 features: {...TEST_FEATURES, show_chapters: true, show_chapters_style: 'float'},
             }))
-            expect(result).toContain('#let ch(n) =')
+            expect(result).toContain('#let ch(n, ..rest) =')
             expect(result).toContain('place(')
             // The single-digit design size, kept whenever the margin can hold it (measure() is
             // still used, only to offset the numeral by its own width)
@@ -228,16 +228,16 @@ describe('gen_preamble', () => {
                 features: {...TEST_FEATURES, show_chapters: true, show_chapters_style: 'float'},
             }))
             expect(result).toContain('#let ch_divider(n) =')
-            expect(result).toContain('#let ch_columns(n) = {')
-            expect(result).toContain('#let ch_columns_tight(n) = {')
+            expect(result).toContain('#let ch_columns(n, ..rest) = {')
+            expect(result).toContain('#let ch_columns_tight(n, ..rest) = {')
             // Defined before use — Typst closures capture the scope they're created in
             expect(result.indexOf('#let ch_divider(n)'))
-                .toBeLessThan(result.indexOf('#let ch_columns(n)'))
+                .toBeLessThan(result.indexOf('#let ch_columns(n, ..rest)'))
             // No other style needs it
             for (const style of ['divider', 'heading'] as const) {
                 expect(gen_preamble(make_request({
                     features: {...TEST_FEATURES, show_chapters: true, show_chapters_style: style},
-                }))).not.toContain('#let ch_columns(n)')
+                }))).not.toContain('#let ch_columns(n, ..rest)')
             }
         })
 
@@ -256,7 +256,7 @@ describe('gen_preamble', () => {
             const result = gen_preamble(make_request({
                 features: {...TEST_FEATURES, show_chapters: false},
             }))
-            expect(result).toContain('#let ch(n) = state("running-chapter", 0).update(n)')
+            expect(result).toContain('#let ch(n, ..rest) = state("running-chapter", 0).update(n)')
         })
     })
 
@@ -268,7 +268,7 @@ describe('gen_preamble', () => {
             const result = gen_preamble(make_request({
                 features: {...TEST_FEATURES, show_verses: true},
             }))
-            expect(result).toContain('#let vn(n) =')
+            expect(result).toContain('#let vn(n, ..rest) =')
             expect(result).toContain('super(str(n))')
             // A narrow no-break space keeps the number glued to the following word
             expect(result).toContain('sym.space.nobreak.narrow')
@@ -278,7 +278,7 @@ describe('gen_preamble', () => {
             const result = gen_preamble(make_request({
                 features: {...TEST_FEATURES, show_verses: false},
             }))
-            expect(result).toContain('#let vn(n) = []')
+            expect(result).toContain('#let vn(n, ..rest) = []')
         })
 
         it('clears the float chapter-open flag under the float style', () => {
@@ -289,7 +289,7 @@ describe('gen_preamble', () => {
                     show_verses: true},
             }))
             const vn_source = result.slice(
-                result.indexOf('#let vn(n)'), result.indexOf('#let wj('))
+                result.indexOf('#let vn(n, ..rest)'), result.indexOf('#let wj('))
             expect(vn_source).toContain('state("ch-float-open", false).update(false)')
         })
 
@@ -299,7 +299,7 @@ describe('gen_preamble', () => {
                     show_verses: true},
             }))
             expect(result).toContain(
-                '#let vn(n) = [#text(weight: "bold", super(str(n)))#sym.space.nobreak.narrow]')
+                '#let vn(n, ..rest) = [#text(weight: "bold", super(str(n)))#sym.space.nobreak.narrow]')
         })
     })
 
@@ -311,7 +311,7 @@ describe('gen_preamble', () => {
             const result = gen_preamble(make_request({
                 features: {...TEST_FEATURES, show_wj: true, show_wj_color: '#cc0000'},
             }))
-            expect(result).toContain('#let wj(body) = text(fill: rgb("#cc0000"), body)')
+            expect(result).toContain('#let wj(body, ..rest) = text(fill: rgb("#cc0000"), body)')
         })
 
         it('applies bold and italic styling when enabled', () => {
@@ -319,7 +319,7 @@ describe('gen_preamble', () => {
                 features: {...TEST_FEATURES, show_wj: true, show_wj_color: null,
                     show_wj_bold: true, show_wj_italic: true},
             }))
-            expect(result).toContain('#let wj(body) = text(weight: "bold", style: "italic", body)')
+            expect(result).toContain('#let wj(body, ..rest) = text(weight: "bold", style: "italic", body)')
         })
 
         it('leaves wj as a pass-through when show_wj is on but no styling is chosen', () => {
@@ -327,14 +327,14 @@ describe('gen_preamble', () => {
                 features: {...TEST_FEATURES, show_wj: true, show_wj_color: null,
                     show_wj_bold: false, show_wj_italic: false},
             }))
-            expect(result).toContain('#let wj(body) = body')
+            expect(result).toContain('#let wj(body, ..rest) = body')
         })
 
         it('defines a plain wj pass-through when show_wj is false', () => {
             const result = gen_preamble(make_request({
                 features: {...TEST_FEATURES, show_wj: false},
             }))
-            expect(result).toContain('#let wj(body) = body')
+            expect(result).toContain('#let wj(body, ..rest) = body')
         })
     })
 })
