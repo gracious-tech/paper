@@ -135,7 +135,7 @@ export function gen_copyright_typst(
             + '    align: (center + horizon, left + horizon),\n'
             + `    ${qr},\n`
             + `    [#text(weight: "bold")[${invite}] #linebreak() ${link}],\n`
-            + '))')
+            + '))\n#v(1em)')
     }
 
     if (data.statement !== 'none') {
