@@ -99,9 +99,10 @@ export function gen_name_auto(blueprint:Blueprint):string{
         return ''
     }
     // A passage the user has titled is named by that title, falling through to its reference
-    // otherwise. gen_content_name() isn't given this preference wholesale because it also feeds
+    // otherwise (a null "auto" title falls through the same as an explicitly blank one).
+    // gen_content_name() isn't given this preference wholesale because it also feeds
     // content_preview(), whose whole job is to list references
-    if (item.type === 'passage' && item.title.trim()){
+    if (item.type === 'passage' && item.title?.trim()){
         return item.title.trim()
     }
     return gen_content_name(item, blueprint.bibles[0])

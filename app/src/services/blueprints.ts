@@ -10,7 +10,7 @@ import {blue} from '@/services/state'
 
 import {count_phrase} from '@/services/i18n'
 
-import type {Blueprint, ContentItem, ContentPassage} from '@/services/types'
+import type {Blueprint, ContentItem, ContentPassage, ContentPictureStory} from '@/services/types'
 import type {Translate} from '@/services/i18n'
 
 
@@ -294,6 +294,22 @@ export function gen_content_name(item:ContentItem, bible=blue.bibles[0], abbrevi
 }
 
 
+// A picture story's reference, spanning its first to last passage-mode slide, or null if it has
+// no passage-mode slides at all (a fully custom-text story has nothing to derive one from).
+// Shared by content_preview() below and the picture-story editor's title placeholder
+export function picture_story_reference(
+    item:ContentPictureStory, bible=blue.bibles[0], abbreviate=false,
+):string|null{
+    const passages = item.slides.filter(slide => slide.mode === 'passage' && slide.book)
+    if (!passages.length){
+        return null
+    }
+    const range = PassageReference.from_refs(
+        new PassageReference(passages[0]!), new PassageReference(passages.at(-1)!))
+    return content.collection.reference_to_string(range, bible, abbreviate)
+}
+
+
 // Whether a content item is a passage selecting an entire book (all 4 range fields null) — the
 // convention the new-design wizard's book picker uses (see new_design.ts) for "whole book"
 function is_whole_book(item:ContentItem):item is ContentPassage{
@@ -341,14 +357,7 @@ export function content_preview(items:ContentItem[], bible=blue.bibles[0]):strin
         if (item.type === 'passage'){
             parts.push(gen_content_name(item, bible, abbreviate))
         } else if (item.type === 'picture_story'){
-            const passages = item.slides.filter(slide => slide.mode === 'passage' && slide.book)
-            if (!passages.length){
-                parts.push("Custom text")
-                continue
-            }
-            const range = PassageReference.from_refs(
-                new PassageReference(passages[0]!), new PassageReference(passages.at(-1)!))
-            parts.push(content.collection.reference_to_string(range, bible, abbreviate))
+            parts.push(picture_story_reference(item, bible, abbreviate) ?? "Custom text")
         }
     }
     return parts.join(', ')

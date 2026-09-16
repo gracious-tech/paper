@@ -132,7 +132,7 @@ const add_picture_story = () => {
     open_picture_story_editor(reactive({
         id: generate_token(),
         type: 'picture_story',
-        title: '',
+        title: null,
         title_subtitle: "",
         title_icon: null,
         slides: [],

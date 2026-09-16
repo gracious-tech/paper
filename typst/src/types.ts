@@ -463,7 +463,10 @@ export interface ContentTitle {
 
 // Bible passage reference item (resolved to fetched content at render time). title/title_subtitle/
 // title_icon mirror ContentTitle's fields — set when the passage should auto-show a title (as a
-// title page or inline heading, per Blueprint.passage_title)
+// title page or inline heading, per Blueprint.passage_title). title is nullable: null means
+// "auto-generate the heading from the passage's own reference at render time", '' means
+// "explicitly no heading" (distinct from null so a user can deliberately hide it), and a
+// non-empty string is a literal custom title
 export interface ContentPassage {
     type:'passage'
     id:string
@@ -472,7 +475,7 @@ export interface ContentPassage {
     start_verse:number|null
     end_chapter:number|null
     end_verse:number|null
-    title:string
+    title:string|null
     title_subtitle:string
     title_icon:string|null
     image:ContentPassageImage|null
@@ -524,11 +527,13 @@ export interface PictureStorySlide {
 
 // A sequence of illustrated slides, rendered one page each. title/title_subtitle/title_icon
 // mirror ContentPassage so an auto title page can be shown before the story (see
-// Blueprint.passage_title)
+// Blueprint.passage_title). title follows the same null/''/string convention as
+// ContentPassage.title, except the "auto" (null) case falls back to a reference spanning the
+// story's passage-mode slides, or no heading at all if it has none
 export interface ContentPictureStory {
     type:'picture_story'
     id:string
-    title:string
+    title:string|null
     title_subtitle:string
     title_icon:string|null
     slides:PictureStorySlide[]

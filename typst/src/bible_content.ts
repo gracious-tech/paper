@@ -23,10 +23,10 @@ import type {CjkVariant, FontStyle} from 'typst-fonts'
 import type {QuoteState} from './helpers.js'
 import type {BibleCollection, BibleBookTypst, BibleBookTxt, GetResourcesItem,
     } from '@gracious.tech/fetch-client'
-import type {Blueprint, ContentPassage, ContentCustom, ContentPictureStory, TypstRequest,
-    TypstContentItem, TypstPassage, TypstTitlePage, TypstCustomPage, TypstPictureStory,
-    TypstPictureStorySlide, BiblePassageData, PageConfig, TypstNotesFile, ProgressFn,
-    TitlepageConfig} from './types.js'
+import type {Blueprint, ContentPassage, ContentCustom, ContentPictureStory, PictureStorySlide,
+    TypstRequest, TypstContentItem, TypstPassage, TypstTitlePage, TypstCustomPage,
+    TypstPictureStory, TypstPictureStorySlide, BiblePassageData, PageConfig, TypstNotesFile,
+    ProgressFn, TitlepageConfig} from './types.js'
 
 
 // Default Bible content API endpoint (production fetch.bible)
@@ -303,9 +303,15 @@ export class BibleContent {
         for (const item of blue.content) {
             if (item.type === 'passage') {
                 // A passage's own title, auto-shown as a full title page immediately before it
-                // when the document-wide passage_title setting is set to 'titlepage'
-                if (blue.passage_title === 'titlepage' && item.title.trim()) {
-                    items.push(await this.gen_title_page(item, titlepage_color_icon))
+                // when the document-wide passage_title setting is set to 'titlepage'. A null
+                // title falls back to the passage's own reference (e.g. "Genesis"); '' stays
+                // explicitly suppressed (see effective_passage_title)
+                const passage_title = this.effective_passage_title(blue, item)
+                if (blue.passage_title === 'titlepage' && passage_title.trim()) {
+                    items.push(await this.gen_title_page(
+                        {title: passage_title, title_subtitle: item.title_subtitle,
+                            title_icon: item.title_icon},
+                        titlepage_color_icon))
                 }
                 items.push(await this.gen_passage_item(blue, item, report_fetch))
             } else if (item.type === 'title') {
@@ -314,8 +320,12 @@ export class BibleContent {
                 items.push(this.gen_custom_item(blue, item, resources, share_url))
             } else if (item.type === 'picture_story') {
                 // Auto title page before the story, same rule as passages
-                if (blue.passage_title === 'titlepage' && item.title.trim()) {
-                    items.push(await this.gen_title_page(item, titlepage_color_icon))
+                const story_title = this.effective_picture_story_title(blue, item)
+                if (blue.passage_title === 'titlepage' && story_title.trim()) {
+                    items.push(await this.gen_title_page(
+                        {title: story_title, title_subtitle: item.title_subtitle,
+                            title_icon: item.title_icon},
+                        titlepage_color_icon))
                 }
                 items.push(await this.gen_picture_story_item(blue, item, report_fetch))
             }
@@ -477,11 +487,12 @@ export class BibleContent {
         blue:Blueprint, passage:ContentPassage, report_fetch?:(label:string) => void,
     ):Promise<TypstPassage> {
         // Computed once regardless of passage_title mode, since progress_label always needs it
-        const reference = this.collection.reference_to_string(
-            new PassageReference(passage), blue.bibles[0])
+        const reference = this.passage_reference(blue, passage)
+        // A null title falls back to the reference itself; '' stays explicitly suppressed
+        const effective_title = passage.title ?? reference
         // Inline heading mode only — 'titlepage' mode is handled by injecting a separate
         // synthetic TypstTitlePage item before this one (see resolve())
-        const show_heading = blue.passage_title === 'heading' && passage.title.trim() !== ''
+        const show_heading = blue.passage_title === 'heading' && effective_title.trim() !== ''
         const image = passage.image
             ? await resolve_passage_image(passage.image, passage.id)
             : null
@@ -519,11 +530,47 @@ export class BibleContent {
             book_name: this.collection.get_books(blue.bibles[0], {object: true})[passage.book]
                 ?.name ?? passage.book,
             start_chapter: passage.start_chapter ?? 1,
-            passage_title: show_heading ? passage.title : null,
+            passage_title: show_heading ? effective_title : null,
             passage_subtitle: show_heading && passage.title_subtitle ? passage.title_subtitle : null,
             passage_icon,
             progress_label: reference,
         }
+    }
+
+    // A passage's reference string in the primary translation (e.g. "Genesis 1:1-5") — the
+    // basis for progress_label always, and for the title fallback below when title is null
+    private passage_reference(blue:Blueprint, passage:ContentPassage):string {
+        return this.collection.reference_to_string(new PassageReference(passage), blue.bibles[0])
+    }
+
+    // A passage's title, resolving a null ("auto") title to its own reference. '' is left as
+    // '' — that's the explicit "no heading" state, distinct from null
+    private effective_passage_title(blue:Blueprint, passage:ContentPassage):string {
+        return passage.title ?? this.passage_reference(blue, passage)
+    }
+
+    // A picture story's reference, spanning its first to last passage-mode slide (e.g. a story
+    // built from Genesis 1-3 slides reads "Genesis 1-3"). null if the story has no passage-mode
+    // slides at all (fully custom-text story) — there's nothing to fall back to
+    private picture_story_reference(blue:Blueprint, story:ContentPictureStory):string|null {
+        const passages = story.slides.filter(
+            (slide):slide is PictureStorySlide & {book:string} =>
+                slide.mode === 'passage' && !!slide.book)
+        if (!passages.length) {
+            return null
+        }
+        const range = PassageReference.from_refs(
+            new PassageReference(passages[0]!), new PassageReference(passages.at(-1)!))
+        return this.collection.reference_to_string(range, blue.bibles[0])
+    }
+
+    // A picture story's title, resolving a null ("auto") title to its own reference, or '' (no
+    // heading) if it has no passage-mode slides to derive one from
+    private effective_picture_story_title(blue:Blueprint, story:ContentPictureStory):string {
+        if (story.title !== null) {
+            return story.title
+        }
+        return this.picture_story_reference(blue, story) ?? ''
     }
 
     // Convert a picture-story content item to its Typst equivalent. A passage slide renders clean

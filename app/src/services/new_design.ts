@@ -307,7 +307,7 @@ export function wizard_preview_blueprint(draft:NewDesignDraft, pages:number|null
     }
     if (ref_args){
         blueprint.content = [{type: 'passage', id: 'wizard-preview', ...ref_args,
-            title: '', title_subtitle: '', title_icon: null} as ContentPassage]
+            title: null, title_subtitle: '', title_icon: null} as ContentPassage]
     }
     return blueprint
 }
@@ -360,15 +360,9 @@ export async function build_new_blueprint(draft:NewDesignDraft, pages:number|nul
 
     // Content: either one whole-book passage per selected book (canonical order regardless of
     // the order the user clicked them in), or the user's own passage list (their order, since
-    // reordering it is the entire point of that mode), each showing its own heading
-
-    // A passage's auto-derived heading text (matches the editor's own "Book or passage" ref
-    // display), so a fresh design's passages show a sensible title out of the box
-    const passage_reference = (ref_args:{book:string, start_chapter:number|null,
-            start_verse:number|null, end_chapter:number|null, end_verse:number|null}):string => {
-        return content.collection.reference_to_string(
-            new PassageReference(ref_args), blueprint.bibles[0])
-    }
+    // reordering it is the entire point of that mode), each showing its own heading. title is
+    // left null ("auto") throughout — the Typst render pipeline generates a sensible heading
+    // from each item's own reference at compile time (see bible_content.ts)
 
     if (draft.type === 'picture_story'){
         if (draft.book_mode === 'passages'){
@@ -387,7 +381,7 @@ export async function build_new_blueprint(draft:NewDesignDraft, pages:number|nul
                     return {
                         type: 'picture_story',
                         id: generate_token(),
-                        title: passage_reference(ref_args),
+                        title: null,
                         title_subtitle: '',
                         title_icon: null,
                         slides: [{
@@ -430,7 +424,7 @@ export async function build_new_blueprint(draft:NewDesignDraft, pages:number|nul
                     type: 'passage',
                     id: generate_token(),
                     ...ref_args,
-                    title: passage_reference(ref_args),
+                    title: null,
                     title_subtitle: '',
                     title_icon: null,
                 } as ContentPassage
@@ -449,7 +443,7 @@ export async function build_new_blueprint(draft:NewDesignDraft, pages:number|nul
                 type: 'passage',
                 id: generate_token(),
                 ...ref_args,
-                title: passage_reference(ref_args),
+                title: null,
                 title_subtitle: '',
                 title_icon: null,
             } as ContentPassage

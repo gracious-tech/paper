@@ -50,7 +50,9 @@ const content_passage_image_schema = z.object({
 // same reason as content_title_schema above — old saved designs have `title` as a boolean (the
 // pre-redesign "show heading" toggle) and no title_subtitle/title_icon at all; without .catch()
 // here, a type mismatch on any one field would drop the whole passage (book/chapters/verses
-// included), not just its title
+// included), not just its title. title itself falls back to null (auto-generate from the
+// reference) rather than '' (explicitly no heading) — closer to that old toggle's default-on
+// meaning than an empty string would be
 const content_passage_schema = z.object({
     type: z.literal('passage'),
     id: z.string().min(1),
@@ -59,7 +61,7 @@ const content_passage_schema = z.object({
     start_verse: z.number().nullable(),
     end_chapter: z.number().nullable(),
     end_verse: z.number().nullable(),
-    title: z.string().catch(''),
+    title: z.string().nullable().catch(null),
     title_subtitle: z.string().catch(''),
     title_icon: z.string().nullable().catch(null),
     image: content_passage_image_schema.nullable().catch(null),
@@ -93,11 +95,13 @@ const picture_story_slide_schema = z.object({
 
 
 // A picture-story item (a sequence of illustrated slides). title uses per-field .catch() like
-// the other items; a bad slides array degrades to empty rather than dropping the whole item
+// the other items, falling back to null (auto) rather than '' (explicitly no heading) for the
+// same reason as content_passage_schema above; a bad slides array degrades to empty rather than
+// dropping the whole item
 const content_picture_story_schema = z.object({
     type: z.literal('picture_story'),
     id: z.string().min(1),
-    title: z.string().catch(''),
+    title: z.string().nullable().catch(null),
     title_subtitle: z.string().catch(''),
     title_icon: z.string().nullable().catch(null),
     slides: z.array(picture_story_slide_schema).catch([]),

@@ -4,6 +4,7 @@ import {describe, it, expect, vi, beforeEach, afterEach} from 'vitest'
 import {BibleContent, resolve_declared_cjk_variant} from '../src/bible_content.js'
 
 import type {BibleCollection, GetResourcesItem} from '@gracious.tech/fetch-client'
+import type {Blueprint, ContentPassage, ContentPictureStory} from '../src/types.js'
 
 
 // Minimal fake resource, overridden per test — only language/script/region matter here
@@ -113,5 +114,86 @@ describe('resolve_declared_cjk_variant', () => {
         expect(resolve_declared_cjk_variant(
             make_resource({language: 'cmn', script: 'Hant', region: 'HK'})))
             .toBe('HK')
+    })
+})
+
+
+describe('title null/empty/string fallback resolution', () => {
+
+    // A fake collection whose reference_to_string always returns a fixed sentinel, regardless
+    // of the passage — the private resolvers under test only care whether/how they call it, not
+    // what a real reference string looks like (that's PassageReference's own concern)
+    const reference_to_string = vi.fn(() => 'AUTO_REF')
+    const collection = {reference_to_string} as unknown as BibleCollection
+    const content = new BibleContent({collection})
+    const blue = {bibles: ['eng']} as Blueprint
+
+    const make_passage = (overrides:Partial<ContentPassage> = {}):ContentPassage => ({
+        type: 'passage', id: 'p1', book: 'gen', start_chapter: 1, start_verse: null,
+        end_chapter: 1, end_verse: null, title: null, title_subtitle: '', title_icon: null,
+        image: null, ...overrides,
+    })
+
+    const make_story = (overrides:Partial<ContentPictureStory> = {}):ContentPictureStory => ({
+        type: 'picture_story', id: 's1', title: null, title_subtitle: '', title_icon: null,
+        slides: [], ...overrides,
+    })
+
+    beforeEach(() => {
+        reference_to_string.mockClear()
+    })
+
+    it('passage: a null title falls back to the reference', () => {
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        const title = (content as any).effective_passage_title(blue, make_passage())
+        expect(title).toBe('AUTO_REF')
+        expect(reference_to_string).toHaveBeenCalledTimes(1)
+    })
+
+    it("passage: an explicit '' title stays suppressed, without calling reference_to_string", () => {
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        const title = (content as any).effective_passage_title(blue, make_passage({title: ''}))
+        expect(title).toBe('')
+        expect(reference_to_string).not.toHaveBeenCalled()
+    })
+
+    it('passage: a literal custom title passes through unchanged', () => {
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        const title = (content as any).effective_passage_title(
+            blue, make_passage({title: 'My Title'}))
+        expect(title).toBe('My Title')
+        expect(reference_to_string).not.toHaveBeenCalled()
+    })
+
+    it('picture story: a null title falls back to a reference spanning its passage slides', () => {
+        const story = make_story({slides: [
+            {id: 'sl1', image: null, mode: 'passage', book: 'gen', start_chapter: 1,
+                start_verse: null, end_chapter: 1, end_verse: null, doc: {type: 'doc', content: []}},
+            {id: 'sl2', image: null, mode: 'text', book: '', start_chapter: null,
+                start_verse: null, end_chapter: null, end_verse: null, doc: {type: 'doc', content: []}},
+        ]})
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        const title = (content as any).effective_picture_story_title(blue, story)
+        expect(title).toBe('AUTO_REF')
+        expect(reference_to_string).toHaveBeenCalledTimes(1)
+    })
+
+    it('picture story: a null title with no passage-mode slides stays suppressed', () => {
+        const story = make_story({slides: [
+            {id: 'sl1', image: null, mode: 'text', book: '', start_chapter: null,
+                start_verse: null, end_chapter: null, end_verse: null, doc: {type: 'doc', content: []}},
+        ]})
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        const title = (content as any).effective_picture_story_title(blue, story)
+        expect(title).toBe('')
+        expect(reference_to_string).not.toHaveBeenCalled()
+    })
+
+    it('picture story: a literal custom title passes through unchanged', () => {
+        const story = make_story({title: 'My Story'})
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        const title = (content as any).effective_picture_story_title(blue, story)
+        expect(title).toBe('My Story')
+        expect(reference_to_string).not.toHaveBeenCalled()
     })
 })

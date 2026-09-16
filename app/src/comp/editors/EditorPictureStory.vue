@@ -12,8 +12,12 @@ v-divider
 v-card-text(class='flex-grow-1 d-flex flex-column overflow-y-auto')
     //- Story-level fields: the optional auto title page (same props as a passage); title also
     //- doubles as the item's label in the content list (see gen_content_name)
-    div(class='mb-6')
-        v-text-field(v-model='item.title' :label='$t("common.title")')
+    div(class='mb-6 d-flex align-center ga-2')
+        v-text-field(v-model='tmp_title_display' :label='$t("common.title")'
+            :disabled='tmp_title_auto'
+            :placeholder='tmp_title_auto ? tmp_title_placeholder : undefined' persistent-placeholder)
+        v-checkbox(v-model='tmp_title_auto' :label='$t("editor.passage.title_auto")'
+            hide-details density='compact' class='flex-shrink-0')
     div(class='mb-6')
         v-text-field(v-model='item.title_subtitle' :label='$t("common.subtitle")')
     IconField(v-model:icon='item.title_icon')
@@ -48,10 +52,12 @@ v-card-text(class='flex-grow-1 d-flex flex-column overflow-y-auto')
 
 <script lang='ts' setup>
 
+import {ref, computed, watch} from 'vue'
 import {cloneDeep} from 'lodash-es'
 
 import {blue, state} from '@/services/state'
 import {generate_token} from '@/services/utils'
+import {picture_story_reference} from '@/services/blueprints'
 import AppDraggableList from '@/comp/global/AppDraggableList.vue'
 import IconField from '@/comp/editors/assets/IconField.vue'
 import ImageField from '@/comp/editors/assets/ImageField.vue'
@@ -70,6 +76,27 @@ const item = props.item
 const original = cloneDeep(props.item)
 // Whether this item was newly created for this edit (so cancel removes it entirely)
 const is_new = item.slides.length === 0 && !item.title
+
+
+// Same auto/custom title pattern as EditorPassage.vue: tmp_title_auto true keeps the item's
+// title null (rendered from a reference spanning its passage-mode slides at compile time),
+// false reveals tmp_title as an editable custom title
+const tmp_title_auto = ref(item.title === null)
+const tmp_title = ref(item.title ?? '')
+const tmp_title_placeholder = computed(() => picture_story_reference(item, blue.bibles[0]) ?? '')
+
+// Displays blank while auto (so the placeholder above shows through, rather than a stale custom
+// value obscuring it) but still round-trips to tmp_title once the user unchecks auto and types
+const tmp_title_display = computed({
+    get: () => tmp_title_auto.value ? '' : tmp_title.value,
+    set: (val:string) => {
+        tmp_title.value = val
+    },
+})
+
+watch([tmp_title, tmp_title_auto], () => {
+    item.title = tmp_title_auto.value ? null : tmp_title.value
+})
 
 
 // Read a slide's flat ref fields as a PassageRef for PassageField (null until a book is set)
