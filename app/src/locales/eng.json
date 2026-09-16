@@ -417,7 +417,7 @@
   "options.cover.remove_confirm": "Remove this cover design?",
   "options.cover.remove_cover": "Remove cover",
   "options.features.blank_page_lines": "Blank pages have lines for notetaking",
-  "options.features.book_chapter_name": "Book & chapter name",
+  "options.features.book_chapter_name": "Chapter in header/footer",
   "options.features.footnotes": "Footnotes",
   "options.features.page_numbers": "Page numbers",
   "options.features.section_headings": "Section headings",
