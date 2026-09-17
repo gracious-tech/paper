@@ -439,19 +439,13 @@ function build_cover_preset_form(kind:CoverPreset, blueprint:Blueprint)
     const form = default_cover_preset(blueprint)
     const passage = get_passages(blueprint)[0]
     if (kind === 'pattern'){
-        // Full-cover vector background with an offset icon overlay, tinted per the first
-        // included passage's book grouping
-        form['bg_vector_id'] = 'facet-corner'
+        // Full-cover cross vector background (no icon overlay — the background carries the
+        // motif itself), tinted per the first included passage's book grouping
+        form['bg_vector_id'] = 'cross'
         form['pattern_id'] = 'morphing-diamonds'
-        form['icon_id'] = 'builtin:cross'
-        form['icon_mode'] = 'offset'
-        form['icon_size'] = 0.8
         const bg_color = passage && BOOK_BG_COLOR[passage.book]
         if (bg_color){
-            // Icon matches the background exactly, so it reads as part of the pattern rather
-            // than a separate overlay
             form['bg_color'] = bg_color
-            form['icon_color'] = bg_color
         }
         return {form, bg_image_id: null}
     }
