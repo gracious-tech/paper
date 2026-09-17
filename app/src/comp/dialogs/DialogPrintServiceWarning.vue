@@ -11,7 +11,7 @@ v-dialog(:model-value='!!state.print_service_warning' persistent max-width='480'
         v-card-actions(class='px-6 pb-4')
             v-spacer
             v-btn(@click='dismiss' :disabled='!checked' color='primary')
-                | {{ $t("common.dismiss") }}
+                | {{ $t("common.understood") }}
 
 </template>
 
