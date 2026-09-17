@@ -518,6 +518,12 @@ export function gen_preamble(request:TypstRequest, overrides:PreambleOverrides =
 // Heading font — applies document-wide to any heading (chapter markers, section headings)
 #show heading: set text(font: "${escape_typst_str(typography.font_headings)}")
 
+// Underline sits on the font's own metric by default (offset: auto), which in serif faces like
+// Crimson Pro runs tight enough to the baseline to read as touching the letters. A small explicit
+// offset clears them in any font. Editor prose is the only thing that underlines anything (custom
+// pages and picture-story text), so this is document-wide purely to cover both of those paths
+#set underline(offset: 0.12em)
+
 // Footnote area styling
 #set footnote.entry(separator: line(length: 30%, stroke: 0.2mm + rgb("#000")))
 

@@ -193,4 +193,8 @@ onBeforeUnmount(() => {
         > *:first-child
             margin-top: 0
 
+        //- Match the PDF, where headings are regular weight so bolding is the user's to add
+        h1, h2
+            font-weight: normal
+
 </style>

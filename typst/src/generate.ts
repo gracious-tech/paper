@@ -396,7 +396,7 @@ function gen_content_item(item:TypstContentItem, request:TypstRequest):string {
                 request.titlepage.color_frame, request.titlepage.text_size,
                 request.titlepage.icon_size)
         case 'custom':
-            return gen_custom(item)
+            return gen_custom(item, request.typography.font_size)
         case 'lines':
             return gen_lines(item)
         case 'picture_story':
