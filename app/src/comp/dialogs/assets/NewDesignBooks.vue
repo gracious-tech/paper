@@ -3,9 +3,9 @@
 
 div
     template(v-if='draft.book_mode === "books"')
-        p(class='mb-3 text-body-medium text-medium-emphasis')
-            | {{ $t("wizard.books.question") }}
         div.mode_switch
+            p(class='text-body-medium text-medium-emphasis')
+                | {{ $t("wizard.books.question") }}
             v-btn(size='small' variant='text' @click='draft.book_mode = "passages"')
                 | {{ $t("common.specify_passages") }}
 
@@ -138,6 +138,11 @@ const select_none = (group:{books:GetBooksItem[]}) => {
 .mode_switch
     display: flex
     align-items: center
+    justify-content: space-between
     gap: 8px
+    margin-bottom: 12px
+
+    p
+        margin: 0
 
 </style>

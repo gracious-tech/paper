@@ -51,7 +51,10 @@ const passage_input = ref('')
 // text isn't a recognised reference, so the tick just reflects `book !== null`)
 const parse_passage = (id:string, text:string):DraftPassage => {
     const bible = content.collection.get_preferred_resource().id
-    const ref = content.collection.string_to_reference(text, bible)
+    const parsed = content.collection.string_to_reference(text, bible)
+    // PassageReference silently clamps chapter/verse numbers that don't exist ("2 Cor 2:333"
+    // becomes 2:17), so also require args_valid — otherwise a typo'd number reads as valid
+    const ref = parsed?.args_valid ? parsed : null
     return {
         id,
         text,
