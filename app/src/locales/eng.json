@@ -273,7 +273,7 @@
   "dialog.peddlers.body2": "We instead highly recommend the {bsb}, which has a translation style between the NIV and ESV, and is trustworthy and free to share.",
   "dialog.peddlers.learn_more": "Learn More",
   "dialog.peddlers.title": "Commercial translations",
-  "dialog.print_service_warning.body": "Automatically generated documents can still contain mistakes, so please check yours carefully before printing. We recommend ordering a single copy first, then more once you've confirmed it looks right.",
+  "dialog.print_service_warning.body": "Documents are laid out automatically, and can occasionally have layout or content issues. Please look through yours carefully before printing and contact us if anything is amiss. We recommend ordering a single copy first to confirm it looks right, before any bulk orders.",
   "dialog.print_service_warning.checkbox": "I'll check the document before printing",
   "dialog.print_service_warning.title": "Review before you print",
   "dialog.share.link_notice": "Anyone with this link can view the document and keep their own copy.",
