@@ -110,6 +110,10 @@ export interface TypographyConfig {
     lang2:string|null
     line_height:number      // Literal multiplier of font_size (2 = double line height) — see
                              // preamble.ts's leading calc for how this maps to Typst's `leading`
+    // 2nd translation's own leading, as a multiplier of line_height (1 = match) — see
+    // gen_multi_bible_grids in content_passage.ts for where this actually applies. Only
+    // meaningful alongside font_size2/font_text2 (a second translation rendered side-by-side)
+    line_height2:number
     justify:boolean|null    // null = auto (justify when width permits)
     hyphenate:boolean       // Whether to hyphenate wrapped words
     // In books that are mostly poetry (LOTS_OF_POETRY in helpers.ts), drop the baseline poetry
@@ -392,6 +396,11 @@ export interface Blueprint {
     font_size:number
     font_size2:number          // 2nd translation size as a multiple of font_size (1 = match)
     line_height:number
+    // 2nd translation's own line spacing as a multiple of line_height (1 = match). Applied on
+    // top of font_size2 rather than instead of it: leading always scales with font_size2 first
+    // (so a bigger/smaller 2nd-translation font keeps the same relative spacing by default),
+    // and this only nudges that ratio further for a script that wants looser/tighter than that
+    line_height2:number
     justify:null|boolean
     hyphenate:boolean
     // Flatten poetry-heavy books' baseline indent (see TypographyConfig.poetry_outdent)

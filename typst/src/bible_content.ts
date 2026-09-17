@@ -382,6 +382,7 @@ export class BibleContent {
                 lang,
                 lang2,
                 line_height: blue.line_height,
+                line_height2: blue.line_height2,
                 justify: blue.justify,
                 hyphenate: blue.hyphenate,
                 poetry_outdent: blue.poetry_outdent,

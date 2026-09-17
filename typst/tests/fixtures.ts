@@ -29,6 +29,7 @@ export const TEST_TYPOGRAPHY:TypographyConfig = {
     lang: 'en',
     lang2: null,
     line_height: 1.75,
+    line_height2: 1,
     justify: true,
     hyphenate: true,
     poetry_outdent: true,

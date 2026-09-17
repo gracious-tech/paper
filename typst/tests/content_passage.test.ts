@@ -17,14 +17,17 @@ const FONT_HEADINGS2 = 'Crimson Pro'
 const FONT_SIZE2 = '10pt'
 const FONT_FALLBACKS:string[] = []
 const LINE_HEIGHT = 1.75
+const LINE_HEIGHT2 = 1
 
 function call(
     passage:TypstPassage, font_text2 = FONT_TEXT2, font_headings2 = FONT_HEADINGS2,
     font_fallbacks = FONT_FALLBACKS, font_size2 = FONT_SIZE2, line_height = LINE_HEIGHT,
     chapter_style:ChapterStyle = 'none', poetry_outdent = true, lang2:string|null = null,
+    line_height2 = LINE_HEIGHT2,
 ):string {
     return gen_passage(passage, TEST_PAGE, 'padded', FONT_SIZE, font_text2, font_headings2,
-        font_size2, font_fallbacks, lang2, line_height, chapter_style, poetry_outdent)
+        font_size2, font_fallbacks, lang2, line_height, line_height2, chapter_style,
+        poetry_outdent)
 }
 
 

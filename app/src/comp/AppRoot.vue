@@ -41,6 +41,7 @@ div.display(v-if='!state.splash')
     DisplayPreview(v-if='showing_editor')
     DisplayDesignVersion(v-else-if='route.name === "design"')
     IntroVideo(v-else-if='route.name === "about"')
+    DisplayExamples(v-else-if='route.name === "designs"')
 
 DialogViewedDesign
 DialogAcceptInvite
@@ -85,6 +86,7 @@ import DialogPrintServiceWarning from '@/comp/dialogs/DialogPrintServiceWarning.
 import DisplaySplash from '@/comp/display/DisplaySplash.vue'
 import DisplayPreview from '@/comp/display/DisplayPreview.vue'
 import DisplayDesignVersion from '@/comp/display/DisplayDesignVersion.vue'
+import DisplayExamples from '@/comp/display/DisplayExamples.vue'
 import IntroVideo from '@/comp/reuseable/IntroVideo.vue'
 import BrandIcon from '@/assets/icon.svg?component'
 // LEGACY Remove with app/src/legacy/ once old data no longer needs recovering

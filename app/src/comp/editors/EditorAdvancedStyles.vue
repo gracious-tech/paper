@@ -77,12 +77,20 @@ v-card-text(class='overflow-y-auto')
         AppFontSelect(v-model='blue.font_text2' :label='$t("editor.advanced.text2_font")' auto
             example='verse' class='mb-4')
 
-        //- Sized relative to the main text (1 = match), not an absolute point size
+        //- Both sized/spaced relative to the main text (1 = match), not absolute values —
+        //- leading already scales with text2_size automatically, so line_height2 only nudges
+        //- beyond that for a script that reads better looser/tighter than that proportional
+        //- default
         v-slider(v-model='blue.font_size2' :label='$t("editor.advanced.text2_size")' :min='0.5'
                 :max='1.5' :step='0.01' thumb-label class='mt-4')
             template(#thumb-label='{modelValue}')
                 | {{ Math.round(modelValue * 100) }}%
-        p(class='hint') {{$t("editor.advanced.text2_size_note")}}
+
+        v-slider(v-model='blue.line_height2' :label='$t("editor.advanced.text2_line_height")'
+                :min='0.7' :max='1.5' :step='0.01' thumb-label class='mt-4')
+            template(#thumb-label='{modelValue}')
+                | {{ Math.round(modelValue * 100) }}%
+        p(class='hint') {{$t("editor.advanced.text2_relative_note")}}
 
     v-divider(class='my-8')
 

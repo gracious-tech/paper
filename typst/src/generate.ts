@@ -292,7 +292,7 @@ export function generate_typst_facing(
     parts.push(gen_passage_facing(passage, page, request.image_style,
         typography.font_size, typography.font_text2,
         typography.font_headings2, typography.font_size2, typography.font_fallbacks2,
-        typography.lang2, typography.line_height,
+        typography.lang2, typography.line_height, typography.line_height2,
         `2 * ${page.margin_left}`,
         `${page.width} - ${page.margin_left} - ${page.margin_right}`,
         typography.poetry_outdent))
@@ -387,6 +387,7 @@ function gen_content_item(item:TypstContentItem, request:TypstRequest):string {
                 request.typography.font_text2, request.typography.font_headings2,
                 request.typography.font_size2, request.typography.font_fallbacks2,
                 request.typography.lang2, request.typography.line_height,
+                request.typography.line_height2,
                 request.features.show_chapters ? request.features.show_chapters_style : 'none',
                 request.typography.poetry_outdent)
         case 'title':
