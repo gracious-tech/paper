@@ -29,20 +29,18 @@ v-card-text(class='flex-grow-1 d-flex flex-column overflow-y-auto')
         template(#item='{element: slide, index}')
             v-card.slide(variant='outlined' class='mb-3 pa-3')
                 div(class='d-flex align-center mb-2')
-                    strong {{$t("editor.story.slide") + " " + (index + 1)}}
+                    v-btn-toggle(v-model='slide.mode' mandatory density='compact' variant='outlined')
+                        v-btn(value='passage' size='small') {{$t("common.passage")}}
+                        v-btn(value='text' size='small') {{$t("common.text")}}
                     v-spacer
                     v-btn(icon variant='text' size='small' class='slide-handle')
                         app-icon(name='drag_indicator')
                     v-btn(icon variant='text' size='small' @click='rm_slide(slide)')
                         app-icon(name='close')
-                ImageField(v-model:image='slide.image')
-                v-btn-toggle(v-model='slide.mode' mandatory density='compact' variant='outlined'
-                    class='mb-3')
-                    v-btn(value='passage' size='small') {{$t("common.passage")}}
-                    v-btn(value='text' size='small') {{$t("common.text")}}
                 PassageField(v-if='slide.mode === "passage"' :passage='slide_ref(slide)'
-                    @update:passage='val => set_slide_ref(slide, val)')
+                    @update:passage='val => set_slide_ref(slide, val)' density='compact' variant='plain')
                 app-prose(v-else v-model='slide.doc')
+                ImageField(v-model:image='slide.image')
 
     div
         v-btn(@click='add_slide' variant='outlined' size='small') {{$t("editor.story.add_slide")}}

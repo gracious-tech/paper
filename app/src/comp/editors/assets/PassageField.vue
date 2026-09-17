@@ -5,7 +5,8 @@
 //- with the detected reference echoed back and a warning if a selected translation doesn't
 //- include the chosen book
 div.passage-field
-    v-text-field(v-model='tmp_ref' :label='$t("editor.passage.book_or_passage")' :messages='messages'
+    v-text-field(v-bind='$attrs' v-model='tmp_ref'
+        :placeholder='$t("editor.passage.book_or_passage")' :messages='messages'
         :error-messages='errors' :hide-details='false')
     div(v-if='warnings.length' class='mt-2 text-error text-body-medium')
         div(v-for='warning of warnings') {{ warning }}
@@ -40,6 +41,10 @@ const error = defineModel<boolean>('error', {required: false, default: false})
 
 // Emitted when a valid reference resolves, so a parent can derive default title/icon text
 const emit = defineEmits<{resolved:[reference:string, book:string]}>()
+
+
+// Any extra attrs/props a parent sets (label, density, etc.) go to the text field, not the wrapper
+defineOptions({inheritAttrs: false})
 
 const {t} = useI18n()
 
