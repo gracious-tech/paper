@@ -3,19 +3,21 @@
 
 div(class='prose d-flex flex-column')
 
-    //- Formatting toolbar (grouped, with dividers between groups)
-    div(class='toolbar d-flex flex-wrap align-center' v-if='editor')
-        template(v-for='(group, gi) in groups' :key='gi')
-            v-divider(v-if='gi' vertical class='mx-1')
-            v-btn(v-for='btn in group' :key='btn.title'
-                :title='btn.title'
-                size='small' variant='text' density='comfortable'
-                :color='btn.active && btn.active() ? "secondary" : undefined'
-                @click='btn.run')
-                component(:is='btn.icon' class='btn-icon')
+    //- Formatting toolbar (fixed rows, each holding groups separated by dividers)
+    div(class='toolbar d-flex flex-column' v-if='editor')
+        div(v-for='(row, ri) in rows' :key='ri' class='d-flex flex-wrap align-center')
+            template(v-for='(group, gi) in row' :key='gi')
+                v-divider(v-if='gi' vertical class='mx-1')
+                v-btn(v-for='btn in group' :key='btn.title'
+                    :title='btn.title'
+                    size='small' variant='text' icon
+                    :color='btn.active && btn.active() ? "secondary" : undefined'
+                    @click='btn.run')
+                    component(:is='btn.icon' class='btn-icon')
 
     //- The editable content area
-    editor-content(v-if='editor' :editor='editor' class='content flex-grow-1')
+    editor-content(v-if='editor' :editor='editor' class='content flex-grow-1'
+        @click='focus_empty_space')
 
 </template>
 
@@ -33,7 +35,6 @@ import format_bold from '@material-symbols/svg-400/outlined/format_bold.svg?comp
 import format_italic from '@material-symbols/svg-400/outlined/format_italic.svg?component'
 import format_underlined from '@material-symbols/svg-400/outlined/format_underlined.svg?component'
 import superscript_icon from '@material-symbols/svg-400/outlined/superscript.svg?component'
-import subscript_icon from '@material-symbols/svg-400/outlined/subscript.svg?component'
 import format_h1 from '@material-symbols/svg-400/outlined/format_h1.svg?component'
 import format_h2 from '@material-symbols/svg-400/outlined/format_h2.svg?component'
 import format_list_bulleted from '@material-symbols/svg-400/outlined/format_list_bulleted.svg?component'
@@ -79,59 +80,72 @@ watch(() => props.modelValue, value => {
 })
 
 
-// Toolbar buttons grouped for divider placement; each maps to a Tiptap command
-const groups = [
+// Clicking the wrapper's padding or the space below the text should still focus the editor
+// (only when not already focused, so clicks within the text don't jump the caret to the end)
+const focus_empty_space = () => {
+    if (!editor.value?.isFocused)
+        editor.value?.chain().focus('end').run()
+}
+
+
+// Toolbar buttons, as fixed rows of groups (dividers separate groups within a row)
+const rows = [
     [
-        {title: "Bold", icon: format_bold,
-            active: () => editor.value!.isActive('bold'),
-            run: () => editor.value!.chain().focus().toggleBold().run()},
-        {title: "Italic", icon: format_italic,
-            active: () => editor.value!.isActive('italic'),
-            run: () => editor.value!.chain().focus().toggleItalic().run()},
-        {title: "Underline", icon: format_underlined,
-            active: () => editor.value!.isActive('underline'),
-            run: () => editor.value!.chain().focus().toggleUnderline().run()},
-        {title: "Superscript", icon: superscript_icon,
-            active: () => editor.value!.isActive('superscript'),
-            run: () => editor.value!.chain().focus().toggleSuperscript().run()},
-        {title: "Subscript", icon: subscript_icon,
-            active: () => editor.value!.isActive('subscript'),
-            run: () => editor.value!.chain().focus().toggleSubscript().run()},
+        [
+            {title: "Bold", icon: format_bold,
+                active: () => editor.value!.isActive('bold'),
+                run: () => editor.value!.chain().focus().toggleBold().run()},
+            {title: "Italic", icon: format_italic,
+                active: () => editor.value!.isActive('italic'),
+                run: () => editor.value!.chain().focus().toggleItalic().run()},
+            {title: "Underline", icon: format_underlined,
+                active: () => editor.value!.isActive('underline'),
+                run: () => editor.value!.chain().focus().toggleUnderline().run()},
+        ],
+        [
+            {title: "Heading 1", icon: format_h1,
+                active: () => editor.value!.isActive('heading', {level: 1}),
+                run: () => editor.value!.chain().focus().toggleHeading({level: 1}).run()},
+            {title: "Heading 2", icon: format_h2,
+                active: () => editor.value!.isActive('heading', {level: 2}),
+                run: () => editor.value!.chain().focus().toggleHeading({level: 2}).run()},
+        ],
+        [
+            {title: "Bullet list", icon: format_list_bulleted,
+                active: () => editor.value!.isActive('bulletList'),
+                run: () => editor.value!.chain().focus().toggleBulletList().run()},
+            {title: "Numbered list", icon: format_list_numbered,
+                active: () => editor.value!.isActive('orderedList'),
+                run: () => editor.value!.chain().focus().toggleOrderedList().run()},
+        ],
     ],
     [
-        {title: "Heading 1", icon: format_h1,
-            active: () => editor.value!.isActive('heading', {level: 1}),
-            run: () => editor.value!.chain().focus().toggleHeading({level: 1}).run()},
-        {title: "Heading 2", icon: format_h2,
-            active: () => editor.value!.isActive('heading', {level: 2}),
-            run: () => editor.value!.chain().focus().toggleHeading({level: 2}).run()},
-        {title: "Bullet list", icon: format_list_bulleted,
-            active: () => editor.value!.isActive('bulletList'),
-            run: () => editor.value!.chain().focus().toggleBulletList().run()},
-        {title: "Numbered list", icon: format_list_numbered,
-            active: () => editor.value!.isActive('orderedList'),
-            run: () => editor.value!.chain().focus().toggleOrderedList().run()},
+        [
+            {title: "Align left", icon: format_align_left,
+                active: () => editor.value!.isActive({textAlign: 'left'}),
+                run: () => editor.value!.chain().focus().setTextAlign('left').run()},
+            {title: "Align center", icon: format_align_center,
+                active: () => editor.value!.isActive({textAlign: 'center'}),
+                run: () => editor.value!.chain().focus().setTextAlign('center').run()},
+            {title: "Align right", icon: format_align_right,
+                active: () => editor.value!.isActive({textAlign: 'right'}),
+                run: () => editor.value!.chain().focus().setTextAlign('right').run()},
+        ],
+        [
+            {title: "Superscript", icon: superscript_icon,
+                active: () => editor.value!.isActive('superscript'),
+                run: () => editor.value!.chain().focus().toggleSuperscript().run()},
+            {title: "Divider", icon: horizontal_rule,
+                run: () => editor.value!.chain().focus().setHorizontalRule().run()},
+        ],
+        [
+            {title: "Undo", icon: undo_icon,
+                run: () => editor.value!.chain().focus().undo().run()},
+            {title: "Redo", icon: redo_icon,
+                run: () => editor.value!.chain().focus().redo().run()},
+        ],
     ],
-    [
-        {title: "Align left", icon: format_align_left,
-            active: () => editor.value!.isActive({textAlign: 'left'}),
-            run: () => editor.value!.chain().focus().setTextAlign('left').run()},
-        {title: "Align center", icon: format_align_center,
-            active: () => editor.value!.isActive({textAlign: 'center'}),
-            run: () => editor.value!.chain().focus().setTextAlign('center').run()},
-        {title: "Align right", icon: format_align_right,
-            active: () => editor.value!.isActive({textAlign: 'right'}),
-            run: () => editor.value!.chain().focus().setTextAlign('right').run()},
-    ],
-    [
-        {title: "Divider", icon: horizontal_rule,
-            run: () => editor.value!.chain().focus().setHorizontalRule().run()},
-        {title: "Undo", icon: undo_icon,
-            run: () => editor.value!.chain().focus().undo().run()},
-        {title: "Redo", icon: redo_icon,
-            run: () => editor.value!.chain().focus().redo().run()},
-    ],
-] as {title:string, icon:unknown, active?:() => boolean, run:() => void}[][]
+] as {title:string, icon:unknown, active?:() => boolean, run:() => void}[][][]
 
 
 // Destroy the editor to release ProseMirror resources when the component unmounts
@@ -149,12 +163,20 @@ onBeforeUnmount(() => {
     border: 1px solid rgba(0, 0, 0, 0.2)
     border-radius: 4px
     overflow: hidden
+    min-height: 180px
 
 .toolbar
     padding: 4px
     border-bottom: 1px solid rgba(0, 0, 0, 0.12)
+    //- Only space rows apart, not the buttons within a row (also if a row itself wraps)
+    row-gap: 4px
+
+    > div
+        row-gap: 4px
 
 .btn-icon
+    //- flex: none so the button's flex content area can't shrink the icon
+    flex: none
     width: 20px
     height: 20px
     fill: currentColor
@@ -162,6 +184,7 @@ onBeforeUnmount(() => {
 .content
     overflow: auto
     padding: 12px
+    cursor: text
 
     :deep(.ProseMirror)
         outline: none
