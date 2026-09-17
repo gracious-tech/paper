@@ -438,11 +438,17 @@ function build_cover_preset_form(kind:CoverPreset, blueprint:Blueprint)
     // blurb (icon preset uses this as-is)
     const form = default_cover_preset(blueprint)
     const passage = get_passages(blueprint)[0]
+
+    // Common to all designs
+    // A bigger front title than bookcover's default: title1_size multiplies a base size that's
+    // proportional to the trim height, and the template shrinks an over-wide line to fit the
+    // front panel, so raising it can't overflow — long titles just scale back down
+    form['title1_size'] = 1.7
+
     if (kind === 'pattern'){
         // Full-cover cross vector background (no icon overlay — the background carries the
         // motif itself), tinted per the first included passage's book grouping
         form['bg_vector_id'] = 'cross'
-        form['pattern_id'] = 'morphing-diamonds'
         const bg_color = passage && BOOK_BG_COLOR[passage.book]
         if (bg_color){
             form['bg_color'] = bg_color
@@ -451,7 +457,7 @@ function build_cover_preset_form(kind:CoverPreset, blueprint:Blueprint)
     }
     if (kind === 'icon'){
         form['icon_id'] = passage?.book ? book_icon[passage.book] : 'game-icons:open-book'
-        form['pattern_id'] = 'diagonal-lines'
+        form['pattern_id'] = 'morphing-diamonds'
         // Tint the background to match the first included passage's book grouping
         if (passage && BOOK_BG_COLOR[passage.book]){
             form['bg_color'] = BOOK_BG_COLOR[passage.book]
@@ -461,7 +467,6 @@ function build_cover_preset_form(kind:CoverPreset, blueprint:Blueprint)
     if (kind === 'photo'){
         // Full-spread photo mode. Prefer a background themed to the first included passage's
         // book, falling back to a random stock photo when there isn't one
-        form['icon_id'] = null
         form['bg_image_coverage'] = 'full'
         const filename = (passage && BOOK_BG_PHOTO[passage.book])
             || STOCK_BG_PHOTOS[Math.floor(Math.random() * STOCK_BG_PHOTOS.length)]!
