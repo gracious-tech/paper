@@ -10,9 +10,9 @@ div.cont
     h2 {{$t("display.splash.tagline")}}
     h2 {{$t("display.splash.languages")}}
 
-    IntroVideo.video
-
     v-btn(@click='start' color='secondary' size='large' rounded class='my-4') {{$t("display.splash.get_started")}}
+
+    IntroVideo.video
 
 </template>
 
