@@ -247,7 +247,7 @@ const next = async () => {
 </script>
 
 
-<style lang='sass' scoped>
+<style lang='sss' scoped>
 
 .wizard
 

@@ -34,7 +34,7 @@ const start = () => {
 </script>
 
 
-<style lang='sass' scoped>
+<style lang='sss' scoped>
 
 
 .cont

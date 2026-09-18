@@ -36,7 +36,7 @@ const wj_label = computed(() => {
 </script>
 
 
-<style lang='sass' scoped>
+<style lang='sss' scoped>
 
 .wj_style
     display: flex

@@ -148,7 +148,7 @@ watch(() => draft.service_id, () => {
 </script>
 
 
-<style lang='sass' scoped>
+<style lang='sss' scoped>
 
 .grid
     display: grid

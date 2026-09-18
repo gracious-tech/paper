@@ -91,7 +91,7 @@ const advanced = () => {
 </script>
 
 
-<style lang='sass' scoped>
+<style lang='sss' scoped>
 
 // Floating action button, bottom-right — only shown on mobile (see media query below); on
 // larger screens the same action lives inline at the right end of the preview toolbar instead

@@ -117,7 +117,7 @@ function on_drop(event:DragEvent):void {
 </script>
 
 
-<style lang='sass' scoped>
+<style lang='sss' scoped>
 
 .drop-area
     display: flex

@@ -51,7 +51,7 @@ const example_text = computed(() => content.example_text[props.example] || DEFAU
 </script>
 
 
-<style lang='sass' scoped>
+<style lang='sss' scoped>
 
 // Fixed (not percentage) max-width — these sit inside Vuetify's shrink-to-fit list-item title
 // slot, so without a concrete cap here the nowrap text just grows the whole menu instead of

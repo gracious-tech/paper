@@ -30,7 +30,7 @@ const bsb_link = '<a href="https://bsb.freely.giving" target="_blank" rel="noope
 </script>
 
 
-<style lang='sass' scoped>
+<style lang='sss' scoped>
 
 
 </style>

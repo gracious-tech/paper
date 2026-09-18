@@ -6,7 +6,7 @@ div.loader
 </template>
 
 
-<style lang='sass' scoped>
+<style lang='sss' scoped>
 
 .loader
     width: 200px

@@ -45,7 +45,7 @@ useSortable(container, props.list, {
 </script>
 
 
-<style lang='sass'>
+<style lang='sss'>
 // Unscoped so these classes (assigned by SortableJS to the actual list-item elements rendered
 // via the #item slot) can reach into the parent's markup
 

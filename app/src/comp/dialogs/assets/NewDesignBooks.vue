@@ -116,7 +116,7 @@ const select_none = (group:{books:GetBooksItem[]}) => {
 </script>
 
 
-<style lang='sass' scoped>
+<style lang='sss' scoped>
 
 .testaments
     display: grid

@@ -53,7 +53,7 @@ const meta_line = (item:LegacyItem):string => {
 </script>
 
 
-<style lang='sass' scoped>
+<style lang='sss' scoped>
 
 .item
     display: flex

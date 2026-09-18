@@ -139,7 +139,7 @@ const change_trans = (id:string) => {
 </script>
 
 
-<style lang='sass' scoped>
+<style lang='sss' scoped>
 
 .v-card-title
     font-size: 1.2rem

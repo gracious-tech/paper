@@ -331,7 +331,7 @@ const share = async () => {
 </script>
 
 
-<style lang='sass' scoped>
+<style lang='sss' scoped>
 
 .status
     width: 48px

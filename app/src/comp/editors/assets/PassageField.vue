@@ -105,6 +105,6 @@ watch(tmp_ref, () => {
 </script>
 
 
-<style lang='sass' scoped>
+<style lang='sss' scoped>
 
 </style>

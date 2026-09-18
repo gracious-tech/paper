@@ -167,7 +167,7 @@ const keep_copy = async () => {
 </script>
 
 
-<style lang='sass' scoped>
+<style lang='sss' scoped>
 
 .view_design
     display: flex

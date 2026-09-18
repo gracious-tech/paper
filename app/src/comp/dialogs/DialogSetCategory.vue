@@ -52,6 +52,6 @@ const close = () => {
 </script>
 
 
-<style lang='sass' scoped>
+<style lang='sss' scoped>
 
 </style>

@@ -173,7 +173,7 @@ const open_viewed = (viewed:ViewedDesign) => {
 </script>
 
 
-<style lang='sass' scoped>
+<style lang='sss' scoped>
 
 .cont
     overflow: auto

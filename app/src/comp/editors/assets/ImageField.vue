@@ -97,7 +97,7 @@ function clear():void {
 </script>
 
 
-<style lang='sass' scoped>
+<style lang='sss' scoped>
 
 .image-field
     display: flex

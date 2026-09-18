@@ -1,9 +1,11 @@
-// A vite plugin that supports writing index in Pug and embedding sass
+// A vite plugin that supports writing index in Pug and embedding SugarSS
 
 import {readFileSync} from 'node:fs'
 
 import pug from 'pug'
-import sass from 'sass'
+import postcss from 'postcss'
+import postcss_nested from 'postcss-nested'
+import sugarss from 'sugarss'
 import {Plugin, ResolvedConfig} from 'vite'
 
 
@@ -41,20 +43,19 @@ export default function(template_path:string):Plugin{
                     // WARN Filters cannot be async
                     filters: {
 
-                        sass: (text:string, options:Record<string, unknown>) => {
-                            // Render sass blocks
-                            delete options['filename']  // Don't include pug-specific config
-                            return sass.renderSync({
-                                data: text,
-                                indentedSyntax: true,
-                                outputStyle: config.isProduction ? 'compressed' : 'expanded',
-                                indentWidth: 4,
-                                // NOTE Below can't be `true` so give a filename
-                                sourceMap: config.isProduction ? false : 'index_sass.map',
-                                sourceMapEmbed: true,
-                                sourceMapContents: true,
-                                ...options,
-                            }).css.toString()
+                        sss: (text:string) => {
+                            // Render SugarSS blocks (only nesting needs expanding, and both
+                            // plugins are sync, so the result resolves without awaiting).
+                            // The block is inlined in index.html, so drop authoring comments
+                            // from it when building for production
+                            const result = postcss([postcss_nested])
+                                .process(text, {from: undefined, parser: sugarss})
+                            if (config.isProduction){
+                                result.root.walkComments(comment => {
+                                    comment.remove()
+                                })
+                            }
+                            return result.css
                         },
 
                     },

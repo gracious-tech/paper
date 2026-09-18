@@ -26,7 +26,7 @@ const notes = computed({
 </script>
 
 
-<style lang='sass' scoped>
+<style lang='sss' scoped>
 
 
 

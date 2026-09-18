@@ -306,7 +306,7 @@ onUnmounted(() => {
 </script>
 
 
-<style lang='sass' scoped>
+<style lang='sss' scoped>
 
 // Fills the panel (.display > * in AppRoot gives this container 100% width/height); stacks the
 // toolbar above the PDF frame / status area

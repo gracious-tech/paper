@@ -240,7 +240,7 @@ onUnmounted(() => {
 </script>
 
 
-<style lang='sass' scoped>
+<style lang='sss' scoped>
 
 // Hold a stable height across loading/error/result so the dialog doesn't jump while typing
 .result

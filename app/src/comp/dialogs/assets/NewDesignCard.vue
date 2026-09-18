@@ -27,7 +27,7 @@ const emit = defineEmits<{(e:'select'):void}>()
 </script>
 
 
-<style lang='sass' scoped>
+<style lang='sss' scoped>
 
 .v-card
     cursor: pointer

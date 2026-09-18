@@ -319,7 +319,7 @@ const service_guide = computed(() => {
 </script>
 
 
-<style lang='sass' scoped>
+<style lang='sss' scoped>
 
 .spec
     display: grid

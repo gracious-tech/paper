@@ -395,7 +395,7 @@ onUnmounted(() => {
 </script>
 
 
-<style lang='sass' scoped>
+<style lang='sss' scoped>
 
 .preview
     display: flex

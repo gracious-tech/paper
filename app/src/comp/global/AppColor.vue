@@ -99,7 +99,7 @@ onUnmounted(() => {
 </script>
 
 
-<style lang="sass" scoped>
+<style lang="sss" scoped>
 
 .app-color-wrap
     display: inline-flex

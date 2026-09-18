@@ -97,7 +97,7 @@ const cancel = () => {
 </script>
 
 
-<style lang='sass' scoped>
+<style lang='sss' scoped>
 
 
 </style>

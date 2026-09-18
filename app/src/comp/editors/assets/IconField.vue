@@ -103,7 +103,7 @@ const select = (id:string) => {
 </script>
 
 
-<style lang='sass' scoped>
+<style lang='sss' scoped>
 
 .icon-field
     margin-bottom: 24px

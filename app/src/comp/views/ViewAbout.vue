@@ -41,7 +41,7 @@ const org_link = '<a href="https://gracious.tech" target="_blank" rel="noopener"
 </script>
 
 
-<style lang='sass' scoped>
+<style lang='sss' scoped>
 
 .cont
     flex-grow: 1

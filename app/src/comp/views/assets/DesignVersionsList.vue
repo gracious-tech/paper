@@ -332,7 +332,7 @@ const show_estimate_cost = () => {
 </script>
 
 
-<style lang='sass' scoped>
+<style lang='sss' scoped>
 
 .summary
     padding: 16px 16px 18px 16px

@@ -120,7 +120,7 @@ const showing_editor = computed(() => {
 </script>
 
 
-<style lang='sass' scoped>
+<style lang='sss' scoped>
 
 .v-application
     --app-bg: hsl(325, 15%, 90%)

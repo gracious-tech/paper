@@ -90,7 +90,7 @@ function go(index:number):void{
 </script>
 
 
-<style lang='sass' scoped>
+<style lang='sss' scoped>
 
 .walkthrough
     margin: 4px 0 8px

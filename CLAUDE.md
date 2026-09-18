@@ -243,7 +243,11 @@ ownership for writes via `firestore.get()`.
 - **Single quotes**; **double quotes** for UI-displayed text (always via `$t("...")`)
 - **No space** before types: `name:string`; imports like `import {a, b} from 'x'`
 - **Comment** every function/class and before every chunk of code
-- Vue SFCs: Pug templates, Sass styles, template → script → style order
+- Vue SFCs: Pug templates, SugarSS styles (`<style lang='sss'>`), template → script → style
+  order. SugarSS is indented *CSS* (a PostCSS syntax, not a preprocessor): nesting is expanded
+  by `postcss-nested` (`app/postcss.config.mjs`) and there are no variables, mixins or
+  functions — use CSS custom properties and `calc()`. The assets base URL for stylesheets is
+  the one exception: `$assets_prefix` in a value is substituted per environment by that config
 - `@/` alias → `app/src/`. Components: `View*` (routed), `Editor*`, `Options*`, `Display*`,
   `Dialog*`, `App*` (global)
 - State: module-level Vue reactives in services (no Pinia); `blue` is the open design;

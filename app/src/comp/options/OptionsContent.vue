@@ -193,7 +193,7 @@ const edit = (item:ContentItem) => {
 </script>
 
 
-<style lang='sass' scoped>
+<style lang='sss' scoped>
 
 .handle
     cursor: move

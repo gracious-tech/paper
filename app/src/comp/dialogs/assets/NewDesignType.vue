@@ -52,7 +52,7 @@ const types = computed(() => TYPE_PRESETS.map(preset => ({
 </script>
 
 
-<style lang='sass' scoped>
+<style lang='sss' scoped>
 
 .grid
     display: grid

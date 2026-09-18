@@ -52,7 +52,7 @@ function on_update(value:string|undefined):void{
 </script>
 
 
-<style lang='sass' scoped>
+<style lang='sss' scoped>
 
 // Vertical spacing is left to the caller (same margin utilities the old radio groups used).
 // Label matches Vuetify's v-radio-group label: 1rem, and the same 0.75 opacity the global

@@ -42,7 +42,7 @@ const open_model = computed({
 </script>
 
 
-<style lang='sass' scoped>
+<style lang='sss' scoped>
 
 ol
     display: flex

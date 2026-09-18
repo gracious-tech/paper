@@ -163,7 +163,7 @@ const cancel = () => {
 </script>
 
 
-<style lang='sass' scoped>
+<style lang='sss' scoped>
 
 .slide
     background: rgb(var(--v-theme-on-surface), 0.02)

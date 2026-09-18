@@ -45,7 +45,7 @@ const editor_component = computed(() => {
 </script>
 
 
-<style lang='sass' scoped>
+<style lang='sss' scoped>
 
 
 </style>

@@ -351,7 +351,7 @@ const titlepage_always = computed({
 </script>
 
 
-<style lang='sass' scoped>
+<style lang='sss' scoped>
 
 .v-card-text
     padding-bottom: 30vh

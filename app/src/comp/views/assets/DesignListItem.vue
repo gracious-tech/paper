@@ -126,7 +126,7 @@ const remove = async () => {
 </script>
 
 
-<style lang='sass' scoped>
+<style lang='sss' scoped>
 
 .design-item
     padding-top: 14px

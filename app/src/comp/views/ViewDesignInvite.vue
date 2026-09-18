@@ -32,7 +32,7 @@ onMounted(async () => {
 </script>
 
 
-<style lang='sass' scoped>
+<style lang='sss' scoped>
 
 .cont
     display: flex

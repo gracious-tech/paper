@@ -38,7 +38,7 @@ const dismiss = () => {
 </script>
 
 
-<style lang='sass' scoped>
+<style lang='sss' scoped>
 
 // Error icon sitting alongside the message, top-aligned so it stays with the first line of
 // longer text

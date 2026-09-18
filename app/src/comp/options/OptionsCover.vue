@@ -40,7 +40,7 @@ const remove_cover = async () => {
 </script>
 
 
-<style lang='sass' scoped>
+<style lang='sss' scoped>
 
 .actions
     display: flex

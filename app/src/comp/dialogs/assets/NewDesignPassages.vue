@@ -94,7 +94,7 @@ const rm_passage = (item:DraftPassage) => {
 </script>
 
 
-<style lang='sass' scoped>
+<style lang='sss' scoped>
 
 .mode_switch
     display: flex

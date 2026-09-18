@@ -6,7 +6,7 @@ triage them with .bin/errors)
 
 How to integrate:
     1. Import whole module and styles before anything else to trigger listeners
-        import '@/services/errors.sass'
+        import '@/services/errors.sss'
         import '@/services/errors'
     2. Import handler for Vue separate to above
         import {vue_error_handler} from '@/services/errors'

@@ -67,7 +67,7 @@ const icons = {
 </script>
 
 
-<style lang='sass' scoped>
+<style lang='sss' scoped>
 
 .icon
     height: 24px

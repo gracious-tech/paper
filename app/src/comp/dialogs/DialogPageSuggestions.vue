@@ -80,6 +80,6 @@ const apply = () => {
 </script>
 
 
-<style lang='sass' scoped>
+<style lang='sss' scoped>
 
 </style>

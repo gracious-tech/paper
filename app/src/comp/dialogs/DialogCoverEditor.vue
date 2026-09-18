@@ -182,7 +182,7 @@ watch(() => state.cover_editor, open => {
 </script>
 
 
-<style lang='sass' scoped>
+<style lang='sss' scoped>
 
 .cover_editor
     position: fixed

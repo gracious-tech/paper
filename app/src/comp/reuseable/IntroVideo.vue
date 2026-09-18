@@ -15,7 +15,7 @@ iframe(src='https://lets.church/embed/media/tUicmDVEPFpU94xcCpJQzx' allowfullscr
 </script>
 
 
-<style lang='sass' scoped>
+<style lang='sss' scoped>
 
 
 </style>

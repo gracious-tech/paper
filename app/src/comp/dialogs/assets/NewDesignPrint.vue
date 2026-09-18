@@ -108,7 +108,7 @@ const choose_professional = () => {
 </script>
 
 
-<style lang='sass' scoped>
+<style lang='sss' scoped>
 
 .grid
     display: grid

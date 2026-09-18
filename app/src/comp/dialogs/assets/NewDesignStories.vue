@@ -144,7 +144,7 @@ const toggle = (id:string) => {
 </script>
 
 
-<style lang='sass' scoped>
+<style lang='sss' scoped>
 
 .mode_switch
     display: flex

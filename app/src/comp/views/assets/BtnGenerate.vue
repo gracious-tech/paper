@@ -103,6 +103,6 @@ const generate = async () => {
 </script>
 
 
-<style lang='sass' scoped>
+<style lang='sss' scoped>
 
 </style>

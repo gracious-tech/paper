@@ -74,7 +74,7 @@ const change = (index:number) => {
 </script>
 
 
-<style lang='sass' scoped>
+<style lang='sss' scoped>
 
 
 </style>

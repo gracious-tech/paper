@@ -157,7 +157,7 @@ onBeforeUnmount(() => {
 </script>
 
 
-<style lang='sass' scoped>
+<style lang='sss' scoped>
 
 .prose
     border: 1px solid rgba(0, 0, 0, 0.2)

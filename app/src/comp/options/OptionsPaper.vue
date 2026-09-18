@@ -337,7 +337,7 @@ watch(() => blue.ink_type, () => {
 </script>
 
 
-<style lang='sass' scoped>
+<style lang='sss' scoped>
 
 // Service descriptions are full sentences, so let them wrap — inside a select's list Vuetify
 // clamps a subtitle to a single line and ellipsises the rest away

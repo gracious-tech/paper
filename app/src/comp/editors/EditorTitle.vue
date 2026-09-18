@@ -34,7 +34,7 @@ const done = () => {
 </script>
 
 
-<style lang='sass' scoped>
+<style lang='sss' scoped>
 
 .v-card-text
     padding-bottom: 30vh

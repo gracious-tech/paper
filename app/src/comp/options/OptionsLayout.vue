@@ -100,7 +100,7 @@ const passage_title = computed({
 </script>
 
 
-<style lang='sass' scoped>
+<style lang='sss' scoped>
 
 
 
