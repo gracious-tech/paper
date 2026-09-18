@@ -78,6 +78,8 @@ app.use(createVuetify({
                     secondary: '#638cff',
                     // Pale tint of primary — used for toggle-button active state on dark surfaces
                     'primary-light': '#e3d3de',
+                    // Reads as "all good" against the plum header — the signed-in account icon
+                    'success-light': '#a5d6a7',
                 },
             },
         },

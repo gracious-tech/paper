@@ -12,9 +12,14 @@ v-app.app(v-else)
                     span Paper Bible
                 span.beta beta
                 v-spacer
-                VBtn.account(@click='state.account = true' color='' icon variant='text'
-                        v-tooltip:left='$t("common.account")')
-                    AppIcon(name='account_circle')
+                //- Filled and green once signed in; struck-through and flagged while a guest,
+                //- since guest work lives only in this browser and is easily lost
+                //- TODO Show the user's profile picture here instead when they have one
+                VBtn.account(@click='state.account = true' icon variant='text'
+                        :class='{guest: is_anonymous}'
+                        :color='is_anonymous ? "" : "success-light"'
+                        v-tooltip:left='is_anonymous ? $t("app.account_guest") : $t("common.account")')
+                    AppIcon(:name='is_anonymous ? "no_accounts" : "account_circle_fill"')
                 v-menu
                     template(#activator='{props}')
                         VBtn(v-bind='props' color='' icon variant='text')
@@ -93,6 +98,7 @@ import BrandIcon from '@/assets/icon.svg?component'
 import DialogLegacy from '@/legacy/DialogLegacy.vue'
 import {probe_legacy_data} from '@/legacy/legacy'
 import {state} from '@/services/state'
+import {is_anonymous} from '@/services/auth'
 import {design_needs_editor} from '@/services/versions'
 import {init_coloris} from '@/services/coloris'
 
@@ -178,6 +184,38 @@ const showing_editor = computed(() => {
                 letter-spacing: 0.5px
                 align-self: flex-start
                 user-select: none
+
+            // Flag the guest state with a dot, pulsing a few times on load to catch the eye
+            // without nagging for the rest of the session
+            // WARN Must be ::before — Vuetify styles .v-btn::after as its focus ring, and its
+            // opacity/left would still apply to any properties this rule doesn't set
+            .account.guest::before
+                content: ''
+                position: absolute
+                top: 7px
+                right: 7px
+                // Sits above the button's overlay/underlay layers
+                z-index: 1
+                // content-box so the ring below adds to the dot rather than eating into it
+                box-sizing: content-box
+                width: 10px
+                height: 10px
+                border-radius: 50%
+                background-color: rgb(var(--v-theme-warning))
+                // Ring in the header colour, so the dot reads as separate from the icon
+                border: 2px solid rgb(var(--v-theme-primary))
+                animation: guest_pulse 1.6s ease-out 3
+
+                @media (prefers-reduced-motion: reduce)
+                    animation: none
+
+@keyframes guest_pulse
+    0%
+        box-shadow: 0 0 0 0 rgba(var(--v-theme-warning), 0.7)
+    70%
+        box-shadow: 0 0 0 9px rgba(var(--v-theme-warning), 0)
+    100%
+        box-shadow: 0 0 0 0 rgba(var(--v-theme-warning), 0)
 
 
 .display

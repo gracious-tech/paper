@@ -31,6 +31,8 @@ import delete_icon from '@material-symbols/svg-400/outlined/delete.svg?component
 import group from '@material-symbols/svg-400/outlined/group.svg?component'
 import share from '@material-symbols/svg-400/outlined/share.svg?component'
 import account_circle from '@material-symbols/svg-400/outlined/account_circle.svg?component'
+import account_circle_fill from '@material-symbols/svg-400/outlined/account_circle-fill.svg?component'
+import no_accounts from '@material-symbols/svg-400/outlined/no_accounts.svg?component'
 import straighten from '@material-symbols/svg-400/outlined/straighten.svg?component'
 import menu_book from '@material-symbols/svg-400/outlined/menu_book.svg?component'
 import description from '@material-symbols/svg-400/outlined/description.svg?component'
@@ -60,8 +62,10 @@ const icons = {
     drag_indicator, close, arrow_back, expand_more, chevron_left, chevron_right, planner_banner,
     copyright,
     subject, download, upload, error, info, more_vert, more_horiz, lists, history_toggle_off, donate,
-    add, content_copy, 'delete': delete_icon, group, share, account_circle, straighten,
+    add, content_copy, 'delete': delete_icon, group, share, account_circle, account_circle_fill,
+    straighten,
     menu_book, description, print, warning, check, search, edit, help, mail, payments, google,
+    no_accounts,
 } as Record<string, FunctionalComponent>
 
 
