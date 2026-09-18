@@ -76,13 +76,15 @@ const create = async (id:string) => {
 </script>
 
 
-<style lang='sass' scoped>
+<style lang='sss' scoped>
 
 .examples
     width: 100%
     height: 100%
     overflow: auto
     padding: 48px
+    // Cards size to this pane, not the viewport (the app column beside it has a fixed width)
+    container: examples / inline-size
     color: rgb(var(--v-theme-on-surface))
     background-color: rgb(var(--v-theme-surface))
 
@@ -108,8 +110,10 @@ h2
     justify-content: center
     gap: 16px
 
+// Cards are sized to an exact 1/2/3 per row (minus the gaps) so rows are always balanced,
+// rather than letting flex fit as many as happen to fit
 .card
-    flex: 1 1 280px
+    flex: 0 1 100%
     max-width: 360px
     position: relative
     cursor: pointer
@@ -142,5 +146,11 @@ h2
         top: 50%
         left: 50%
         transform: translate(-50%, -50%)
+
+    @container examples (min-width: 640px)
+        flex-basis: calc((100% - 16px) / 2)
+
+    @container examples (min-width: 980px)
+        flex-basis: calc((100% - 32px) / 3)
 
 </style>
