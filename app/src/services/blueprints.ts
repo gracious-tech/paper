@@ -8,7 +8,10 @@ import type {BindingTypeId, SizeId, InkTypeId, PaperTypeId} from 'printing-servi
 import {content} from '@/services/content'
 import {blue} from '@/services/state'
 
-import {count_phrase, translate} from '@/services/i18n'
+// Aliased to `t` so the usage scanner (app/i18n) sees keys translated here as referenced — it
+// only matches t()/$t() calls. Functions below that take their own `t:Translate` argument shadow
+// it with the caller's translator, which is this same function
+import {count_phrase, translate as t} from '@/services/i18n'
 
 import type {Blueprint, ContentItem, ContentCustom, ContentPassage, ContentPictureStory}
     from '@/services/types'
@@ -293,7 +296,7 @@ const CUSTOM_LABEL_MAX = 40
 function custom_label(item:ContentCustom):string{
     const text = prose_to_text(item.doc)
     if (!text){
-        return translate('common.empty')
+        return t('common.empty')
     }
     if (text.length <= CUSTOM_LABEL_MAX){
         return text
