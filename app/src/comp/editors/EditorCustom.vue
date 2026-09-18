@@ -10,11 +10,15 @@ v-card-title(class='d-flex align-center')
 v-divider
 
 v-card-text(class='flex-grow-1 d-flex flex-column')
-    div(class='mb-4')
-        v-text-field(v-model='item.name' :placeholder='$t("common.label") + "..."')
     app-prose(v-model='item.doc' class='flex-grow-1')
+
+    //- Optional — the content list falls back to the opening words of the text above
+    //- (see custom_label in blueprints.ts)
+    div(class='my-4')
+        v-text-field(v-model='item.name' :label='$t("common.label")')
+
     AppOptionToggle(v-model='item.position' :label='$t("editor.custom.vertical_position")'
-        :items='position_items' class='mt-4 mb-4')
+        :items='position_items' class='mb-4')
 
     //- Only offered while this is the document's final item, since that's the only case the
     //- setting can act on — it's a document-wide setting, not a property of this page

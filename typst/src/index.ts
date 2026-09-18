@@ -53,8 +53,8 @@ export {resolve_trim, resolve_reading_trim, convert_unit, norm_unit, resolve_bin
 export {PATTERNS} from './generated/patterns.js'
 
 // Custom-page prose helpers (ProseMirror → Typst + the auto-copyright marker)
-export {prose_to_typst, doc_has_copyright, replace_copyright_marker, COPYRIGHT_MARKER}
-    from './prose.js'
+export {prose_to_typst, prose_to_text, doc_has_copyright, replace_copyright_marker,
+    COPYRIGHT_MARKER} from './prose.js'
 export type {PmDoc} from 'pm-to-typst'
 
 // Copyright/attribution statement builder — shared by the interior compile (bible_content) and

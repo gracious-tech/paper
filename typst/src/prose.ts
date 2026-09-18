@@ -51,6 +51,32 @@ export function prose_to_typst(doc:PmDoc|undefined, blank_lines = false):string 
 }
 
 
+// Node types that occupy a line of their own, so their text mustn't run into the next node's
+const BLOCK_NODES = new Set(
+    ['paragraph', 'heading', 'listItem', 'blockquote', 'codeBlock', 'horizontalRule'])
+
+
+// Collect a node's plain text, separating blocks with a space (inline runs join seamlessly, so
+// a bolded word mid-sentence doesn't gain spaces around it)
+function collect_prose_text(node:PmNode):string {
+    if (node.type === 'text') {
+        return node.text ?? ''
+    }
+    const inner = (node.content ?? []).map(child => collect_prose_text(child)).join('')
+    return BLOCK_NODES.has(node.type ?? '') ? `${inner} ` : inner
+}
+
+
+// Plain text of a document, with runs of whitespace collapsed — for deriving a label from the
+// opening words of a custom page that the user hasn't named
+export function prose_to_text(doc:PmDoc|undefined):string {
+    if (!doc) {
+        return ''
+    }
+    return collect_prose_text(doc).replace(/\s+/g, ' ').trim()
+}
+
+
 // Whether a document contains the auto-copyright marker anywhere in its text
 export function doc_has_copyright(doc:PmDoc|undefined):boolean {
     if (!doc) {

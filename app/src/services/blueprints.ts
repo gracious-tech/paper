@@ -1,16 +1,17 @@
 
 import {PassageReference, books_ordered} from '@gracious.tech/fetch-client'
 import {cloneDeep} from 'lodash-es'
-import {make_blueprint_schema} from 'paper-bible-typst'
+import {make_blueprint_schema, prose_to_text} from 'paper-bible-typst'
 import {get_service, get_common_sizes} from 'printing-services'
 import type {BindingTypeId, SizeId, InkTypeId, PaperTypeId} from 'printing-services'
 
 import {content} from '@/services/content'
 import {blue} from '@/services/state'
 
-import {count_phrase} from '@/services/i18n'
+import {count_phrase, translate} from '@/services/i18n'
 
-import type {Blueprint, ContentItem, ContentPassage, ContentPictureStory} from '@/services/types'
+import type {Blueprint, ContentItem, ContentCustom, ContentPassage, ContentPictureStory}
+    from '@/services/types'
 import type {Translate} from '@/services/i18n'
 
 
@@ -283,6 +284,26 @@ export function has_missing_books(book_ids:string[], bibles:readonly string[]):b
 }
 
 
+// How much of an unnamed custom page's text to use as its label before cutting it short
+const CUSTOM_LABEL_MAX = 40
+
+
+// Label for a custom page the user hasn't named: its opening words, so a content list of several
+// unnamed pages still tells them apart. Cut at a word boundary so it doesn't end mid-word
+function custom_label(item:ContentCustom):string{
+    const text = prose_to_text(item.doc)
+    if (!text){
+        return translate('common.empty')
+    }
+    if (text.length <= CUSTOM_LABEL_MAX){
+        return text
+    }
+    const cut = text.slice(0, CUSTOM_LABEL_MAX)
+    const space = cut.lastIndexOf(' ')
+    return `${space > 0 ? cut.slice(0, space) : cut}…`
+}
+
+
 // Generate name for content item. `bible` defaults to the currently-open design's first bible
 // (for use while editing `blue`) but callers summarising a *different* design (e.g. a list row)
 // should pass that design's own bible instead. `abbreviate` shortens passage references (e.g.
@@ -290,8 +311,8 @@ export function has_missing_books(book_ids:string[], bibles:readonly string[]):b
 export function gen_content_name(item:ContentItem, bible=blue.bibles[0], abbreviate=false):string{
     if (item.type === 'passage'){
         return content.collection.reference_to_string(new PassageReference(item), bible, abbreviate)
-    } else if (item.type === 'custom' && item.name){
-        return item.name
+    } else if (item.type === 'custom'){
+        return item.name || custom_label(item)
     } else if (item.type === 'title'){
         return item.title
     } else if (item.type === 'picture_story'){
