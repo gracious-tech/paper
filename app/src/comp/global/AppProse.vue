@@ -193,8 +193,24 @@ onBeforeUnmount(() => {
         > *:first-child
             margin-top: 0
 
-        //- Match the PDF, where headings are regular weight so bolding is the user's to add
+        //- Match the PDF, where headings are regular weight so bolding is the user's to add,
+        //- and sized as multiples of the body text rather than the browser's much larger
+        //- defaults (2em/1.5em) — see gen_prose_rules in typst's content_custom.ts
+        //- Margins are em-relative like the PDF's block spacing, so each level's gaps scale
+        //- with its own size (and the first-child rule above keeps the top one flush)
         h1, h2
             font-weight: normal
+            margin: 1em 0 0.1em
+
+        h1
+            font-size: 1.4em
+
+        h2
+            font-size: 1.2em
+
+        //- The CSS reset strips list padding, which leaves the markers flush against the
+        //- margin; the PDF indents the item body to about the paragraph indent
+        ul, ol
+            padding-left: 1.5em
 
 </style>

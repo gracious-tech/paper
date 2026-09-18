@@ -32,7 +32,7 @@ describe('gen_custom', () => {
             // Spacing values are a design choice still open to tuning — only the rule is asserted
             expect(result).toMatch(/#show heading: set block\(above: [\d.]+em, below: [\d.]+em\)/)
             // Headings render at regular weight so the editor's bold button can be un-toggled
-            expect(result).toContain('#show heading: set text(weight: "regular", size: 10pt)')
+            expect(result).toContain('#show heading: set text(weight: "regular")')
         }
     })
 
