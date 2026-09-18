@@ -118,10 +118,13 @@ export function source_files():string[] {
     return out
 }
 
-// Matches a t(...) / $t(...) call opening with a string-literal first argument.
-// Lookbehind rejects identifiers ending in "t" (emit, format, at, split, digest, ...).
-// Group 1: the callee ("t" or "$t"). Group 2: quote char. Group 3: raw (still-escaped) literal.
-export const CALL_RE = /(?<![\w.$])(\$?t)\(\s*(['"`])((?:\\.|(?!\2)[\s\S])*?)\2/g
+// Matches a t(...) / $t(...) / translate(...) call opening with a string-literal first argument.
+// All three are real call forms: components use $t, helpers take a `t` argument, and services
+// import translate() directly (see designs.ts). Lookbehind rejects identifiers ending in "t"
+// (emit, format, at, split, digest, ...) and member calls like ctx.translate() on a canvas.
+// Group 1: the callee. Group 2: quote char. Group 3: raw (still-escaped) literal.
+export const CALL_RE =
+    /(?<![\w.$])(translate|\$?t)\(\s*(['"`])((?:\\.|(?!\2)[\s\S])*?)\2/g
 
 // Turn a raw source literal into its actual string value (handles the escapes our messages use)
 export function unescape_literal(raw:string):string {

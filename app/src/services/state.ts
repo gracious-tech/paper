@@ -38,8 +38,8 @@ export const state = reactive({
     // Whether the embedded cover editor (cover.paper.bible iframe) is open as a full-window
     // overlay — set by OptionsCover, rendered by DialogCoverEditor (mounted in AppRoot)
     cover_editor: false,
-    // Whether the new-design wizard dialog is open — set by AppNavbar's "New" button and by
-    // DisplaySplash for brand-new users, rendered by DialogNewDesign (mounted in AppRoot)
+    // Whether the new-design wizard dialog is open — set by AppNavbar's "New" button (and the
+    // examples list), rendered by DialogNewDesign (mounted in AppRoot)
     new_design: false,
     // Whether the "reduce the page count" suggestions dialog is open — set by any page-limit
     // warning (OptionsPaper's binding estimate box, DesignVersionsList's post-compile binding /
