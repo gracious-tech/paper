@@ -3,14 +3,21 @@
 // pm-to-typst renderer (which natively handles the marks/nodes the app's editor uses,
 // including subscript, superscript, and paragraph/heading text alignment).
 
-import {pm_to_typst} from 'pm-to-typst'
+import {pm_to_typst, typst_renderer} from 'pm-to-typst'
 import {escape_typst} from 'typst-utils'
 
-import type {PmDoc} from 'pm-to-typst'
+import type {PmDoc, PmNode, RenderContext} from 'pm-to-typst'
 
 
 // Marker users can place in custom content to auto-insert the generated copyright statement
 export const COPYRIGHT_MARKER = 'AUTO-COPYRIGHT'
+
+
+// Stand-in for a blank line the user typed (an empty paragraph). Typst renders an empty
+// paragraph as nothing at all — and pm_to_typst collapses the blank markup lines it leaves
+// behind — so the line would silently disappear. An empty box draws nothing but still occupies
+// a line of its own, which is exactly one blank line's worth of advance
+const BLANK_LINE = '#box()'
 
 
 // Replace the copyright marker in already-converted Typst markup with the given block.
@@ -21,12 +28,26 @@ export function replace_copyright_marker(markup:string, block:string):string {
 }
 
 
-// Convert a full custom-page document to Typst markup
-export function prose_to_typst(doc:PmDoc|undefined):string {
+// Render a paragraph, preserving an empty one as a blank line instead of dropping it
+function render_paragraph_keeping_blanks(node:PmNode, ctx:RenderContext):string {
+    if (!node.content?.length) {
+        return BLANK_LINE
+    }
+    return typst_renderer.nodes.paragraph(node, ctx)
+}
+
+
+// Convert a full custom-page document to Typst markup. `blank_lines` keeps the empty paragraphs
+// the user typed — wanted on a custom page, where the text is laid out as written, but not on a
+// picture-story slide, where the text is centred in a fixed region of its own
+export function prose_to_typst(doc:PmDoc|undefined, blank_lines = false):string {
     if (!doc) {
         return ''
     }
-    return pm_to_typst(doc)
+    if (!blank_lines) {
+        return pm_to_typst(doc)
+    }
+    return pm_to_typst(doc, {nodes: {paragraph: render_paragraph_keeping_blanks}})
 }
 
 

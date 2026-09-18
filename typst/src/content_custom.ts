@@ -2,7 +2,13 @@
 import type {TypstCustomPage} from './types.js'
 
 
-// Heading styling for rich-text custom content, rather than leaving Typst's defaults:
+// Styling for rich-text custom content, rather than leaving Typst's defaults.
+//
+// Paragraphs: no first-line indent. The document-wide indent (see gen_preamble) marks a new
+// paragraph in continuous Bible prose, where paragraphs run on; a custom page is written as
+// discrete blocks, and the user separates them with blank lines rather than an indent.
+//
+// Headings:
 //  * spacing — the document-wide `par.spacing` is pinned to leading (see gen_preamble), which a
 //    heading's block would otherwise inherit, leaving it flush against the text above and below
 //  * regular weight — a bold-by-default heading makes the editor's bold button a no-op on heading
@@ -16,9 +22,10 @@ import type {TypstCustomPage} from './types.js'
 //    very default it means to replace (Typst's level-1 default of 14pt would land at 19.6pt)
 // Applied inside a scope in both paths below, so they can't leak into the rest of the document.
 // Blanket rules come first (they cover every level), then the per-level sizes that override them
-function gen_heading_rules(font_size:string):string {
-    return `#show heading: set block(above: 1.5em, below: 1.1em)
-#show heading: set text(weight: "regular", size: ${font_size})
+function gen_prose_rules(font_size:string):string {
+    return `#set par(first-line-indent: 0pt)
+#show heading: set block(above: 1.5em, below: 1.1em)
+#show heading: set text(weight: "regular")
 #show heading.where(level: 1): set text(size: 1.4 * ${font_size})
 #show heading.where(level: 2): set text(size: 1.2 * ${font_size})`
 }
@@ -27,11 +34,11 @@ function gen_heading_rules(font_size:string):string {
 // Generate Typst markup for a custom content page
 export function gen_custom(custom:TypstCustomPage, font_size:string):string {
 
-    const heading_rules = gen_heading_rules(font_size)
+    const prose_rules = gen_prose_rules(font_size)
 
-    // Content at top just renders in normal flow (grouped so the heading rules stay scoped)
+    // Content at top just renders in normal flow (grouped so the prose rules stay scoped)
     if (custom.position !== 'middle' && custom.position !== 'bottom') {
-        return `#[\n${heading_rules}\n${custom.content}\n]`
+        return `#[\n${prose_rules}\n${custom.content}\n]`
     }
 
     // Middle/bottom: measure the content against the page. If it fits, pin it to the page with a
@@ -42,7 +49,7 @@ export function gen_custom(custom:TypstCustomPage, font_size:string):string {
     const alignment = custom.position === 'middle' ? 'horizon' : 'bottom'
     return `#layout(size => context {
     let body = [
-${heading_rules}
+${prose_rules}
 ${custom.content}
     ]
     let content_height = measure(box(width: size.width, body)).height

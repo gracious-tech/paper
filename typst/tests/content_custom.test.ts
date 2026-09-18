@@ -18,6 +18,14 @@ describe('gen_custom', () => {
         expect(result.endsWith(']')).toBe(true)
     })
 
+    it('drops the document-wide first-line indent', () => {
+        // A custom page is written as discrete blocks, not the continuous prose the indent marks
+        for (const position of ['top', 'middle', 'bottom'] as const) {
+            const result = gen_custom(make_custom({position, content: 'Text'}), '10pt')
+            expect(result).toContain('#set par(first-line-indent: 0pt)')
+        }
+    })
+
     it('scopes heading rules to the content at every position', () => {
         for (const position of ['top', 'middle', 'bottom'] as const) {
             const result = gen_custom(make_custom({position, content: '= Heading'}), '10pt')

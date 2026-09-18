@@ -678,7 +678,8 @@ export class BibleContent {
         blue:Blueprint, custom:ContentCustom, resources:Record<string, GetResourcesItem>,
         share_url?:string,
     ):TypstCustomPage {
-        let markup = prose_to_typst(custom.doc)
+        // Blank lines are kept here (unlike a story slide) — a custom page lays out as written
+        let markup = prose_to_typst(custom.doc, true)
 
         // Replace the AUTO-COPYRIGHT marker with the generated copyright block
         markup = replace_copyright_marker(markup, gen_copyright_typst(blue, resources, share_url))
