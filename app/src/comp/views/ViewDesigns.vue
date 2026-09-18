@@ -15,8 +15,11 @@ div.cont
             v-btn(value='modified' size='small') {{$t("view.designs.recent")}}
             v-btn(value='name' size='small') {{$t("common.name")}}
 
-    div(v-if='!has_any_unfiltered' class='pa-4 text-center text-medium-emphasis')
-        | {{$t("view.designs.no_designs_yet")}}
+    //- Nothing at all yet — the navbar's "New" is easy to miss on an otherwise blank page
+    div(v-if='!has_any_unfiltered' class='pa-4 text-center')
+        p(class='text-medium-emphasis') {{$t("view.designs.no_designs_yet")}}
+        v-btn(@click='state.new_design = true' color='secondary' variant='tonal' class='mt-4')
+            | {{$t("view.designs.create_first")}}
     div(v-else-if='!has_any_filtered' class='pa-4 text-center text-medium-emphasis')
         | {{$t("view.designs.no_matching_designs")}}
 
@@ -72,7 +75,7 @@ import {user} from '@/services/auth'
 import {designs, viewed_designs, rename_category, clear_category} from '@/services/designs'
 // LEGACY Remove with app/src/legacy/ once old data no longer needs recovering
 import {legacy} from '@/legacy/legacy'
-import {confirm_dialog, prompt_dialog} from '@/services/state'
+import {state, confirm_dialog, prompt_dialog} from '@/services/state'
 import {format_relative_time} from '@/services/utils'
 
 import type {DesignMeta, ViewedDesign} from '@/services/types'

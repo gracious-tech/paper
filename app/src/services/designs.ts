@@ -11,7 +11,7 @@ import {split_blueprint_doc, join_blueprint_doc, resolve_design_name, get_cover_
 import {firestore} from '@/services/firebase'
 import {api} from '@/services/api'
 import {user} from '@/services/auth'
-import {blue, state, estimated_pages} from '@/services/state'
+import {blue, state, estimated_pages, welcome_seen} from '@/services/state'
 import {clean_blueprint, gen_content_name, content_preview, get_default_blueprint}
     from '@/services/blueprints'
 import {generate_token} from '@/services/utils'
@@ -584,9 +584,11 @@ function meta_from_doc(id:string, data:DocumentData):DesignMeta{
 }
 
 
-export async function init_designs(open_id:string|null = null):Promise<void>{
+export async function init_designs(open_id:string|null = null, welcome = true):Promise<void>{
     // Boot the designs system: live list sync, then open the requested design (from a share
     // link), else the most recent one, else create the user's first design
+    // `welcome` allows the caller to rule out the welcome splash regardless of design count —
+    // signing out lands on an empty account, but the user plainly doesn't need introducing
     const uid = user.value!.uid
     const designs_query = query(collection(firestore, 'designs'),
         where('editor_uids', 'array-contains', uid), orderBy('modified', 'desc'))
@@ -609,17 +611,42 @@ export async function init_designs(open_id:string|null = null):Promise<void>{
     // provoking a Firestore permission-denied error for what's actually a normal, expected case
     const existing = await getDocs(designs_query)
     if (existing.empty){
-        // No designs yet means this is a brand new user — populate `blue` locally (never
-        // persisted; flush_changes can't write while no design is open) so boot-time watchers
-        // that dereference it stay safe, and show the welcome splash, which routes them into
-        // the new-design wizard rather than silently creating a design they never chose
+        // No designs yet — populate `blue` locally (never persisted; flush_changes can't write
+        // while no design is open) so boot-time watchers that dereference it stay safe
         Object.assign(blue, get_default_blueprint())
-        state.splash = true
+        // Greet only a genuinely new visitor, rather than silently creating a design they never
+        // chose. Anyone who has been welcomed before (or just signed out) gets ViewDesigns'
+        // ordinary "No designs yet" state instead — an empty account isn't a new person
+        if (welcome && !welcome_seen()){
+            state.splash = true
+        }
     } else if (open_id && existing.docs.some(item => item.id === open_id)){
         await open_design(open_id)
     } else {
         await open_design(existing.docs[0]!.id)
     }
+}
+
+
+export function stop_design_sync():void{
+    // Drop every listener and pending write belonging to the current user, ready for the uid to
+    // change (sign-out, or merging into an existing account)
+    // WARN Must run *before* the uid changes — Firestore re-sends its active listeners under the
+    // new credentials, so any left running would be re-issued as the new user and denied
+    // NOTE Callers own this rather than sign_out() itself, since auth.ts can't import this module
+    // (designs.ts already imports auth.ts for `user`)
+    save.cancel()
+    unsub_doc?.()
+    unsub_doc = null
+    unsub_list?.()
+    unsub_list = null
+    unsub_viewed?.()
+    unsub_viewed = null
+    // Leaves flush_changes() unable to write even if the blue watcher fires before the reload
+    current_design_id.value = null
+    synced = null
+    designs.splice(0, designs.length)
+    viewed_designs.splice(0, viewed_designs.length)
 }
 
 

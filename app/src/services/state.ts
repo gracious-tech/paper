@@ -13,8 +13,8 @@ import type {WizardStep} from '@/services/new_design'
 
 // General state
 export const state = reactive({
-    // Shows the welcome splash instead of the app — set true by init_designs() for brand new
-    // users (no designs yet), cleared by DisplaySplash.vue's "Get Started" button
+    // Shows the welcome splash instead of the app — set true by init_designs() for a brand new
+    // visitor (no designs and never welcomed), cleared by DisplaySplash.vue's "Get Started" button
     splash: false,
     advanced: false,
     editor: null as null|{component:string, props:Record<string, unknown>},
@@ -87,6 +87,34 @@ export const state = reactive({
 // Show a brief snackbar toast with the given message (auto-dismissed by AppRoot's v-snackbar)
 export function show_toast(message:string):void{
     state.toast = message
+}
+
+
+// localStorage key recording that the welcome splash has been shown in this browser
+// NOTE Deliberately per-browser rather than per-account: the splash introduces the app to a
+// person, and signing out mints a new uid, so account-scoped storage could never stop it
+// reappearing for someone who has been using the app for months
+const WELCOME_SEEN_KEY = 'welcome_seen'
+
+
+// Whether this browser has already been shown the welcome splash
+export function welcome_seen():boolean{
+    try {
+        return localStorage.getItem(WELCOME_SEEN_KEY) === 'true'
+    } catch {
+        // Private mode / blocked storage — better to greet twice than to crash
+        return false
+    }
+}
+
+
+// Remember the welcome splash has been shown, so it doesn't reappear on the next load
+export function set_welcome_seen():void{
+    try {
+        localStorage.setItem(WELCOME_SEEN_KEY, 'true')
+    } catch {
+        // Never fail over a cosmetic preference
+    }
 }
 
 

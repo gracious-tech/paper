@@ -112,6 +112,14 @@ function version_from_doc(id:string, data:DocumentData):Version{
 }
 
 
+export function stop_versions_sync():void{
+    // Drop the versions listener ahead of a uid change — see stop_design_sync() in designs.ts
+    unsub_list?.()
+    unsub_list = null
+    versions.splice(0, versions.length)
+}
+
+
 export function start_versions_sync(design_id:string):void{
     // Keep the reactive `versions` list mirrored from Firestore, scoped to one design (most
     // recent first) — re-subscribes (tearing down the previous listener) as the open design

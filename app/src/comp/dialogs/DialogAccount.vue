@@ -41,10 +41,12 @@ v-dialog(:model-value='modelValue' @update:model-value='close' max-width='440')
 import {ref, watch} from 'vue'
 
 import {user, is_anonymous, link_google, send_email_link, sign_out} from '@/services/auth'
-import {init_designs, start_viewed_sync} from '@/services/designs'
+import {init_designs, start_viewed_sync, stop_design_sync} from '@/services/designs'
+import {stop_versions_sync} from '@/services/versions'
 import {restore_custom_fonts} from '@/services/custom_fonts'
 import {report_error} from '@/services/errors'
 import {show_toast} from '@/services/state'
+import {router} from '@/services/router'
 import {useI18n} from '@/services/i18n'
 
 
@@ -93,10 +95,17 @@ const run_busy = async (action:() => Promise<void>) => {
 // or signing out both switch to a different uid's data
 // NOTE The design auto-save watcher from boot persists (it follows whatever design is open);
 // ViewDesign.vue's own watcher restarts the scoped versions sync once current_design_id settles
-const reload_user_data = async () => {
-    await init_designs()
+const reload_user_data = async (welcome = true) => {
+    await init_designs(null, welcome)
     start_viewed_sync()
     await restore_custom_fonts()
+}
+
+
+// Tear down the outgoing account's Firestore listeners before its access goes away
+const release_user_data = () => {
+    stop_design_sync()
+    stop_versions_sync()
 }
 
 
@@ -109,6 +118,8 @@ const google = async () => {
     try {
         const result = await link_google(() => {
             busy.value = true
+            // Merging signs in as the *other* account, so let go of this one's data first
+            release_user_data()
         })
 
         // The user dismissed the popup — leave the dialog as it was so they can simply try again
@@ -143,8 +154,12 @@ const send_email = () => run_busy(async () => {
 
 // Sign out into a fresh guest session
 const logout = () => run_busy(async () => {
+    release_user_data()
     await sign_out()
-    await reload_user_data()
+    // Leave whatever design the old account had open — the new guest uid can't read it — and
+    // land on the (empty) design list rather than being greeted as a first-time visitor
+    await router.push({name: 'designs'})
+    await reload_user_data(false)
     close()
 })
 

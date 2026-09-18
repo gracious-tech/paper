@@ -1,8 +1,8 @@
 
 import {ref, computed} from 'vue'
 import {signInAnonymously, onAuthStateChanged, signOut, GoogleAuthProvider, linkWithPopup,
-    signInWithCredential, sendSignInLinkToEmail, isSignInWithEmailLink, signInWithEmailLink,
-    linkWithCredential, EmailAuthProvider} from 'firebase/auth'
+    signInWithCredential, sendSignInLinkToEmail, isSignInWithEmailLink,
+    signInWithEmailLink} from 'firebase/auth'
 import type {User, AuthError} from 'firebase/auth'
 
 import {firebase_auth} from '@/services/firebase'
@@ -20,6 +20,16 @@ const POPUP_CANCEL_CODES = [
     'auth/popup-closed-by-user',
     'auth/cancelled-popup-request',
     'auth/user-cancelled',
+]
+
+
+// Link failures meaning the identity already belongs to another Paper Bible account. Firebase
+// picks the code by what it matched on — the exact credential, or merely the email (e.g. that
+// address already signed in via an email link) — but either way the remedy is the same: sign
+// into that account and have the server merge the guest's work across
+const ALREADY_LINKED_CODES = [
+    'auth/credential-already-in-use',
+    'auth/email-already-in-use',
 ]
 
 
@@ -100,7 +110,7 @@ export async function link_google(on_merging?:() => void)
 
         // Google account already has a Paper Bible account — switch to it and merge
         // NOTE Linking failed, so the guest is still signed in and its token is safe to take now
-        if (code === 'auth/credential-already-in-use'){
+        if (ALREADY_LINKED_CODES.includes(code)){
             const credential = GoogleAuthProvider.credentialFromError(error as AuthError)
             if (credential){
                 on_merging?.()
@@ -126,7 +136,7 @@ export async function send_email_link(email:string):Promise<void>{
 }
 
 
-export async function complete_email_link():Promise<'linked'|'merged'|'expired'|null>{
+export async function complete_email_link():Promise<'signed_in'|'expired'|null>{
     // Finish a passwordless email sign-in if the page was opened via such a link
     // (runs on boot before user data loads, so no reload is needed afterwards)
     if (!isSignInWithEmailLink(firebase_auth, location.href)){
@@ -144,22 +154,20 @@ export async function complete_email_link():Promise<'linked'|'merged'|'expired'|
         return null
     }
 
+    // Sign in with the link rather than linking it onto the guest account
+    // WARN Whichever call is made first spends the code, so there is only ever one attempt and
+    //      no fallback. Linking would keep the guest's uid, but it fails outright whenever the
+    //      address already has an account — and by then the code is gone, so the sign-in that
+    //      would have rescued it is impossible. Signing in always works, so do that and move the
+    //      guest's work across afterwards
     const current = firebase_auth.currentUser!
-    const credential = EmailAuthProvider.credentialWithLink(email, link)
+    // Only a guest has work that needs carrying over; a signed-in user clicking an old link is
+    // just switching accounts, and merging would drag the previous account's designs with them
+    const guest_token = current.isAnonymous ? await current.getIdToken() : null
     try {
-        await linkWithCredential(current, credential)
-        return 'linked'
+        await signInWithEmailLink(firebase_auth, email, link)
     } catch (error){
         const code = (error as AuthError).code
-
-        // Email already has a Paper Bible account — switch to it and merge
-        // NOTE Linking failed, so the guest is still signed in and its token is safe to take now
-        if (code === 'auth/email-already-in-use' || code === 'auth/credential-already-in-use'){
-            const anon_token = await current.getIdToken()
-            await signInWithEmailLink(firebase_auth, email, link)
-            await merge_anon_account(anon_token)
-            return 'merged'
-        }
 
         // The link was already used or has gone stale — the user just needs a fresh one
         if (code === 'auth/invalid-action-code' || code === 'auth/expired-action-code'){
@@ -168,4 +176,11 @@ export async function complete_email_link():Promise<'linked'|'merged'|'expired'|
 
         throw error
     }
+
+    // Carry the guest's designs into whichever account the link resolved to — a brand new one
+    // (the address had no account) or a pre-existing one they're returning to
+    if (guest_token){
+        await merge_anon_account(guest_token)
+    }
+    return 'signed_in'
 }

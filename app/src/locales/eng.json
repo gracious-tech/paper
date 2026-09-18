@@ -534,6 +534,7 @@
   "view.design_item.rename": "Rename design",
   "view.design_item.shared": "Shared design",
   "view.design_item.unrendered_changes": "This design has changes since its last created version",
+  "view.designs.create_first": "Create your first design",
   "view.designs.no_designs_yet": "No designs yet",
   "view.designs.no_matching_designs": "No matching designs",
   "view.designs.recent": "Recent",
