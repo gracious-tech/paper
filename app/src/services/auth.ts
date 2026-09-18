@@ -126,12 +126,17 @@ export async function send_email_link(email:string):Promise<void>{
 }
 
 
-export async function complete_email_link():Promise<'linked'|'merged'|null>{
+export async function complete_email_link():Promise<'linked'|'merged'|'expired'|null>{
     // Finish a passwordless email sign-in if the page was opened via such a link
     // (runs on boot before user data loads, so no reload is needed afterwards)
     if (!isSignInWithEmailLink(firebase_auth, location.href)){
         return null
     }
+
+    // Consume the link before attempting anything that can fail — the code is single-use, so if
+    // the URL stayed sign-in-shaped every later refresh would retry a spent code and re-prompt
+    const link = location.href
+    history.replaceState(null, '', location.pathname)
     const email = localStorage.getItem(EMAIL_FOR_LINK_KEY)
         ?? prompt("Please confirm your email address")  // Link opened on a different device
     localStorage.removeItem(EMAIL_FOR_LINK_KEY)
@@ -140,25 +145,27 @@ export async function complete_email_link():Promise<'linked'|'merged'|null>{
     }
 
     const current = firebase_auth.currentUser!
-    const anon_token = await current.getIdToken()
-    const credential = EmailAuthProvider.credentialWithLink(email, location.href)
-    let result:'linked'|'merged'
+    const credential = EmailAuthProvider.credentialWithLink(email, link)
     try {
         await linkWithCredential(current, credential)
-        result = 'linked'
+        return 'linked'
     } catch (error){
-        // Email already has a Paper Bible account — switch to it and merge
         const code = (error as AuthError).code
-        if (code === 'auth/email-already-in-use' || code === 'auth/credential-already-in-use'){
-            await signInWithEmailLink(firebase_auth, email, location.href)
-            await merge_anon_account(anon_token)
-            result = 'merged'
-        } else {
-            throw error
-        }
-    }
 
-    // Remove the one-time-code params from the URL
-    history.replaceState(null, '', location.pathname)
-    return result
+        // Email already has a Paper Bible account — switch to it and merge
+        // NOTE Linking failed, so the guest is still signed in and its token is safe to take now
+        if (code === 'auth/email-already-in-use' || code === 'auth/credential-already-in-use'){
+            const anon_token = await current.getIdToken()
+            await signInWithEmailLink(firebase_auth, email, link)
+            await merge_anon_account(anon_token)
+            return 'merged'
+        }
+
+        // The link was already used or has gone stale — the user just needs a fresh one
+        if (code === 'auth/invalid-action-code' || code === 'auth/expired-action-code'){
+            return 'expired'
+        }
+
+        throw error
+    }
 }

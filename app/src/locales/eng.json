@@ -2,6 +2,7 @@
   "app.about":"About",
   "app.account_guest": "Sign in to save your work",
   "app.contact": "Contact",
+  "app.sign_in_link_expired": "That sign-in link has already been used or has expired. Please request a new one.",
   "app.donate": "Donate",
   "app.used_in_design": "Used in this design",
   "common.accept": "Accept",

@@ -32,7 +32,8 @@ import AppFontSelect from './comp/global/AppFontSelect.vue'
 import AppOptionToggle from './comp/global/AppOptionToggle.vue'
 import AppRoot from './comp/AppRoot.vue'
 import locales_meta from './locales.json'
-import {i18n, load_locale} from '@/services/i18n'
+import {i18n, load_locale, translate} from '@/services/i18n'
+import {show_toast} from '@/services/state'
 import {detect_locale} from '@/services/locale'
 import {router} from '@/services/router'
 import {ensure_signed_in, complete_email_link} from '@/services/auth'
@@ -137,9 +138,16 @@ void (async () => {
 
     // If arriving via a passwordless email sign-in link, complete it before loading any user
     // data (may switch to an existing account and merge the guest's data into it)
-    await complete_email_link().catch((error:unknown) => {
+    const email_link = await complete_email_link().catch((error:unknown) => {
         report_error('banner', error)
+        return null
     })
+
+    // A spent or stale link is a normal outcome, so say so rather than leaving the user wondering
+    // why clicking it did nothing (the toast waits in state until the app mounts below)
+    if (email_link === 'expired'){
+        show_toast(translate('app.sign_in_link_expired'))
+    }
     content.collection = bible_content.collection
     content.translations = content.collection.get_resources({object: true})
     content.languages = content.collection.get_languages({object: true})
