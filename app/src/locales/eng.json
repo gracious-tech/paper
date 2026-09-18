@@ -112,6 +112,7 @@
   "dialog.account.google": "Sign in with Google",
   "dialog.account.guest_notice": "You're using a guest account. Sign in to keep your work safe and access it from any device.",
   "dialog.account.link_sent": "Check your inbox — we've sent you a sign-in link.",
+  "dialog.account.popup_blocked": "Your browser blocked the sign-in window. Please allow popups for this site and try again.",
   "dialog.account.send_link": "Email me a sign-in link",
   "dialog.account.sign_out": "Sign out",
   "dialog.account.signed_in_as": "Signed in as",

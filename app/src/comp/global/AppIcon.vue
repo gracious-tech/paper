@@ -45,6 +45,7 @@ import payments from '@material-symbols/svg-400/outlined/payments.svg?component'
 
 import planner_banner from '@/assets/planner_banner.svg?component'
 import donate from '@/assets/icons/donate.svg?component'
+import google from '@/assets/icons/google.svg?component'
 
 
 import type {FunctionalComponent} from 'vue'
@@ -60,7 +61,7 @@ const icons = {
     copyright,
     subject, download, upload, error, info, more_vert, more_horiz, lists, history_toggle_off, donate,
     add, content_copy, 'delete': delete_icon, group, share, account_circle, straighten,
-    menu_book, description, print, warning, check, search, edit, help, mail, payments,
+    menu_book, description, print, warning, check, search, edit, help, mail, payments, google,
 } as Record<string, FunctionalComponent>
 
 

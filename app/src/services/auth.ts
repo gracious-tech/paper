@@ -14,6 +14,15 @@ import {set_error_auth} from '@/services/errors'
 const EMAIL_FOR_LINK_KEY = 'email_for_link'
 
 
+// Popup failures that are the user's own doing (dismissed the window, or clicked sign-in again
+// while an earlier popup was still open) — normal choices, never reported as faults
+const POPUP_CANCEL_CODES = [
+    'auth/popup-closed-by-user',
+    'auth/cancelled-popup-request',
+    'auth/user-cancelled',
+]
+
+
 // Let error reports carry the user's uid (errors.ts can't import auth/firebase itself as it
 // must be imported before everything else)
 set_error_auth(async () => await firebase_auth.currentUser?.getIdToken() ?? null)
@@ -65,23 +74,43 @@ async function merge_anon_account(anon_token:string):Promise<void>{
 }
 
 
-export async function link_google():Promise<'linked'|'merged'>{
+export async function link_google(on_merging?:() => void)
+        :Promise<'linked'|'merged'|'cancelled'|'blocked'>{
     // Upgrade the guest account via Google sign-in
+    // WARN Nothing may be awaited before linkWithPopup(), or the popup no longer counts as
+    //      user-initiated and browsers (Safari especially) block it
+    // NOTE `on_merging` fires when the flow leaves the popup behind and starts doing work of its
+    //      own, so callers know when it's worth showing progress
     const current = firebase_auth.currentUser!
-    const anon_token = await current.getIdToken()
     try {
         await linkWithPopup(current, new GoogleAuthProvider())
         return 'linked'
     } catch (error){
+        const code = (error as AuthError).code
+
+        // The user dismissed the popup, so there is nothing to do and nothing to report
+        if (POPUP_CANCEL_CODES.includes(code)){
+            return 'cancelled'
+        }
+
+        // The browser refused to open the popup — actionable by the user, not a fault
+        if (code === 'auth/popup-blocked'){
+            return 'blocked'
+        }
+
         // Google account already has a Paper Bible account — switch to it and merge
-        if ((error as AuthError).code === 'auth/credential-already-in-use'){
+        // NOTE Linking failed, so the guest is still signed in and its token is safe to take now
+        if (code === 'auth/credential-already-in-use'){
             const credential = GoogleAuthProvider.credentialFromError(error as AuthError)
             if (credential){
+                on_merging?.()
+                const anon_token = await current.getIdToken()
                 await signInWithCredential(firebase_auth, credential)
                 await merge_anon_account(anon_token)
                 return 'merged'
             }
         }
+
         throw error
     }
 }
