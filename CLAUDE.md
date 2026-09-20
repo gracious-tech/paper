@@ -275,6 +275,14 @@ All publicly readable by path (ids are unguessable url64 tokens); writes authori
 delete** — removal is Admin-SDK only (see `server/src/assets.ts`), which is what stops one
 editor destroying the inputs another's published version renders from.
 
+Uploads are also **type-pinned, not just size-capped**: the rules allowlist
+`image/jpeg|png|webp` + `font/ttf|otf` (and `design_cache/` only `image/png`), so these prefixes
+can't be used as general file hosting on a Google domain and the compile service's image
+pipeline isn't fed arbitrary bytes. **Adding an upload format means editing the rules too.**
+Fonts are stored under a type-neutral `.bin` basename, so `font_mime()` in `custom_fonts.ts`
+sniffs the magic number (`OTTO` → otf) to label them — an upload left unlabelled gets the
+browser's guess and is denied.
+
 
 ## Development
 

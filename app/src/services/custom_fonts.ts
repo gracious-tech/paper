@@ -51,6 +51,17 @@ export function clear_design_fonts():void {
 }
 
 
+function font_mime(bytes:Uint8Array|undefined):string {
+    // The content type to store a font's bytes under. Only TTF and OTF are ever accepted (see
+    // DialogFontUpload's `accept`; zips are unpacked first), and both are stored under a
+    // type-neutral `.bin` basename, so the magic number is the only thing that tells them
+    // apart. Worth getting right because the Storage rules allowlist real font/* types — a
+    // catch-all octet-stream would readmit every other file format along with them
+    const otto = bytes?.[0] === 0x4f && bytes[1] === 0x54 && bytes[2] === 0x54 && bytes[3] === 0x4f
+    return otto ? 'font/otf' : 'font/ttf'
+}
+
+
 async function push_to_worker():Promise<void> {
     // Re-send the font set to the generator's worker (it holds a copy, not our array
     // reference). If the worker isn't ready yet, init.ts sends the set once it is
@@ -132,7 +143,8 @@ export async function add_design_fonts(design_id:string, fonts:CustomFont[]):Pro
         const files:string[] = []
         for (const bytes of font.files){
             const path = `${design_assets_prefix(design_id)}${await hash_bytes(bytes)}.bin`
-            await uploadBytes(storage_ref(firebase_storage, path), bytes)
+            await uploadBytes(storage_ref(firebase_storage, path), bytes,
+                {contentType: font_mime(bytes)})
             files.push(path)
         }
         const entry:StoredFontMeta = {family: font.family, style: font.style, files}
@@ -235,8 +247,10 @@ export function plan_version_fonts(design_id:string, blueprint:Blueprint)
         }
         const files = entry.files.map(path => to_version_asset(path, design_id))
         for (const [i, path] of files.entries()){
+            // The loaded bytes are index-aligned with the stored paths (both written in order
+            // by add_design_fonts), so the snapshot is labelled the same way the original was
             copies.push({from: entry.files[i]!, to: path,
-                content_type: 'application/octet-stream'})
+                content_type: font_mime(font.files[i])})
         }
         meta.push({family: font.family, style: font.style, files})
     }

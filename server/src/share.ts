@@ -1,4 +1,4 @@
-import {randomBytes} from 'node:crypto'
+import {randomBytes, timingSafeEqual} from 'node:crypto'
 
 import {FieldValue, Timestamp} from 'firebase-admin/firestore'
 import {split_blueprint_doc, resolve_design_name, get_cover_title, SCHEMA_VERSION,
@@ -19,8 +19,19 @@ interface HandlerResult {
 
 
 function tokens_match(doc_token:unknown, given:string):boolean{
-    // Whether a share token from a doc is enabled and matches the presented one
-    return typeof doc_token === 'string' && doc_token.length > 0 && doc_token === given
+    // Whether a share token from a doc is enabled and matches the presented one.
+    // Compared in constant time so how long the answer takes says nothing about how much of a
+    // guess was right — `===` stops at the first differing byte, which in principle lets a
+    // token be walked out one character at a time. The tokens are 120 bits of randomness and
+    // the signal would be buried under network and Firestore latency, so this is cheap
+    // insurance rather than a fix for a reachable attack — but it costs three lines
+    if (typeof doc_token !== 'string' || doc_token.length === 0){
+        return false
+    }
+    const expected = Buffer.from(doc_token, 'utf8')
+    const presented = Buffer.from(given, 'utf8')
+    // timingSafeEqual throws on a length mismatch, and length isn't secret anyway
+    return expected.length === presented.length && timingSafeEqual(expected, presented)
 }
 
 

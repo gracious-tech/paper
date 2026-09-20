@@ -32,11 +32,24 @@ service firebase.storage {
                 /databases/(default)/documents/designs/$(design_id)).data.editor_uids;
         }
 
+        // Pin the content type as well as the size. Without it any file under 20MB could be
+        // parked on these prefixes and handed back out publicly from a Google domain, and the
+        // compile service's image pipeline would be fed arbitrary bytes. The images are the
+        // three the app ever uploads (IMAGE_MIME_EXT / BG_MIME_EXT, client-side); the fonts are
+        // labelled at upload by sniffing the magic number (font_mime in custom_fonts.ts),
+        // because the stored basename is deliberately type-neutral.
+        // WARN Adding an upload format means adding it here too, or the upload is denied
+        function allowed_asset_type() {
+            return request.resource.contentType in
+                ['image/jpeg', 'image/png', 'image/webp', 'font/ttf', 'font/otf'];
+        }
+
         match /design_assets/{design_id}/{file} {
             allow get: if true;
 
             allow create, update: if request.auth != null
                 && request.auth.uid in design_editors(design_id)
+                && allowed_asset_type()
                 && request.resource.size < 20 * 1024 * 1024;
         }
 
@@ -50,14 +63,18 @@ service firebase.storage {
             allow create: if request.auth != null
                 && resource == null
                 && request.auth.uid in design_editors(design_id)
+                && allowed_asset_type()
                 && request.resource.size < 20 * 1024 * 1024;
         }
 
+        // Only ever holds the painted/torn PNG variants the client bakes, so the type is pinned
+        // tighter than the other two prefixes rather than sharing their allowlist
         match /design_cache/{design_id}/{file} {
             allow get: if true;
 
             allow create, update: if request.auth != null
                 && request.auth.uid in design_editors(design_id)
+                && request.resource.contentType == 'image/png'
                 && request.resource.size < 20 * 1024 * 1024;
         }
 
