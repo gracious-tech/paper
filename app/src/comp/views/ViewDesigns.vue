@@ -54,6 +54,14 @@ div.cont
                 v-list-item-title {{ viewed.title || $t("common.unnamed_design") }}
                 v-list-item-subtitle {{ format_relative_time(viewed.last_viewed) }}
 
+    //- Guests only exist in this browser, so warn them their designs are one clear-data away
+    //-     from being lost. Sits outside the list so searching/filtering can never hide it
+    div.signin_warning(v-if='show_signin_warning')
+        v-alert(type='info' variant='tonal' density='compact' class='')
+            | {{$t("view.designs.signin_warning")}}
+            v-btn(@click='state.account = true' variant='flat' color='secondary' size='small' class='ml-2')
+                | {{$t("view.designs.signin_warning_action")}}
+
     //- LEGACY Remove with app/src/legacy/ once old data no longer needs recovering
     //- WARN Condition is currently INVERTED (!) for testing — flip before shipping
     //- Sits outside the list so searching/filtering can never hide it
@@ -71,7 +79,7 @@ import {useI18n} from '@/services/i18n'
 import {useRouter} from 'vue-router'
 
 import DesignListItem from './assets/DesignListItem.vue'
-import {user} from '@/services/auth'
+import {user, is_anonymous} from '@/services/auth'
 import {designs, viewed_designs, rename_category, clear_category} from '@/services/designs'
 // LEGACY Remove with app/src/legacy/ once old data no longer needs recovering
 import {legacy} from '@/legacy/legacy'
@@ -169,6 +177,10 @@ const has_any_filtered = computed(() => {
 })
 
 
+// Only nag guests who actually have something to lose (not on the empty-state page)
+const show_signin_warning = computed(() => is_anonymous.value && has_any_unfiltered.value)
+
+
 const open_viewed = (viewed:ViewedDesign) => {
     void router.push({name: 'design', params: {id: viewed.design_id, version: viewed.last_version_id}})
 }
@@ -214,6 +226,12 @@ const open_viewed = (viewed:ViewedDesign) => {
     padding-top: 14px
     padding-bottom: 14px
     margin-bottom: 4px
+
+.signin_warning
+    padding: 32px 16px 0
+
+    .v-alert
+        line-height: 1.5
 
 // LEGACY Remove with app/src/legacy/ once old data no longer needs recovering
 .legacy
