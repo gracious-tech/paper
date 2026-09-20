@@ -85,6 +85,11 @@ let unsub_doc:Unsubscribe|null = null
 let unsub_list:Unsubscribe|null = null
 let unsub_viewed:Unsubscribe|null = null
 
+// The design currently being deleted by this client, if any. The deletion can reach the
+// snapshot listener before /api/delete_design returns, and delete_design() does its own
+// teardown once it knows the call succeeded, so the listener must not race it
+let deleting_id:string|null = null
+
 
 // Designs the user has viewed via a public version link but can't edit ("Read access" section
 // of /designs), most recently viewed first
@@ -342,7 +347,7 @@ export async function open_design(id:string):Promise<void>{
 
             // Design was deleted (e.g. by its owner in another session) — move to another
             if (!snap.exists()){
-                if (current_design_id.value === id){
+                if (current_design_id.value === id && deleting_id !== id){
                     void open_other_design(id)
                 }
                 resolve()
@@ -447,17 +452,35 @@ export async function delete_design(id:string):Promise<void>{
     // Server-mediated: clients have no delete permission on any asset prefix, and the
     // Firestore rules only let a version's own creator delete it, so a shared design's
     // co-editor versions would otherwise survive it. Errors propagate — this is destructive
-    // and the caller must be able to tell the user it didn't happen
-    if (current_design_id.value === id){
+    // and the caller must be able to tell the user it didn't happen.
+    //
+    // The server call comes first and local state is only torn down once it has succeeded, so a
+    // failed delete (offline, server down) leaves the open design exactly as it was rather than
+    // closing it locally against a design that still exists
+    const was_open = current_design_id.value === id
+    if (was_open){
+        // Only defers the pending write, never drops it: flush_changes() diffs `blue` against
+        // `synced`, so unsaved edits still reach Firestore if the delete turns out to fail
         save.cancel()
+        deleting_id = id
+    }
+
+    try {
+        await api<{ok:boolean}>('/api/delete_design', {design_id: id})
+    } catch (error){
+        // The design is still there, so put its autosave back before handing the failure on
+        if (was_open){
+            save()
+        }
+        throw error
+    } finally {
+        deleting_id = null
+    }
+
+    if (was_open && current_design_id.value === id){
         unsub_doc?.()
         current_design_id.value = null
         synced = null
-    }
-
-    await api<{ok:boolean}>('/api/delete_design', {design_id: id})
-
-    if (!current_design_id.value){
         await open_other_design(id)
     }
 }

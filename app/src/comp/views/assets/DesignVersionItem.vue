@@ -88,7 +88,7 @@ import {useRouter} from 'vue-router'
 
 import DialogShareVersion from '@/comp/dialogs/DialogShareVersion.vue'
 import {use_is_mobile} from '@/services/display'
-import {state, show_toast, confirm_dialog, alert_dialog} from '@/services/state'
+import {state, show_toast, confirm_dialog, alert_dialog, run_with_retry} from '@/services/state'
 import {report_error} from '@/services/errors'
 import {binding_page_issue} from '@/services/blueprints'
 import {create_design_from_version, restore_version_into_design} from '@/services/designs'
@@ -312,7 +312,7 @@ const edit_in_place = async () => {
 }
 
 const remove = async () => {
-    await delete_version(props.version)
+    await run_with_retry(() => delete_version(props.version), t("view.version.delete_failed"))
 }
 
 const share = async () => {

@@ -50,7 +50,7 @@ import {useRouter} from 'vue-router'
 import DialogInviteEditor from '@/comp/dialogs/DialogInviteEditor.vue'
 import DialogSetCategory from '@/comp/dialogs/DialogSetCategory.vue'
 import {user} from '@/services/auth'
-import {confirm_dialog, prompt_dialog} from '@/services/state'
+import {confirm_dialog, prompt_dialog, run_with_retry} from '@/services/state'
 import {rename_design, duplicate_design, delete_design} from '@/services/designs'
 import {design_needs_version} from '@/services/versions'
 import {format_paper_size, format_service_label, format_pages_label} from '@/services/blueprints'
@@ -119,7 +119,8 @@ const duplicate = async () => {
 
 const remove = async () => {
     if (await confirm_dialog(t("view.design_item.delete_confirm"))){
-        void delete_design(props.design.id)
+        await run_with_retry(() => delete_design(props.design.id),
+            t("view.design_item.delete_failed"))
     }
 }
 

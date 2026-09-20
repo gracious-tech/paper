@@ -5,6 +5,9 @@ import {doc_has_copyright} from 'paper-bible-typst'
 
 import {content} from '@/services/content'
 import {collect_passage_books} from '@/services/blueprints'
+import {translate} from '@/services/i18n'
+import {report_error} from '@/services/errors'
+import {ApiOfflineError} from '@/services/api'
 
 import type {PmDoc} from 'paper-bible-typst'
 import type {Blueprint, Version} from '@/services/types'
@@ -142,6 +145,30 @@ export function alert_dialog(message:string, {action, contact_url}:
     return new Promise(resolve => {
         state.alert = {message, action: action ?? null, contact_url: contact_url ?? null, resolve}
     })
+}
+
+
+// Run a server-mediated action (delete, duplicate, ...), offering a retry if it fails and
+// returning whether it eventually succeeded. These can't be done optimistically — clients have no
+// delete permission on any prefix, so the work only exists once the server says so — which means
+// a failure has to be told to the user rather than leaving the UI looking like it happened.
+// A failure the user gives up on is still reported, silently, since it may be a real bug
+export async function run_with_retry(action:() => Promise<unknown>, failure_msg:string)
+        :Promise<boolean>{
+    for (;;){
+        try {
+            await action()
+            return true
+        } catch (error){
+            // Losing the connection isn't a fault worth showing the generic failure for
+            const message = error instanceof ApiOfflineError ? translate('common.offline')
+                : failure_msg
+            if (!await alert_dialog(message, {action: translate('common.try_again')})){
+                report_error('silent', error)
+                return false
+            }
+        }
+    }
 }
 
 
