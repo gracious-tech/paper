@@ -7,7 +7,7 @@ import {content} from '@/services/content'
 import {collect_passage_books} from '@/services/blueprints'
 import {translate} from '@/services/i18n'
 import {report_error} from '@/services/errors'
-import {ApiOfflineError} from '@/services/api'
+import {ApiOfflineError, ApiSessionError} from '@/services/api'
 
 import type {PmDoc} from 'paper-bible-typst'
 import type {Blueprint, Version} from '@/services/types'
@@ -160,6 +160,16 @@ export async function run_with_retry(action:() => Promise<unknown>, failure_msg:
             await action()
             return true
         } catch (error){
+            // A dead session can't be retried — the stored credentials are gone, so the page has
+            // to be reloaded to sign in again (anonymously, for a guest)
+            if (error instanceof ApiSessionError){
+                report_error('silent', error)
+                if (await alert_dialog(translate('common.session_expired'),
+                        {action: translate('common.reload')})){
+                    self.location.reload()
+                }
+                return false
+            }
             // Losing the connection isn't a fault worth showing the generic failure for
             const message = error instanceof ApiOfflineError ? translate('common.offline')
                 : failure_msg
