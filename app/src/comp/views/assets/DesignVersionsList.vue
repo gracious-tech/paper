@@ -95,13 +95,14 @@ import {computed, ref} from 'vue'
 import {useI18n} from '@/services/i18n'
 import {PassageReference} from '@gracious.tech/fetch-client'
 
-import {versions, latest_version, version_expired, download_version_pdf, regenerate_version,
-    regenerate_cover, cover_failed as version_cover_failed, version_contact_url}
-    from '@/services/versions'
+import {versions, latest_version, version_expired, download_version_pdf,
+    cover_failed as version_cover_failed, version_contact_url} from '@/services/versions'
+import {regenerate_version, regenerate_cover} from '@/services/version_compile'
 import {report_error} from '@/services/errors'
 import {state} from '@/services/state'
-import {format_paper_size, format_service_label, format_pages_label, get_passages,
-    binding_page_issue} from '@/services/blueprints'
+import {format_paper_size, format_service_label, format_pages_label, get_passages}
+    from '@/services/blueprints'
+import {binding_page_issue} from '@/services/binding_advice'
 import {content} from '@/services/content'
 import {lulu_pod_package_id} from '@/services/print_cost'
 import DesignVersionItem from './DesignVersionItem.vue'

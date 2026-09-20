@@ -18,8 +18,10 @@ import {useRouter} from 'vue-router'
 
 import {blue, print_service_warning_dialog} from '@/services/state'
 import {current_design_id, flush_changes} from '@/services/designs'
-import {create_pending_version, compile_and_upload, selected_version_id, latest_version,
-    has_seen_print_service_warning, record_seen_print_service_warning} from '@/services/versions'
+import {selected_version_id, latest_version} from '@/services/versions'
+import {create_pending_version, compile_and_upload} from '@/services/version_compile'
+import {has_seen_print_service_warning, record_seen_print_service_warning}
+    from '@/services/user_prefs'
 import {typst_generator} from '@/services/typst'
 import {collect_passage_books, has_missing_books} from '@/services/blueprints'
 import {resolve_content_for_style} from '@/services/content_images'

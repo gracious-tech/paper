@@ -143,8 +143,12 @@ paper_bible/
         state.ts           # Reactive `blue` (open design), `state` (splash/editor/dialogs/toasts)
         designs.ts         # Multi-design sync: converters, debounced diff writes, sharing,
                             #   wizard state, viewed-designs ("Read access") sync
-        versions.ts        # Version lifecycle: freeze, compile+upload, regen, sharing,
-                            #   design_needs_editor / latest_version computeds, compile_stats
+        versions.ts        # The read side: scoped list sync, status predicates, PDF access,
+                            #   sharing, design_needs_editor / latest_version computeds
+        version_compile.ts # The write side: freeze, compile+upload, regen, cover regen,
+                            #   stuck-compile retry, compile_stats (imports versions.ts, not
+                            #   the reverse)
+        user_prefs.ts      # Account-wide prefs on users/{uid} (print-service warning seen)
         new_design.ts      # The creation wizard: NewDesignDraft + WizardState, type presets,
                             #   step validation, build_new_blueprint()
         custom_fonts.ts    # Uploaded fonts: reactive set + online library + version snapshots
@@ -159,6 +163,8 @@ paper_bible/
         stories.ts         # Predefined picture stories (fetch + slide assembly)
         content.ts         # Bible data service (fetch-client via paper-bible-typst)
         blueprints.ts      # Default blueprint + clean_blueprint() validation + display helpers
+        binding_advice.ts  # auto_binding / binding_page_issue / page_reduction_suggestions —
+                            #   advice over a blueprint, never mutating one
         printing_services.ts  # Service picker items over printing-services
         print_cost.ts      # Lulu cost estimates: Blueprint→POD package id, quote, country guess
         lulu_prices.ts     # Price/page-limit lookups over lulu_prices.json (generated)
@@ -176,7 +182,10 @@ paper_bible/
   server/                  # Cloud Run API server (workspace; run directly by node)
     Dockerfile             # Cloud Run image: node + workspaces + typst CLI (no fonts baked)
     deploy/                # Staged build context (gitignored; written by .bin/build_server)
-    src/index.ts           # Hono routes, gated by SERVER_ROLES: compile | light (share/merge)
+    src/index.ts           # Hono routes, gated by SERVER_ROLES: compile | light (share/merge).
+                            #   Authed routes go through authed_post(), which does the token +
+                            #   body-field checks so a route can't be added without them
+    src/types.ts           # HandlerResult — what every handle_* returns
     src/compile.ts         # compile_pdf_from_blueprint + upload + doc update
     src/quota.ts           # per-uid daily caps on the expensive routes (compile, copy_version)
     src/content.ts         # Shared BibleContent: collection TTL + LRU book cache

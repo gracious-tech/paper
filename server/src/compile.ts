@@ -22,6 +22,7 @@ import {save_error, generate_error_id} from './errors.ts'
 import type {EmbedFormState} from 'bookcover-node'
 import type {PmDoc} from 'paper-bible-typst'
 import type {Blueprint, CustomFont} from 'paper-bible-typst-node'
+import type {HandlerResult} from './types.ts'
 
 
 // One compile at a time per user (heavy CPU/memory work; anonymous users can trigger this)
@@ -122,7 +123,7 @@ async function record_compile_stat(fields:{version_id:string, design_id:string, 
 
 export async function handle_compile(uid:string, version_id:string, client_ip:string|null,
         user_agent:string|null, page_count?:number)
-        :Promise<{status:number, body:Record<string, unknown>}>{
+        :Promise<HandlerResult>{
     // Compile a pending version's PDF server-side (fallback for devices whose in-browser
     // compile failed, and regeneration of expired PDFs)
 

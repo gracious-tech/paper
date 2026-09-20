@@ -4,9 +4,11 @@ import {FieldPath, FieldValue} from 'firebase-admin/firestore'
 import {admin_auth, admin_db} from './firebase.ts'
 import {ChunkedBatch} from './batch.ts'
 
+import type {HandlerResult} from './types.ts'
+
 
 export async function handle_merge(new_uid:string, anon_token:string)
-        :Promise<{status:number, body:Record<string, unknown>}>{
+        :Promise<HandlerResult>{
     // Move a guest account's data into the caller's account. Used when upgrading a guest whose
     // chosen credential already belonged to an existing account: the client signs into the
     // existing account, then proves ownership of the guest account via its (still valid) token.

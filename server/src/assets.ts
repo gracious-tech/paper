@@ -19,6 +19,7 @@ import {config} from './config.ts'
 
 import type {Blueprint, ContentItem, ContentPassageImage, StoredFontMeta}
     from 'paper-bible-typst'
+import type {HandlerResult} from './types.ts'
 
 
 // How recently an object may have been created and still be swept. An upload lands before the
@@ -200,7 +201,7 @@ export async function delete_prefix(prefix:string):Promise<void>{
 
 
 export async function handle_reconcile_assets(uid:string, design_id:string)
-        :Promise<{status:number, body:Record<string, unknown>}>{
+        :Promise<HandlerResult>{
     // Reclaim whatever a design's live asset prefix holds that the design no longer names.
     //
     // Deliberately server-side rather than deleted by the client that made the change: the
@@ -224,7 +225,7 @@ export async function handle_reconcile_assets(uid:string, design_id:string)
 
 
 export async function handle_touch_assets(uid:string, design_id:string)
-        :Promise<{status:number, body:Record<string, unknown>}>{
+        :Promise<HandlerResult>{
     // Mark a design's live assets as in use, by stamping each object's GCS `customTime`.
     // Nothing reads this yet — it's the groundwork for a future `daysSinceCustomTime` rule
     // that could reclaim the uploads of abandoned accounts. Age alone can't do that job: it

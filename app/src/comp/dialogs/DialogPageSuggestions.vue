@@ -25,7 +25,7 @@ import {computed, ref, watch} from 'vue'
 import {useI18n} from '@/services/i18n'
 
 import {state, blue} from '@/services/state'
-import {page_reduction_suggestions} from '@/services/blueprints'
+import {page_reduction_suggestions} from '@/services/binding_advice'
 import {design_wizard, current_design_id, leave_simple_mode} from '@/services/designs'
 import {use_is_mobile} from '@/services/display'
 

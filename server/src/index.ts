@@ -15,12 +15,54 @@ import {handle_delete_design, handle_delete_version, handle_duplicate_design}
     from './designs.ts'
 import {handle_delete_account} from './account.ts'
 
+import type {Context} from 'hono'
+import type {HandlerResult} from './types.ts'
+
 
 // The API server — reached via Firebase Hosting's /api/** rewrite in production and Vite's
 // dev proxy locally, so all routes are same-origin for the app (no CORS needed)
 // In production this codebase is deployed as two Cloud Run services (see .bin/deploy_server):
 // Hosting routes /api/compile to the 'compile' service and everything else to 'light'
 const app = new Hono()
+
+
+// The raw request, given to the rare handler that needs more than its required string fields:
+// an optional value from the body, or the caller's IP / user agent
+interface RouteRequest {
+    context:Context
+    body:Record<string, unknown>
+}
+
+
+function authed_post<const F extends readonly string[]>(path:string, fields:F,
+        handler:(uid:string, args:Record<F[number], string>, request:RouteRequest)
+            => Promise<HandlerResult>):void{
+    // Register a POST route that requires a valid ID token and the named string fields in its
+    // JSON body, refusing with 401/400 before the handler is ever reached.
+    //
+    // Every authed route needs the same three steps first — verify the token, parse the body,
+    // check each field really is a string — and forgetting any of them is a security hole rather
+    // than a visible bug. Routing them all through one place means a new route can't be added
+    // without them, which is worth more here than the lines it saves
+    app.post(path, async context => {
+        const uid = await verify_uid(context.req.header('Authorization'))
+        if (!uid){
+            return context.json({error: 'unauthenticated'}, 401)
+        }
+        // A body that isn't valid JSON reads as absent, so a route wanting fields refuses it
+        const body = await context.req.json().catch(() => null) as Record<string, unknown>|null
+        const args = {} as Record<F[number], string>
+        for (const field of fields as readonly F[number][]){
+            const value = body?.[field]
+            if (typeof value !== 'string'){
+                return context.json({error: 'bad_request'}, 400)
+            }
+            args[field] = value
+        }
+        const result = await handler(uid, args, {context, body: body ?? {}})
+        return context.json(result.body, result.status as 200)
+    })
+}
 
 
 // Health check (also used by Cloud Run startup probes)
@@ -32,24 +74,14 @@ app.get('/api/health', context => {
 // Compile a pending version server-side (in-browser compile fallback + regeneration)
 // Only served by the 'compile' role — the one route needing typst, fonts, and Bible fetching
 if (config.roles.includes('compile')){
-    app.post('/api/compile', async context => {
-        const uid = await verify_uid(context.req.header('Authorization'))
-        if (!uid){
-            return context.json({error: 'unauthenticated'}, 401)
-        }
-        const body = await context.req.json().catch(() => null) as
-            {version_id?:unknown, page_count?:unknown}|null
-        if (typeof body?.version_id !== 'string'){
-            return context.json({error: 'bad_request'}, 400)
-        }
+    authed_post('/api/compile', ['version_id'], async (uid, {version_id}, {context, body}) => {
         // page_count is an advisory estimate for the auto binding-gutter only (see
         // margin_gutter_auto) — ignored unless it's a sane positive number
-        const page_count = typeof body.page_count === 'number' && body.page_count > 0
-            ? body.page_count
+        const page_count = typeof body['page_count'] === 'number' && body['page_count'] > 0
+            ? body['page_count']
             : undefined
-        const result = await handle_compile(uid, body.version_id, get_client_ip(context),
+        return await handle_compile(uid, version_id, get_client_ip(context),
             context.req.header('User-Agent') ?? null, page_count)
-        return context.json(result.body, result.status as 200)
     })
 }
 
@@ -74,166 +106,59 @@ if (config.roles.includes('light')){
 
     // Preview a design invite link's target (name only, no membership change) — lets the client
     // show what's being shared before the user decides whether to accept it
-    app.post('/api/design_invite_preview', async context => {
-        const uid = await verify_uid(context.req.header('Authorization'))
-        if (!uid){
-            return context.json({error: 'unauthenticated'}, 401)
-        }
-        const body = await context.req.json().catch(() => null) as
-            {design_id?:unknown, token?:unknown}|null
-        if (typeof body?.design_id !== 'string' || typeof body?.token !== 'string'){
-            return context.json({error: 'bad_request'}, 400)
-        }
-        const result = await handle_design_invite_preview(body.design_id, body.token)
-        return context.json(result.body, result.status as 200)
-    })
+    authed_post('/api/design_invite_preview', ['design_id', 'token'],
+        async (_uid, {design_id, token}) =>
+            await handle_design_invite_preview(design_id, token))
 
     // Redeem a design invite link (adds the caller as an editor)
-    app.post('/api/redeem_design_invite', async context => {
-        const uid = await verify_uid(context.req.header('Authorization'))
-        if (!uid){
-            return context.json({error: 'unauthenticated'}, 401)
-        }
-        const body = await context.req.json().catch(() => null) as
-            {design_id?:unknown, token?:unknown}|null
-        if (typeof body?.design_id !== 'string' || typeof body?.token !== 'string'){
-            return context.json({error: 'bad_request'}, 400)
-        }
-        const result = await handle_redeem_design_invite(uid, body.design_id, body.token)
-        return context.json(result.body, result.status as 200)
-    })
+    authed_post('/api/redeem_design_invite', ['design_id', 'token'],
+        async (uid, {design_id, token}) =>
+            await handle_redeem_design_invite(uid, design_id, token))
 
     // List a design's owner + editors with display name/email, for the share dialog
-    app.post('/api/design_editors', async context => {
-        const uid = await verify_uid(context.req.header('Authorization'))
-        if (!uid){
-            return context.json({error: 'unauthenticated'}, 401)
-        }
-        const body = await context.req.json().catch(() => null) as {design_id?:unknown}|null
-        if (typeof body?.design_id !== 'string'){
-            return context.json({error: 'bad_request'}, 400)
-        }
-        const result = await handle_design_editors(uid, body.design_id)
-        return context.json(result.body, result.status as 200)
-    })
+    authed_post('/api/design_editors', ['design_id'],
+        async (uid, {design_id}) => await handle_design_editors(uid, design_id))
 
     // "Keep own copy" of a shared version (metadata + PDF are otherwise read directly from
     // Firestore/Storage by the client — see firestore.rules/firebase_storage.rules — since
     // versions are publicly readable by id; only the copy itself needs server-side Admin SDK
     // access)
-    app.post('/api/copy_version', async context => {
-        const uid = await verify_uid(context.req.header('Authorization'))
-        if (!uid){
-            return context.json({error: 'unauthenticated'}, 401)
-        }
-        const body = await context.req.json().catch(() => null) as {version_id?:unknown}|null
-        if (typeof body?.version_id !== 'string'){
-            return context.json({error: 'bad_request'}, 400)
-        }
-        const result = await handle_copy_version(uid, body.version_id)
-        return context.json(result.body, result.status as 200)
-    })
+    authed_post('/api/copy_version', ['version_id'],
+        async (uid, {version_id}) => await handle_copy_version(uid, version_id))
 
     // Mark a design's uploaded fonts/images as still in use (GCS customTime). Fire-and-forget
     // from the client when a design is opened — see handle_touch_assets for why it exists
-    app.post('/api/touch_assets', async context => {
-        const uid = await verify_uid(context.req.header('Authorization'))
-        if (!uid){
-            return context.json({error: 'unauthenticated'}, 401)
-        }
-        const body = await context.req.json().catch(() => null) as {design_id?:unknown}|null
-        if (typeof body?.design_id !== 'string'){
-            return context.json({error: 'bad_request'}, 400)
-        }
-        const result = await handle_touch_assets(uid, body.design_id)
-        return context.json(result.body, result.status as 200)
-    })
+    authed_post('/api/touch_assets', ['design_id'],
+        async (uid, {design_id}) => await handle_touch_assets(uid, design_id))
 
     // Reclaim the uploads a design no longer references. The server re-reads the design so
     // it sees co-editors' concurrent edits, which is why this can't be done client-side
-    app.post('/api/reconcile_design_assets', async context => {
-        const uid = await verify_uid(context.req.header('Authorization'))
-        if (!uid){
-            return context.json({error: 'unauthenticated'}, 401)
-        }
-        const body = await context.req.json().catch(() => null) as {design_id?:unknown}|null
-        if (typeof body?.design_id !== 'string'){
-            return context.json({error: 'bad_request'}, 400)
-        }
-        const result = await handle_reconcile_assets(uid, body.design_id)
-        return context.json(result.body, result.status as 200)
-    })
+    authed_post('/api/reconcile_design_assets', ['design_id'],
+        async (uid, {design_id}) => await handle_reconcile_assets(uid, design_id))
 
     // Delete a design, its whole render history and every object they own. Server-side
     // because clients can't delete Storage objects, nor co-editors' version docs
-    app.post('/api/delete_design', async context => {
-        const uid = await verify_uid(context.req.header('Authorization'))
-        if (!uid){
-            return context.json({error: 'unauthenticated'}, 401)
-        }
-        const body = await context.req.json().catch(() => null) as {design_id?:unknown}|null
-        if (typeof body?.design_id !== 'string'){
-            return context.json({error: 'bad_request'}, 400)
-        }
-        const result = await handle_delete_design(uid, body.design_id)
-        return context.json(result.body, result.status as 200)
-    })
+    authed_post('/api/delete_design', ['design_id'],
+        async (uid, {design_id}) => await handle_delete_design(uid, design_id))
 
     // Delete a single version: its doc, its PDFs, and any snapshot no sibling still needs
-    app.post('/api/delete_version', async context => {
-        const uid = await verify_uid(context.req.header('Authorization'))
-        if (!uid){
-            return context.json({error: 'unauthenticated'}, 401)
-        }
-        const body = await context.req.json().catch(() => null) as {version_id?:unknown}|null
-        if (typeof body?.version_id !== 'string'){
-            return context.json({error: 'bad_request'}, 400)
-        }
-        const result = await handle_delete_version(uid, body.version_id)
-        return context.json(result.body, result.status as 200)
-    })
+    authed_post('/api/delete_version', ['version_id'],
+        async (uid, {version_id}) => await handle_delete_version(uid, version_id))
 
     // Copy a design's live content into a new design of the caller's own. Server-side so the
     // asset copies happen inside the bucket rather than through the client
-    app.post('/api/duplicate_design', async context => {
-        const uid = await verify_uid(context.req.header('Authorization'))
-        if (!uid){
-            return context.json({error: 'unauthenticated'}, 401)
-        }
-        const body = await context.req.json().catch(() => null) as {design_id?:unknown}|null
-        if (typeof body?.design_id !== 'string'){
-            return context.json({error: 'bad_request'}, 400)
-        }
-        const result = await handle_duplicate_design(uid, body.design_id)
-        return context.json(result.body, result.status as 200)
-    })
+    authed_post('/api/duplicate_design', ['design_id'],
+        async (uid, {design_id}) => await handle_duplicate_design(uid, design_id))
 
     // Delete the caller's account and everything it owns. The body is ignored — the ID token is
     // both the authorisation and the entire subject, so there's nothing for a caller to name (and
     // therefore no way to aim this at anyone else). Callers still have to send one, since api()
     // in the app decides GET vs POST by whether a body was passed
-    app.post('/api/delete_account', async context => {
-        const uid = await verify_uid(context.req.header('Authorization'))
-        if (!uid){
-            return context.json({error: 'unauthenticated'}, 401)
-        }
-        const result = await handle_delete_account(uid)
-        return context.json(result.body, result.status as 200)
-    })
+    authed_post('/api/delete_account', [], async uid => await handle_delete_account(uid))
 
     // Merge a guest account's data into the (already signed-in) existing account
-    app.post('/api/merge_account', async context => {
-        const uid = await verify_uid(context.req.header('Authorization'))
-        if (!uid){
-            return context.json({error: 'unauthenticated'}, 401)
-        }
-        const body = await context.req.json().catch(() => null) as {anon_token?:unknown}|null
-        if (typeof body?.anon_token !== 'string'){
-            return context.json({error: 'bad_request'}, 400)
-        }
-        const result = await handle_merge(uid, body.anon_token)
-        return context.json(result.body, result.status as 200)
-    })
+    authed_post('/api/merge_account', ['anon_token'],
+        async (uid, {anon_token}) => await handle_merge(uid, anon_token))
 
 }
 

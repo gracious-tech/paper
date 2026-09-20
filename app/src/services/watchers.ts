@@ -4,7 +4,7 @@ import {watch} from 'vue'
 import {blue, estimated_pages} from '@/services/state'
 import {content, bible_content, resolve_passage_examples, ensure_bible_books_loaded}
     from '@/services/content'
-import {auto_binding} from '@/services/blueprints'
+import {auto_binding} from '@/services/binding_advice'
 import {design_wizard} from '@/services/designs'
 import {apply_name_to_cover} from '@/services/cover'
 

@@ -10,12 +10,7 @@ import {quota_allows, QUOTA_COPY, DAILY_COPY_LIMIT} from './quota.ts'
 import {repath_assets, copy_basenames, collect_version_basenames} from './assets.ts'
 
 import type {Blueprint, CoverConfig, StoredFontMeta} from 'paper-bible-typst'
-
-
-interface HandlerResult {
-    status:number
-    body:Record<string, unknown>
-}
+import type {HandlerResult} from './types.ts'
 
 
 function tokens_match(doc_token:unknown, given:string):boolean{

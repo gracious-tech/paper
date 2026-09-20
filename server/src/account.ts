@@ -17,11 +17,7 @@ import {QUOTA_COLLECTIONS} from './quota.ts'
 import {ChunkedBatch} from './batch.ts'
 import {collect_version_basenames, delete_prefix, design_prefixes, sweep_prefix} from './assets.ts'
 
-
-interface HandlerResult {
-    status:number
-    body:Record<string, unknown>
-}
+import type {HandlerResult} from './types.ts'
 
 
 // What a deletion removed, returned so the client can report it and so a retry's second pass

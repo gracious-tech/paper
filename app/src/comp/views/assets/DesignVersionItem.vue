@@ -90,11 +90,13 @@ import DialogShareVersion from '@/comp/dialogs/DialogShareVersion.vue'
 import {use_is_mobile} from '@/services/display'
 import {state, show_toast, confirm_dialog, alert_dialog, run_with_retry} from '@/services/state'
 import {report_error} from '@/services/errors'
-import {binding_page_issue} from '@/services/blueprints'
+import {binding_page_issue} from '@/services/binding_advice'
 import {create_design_from_version, restore_version_into_design} from '@/services/designs'
-import {open_version_pdf, delete_version, regenerate_version, regenerate_cover, retry_version,
+import {open_version_pdf, delete_version,
     cover_failed as version_cover_failed, version_expired, version_stuck, share_version,
     selected_version_id, design_needs_editor, version_contact_url} from '@/services/versions'
+import {regenerate_version, regenerate_cover, retry_version}
+    from '@/services/version_compile'
 import {format_relative_time, format_datetime} from '@/services/utils'
 
 import type {Version} from '@/services/types'

@@ -4,6 +4,7 @@ import {createHash, randomBytes} from 'node:crypto'
 import {admin_bucket} from './firebase.ts'
 
 import type {Context} from 'hono'
+import type {HandlerResult} from './types.ts'
 
 
 // A single reported error (browser or server), stored in the default bucket as
@@ -105,7 +106,7 @@ const MAX_BODY_CHARS = 64_000
 
 
 export async function handle_report_error(raw:string, ip:string|null, uid:string|null,
-        user_agent:string|null):Promise<{status:number, body:Record<string, unknown>}>{
+        user_agent:string|null):Promise<HandlerResult>{
     // Receive a browser error report and store it in the bucket
     // This should never itself fail to report — oversized/malformed payloads are trimmed/flagged
     // and still saved, so triage can see the client is sending bad data, rather than the report

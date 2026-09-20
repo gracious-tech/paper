@@ -97,7 +97,8 @@ import {get_service, get_common_sizes} from 'printing-services'
 import type {ServicePublic, SizeId, BindingTypeId, InkTypeId} from 'printing-services'
 
 import {blue, state, estimated_pages} from '@/services/state'
-import {format_dims, binding_page_issue} from '@/services/blueprints'
+import {format_dims} from '@/services/blueprints'
+import {binding_page_issue} from '@/services/binding_advice'
 import {service_select_items} from '@/services/printing_services'
 
 import type {MeasureUnit} from '@/services/types'

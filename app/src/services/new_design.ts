@@ -6,8 +6,9 @@ import {PassageReference} from '@gracious.tech/fetch-client'
 import {z} from 'zod'
 
 import {content} from '@/services/content'
-import {get_default_blueprint, get_passages, font_default_for_bibles, auto_binding}
+import {get_default_blueprint, get_passages, font_default_for_bibles}
     from '@/services/blueprints'
+import {auto_binding} from '@/services/binding_advice'
 import {seed_cover_preset, render_wizard_cover_preview} from '@/services/cover'
 import {apply_minimal_cover, render_minimal_cover_preview} from '@/services/minimal_cover'
 import {generate_token} from '@/services/utils'

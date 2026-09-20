@@ -18,12 +18,7 @@ import {collect_asset_basenames, collect_version_basenames, copy_basenames, dele
     design_prefixes, join_design_blueprint, repath_assets, sweep_prefix} from './assets.ts'
 
 import type {StoredFontMeta} from 'paper-bible-typst'
-
-
-interface HandlerResult {
-    status:number
-    body:Record<string, unknown>
-}
+import type {HandlerResult} from './types.ts'
 
 
 function new_id():string{

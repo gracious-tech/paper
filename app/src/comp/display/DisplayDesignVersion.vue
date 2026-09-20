@@ -91,10 +91,11 @@ div.version
 import {computed, ref, watch, onUnmounted} from 'vue'
 import {useI18n} from '@/services/i18n'
 
-import {selected_version, get_pdf_url, get_cover_pdf_url, download_version_pdf, regenerate_version,
-    retry_version, version_expired, version_stuck, latest_version, design_needs_editor,
+import {selected_version, get_pdf_url, get_cover_pdf_url, download_version_pdf,
+    version_expired, version_stuck, latest_version, design_needs_editor,
     version_debug_ref, version_contact_url, cover_failed as version_cover_failed}
     from '@/services/versions'
+import {regenerate_version, retry_version} from '@/services/version_compile'
 import {designs, current_design_id} from '@/services/designs'
 import {state} from '@/services/state'
 import {lulu_pod_package_id} from '@/services/print_cost'
