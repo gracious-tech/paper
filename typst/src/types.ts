@@ -9,6 +9,13 @@ import type {PmDoc} from 'pm-to-typst'
 export type ImageStyle = 'borderless'|'padded'|'painted'|'torn'
 
 
+// How a length the user typed in is measured. Deliberately spelt the way printing-services
+// spells it, so trim sizes, margins and the cover form all speak one unit vocabulary and
+// nothing has to translate between two of them. Typst's own 'in' suffix is a rendering detail
+// applied where a length string is built — see typst_unit() in trim.ts
+export type MeasureUnit = 'mm'|'inch'
+
+
 // Top-level request for generating a Typst document / PDF
 export interface TypstRequest {
     title:string
@@ -338,7 +345,7 @@ export interface Blueprint {
     binding_type:string
     ink_type:string
     paper_type:string
-    custom_unit:'mm'|'inch'
+    custom_unit:MeasureUnit
     custom_trim_width:number
     custom_trim_height:number
     custom_bleed:number
@@ -382,7 +389,6 @@ export interface Blueprint {
     show_wj_italic:boolean
     show_lines:boolean
     notes:string|null
-    crossref:'small'|'medium'|'large'|null
     half_blank:'left'|'right'|null
     // How passages with a title show it: null = never (even if title text is set), 'titlepage' =
     // insert a decorative title page (styled per the Title pages section below) before the
@@ -436,7 +442,7 @@ export interface Blueprint {
     image_style:ImageStyle
 
     // Spacing
-    margin_unit:'mm'|'in'
+    margin_unit:MeasureUnit
     margin_top:number
     margin_bottom:number
     margin_inner:number
@@ -491,17 +497,28 @@ export interface ContentPassage {
 }
 
 
-// An image shown in the top half of a passage's first page, before any headings/content. Either
-// a URL to an external image service, or a user-uploaded image (content-addressed in Storage,
-// mirroring CoverConfig's bg image). `url` is always the fetchable address the shared typst core
-// package fetches via plain fetch() — for 'upload' it's the uploaded file's own download URL, so
-// core never needs to know about Storage/Firebase at all. `path`/`hash` are app-layer bookkeeping
-// only (upload dedup + version-freeze re-pathing), unused by core.
-export interface ContentPassageImage {
+// A reference to one image: either a URL to an external image service, or a user-uploaded image
+// (content-addressed in Storage, mirroring CoverConfig's bg image). `url` is always the
+// fetchable address the shared typst core package fetches via plain fetch() — for 'upload' it's
+// the uploaded file's own download URL, so core never needs to know about Storage/Firebase at
+// all. `path`/`hash` are app-layer bookkeeping only (upload dedup + version-freeze re-pathing),
+// unused by core.
+export interface ContentImageRef {
     source:'url'|'upload'
     url:string|null
     path:string|null
     hash:string|null
+}
+
+
+// An image shown in the top half of a passage's first page, before any headings/content.
+// For the painted/torn image styles the reference points at a pre-masked variant rather than
+// what the user actually supplied, so `original` keeps the unmasked source alongside it — the
+// mask is applied to the original, never to an already-masked copy, and a frozen version can
+// be turned back into an editable design without baking the mask in permanently (see
+// content_images.ts and version_assets.ts). null when this *is* the original.
+export interface ContentPassageImage extends ContentImageRef {
+    original:ContentImageRef|null
 }
 
 

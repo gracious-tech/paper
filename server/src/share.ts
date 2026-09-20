@@ -2,11 +2,13 @@ import {randomBytes} from 'node:crypto'
 
 import {FieldValue, Timestamp} from 'firebase-admin/firestore'
 import {split_blueprint_doc, resolve_design_name, get_cover_title, SCHEMA_VERSION,
-    PDF_LIFETIME_MS} from 'paper-bible-typst'
+    PDF_LIFETIME_MS, design_assets_prefix, version_assets_prefix, asset_basename}
+    from 'paper-bible-typst'
 
 import {admin_db, admin_bucket, admin_auth} from './firebase.ts'
+import {repath_assets, copy_basenames, collect_version_basenames} from './assets.ts'
 
-import type {Blueprint, CoverConfig} from 'paper-bible-typst'
+import type {Blueprint, CoverConfig, StoredFontMeta} from 'paper-bible-typst'
 
 
 interface HandlerResult {
@@ -45,10 +47,11 @@ export async function handle_design_invite_preview(design_id:string, token:strin
         return {status: 404, body: {error: 'unknown_share'}}
     }
     // Resolved from the doc's own fields (see resolve_design_name) — no Bible collection needed
-    // here, since the content-derived fallback was cached on the design when it was written
+    // here, since the content-derived fallback was cached on the design when it was written.
+    // NOTE `name` is a sibling field of `blueprint`, not one of its options (split_blueprint_doc)
     const blueprint = (found.data['blueprint'] ?? {}) as Record<string, unknown>
     const name = resolve_design_name(
-        (blueprint['name'] ?? '') as string,
+        (found.data['name'] ?? '') as string,
         get_cover_title(blueprint['cover'] as CoverConfig|null),
         (found.data['name_auto'] ?? '') as string,
     )
@@ -101,11 +104,12 @@ export async function handle_design_editors(uid:string, design_id:string):Promis
 
 export async function handle_copy_version(uid:string, version_id:string)
         :Promise<HandlerResult>{
-    // "Keep own copy": duplicate a shared version's design (metadata + PDF + font snapshots)
-    // under the caller, so it survives the original owner deleting theirs. Versions are
-    // publicly readable by id (see firestore.rules) so no capability check is needed beyond
-    // existing. Creates two docs — a brand new design (the caller's own, editable copy of the
-    // live content) plus the version itself (so the copy has render history from the start)
+    // "Keep own copy": duplicate a shared version's design (metadata, both PDFs, and every
+    // snapshotted asset — fonts, cover background, passage images) under the caller, so it
+    // survives the original owner deleting theirs. Versions are publicly readable by id (see
+    // firestore.rules) so no capability check is needed beyond existing. Creates two docs — a
+    // brand new design (the caller's own, editable copy of the live content) plus the version
+    // itself (so the copy has render history from the start)
     const snap = await admin_db.doc(`versions/${version_id}`).get()
     const data = snap.data()
     if (!snap.exists || data === undefined){
@@ -119,41 +123,54 @@ export async function handle_copy_version(uid:string, version_id:string)
     const new_design_id = randomBytes(15).toString('base64url')
     const new_version_id = randomBytes(15).toString('base64url')
 
-    // Copy the PDF object if it still exists (a fresh object restarts the lifecycle year).
-    // Both paths are derived from the version ids, never read from the doc — doc fields are
-    // client-written, and trusting them would let a crafted doc exfiltrate arbitrary bucket
-    // objects into a publicly-gettable copy
+    // The rendered PDFs — copied, not linked, so the copy expires on its own 365-day clock
+    // rather than inheriting whatever is left of the source's. Both paths are derived from the
+    // version ids, never read from the doc: doc fields are client-written, and trusting them
+    // would let a crafted doc exfiltrate arbitrary bucket objects into a publicly-gettable copy
     const new_pdf_path = `versions/${new_version_id}/doc.pdf`
     const src_pdf = admin_bucket.file(`versions/${version_id}/doc.pdf`)
+    // An expired version has metadata but no object, and the copy's expiry has to reflect
+    // which of the two it got
     const pdf_copied = (await src_pdf.exists())[0]
     if (pdf_copied){
         await src_pdf.copy(admin_bucket.file(new_pdf_path))
     }
-
-    // The separate wraparound cover PDF, when the source version has one (a cover render can
-    // fail independently of the interior — see cover_status in compile.ts)
     const src_cover = admin_bucket.file(`versions/${version_id}/cover.pdf`)
     if ((await src_cover.exists())[0]){
         await src_cover.copy(admin_bucket.file(`versions/${new_version_id}/cover.pdf`))
     }
 
-    // Copy any custom font snapshots so the recipient can regenerate independently, dropping
-    // (rather than rewriting) any metadata entry that points outside the version's own font
-    // prefix — same trust reasoning as the PDF path above
-    const src_fonts_prefix = `versions/${version_id}/fonts/`
-    const new_fonts_prefix = `versions/${new_version_id}/fonts/`
-    const [font_files] = await admin_bucket.getFiles({prefix: src_fonts_prefix})
-    const new_fonts = []
-    for (const font of (data['custom_fonts'] ?? []) as
-            {family:string, style:string, files:string[]}[]){
-        if (font.files.every(path => path.startsWith(src_fonts_prefix))){
-            new_fonts.push({...font, files: font.files.map(
-                path => path.replace(src_fonts_prefix, new_fonts_prefix))})
+    // The assets the version renders from. Only the ones this version actually references —
+    // the source design's version_assets prefix is shared by *every* version it has ever had,
+    // so copying it wholesale would both waste space and hand the recipient images from
+    // versions that were never shared with them.
+    // src_design_id is the version doc's own design_id, which the rules pin at create
+    // (the writer had to be an editor of it) and then forbid changing, so it can only name a
+    // design the writer could already reach
+    const src_design_id = data['design_id'] as string
+    const src_prefix = version_assets_prefix(src_design_id)
+    const names = collect_version_basenames(data)
+    // Two destinations, because the copy is both a version and an editable design: the version
+    // renders from the frozen snapshot, while the design needs assets of its own that it can
+    // go on editing and eventually reclaim
+    await copy_basenames(src_prefix, version_assets_prefix(new_design_id), names)
+    await copy_basenames(src_prefix, design_assets_prefix(new_design_id), names)
+
+    // Re-path the font snapshot metadata onto the new design's prefixes, dropping (rather than
+    // rewriting) any entry pointing outside the source's own — same trust reasoning as above
+    const new_fonts:StoredFontMeta[] = []
+    const design_fonts:Record<string, StoredFontMeta> = {}
+    for (const font of (data['custom_fonts'] ?? []) as StoredFontMeta[]){
+        if (!font.files?.every(path => path.startsWith(src_prefix))){
+            continue
         }
-    }
-    for (const file of font_files){
-        await file.copy(admin_bucket.file(
-            file.name.replace(src_fonts_prefix, new_fonts_prefix)))
+        const basenames = font.files.map(path => asset_basename(path))
+        new_fonts.push({...font,
+            files: basenames.map(name => version_assets_prefix(new_design_id) + name)})
+        // The recipient's own editable copy of the family, so the new design can keep using
+        // it (and offer it to their other designs) long after this snapshot is gone
+        design_fonts[randomBytes(15).toString('base64url')] = {...font,
+            files: basenames.map(name => design_assets_prefix(new_design_id) + name)}
     }
 
     // The copy's design and version share the same freshly-generated save_token — matching the
@@ -162,12 +179,22 @@ export async function handle_copy_version(uid:string, version_id:string)
     // live content is identical to the version it was just copied from
     const save_token = randomBytes(15).toString('base64url')
     const blueprint = data['blueprint'] as Blueprint
+    // The same assets described two ways: the new *version* points at the frozen snapshots,
+    // while the new *design* points at its own editable copies. Nothing else about the
+    // blueprint differs between them
+    const version_blueprint = repath_assets(blueprint, version_assets_prefix(new_design_id))
+    const design_blueprint = repath_assets(blueprint, design_assets_prefix(new_design_id))
     // cover_status carries over verbatim — the copy's cover.pdf (if any) was copied above
     const cover_status = (data['cover_status'] ?? null) as 'available'|'failed'|null
-    // The wizard state frozen into the version at creation (null for designs the wizard never
-    // made), so a copy of a simple design is simple for the recipient too. Client-written like
-    // the blueprint beside it, and only ever read back by the client's own wizard steps
-    const wizard = (data['wizard'] ?? null) as {draft:unknown, simple_mode:boolean}|null
+    // The wizard state frozen into the version at creation, so a copy of a simple design is
+    // simple for the recipient too. The design and version docs name these fields identically
+    // (see WizardState in the app), so it passes straight through to both docs below without
+    // being reshaped. Client-written like the blueprint beside it, and only ever read back by
+    // the client's own wizard steps, which validate it
+    const wizard = {
+        wizard_draft: (data['wizard_draft'] ?? null) as unknown,
+        simple_mode: !!data['simple_mode'],
+    }
 
     await admin_db.doc(`designs/${new_design_id}`).set({
         schema: SCHEMA_VERSION,
@@ -183,8 +210,9 @@ export async function handle_copy_version(uid:string, version_id:string)
         modified: Timestamp.now(),
         category: null,
         latest_version: {status: data['status'], pages: data['pages'], save_token},
-        ...(wizard ? {simple_mode: !!wizard.simple_mode, wizard_draft: wizard.draft} : {}),
-        ...split_blueprint_doc(blueprint),
+        fonts: design_fonts,
+        ...wizard,
+        ...split_blueprint_doc(design_blueprint),
     })
 
     await admin_db.doc(`versions/${new_version_id}`).set({
@@ -193,7 +221,7 @@ export async function handle_copy_version(uid:string, version_id:string)
         owner: uid,
         created: Timestamp.now(),
         title: data['title'],
-        blueprint,
+        blueprint: version_blueprint,
         status: data['status'],
         cover_status,
         // Carried over verbatim like cover_status: the copy's cover.pdf is the source's bytes,
@@ -207,7 +235,7 @@ export async function handle_copy_version(uid:string, version_id:string)
         copied_from: version_id,
         custom_fonts: new_fonts,
         save_token,
-        wizard,  // Carried over so a copy of the copy is still simple
+        ...wizard,  // Carried over so a copy of the copy is still simple
         error: (data['error'] ?? null),
     })
 

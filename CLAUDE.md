@@ -14,7 +14,7 @@ Live at [paper.bible](https://paper.bible). MIT No Attribution license.
 
 **Frontend:** Vue 3 SPA (Vite + Vuetify 3 + TypeScript + vue-router), hosted on Firebase Hosting
 **Data:** Firebase Auth (anonymous by default) + Firestore (designs, version metadata)
-  + Cloud Storage (PDFs, custom fonts)
+  + Cloud Storage (PDFs, uploaded fonts and images, error reports)
 **PDF engine:** Typst — in the browser via a WASM worker, and on a Cloud Run container
   (Typst CLI) as fallback/regeneration path
 **API:** one server codebase deployed as two Cloud Run services (`SERVER_ROLES` env picks
@@ -43,8 +43,9 @@ Live at [paper.bible](https://paper.bible). MIT No Attribution license.
    (`versions.ts: compile_and_upload`)
 5. If the in-browser (WASM) compile fails, the client calls `POST /api/compile` and the
    Cloud Run server compiles the same frozen blueprint with the Typst CLI
-6. PDFs live in Storage for 1 year (GCS lifecycle rule); metadata stays forever and the
-   PDF can be regenerated (same hybrid path) after expiry
+6. PDFs live in Storage for 1 year (GCS lifecycle rule); *only the PDFs expire* — the
+   metadata and the design's frozen `version_assets/` snapshots stay, so the PDF can be
+   regenerated (same hybrid path) afterwards
 7. Designs can be shared via a secret invite link (adds the recipient as an editor); versions
    are public by id alone — sharing them is just sharing the `/designs/{id}/{version}` URL, no
    token involved. Viewing someone else's version (without edit access) records a
@@ -55,10 +56,11 @@ Live at [paper.bible](https://paper.bible). MIT No Attribution license.
 - **Anonymous-first auth:** everyone is a real Firebase Auth user; linking keeps the
   uid, credential conflicts trigger a server-side account merge (`/api/merge_account`)
 - **Immutable versions:** Firestore rules forbid changing `blueprint`/`owner`/`created`/
-  `design_id`/`copied_from`/`custom_fonts`/`save_token`; only lifecycle fields
-  (status/pages/expiry) may change. "Keep own copy" creates both a new design and a new
-  version under the recipient (server-mediated, Admin SDK, since it writes under a different
-  owner) — see `handle_copy_version()` in `server/src/share.ts`
+  `design_id`/`copied_from`/`custom_fonts`/`save_token`/`wizard_draft`/`simple_mode`/
+  `pdf_path`/`title`/`cover_render_version`; only lifecycle fields (status/pages/expiry/
+  error) may change. "Keep own copy" creates both a new design and a new version under the
+  recipient (server-mediated, Admin SDK, since it writes under a different owner) — see
+  `handle_copy_version()` in `server/src/share.ts`
 - **Design co-editing:** designs store `content_items` (map keyed by item id) +
   `content_order` (array) so concurrent edits to different items/fields merge cleanly;
   same-field conflicts are last-write-wins (see converters in `designs.ts`, and the shared
@@ -77,7 +79,11 @@ Live at [paper.bible](https://paper.bible). MIT No Attribution license.
   the id itself is the whole capability — Firestore/Storage rules allow public read directly,
   no server hop or token needed to view metadata or download the PDF
 - **Same-origin API:** Hosting rewrites `/api/compile` to the compile service and `/api/**`
-  to the light service (Vite proxies everything to `localhost:8788` in dev) — no CORS anywhere
+  to the light service (Vite proxies everything to `localhost:8788` in dev) — no CORS anywhere.
+  Light routes: `design_invite_preview`, `redeem_design_invite`, `design_editors`,
+  `copy_version`, `duplicate_design`, `delete_design`, `delete_version`,
+  `reconcile_design_assets`, `touch_assets`, `merge_account`, `report_error`
+  (unauthenticated), plus `health` on both
 - **Static-content skew:** Bible translations (1000+ in prod) and Noto fallback fonts (192
   families) are barely-changing content with heavily skewed popularity — the compile service
   fetches both on demand (fonts via the bucket mount, books via fetch.bible) and keeps books
@@ -92,12 +98,15 @@ paper_bible/
   .firebaserc              # Project aliases (default/dev/prod)
   firestore.rules          # Designs/versions/users access rules
   firestore.indexes.json   # designs editor_uids+modified, versions design_id+created
-  firebase_storage.rules            # PDFs create-once-by-owner, font paths (cross-service get())
-  firebase_storage_lifecycle.json   # Deletion of versions/ (365d) + errors/ (90d) (applied via gcloud)
+  firebase_storage.rules            # Per-design asset prefixes + create-once version PDFs;
+                                    #   no delete anywhere (server-only), no list
+  firebase_storage_lifecycle.json   # Deletes versions/**.pdf (365d), design_cache/ (90d),
+                                    #   errors/ (90d) — applied via gcloud, see setup_firebase
   .bin/                    # All dev/deploy commands (package.json has no scripts)
     setup                  # npm install
-    setup_typst            # Download the Typst CLI binary into .bin/
-    setup_firebase         # One-time per-project GCP setup (lifecycle, assets-bucket mount IAM)
+    setup_typst            # Download the Typst CLI binary to .bin/typst (gitignored)
+    setup_firebase         # One-time per-project GCP setup (lifecycle, Firestore TTL policies,
+                            #   assets-bucket mount IAM)
     build_typst            # Build all local TS packages in dependency order
     serve_app              # Vite dev server (port 5300)
     serve_emulators        # Firebase emulator suite (auth 9099, firestore 8080, storage 9199)
@@ -106,34 +115,51 @@ paper_bible/
     build_server           # Stage server/deploy/ (allowlisted Docker build context)
     deploy_server          # Runs build_server, gcloud run deploy of both services from one build
     i18n_status/_sync/_check/_extract  # Translation tooling (logic in app/i18n/); see i18n section
-    test_e2e               # Playwright e2e tests (needs the dev stack running; see e2e/)
-    audit_stress         # Compile stress ladder, browser (WASM) + server (see e2e/tiers.ts)
+    audit_e2e              # Playwright e2e tests (needs the dev stack running; see e2e/)
+    audit_stress           # Compile stress ladder, browser (WASM) + server (see e2e/tiers.ts)
+    audit_errors           # Download + triage error reports (TUI; claude groups them)
     gen_lulu_prices        # Refresh Lulu's print prices (run by deploy_app)
-    errors                 # Download + triage error reports (TUI; claude groups them)
   app/                     # The Vue SPA (workspace)
     src/
       init.ts              # ** APP ENTRY POINT ** auth → content → designs → router → mount
       comp/                # Components: View*/Editor*/Options*/Display*/Dialog*/App*
         nav/               # AppNavbar (last 3 designs, "View all", "New")
-        views/             # Route components (ViewDesigns, ViewDesign, ViewDesignEditor, ...)
+        views/             # Route components (ViewDesigns, ViewDesign, ViewAbout,
+                            #   ViewDesignInvite, ViewVersionShortlink) + the two editor
+                            #   modes ViewDesignSimple / ViewDesignEditor
           assets/          # DesignListItem, DesignVersionsList, DesignVersionItem
-        dialogs/           # DialogAccount, DialogInviteEditor, DialogShareVersion,
-                            #   DialogViewedDesign
+        dialogs/           # All mounted once in AppRoot (DialogConfirm/Prompt/Alert,
+                            #   DialogAccount, DialogNewDesign, DialogCoverEditor, ...)
+          assets/          # The new-design wizard's per-step panels (NewDesign*)
       services/
         i18n.ts            # Homegrown i18n (no lib): flat catalog lookup + {placeholder} + $t
         locale.ts          # Browser BCP-47 → ISO 639-3 locale detection
         firebase.ts        # Firebase init (config committed; emulators in dev)
         auth.ts            # Anonymous auth, Google/email-link upgrade, merge trigger
+        account.ts         # Account switching: release/reload user data, deferred email-link
         api.ts             # fetch wrapper for /api/* with ID token
-        router.ts           # vue-router instance: /designs, /designs/:id[/:version], /help, ...
-        state.ts           # Reactive `blue` (open design), `state` (splash/editor/toasts)
-        designs.ts          # Multi-design sync: converters, debounced diff writes, sharing,
-                            #   viewed-designs ("Read access") sync
-        versions.ts         # Version lifecycle: freeze, compile+upload, regen, sharing,
-                            #   design_needs_editor / latest_version computeds
-        custom_fonts.ts    # Uploaded fonts: reactive set + online library + snapshots
+        router.ts          # vue-router: /designs, /designs/:id[/:version],
+                            #   /designs/:id/invite/:token, /v/:id, /about
+        state.ts           # Reactive `blue` (open design), `state` (splash/editor/dialogs/toasts)
+        designs.ts         # Multi-design sync: converters, debounced diff writes, sharing,
+                            #   wizard state, viewed-designs ("Read access") sync
+        versions.ts        # Version lifecycle: freeze, compile+upload, regen, sharing,
+                            #   design_needs_editor / latest_version computeds, compile_stats
+        new_design.ts      # The creation wizard: NewDesignDraft + WizardState, type presets,
+                            #   step validation, build_new_blueprint()
+        custom_fonts.ts    # Uploaded fonts: reactive set + online library + version snapshots
+        content_images.ts  # Uploaded passage images: upload, styling, version snapshots
+        image_frame.ts     # Canvas masking for the painted/torn image styles
+        design_assets.ts   # Asset copy/existence plumbing + request_reconcile()
+        asset_suggestions.ts  # Reusing a font / cover bg from the user's other designs
+        version_assets.ts  # Client-side inverse of the freeze: snapshot → design's own prefix
+        cover.ts           # Cover config, bookcover widget bridge, render cache, snapshots
+        cover_worker.ts    # The cover render worker
+        minimal_cover.ts   # The no-cover "minimal ink" title/copyright content pages
+        stories.ts         # Predefined picture stories (fetch + slide assembly)
         content.ts         # Bible data service (fetch-client via paper-bible-typst)
-        blueprints.ts      # Default blueprint + clean_blueprint() validation
+        blueprints.ts      # Default blueprint + clean_blueprint() validation + display helpers
+        printing_services.ts  # Service picker items over printing-services
         print_cost.ts      # Lulu cost estimates: Blueprint→POD package id, quote, country guess
         lulu_prices.ts     # Price/page-limit lookups over lulu_prices.json (generated)
         lulu_skus.ts       # Blueprint options <-> Lulu POD package ids (shared with tools/)
@@ -141,6 +167,9 @@ paper_bible/
         typst.ts           # TypstWorkerClient (WASM worker mgmt, worn-worker recycle)
         typst_worker.ts    # The worker: WASM compiler via paper-bible-typst-web
         watchers.ts        # Auto-fetch book content as the design changes
+        errors.ts          # Error capture/reporting (imported first, before everything)
+        coloris.ts / color_palette.ts / icons.ts / fonts.ts / display.ts / examples.ts /
+          utils.ts         # Pickers, icon + font manifests, breakpoints, examples, tokens
     i18n/                  # Translation tooling (node, own tsconfig; excluded from app tsconfig)
                             #   lib/status/sync/check/extract + context.json/glossary.json
     tools/                 # Other node tooling (own tsconfig): gen_lulu_prices.ts
@@ -148,12 +177,19 @@ paper_bible/
     Dockerfile             # Cloud Run image: node + workspaces + typst CLI (no fonts baked)
     deploy/                # Staged build context (gitignored; written by .bin/build_server)
     src/index.ts           # Hono routes, gated by SERVER_ROLES: compile | light (share/merge)
-    src/compile.ts         # compile_pdf_from_blueprint + upload + doc update
+    src/compile.ts         # compile_pdf_from_blueprint + upload + doc update + compile_quota
     src/content.ts         # Shared BibleContent: collection TTL + LRU book cache
     src/share.ts           # Share-token redemption, shared views, keep-own-copy
+    src/assets.ts          # Asset path collection, copying, sweeping + reconcile/touch
+    src/designs.ts         # Design lifecycle: delete design/version, duplicate design
+    src/batch.ts           # ChunkedBatch (shared by merge + design deletion)
     src/merge.ts           # Guest→existing account data merge
+    src/auth.ts            # ID-token verification for authed routes
+    src/firebase.ts        # Admin SDK init (admin_db / admin_bucket / admin_auth)
+    src/config.ts          # Env-derived config (roles, ports, assets dir, dev flag)
     src/errors.ts          # ErrorRecord + save_error() → errors/{fingerprint}/{id}.json
-  errors/             # .bin/errors internals: bucket sync, claude clustering, triage TUI
+  errors/             # .bin/audit_errors internals: bucket sync, claude clustering, triage TUI
+  branding/           # Source icon/social/splash artwork
   typst/                   # paper-bible-typst: core (Blueprint→TypstRequest, typst gen,
                             #   split_blueprint_doc/join_blueprint_doc for Firestore doc shape)
   typst-web/               # paper-bible-typst-web: WASM wrapper (browser)
@@ -169,33 +205,68 @@ workspaces) now live in the bookcover repo and are consumed from npm.
 ## Firestore data model
 
 ```
-users/{uid}/fonts/{font_id}   {family, style, files:[storage paths]}   # font library
 users/{uid}/viewed/{design_id}   {design_id, title, last_version_id, last_viewed}  # read access
 
 designs/{design_id}           # editable, multi-user
-    owner, editor_uids (includes owner), editors:{uid:{joined}}, share_token|null  # edit invite
-    name, save_token, created, modified
-    blueprint:{...options}    # Blueprint minus content (title is user-editable, no separate
-                               #   rename field — see save_token note above)
+    schema, owner, editor_uids (includes owner), editors:{uid:{joined}}
+    share_token|null          # edit invite (always set at create)
+    name, name_auto, save_token, created, modified, category|null
+    latest_version:{status, pages, save_token}|null   # denormalized newest-version summary,
+                               #   kept current by every compile path (see design_needs_version)
+    blueprint:{...options}    # Blueprint minus content + name (see split_blueprint_doc)
     content_items:{id:item}, content_order:[id]
+    wizard_draft|null, simple_mode   # WizardState — see new_design.ts
+    fonts:{font_id:{family, style, files:[design_assets/... paths]}}   # uploaded fonts, a
+                               #   merge-safe map like content_items (see custom_fonts.ts)
 
 versions/{version_id}         # immutable once created, publicly readable by id (no share_token)
-    design_id                 # FK to the parent design (not a subcollection — see below)
-    owner, created, title, status: pending|available|failed
-    blueprint (frozen), pages, pdf_path, pdf_expires, error
+    schema, design_id         # FK to the parent design (not a subcollection — see below)
+    owner, created, compile_started, title
+    status: pending|available|failed, pages, error|null, error_id|null
+    blueprint (frozen), pdf_path, pdf_expires
+    cover_status: available|failed|null, cover_render_version|null  # bookcover RENDER_VERSION
     copied_from|null, save_token   # copied verbatim from the parent design at freeze time
-    custom_fonts:[{family, style, files:[versions/{id}/fonts/... paths]}]
+    custom_fonts:[{family, style, files:[version_assets/{design_id}/... paths]}]
+    wizard_draft|null, simple_mode   # frozen from the design, same field names (WizardState)
+
+compile_stats/{id}   # write-only telemetry, one row per interior compile attempt (browser or
+                     #   server). Never read in-app; analysed offline via Firestore export
+compile_quota/{uid}  # cross-instance per-user server-compile throttle (Admin SDK only, no
+                     #   client rules — see compile_quota_allows in server/src/compile.ts)
 ```
+
+Both `compile_stats` and `compile_quota` rows carry an `expires` field with a Firestore native
+TTL policy on it (enabled by `.bin/setup_firebase`): ~1 year and ~1 week respectively.
 
 `versions` is a flat collection + `design_id` FK, not a physical subcollection of `designs` —
 versions need independent public-read-by-id ACLs and to be queried both by parent design
 (`ViewDesign.vue`'s version list) and standalone (a bare version link); a subcollection would
 make the ACL story worse (`get()`-based ownership resolution) for no benefit.
 
-Storage: `versions/{id}/doc.pdf` + `versions/{id}/fonts/*` (both swept by the same 365-day
-lifecycle rule, since fonts are nested under the version), `user_fonts/{uid}/{font_id}/*`.
-All publicly readable by path (ids are unguessable url64 tokens); Storage rules resolve
-ownership for writes via `firestore.get()`.
+Storage:
+
+Uploads belong to a **design**, not an account — the design is the only scope in which "is
+anything still referencing this?" is answerable, which is what makes deletion possible at all.
+Basenames are content-addressed (sha256 + ext), and the *same* basename identifies an asset in
+each prefix, so freezing a version is a prefix swap plus an existence check rather than a copy
+(see `typst/src/asset_paths.ts`, shared by client and server).
+
+```
+design_assets/{design_id}/{hash}.{ext}    # what the live design references (images + fonts).
+                                          #   Swept by the server when the design stops naming it
+version_assets/{design_id}/{hash}.{ext}   # frozen snapshots shared by every version of the
+                                          #   design. Append-only by rule, so a design edit can
+                                          #   never change what a published version renders
+design_cache/{design_id}/*.png            # regenerable painted/torn variants, swept at 90d
+versions/{version_id}/doc.pdf, cover.pdf  # rendered output only — swept at 365d, then
+                                          #   regenerated from the frozen blueprint + snapshots
+errors/{fingerprint}/{id}.json            # error reports, swept at 90d
+```
+
+All publicly readable by path (ids are unguessable url64 tokens); writes authorise against the
+*design* doc's `editor_uids` via `firestore.get()`. Nothing is listable, and **nothing grants
+delete** — removal is Admin-SDK only (see `server/src/assets.ts`), which is what stops one
+editor destroying the inputs another's published version renders from.
 
 
 ## Development
@@ -217,13 +288,13 @@ ownership for writes via `firestore.get()`.
   (erasable-syntax TS; typecheck with `npx tsc -p server/tsconfig.json`)
 - **No unit-test framework in the app.** `typst-node`/`typst` have vitest suites. Emulator
   integration is tested manually; `vite build` catches compile errors
-- **Playwright e2e/stress** lives in `e2e/` (run via `.bin/test_e2e`, needs the dev stack
+- **Playwright e2e/stress** lives in `e2e/` (run via `.bin/audit_e2e`, needs the dev stack
   running). Browsers install into `e2e/browsers/` (gitignored) — keep them inside the
   repo, apt/system state doesn't persist across dev-container rebuilds. The compile stress
   harness (`.bin/audit_stress`, results in `e2e/results/`) compiles the same size tiers in
   the browser (WASM worker) and the server pipeline; `STRESS_BOOKS="psa,pro"` probes a custom
   book set. A layout-option matrix (`e2e/matrix.ts`) isolates which blueprint options drive
-  Typst memory — run `node e2e/stress_matrix.ts` (server) or `.bin/test_e2e
+  Typst memory — run `node e2e/stress_matrix.ts` (server) or `.bin/audit_e2e
   stress_matrix.test.ts` (browser), filtered via `STRESS_CONFIGS="psa_col1,full_col1"`
 
 ### Deployment (per project alias: dev/prod)
@@ -232,7 +303,8 @@ ownership for writes via `firestore.get()`.
    link), Firestore, Storage; copy the web config into `app/src/services/firebase.ts`
 2. Publish the assets bucket from the bookcover repo (it owns bucket creation, CORS and
    content — the compile service mounts it and the app fetches from it)
-3. `.bin/setup_firebase <project-id>` — lifecycle rule + assets-bucket volume-mount IAM
+3. `.bin/setup_firebase <project-id>` — Storage lifecycle rules, Firestore TTL policies
+   (`compile_stats`, `compile_quota`), assets-bucket volume-mount IAM
 4. `.bin/deploy_server <project-id>`, `.bin/deploy_app [alias]`
 
 
@@ -264,10 +336,24 @@ ownership for writes via `firestore.get()`.
   advances its `synced` base optimistically on flush — read `designs.ts` before touching
 - **Storage create-once:** clients can never overwrite/delete `versions/*/doc.pdf`;
   regen works because the lifecycle rule deleted the object (create passes again)
-- **Deleting a version doc orphans its PDF** intentionally — it becomes unreachable
-  instantly and the lifecycle rule collects it within the year
+- **Deleting is server-only.** `/api/delete_design` and `/api/delete_version` exist because
+  clients have no delete rule on any asset prefix, and because Firestore only lets a version's
+  own creator delete it — so a shared design's co-editor versions would otherwise outlive it.
+  Both are idempotent and delete the design/version doc *last*, so a partial failure leaves a
+  retryable handle rather than orphans
+- **Unreferenced assets are reclaimed by `/api/reconcile_design_assets`**, not by the client
+  that made the change: the server re-reads the design doc, so it sees co-editors' concurrent
+  edits. It also skips anything created in the last 10 minutes — an upload lands before the
+  debounced doc write that names it, and a concurrent reconcile in that gap would otherwise
+  delete a file the doc simply doesn't mention yet
 - **PDF_LIFETIME_MS** (client `versions.ts`, server `compile.ts`/`share.ts`) must match
   `firebase_storage_lifecycle.json` (365 days)
+- **A copy of a version yields two blueprints, not one** — the new *version* points at
+  `version_assets/`, the new *design* at `design_assets/`, both under the new design's id
+  (`repath_assets` in server/src/assets.ts; `version_assets.ts` client-side). And copy only
+  the basenames that version *references*: a design's `version_assets/` prefix is shared by
+  every version it ever had, so copying it wholesale would hand the recipient images from
+  versions never shared with them
 - **`generate()` (`ViewDesignEditor.vue`) must force-flush before freezing** — it calls the
   exported `flush_changes()` from `designs.ts` immediately before cloning `blue`, so the
   `save_token` written to the new version always matches what the design was just persisted
@@ -275,13 +361,38 @@ ownership for writes via `firestore.get()`.
 - **Lambda-era leftovers** live under `.private/generator/` — dead code, ignore
 - **WASM memory:** the Typst worker leaks per unique source; `TypstWorkerClient`
   recycles worn workers automatically (see `typst.ts`)
-- **clean_blueprint()** (`blueprints.ts`) validates untrusted blueprints (Firestore
-  docs from co-editors) — nested content-item validation is still TODO
+- **clean_blueprint()** (`blueprints.ts`) validates untrusted blueprints (Firestore docs
+  from co-editors) via the zod schemas in `typst/src/blueprint_schema.ts`, content items
+  included. Those schemas are type-locked to the interfaces in `typst/src/types.ts` with
+  `satisfies z.ZodType<...>`, so adding a Blueprint field without a schema entry (or vice
+  versa) is a compile error. `clean_wizard_draft()`/`read_wizard_state()` in `new_design.ts`
+  do the same job for the wizard draft, which is stored beside the blueprint
+- **Units are printing-services' spelling everywhere** (`MeasureUnit = 'mm'|'inch'`, used by
+  both `custom_unit` and `margin_unit`). Typst wants `in`, not `inch` — `typst_unit()` in
+  `typst/src/trim.ts` is the single place that converts, applied where a length *string* is
+  built. Don't reintroduce a second unit vocabulary into the Blueprint
+- **The cover editor's bg bytes round-trip unmodified**, and `handle_finished()` in
+  `DialogCoverEditor.vue` depends on it: it hashes the returned File to tell an untouched
+  background from a new one, so a re-encode on the widget's side would mint a fresh Storage
+  object every time the editor was opened and closed. That's a contract of the embed protocol,
+  documented on `FormState.bg_image` in bookcover-core — not an accident of the current build
+- **Background suggestions are resolved lazily, and only from what was offered.** InitMessage
+  carries `bg_suggestions` (thumbnail urls for backgrounds the user's *other* designs use);
+  when one is picked the widget asks for the bytes by echoing back the id, and the app answers
+  from the map it sent (`sent_bg_suggestions`), never from the live list and never from an
+  arbitrary path the iframe names. Only custom uploads are ever suggested — routing a builtin
+  through here would turn a reference to a shipped image into a private copy of its bytes
+- **`touch_assets` is deliberately inert.** Opening a design fire-and-forgets
+  `POST /api/touch_assets`, which stamps GCS `customTime` on every upload it depends on. No
+  lifecycle rule reads it yet, and none should until the stamping has run long enough to be
+  trusted — a `daysSinceCustomTime` rule turned on early would delete files that simply
+  hadn't been visited
 - **Error reporting is self-hosted:** browser errors POST to `/api/report_error`
   (unauthenticated OK, uid attached when known, IP recorded server-side) and everything
   lands in the bucket as `errors/{fingerprint}/{id}.json` (90-day lifecycle). The
-  fingerprint only dedupes identical messages — semantic grouping happens in `.bin/errors`
-  (claude clusters fingerprints into issues; triage state in gitignored `errors/records/`).
+  fingerprint only dedupes identical messages — semantic grouping happens in
+  `.bin/audit_errors` (claude clusters fingerprints into issues; triage state in gitignored
+  `errors/records/`).
   Critical failures show the report id in a gracious.tech/contact link
 - **SERVER_ROLES gates routes, Hosting gates traffic** — both must agree: `/api/compile`
   is rewritten to `paper-bible-compile` (role `compile`), everything else to

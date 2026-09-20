@@ -69,7 +69,8 @@ const generate = async () => {
         // for their processed variant here — before the version doc is written, since Firestore
         // rules forbid ever patching `blueprint` afterwards (see content_images.ts)
         const design_id = current_design_id.value
-        const styled_content = await resolve_content_for_style(blue.content, blue.image_style)
+        const styled_content = await resolve_content_for_style(design_id, blue.content,
+            blue.image_style)
         const blueprint = {...blue, content: styled_content}
 
         // Real printing services (i.e. not printing at home) need a physical print run the

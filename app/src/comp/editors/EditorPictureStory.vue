@@ -26,7 +26,7 @@ v-card-text(class='flex-grow-1 d-flex flex-column overflow-y-auto')
 
     //- The slides, each rendered as its own page (image + a passage or text body)
     AppDraggableList(:list='item.slides' :item_key='i => i.id' handle='.slide-handle')
-        template(#item='{element: slide, index}')
+        template(#item='{element: slide}')
             v-card.slide(variant='outlined' class='mb-3 pa-3')
                 div(class='d-flex align-center mb-2')
                     v-btn-toggle(v-model='slide.mode' mandatory density='compact' variant='outlined')

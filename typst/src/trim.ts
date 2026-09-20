@@ -5,18 +5,19 @@
 
 import {get_common_sizes, get_service} from 'printing-services'
 
-import type {BindingTypeId, SizeId, UnitType} from 'printing-services'
-import type {Blueprint} from './types.js'
+import type {BindingTypeId, SizeId} from 'printing-services'
+import type {Blueprint, MeasureUnit} from './types.js'
 
 
-// Map printing-services' unit string ('mm'|'inch') to the typst unit ('mm'|'in')
-export function norm_unit(unit:string):'mm'|'in' {
+// Map a measurement unit to the suffix Typst uses for it — the one place the two spellings
+// differ, so it lives here rather than leaking a second unit vocabulary into the blueprint
+export function typst_unit(unit:MeasureUnit):'mm'|'in' {
     return unit === 'mm' ? 'mm' : 'in'
 }
 
 
-// Convert a length between mm/in (trim size and margins can be recorded in different units)
-export function convert_unit(value:number, from:'mm'|'in', to:'mm'|'in'):number {
+// Convert a length between mm/inches (trim size and margins can be recorded in different units)
+export function convert_unit(value:number, from:MeasureUnit, to:MeasureUnit):number {
     if (from === to) {
         return value
     }
@@ -26,13 +27,13 @@ export function convert_unit(value:number, from:'mm'|'in', to:'mm'|'in'):number 
 
 // Work out the trim dimensions from the selected printing service + named size, or the
 // manually entered custom dimensions
-export function resolve_trim(blue:Blueprint):{width:number, height:number, unit:'mm'|'in'} {
+export function resolve_trim(blue:Blueprint):{width:number, height:number, unit:MeasureUnit} {
 
     // Custom dimensions (no named size selected)
     const custom = {
         width: blue.custom_trim_width,
         height: blue.custom_trim_height,
-        unit: norm_unit(blue.custom_unit),
+        unit: blue.custom_unit,
     }
     if (blue.size_id === '') {
         return custom
@@ -49,7 +50,7 @@ export function resolve_trim(blue:Blueprint):{width:number, height:number, unit:
         // Size id not offered by this service — fall back to the custom dimensions
         return custom
     }
-    return {width: size.width, height: size.height, unit: norm_unit(size.unit)}
+    return {width: size.width, height: size.height, unit: size.unit}
 }
 
 
@@ -59,7 +60,8 @@ export function resolve_trim(blue:Blueprint):{width:number, height:number, unit:
 // pages, US Letter yields half-Letter). Both the interior page config and the cover need this
 // same finished-book size — the sheet only reappears when apply_booklet() (pdf_postprocess.ts)
 // places two reading pages side by side
-export function resolve_reading_trim(blue:Blueprint):{width:number, height:number, unit:'mm'|'in'} {
+export function resolve_reading_trim(blue:Blueprint)
+        :{width:number, height:number, unit:MeasureUnit} {
     const trim = resolve_trim(blue)
     if (!blue.booklet) {
         return trim
@@ -67,12 +69,6 @@ export function resolve_reading_trim(blue:Blueprint):{width:number, height:numbe
     const longer = Math.max(trim.width, trim.height)
     const shorter = Math.min(trim.width, trim.height)
     return {width: longer / 2, height: shorter, unit: trim.unit}
-}
-
-
-// Map the blueprint's margin unit ('mm'|'in') to printing-services' unit string ('mm'|'inch')
-function ps_unit(unit:'mm'|'in'):UnitType {
-    return unit === 'mm' ? 'mm' : 'inch'
 }
 
 
@@ -99,7 +95,7 @@ export function resolve_binding_gutter(blue:Blueprint, page_count:number):number
         const size = blue.size_id !== ''
             ? blue.size_id as SizeId
             : {
-                unit: ps_unit(norm_unit(blue.custom_unit)),
+                unit: blue.custom_unit,
                 width: blue.custom_trim_width,
                 height: blue.custom_trim_height,
             }
@@ -107,7 +103,7 @@ export function resolve_binding_gutter(blue:Blueprint, page_count:number):number
             size,
             pages: Math.max(1, Math.round(page_count)),
             binding_type: blue.binding_type as BindingTypeId,
-            unit: ps_unit(blue.margin_unit),
+            unit: blue.margin_unit,
             numbers: 'number',
         })
         return Math.max(0, dims.interior_gutter)

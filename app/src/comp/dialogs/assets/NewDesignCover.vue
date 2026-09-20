@@ -40,14 +40,6 @@ const {t} = useI18n()
 const auto_title = computed(() => wizard_auto_title(draft))
 
 
-// Static fallback images, shown until each card's live render resolves
-const PLACEHOLDER_IMAGES:Record<NewDesignCover, string> = {
-    photo: '/wizard/cover_photo.webp',
-    pattern: '/wizard/cover_pattern.webp',
-    icon: '/wizard/cover_icon.webp',
-    minimal: '/wizard/cover_minimal.webp',
-}
-
 // Live-rendered front-panel SVGs (as blob URLs) for each preset, filled in as they resolve —
 // reactive so `covers` picks up each one as soon as it's ready. Kept outside the `covers`
 // computed so a debounced re-render doesn't have to fight a computed's own caching
@@ -94,8 +86,8 @@ async function render_previews(){
                 URL.revokeObjectURL(previous)
             }
         } catch (error){
-            // Leave the static placeholder for this card — the other cards' previews (and
-            // picking a cover style at all) shouldn't be blocked by one render failing
+            // Leave this card without a preview — it falls back to showing its label, and the
+            // other cards (and picking a style at all) shouldn't be blocked by one bad render
             console.error(error)
         }
     }))
@@ -119,17 +111,17 @@ onBeforeUnmount(() => {
 // The offered cover styles (minimal ink only when printing at home) — labels shared with the
 // simple-mode summary row via wizard_cover_label()
 const covers = computed(() => {
-    const items:{id:NewDesignCover, image:string, label:string,
+    const items:{id:NewDesignCover, image?:string|undefined, label:string,
         ratio?:number|undefined}[] = [
-        {id: 'photo', image: preview_images.photo ?? PLACEHOLDER_IMAGES.photo,
+        {id: 'photo', image: preview_images.photo,
             label: wizard_cover_label('photo', t), ratio: preview_ratios.photo},
-        {id: 'pattern', image: preview_images.pattern ?? PLACEHOLDER_IMAGES.pattern,
+        {id: 'pattern', image: preview_images.pattern,
             label: wizard_cover_label('pattern', t), ratio: preview_ratios.pattern},
-        {id: 'icon', image: preview_images.icon ?? PLACEHOLDER_IMAGES.icon,
+        {id: 'icon', image: preview_images.icon,
             label: wizard_cover_label('icon', t), ratio: preview_ratios.icon},
     ]
     if (draft.service_id === 'home'){
-        items.push({id: 'minimal', image: preview_images.minimal ?? PLACEHOLDER_IMAGES.minimal,
+        items.push({id: 'minimal', image: preview_images.minimal,
             label: wizard_cover_label('minimal', t), ratio: preview_ratios.minimal})
     }
     return items

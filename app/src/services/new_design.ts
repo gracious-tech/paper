@@ -3,6 +3,7 @@
 // and the assembly of a final Blueprint from a completed draft (only done once, at finish)
 
 import {PassageReference} from '@gracious.tech/fetch-client'
+import {z} from 'zod'
 
 import {content} from '@/services/content'
 import {get_default_blueprint, get_passages, font_default_for_bibles, auto_binding}
@@ -64,6 +65,73 @@ export interface NewDesignDraft {
 }
 
 
+// One line of the free-text passage list. Per-field .catch() throughout so a single bad field
+// degrades to a blank/unparsed line rather than dropping the user's other entries
+const draft_passage_schema = z.object({
+    id: z.string().min(1),
+    text: z.string().catch(''),
+    book: z.string().nullable().catch(null),
+    start_chapter: z.number().nullable().catch(null),
+    start_verse: z.number().nullable().catch(null),
+    end_chapter: z.number().nullable().catch(null),
+    end_verse: z.number().nullable().catch(null),
+}) satisfies z.ZodType<DraftPassage>
+
+
+// Validation for a stored wizard draft, which — like the blueprint beside it — is written by
+// whoever can edit the design, frozen onto every version, and copied between accounts by the
+// server. Everything else from a design doc goes through clean_blueprint(); this gets the same
+// treatment, since build_new_blueprint() indexes TYPE_PRESETS by `type` and is_wizard_step_valid()
+// walks the arrays, so a malformed draft would otherwise break the editor for its own owner.
+// Type-locked against NewDesignDraft so any drift in the interface is a compile error
+const wizard_draft_schema = z.object({
+    type: z.enum(['regular', 'reading', 'notes', 'study', 'bilingual', 'picture_story'])
+        .nullable().catch(null),
+    title: z.string().catch(''),
+    book_mode: z.enum(['books', 'passages']).catch('books'),
+    books: z.array(z.string()).catch([]),
+    stories: z.array(z.string()).catch([]),
+    passages: z.array(draft_passage_schema).catch([]),
+    bibles: z.array(z.string()).catch([]),
+    service_id: z.string().nullable().catch(null),
+    size_id: z.string().nullable().catch(null),
+    cover: z.enum(['photo', 'pattern', 'icon', 'minimal']).nullable().catch(null),
+}) satisfies z.ZodType<NewDesignDraft>
+
+
+// A design's wizard state: the draft its steps were filled in with (null for designs the
+// wizard never made), plus whether it's still showing the simplified editor rather than the
+// full one. Two sibling fields rather than one nested object, because a design doc's fields
+// are merged individually between co-editors — and a version freezes the design field for
+// field, so both docs and both readers use exactly these names
+export interface WizardState {
+    wizard_draft:NewDesignDraft|null
+    simple_mode:boolean
+}
+
+
+export function read_wizard_state(data:Record<string, unknown>):WizardState{
+    // The wizard fields of a design or version doc, validated on the way back out — both are
+    // client-written, so the draft gets the same treatment as the blueprint beside it.
+    // simple_mode can't stand on its own: the simplified editor is just a view of the draft's
+    // answers, so without one it would strand the user on a screen with nothing to show
+    const wizard_draft = clean_wizard_draft(data['wizard_draft'])
+    return {wizard_draft, simple_mode: !!wizard_draft && !!data['simple_mode']}
+}
+
+
+export function clean_wizard_draft(value:unknown):NewDesignDraft|null{
+    // Validate a wizard draft read back from Firestore, or null if there isn't one at all
+    // (designs the wizard never made). Invalid fields fall back to "not chosen yet", which the
+    // stepper already knows how to present — see is_wizard_step_valid()
+    if (value === null || value === undefined){
+        return null
+    }
+    const result = wizard_draft_schema.safeParse(value)
+    return result.success ? result.data : get_default_draft()
+}
+
+
 // A fresh draft — nothing decided yet beyond the home-printing defaults that mirror
 // get_default_blueprint() (used if the user picks "home" and changes nothing further). Bibles
 // starts empty (rather than pre-filled with the preferred translation) so the "Translations"
@@ -84,10 +152,10 @@ export function get_default_draft():NewDesignDraft{
 }
 
 
-// The design-type presets: only the fields that differ from the blank default blueprint
-// (diffs mirror the retired OptionsPreset panel; the bilingual preset just turns footnotes
-// off — a second translation is optional and only enables the side-by-side layout).
-// picture_story has no artwork yet
+// The design-type presets: only the fields that differ from the blank default blueprint, so a
+// type is a starting point the user can still edit field by field afterwards. The bilingual
+// preset just turns footnotes off — a second translation is optional and is what actually
+// enables the side-by-side layout. picture_story has no artwork yet
 export const TYPE_PRESETS:{id:NewDesignType, image:string, diff:Partial<Blueprint>}[] = [
     {id: 'regular', image: img_type_regular, diff: {}},
     {id: 'reading', image: img_type_reading, diff: {
@@ -338,21 +406,27 @@ export function wizard_auto_title(draft:NewDesignDraft):string{
 export async function build_new_blueprint(draft:NewDesignDraft, pages:number|null = null):
         Promise<Blueprint>{
 
+    // Every step's selection falls back to the blank default rather than being asserted
+    // present: the wizard's own flow can't reach here with an incomplete draft, but a stored
+    // one can be reopened a step at a time (see apply_wizard_edit), and a draft that failed
+    // validation comes back blank (see clean_wizard_draft). Mirrors wizard_preview_blueprint()
     const blueprint = get_default_blueprint()
-    Object.assign(blueprint, TYPE_PRESETS.find(preset => preset.id === draft.type)!.diff)
+    Object.assign(blueprint, TYPE_PRESETS.find(preset => preset.id === draft.type)?.diff ?? {})
 
     // Printing — service and size are the only choices the wizard offers; booklet / binding /
     // ink / paper are derived (see apply_wizard_print_defaults)
-    blueprint.service_id = draft.service_id!
-    blueprint.size_id = draft.size_id!
+    blueprint.service_id = draft.service_id ?? blueprint.service_id
+    blueprint.size_id = draft.size_id ?? blueprint.size_id
     apply_wizard_print_defaults(blueprint, draft, pages)
 
     // Translations (the wizard's step validation guarantees 1-2)
-    blueprint.bibles = [...draft.bibles] as [string, ...string[]]
+    if (draft.bibles.length){
+        blueprint.bibles = [...draft.bibles] as [string, ...string[]]
+    }
 
     // Body font: Source Serif 4 for the languages it commonly covers, else Noto Serif (see
     // font_default_for_bibles)
-    blueprint.font_text = font_default_for_bibles(draft.bibles)
+    blueprint.font_text = font_default_for_bibles(blueprint.bibles)
 
     // Title: the wizard's optional title field is the *cover's* title, not blueprint.name (a
     // design is renamed from the /designs list). Staged on `name` here only so the cover preset
@@ -461,8 +535,8 @@ export async function build_new_blueprint(draft:NewDesignDraft, pages:number|nul
         // the copyright statement (see minimal_cover.ts). The name falls back through the first
         // content item instead of a cover title (see gen_name_auto)
         apply_minimal_cover(blueprint)
-    } else {
-        blueprint.cover = seed_cover_preset(draft.cover!, blueprint)
+    } else if (draft.cover){
+        blueprint.cover = seed_cover_preset(draft.cover, blueprint)
         blueprint.cover.title_custom = !!wizard_title
     }
     blueprint.name = ''

@@ -93,9 +93,6 @@
   "svc.wizard.type_regular_desc": "Giống đa số Kinh Thánh: có số câu và các tiêu đề",
   "svc.wizard.type_study": "Kinh Thánh nghiên cứu",
   "svc.wizard.type_study_desc": "Nhiều chú thích để hướng dẫn người đọc",
-  "view.help.beta_notice": "Ứng dụng này vẫn đang ở giai đoạn beta nên có thể còn một số điểm chưa hoàn thiện. Vui lòng liên hệ với chúng tôi nếu bạn gặp vấn đề.",
-  "view.help.contact": "Liên hệ",
-  "view.help.creator": "Người tạo",
-  "view.help.intro": "Đây là ứng dụng miễn phí để in Kinh Thánh và chúng tôi rất khuyến nghị bạn xem video giới thiệu ngắn trước khi sử dụng.",
-  "view.help.source_code": "Mã nguồn"
+  "view.about.creator": "Người tạo",
+  "view.about.source_code": "Mã nguồn"
 }

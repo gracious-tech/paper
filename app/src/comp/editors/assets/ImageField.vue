@@ -21,8 +21,9 @@ div.image-field
                     span {{ uploading ? $t("editor.image.uploading") : $t("editor.image.choose_file") }}
                     input(type='file' accept='image/jpeg,image/png,image/webp' class='d-none'
                         :disabled='uploading' @change='on_file_select')
-                v-text-field(v-else v-model='url_input' :label='$t("editor.image.url_label")'
-                    hide-details density='compact' @keyup.enter='apply_url' @blur='apply_url')
+                v-text-field(v-else-if='mode === "url"' v-model='url_input'
+                    :label='$t("editor.image.url_label")' hide-details density='compact'
+                    @keyup.enter='apply_url' @blur='apply_url')
         p(v-if='error' class='hint text-error') {{ error }}
 
 </template>
@@ -34,6 +35,8 @@ import {computed, ref} from 'vue'
 import {useI18n} from '@/services/i18n'
 
 import {upload_passage_image} from '@/services/content_images'
+import {current_design_id} from '@/services/designs'
+import {request_reconcile} from '@/services/design_assets'
 import AppIcon from '@/comp/global/AppIcon.vue'
 
 import type {ContentPassageImage} from '@/services/types'
@@ -70,7 +73,9 @@ async function on_file_select(event:Event):Promise<void> {
     error.value = ''
     try {
         const bytes = new Uint8Array(await file.arrayBuffer())
-        image.value = await upload_passage_image(bytes, file.type)
+        const previous = image.value?.path ?? null
+        image.value = await upload_passage_image(current_design_id.value!, bytes, file.type)
+        release_previous(previous)
     } catch (err){
         console.error(err)
         error.value = t("editor.image.upload_failed")
@@ -80,18 +85,32 @@ async function on_file_select(event:Event):Promise<void> {
 }
 
 
+// Whatever upload this field was showing is now unreferenced as far as this design knows, so
+// ask the server to check. It re-reads the design (seeing co-editors' changes this client may
+// not have yet) before removing anything — see request_reconcile
+function release_previous(previous:string|null):void {
+    if (previous && current_design_id.value){
+        request_reconcile(current_design_id.value)
+    }
+}
+
+
 // Commit the typed URL as the image config (empty = no image)
 function apply_url():void {
     const url = url_input.value.trim()
-    image.value = url ? {source: 'url', url, path: null, hash: null} : null
+    const previous = image.value?.path ?? null
+    image.value = url ? {source: 'url', url, path: null, hash: null, original: null} : null
+    release_previous(previous)
 }
 
 
 // Clear the current image and reset back to the picker
 function clear():void {
+    const previous = image.value?.path ?? null
     image.value = null
     url_input.value = ''
     mode.value = 'upload'
+    release_previous(previous)
 }
 
 </script>

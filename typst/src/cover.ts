@@ -88,8 +88,7 @@ export function cover_form_for_render(cover:CoverConfig, blueprint:Blueprint,
     // blank-size_id sentinel; size_id is still sent but is only meaningful when 'preset'
     const size_mode = (blueprint.booklet || !blueprint.size_id) ? 'custom' : 'preset'
     const size_id = size_mode === 'preset' ? blueprint.size_id : ''
-    const unit = blueprint.booklet
-        ? (trim.unit === 'mm' ? 'mm' : 'inch') : blueprint.custom_unit
+    const unit = blueprint.booklet ? trim.unit : blueprint.custom_unit
     const trim_width = blueprint.booklet ? trim.width : blueprint.custom_trim_width
     const trim_height = blueprint.booklet ? trim.height : blueprint.custom_trim_height
 

@@ -41,9 +41,7 @@ v-dialog(:model-value='modelValue' @update:model-value='close' max-width='440')
 import {ref, watch} from 'vue'
 
 import {user, is_anonymous, link_google, send_email_link, sign_out} from '@/services/auth'
-import {init_designs, start_viewed_sync, stop_design_sync} from '@/services/designs'
-import {stop_versions_sync} from '@/services/versions'
-import {restore_custom_fonts} from '@/services/custom_fonts'
+import {release_user_data, reload_user_data} from '@/services/account'
 import {report_error} from '@/services/errors'
 import {show_toast} from '@/services/state'
 import {router} from '@/services/router'
@@ -88,24 +86,6 @@ const run_busy = async (action:() => Promise<void>) => {
     } finally {
         busy.value = false
     }
-}
-
-
-// Reload designs/versions after the account (uid) changed — merging into an existing account
-// or signing out both switch to a different uid's data
-// NOTE The design auto-save watcher from boot persists (it follows whatever design is open);
-// ViewDesign.vue's own watcher restarts the scoped versions sync once current_design_id settles
-const reload_user_data = async (welcome = true) => {
-    await init_designs(null, welcome)
-    start_viewed_sync()
-    await restore_custom_fonts()
-}
-
-
-// Tear down the outgoing account's Firestore listeners before its access goes away
-const release_user_data = () => {
-    stop_design_sync()
-    stop_versions_sync()
 }
 
 

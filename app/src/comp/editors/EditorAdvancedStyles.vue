@@ -31,7 +31,7 @@ v-card-text(class='overflow-y-auto')
         :disabled='!service_provides_gutter' hide-details)
     template(v-if='service_provides_gutter')
         p(class='hint') {{$t("editor.advanced.auto_gutter_note")}}
-        p(v-if='gutter_amount' class='hint') {{ $t("editor.advanced.auto_gutter_amount", {amount: gutter_amount, unit: blue.margin_unit, pages: gutter_pages}) }}
+        p(v-if='gutter_amount' class='hint') {{ $t("editor.advanced.auto_gutter_amount", {amount: gutter_amount, unit: margin_unit_label, pages: gutter_pages}) }}
     p(v-else class='hint') {{$t("editor.advanced.auto_gutter_unavailable")}}
 
     v-divider(class='my-8')
@@ -193,6 +193,7 @@ import {useI18n} from '@/services/i18n'
 import {PATTERNS as patterns, resolve_binding_gutter} from 'paper-bible-typst'
 
 import {blue, state, page_count_guess} from '@/services/state'
+import {unit_label} from '@/services/blueprints'
 
 const {t} = useI18n()
 
@@ -206,7 +207,7 @@ const done = () => {
 // Measurement unit for the margin fields (literal labels, not translated)
 const margin_unit_items = [
     {value: 'mm', title: "mm"},
-    {value: 'in', title: "inch"},
+    {value: 'inch', title: "inch"},
 ]
 
 
@@ -253,7 +254,7 @@ const margin_unit = computed({
         if (value === blue.margin_unit) {
             return
         }
-        const factor = value === 'in' ? 1 / 25.4 : 25.4
+        const factor = value === 'inch' ? 1 / 25.4 : 25.4
         const round = (num:number) => Math.round(num * 100) / 100
         blue.margin_top = round(blue.margin_top * factor)
         blue.margin_bottom = round(blue.margin_bottom * factor)
@@ -299,6 +300,10 @@ const gutter_checked = computed({
         blue.margin_gutter_auto = value
     },
 })
+
+
+// Short form of the chosen unit, for sitting next to the gutter amount below
+const margin_unit_label = computed(() => unit_label(blue.margin_unit))
 
 
 // The gutter amount rounded for display: whole mm, or 2dp for the much smaller inch values

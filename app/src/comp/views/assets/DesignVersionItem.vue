@@ -91,7 +91,7 @@ import {use_is_mobile} from '@/services/display'
 import {state, show_toast, confirm_dialog, alert_dialog} from '@/services/state'
 import {report_error} from '@/services/errors'
 import {binding_page_issue} from '@/services/blueprints'
-import {create_design, restore_version_into_design} from '@/services/designs'
+import {create_design_from_version, restore_version_into_design} from '@/services/designs'
 import {open_version_pdf, delete_version, regenerate_version, regenerate_cover, retry_version,
     cover_failed as version_cover_failed, version_expired, version_stuck, share_version,
     selected_version_id, design_needs_editor, version_contact_url} from '@/services/versions'
@@ -294,11 +294,9 @@ const retry = async () => {
 }
 
 const duplicate = async () => {
-    // Fork the version's blueprint into a brand new design (non-destructive), along with the
-    // wizard state frozen into it, so forking a simple design gives another simple design
-    const wizard = props.version.wizard
-    const new_id = await create_design(props.version.blueprint, wizard?.draft,
-        wizard?.simple_mode ?? false)
+    // Fork the version's blueprint into a brand new design (non-destructive), which also
+    // brings its snapshotted assets into the new design's own prefix (see designs.ts)
+    const new_id = await create_design_from_version(props.version)
     await router.push({name: 'design', params: {id: new_id}})
 }
 
@@ -314,7 +312,7 @@ const edit_in_place = async () => {
 }
 
 const remove = async () => {
-    await delete_version(props.version.id)
+    await delete_version(props.version)
 }
 
 const share = async () => {

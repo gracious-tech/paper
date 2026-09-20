@@ -2,7 +2,7 @@
 import {reactive, ref, watch} from 'vue'
 import {cloneDeep, isEqual, debounce} from 'lodash-es'
 import {collection, doc, query, where, orderBy, onSnapshot, getDoc, getDocs, setDoc, updateDoc,
-    deleteDoc, deleteField, arrayRemove, serverTimestamp, FieldPath, Timestamp, writeBatch}
+    deleteField, arrayRemove, serverTimestamp, FieldPath, Timestamp, writeBatch}
     from 'firebase/firestore'
 import type {DocumentData, Unsubscribe} from 'firebase/firestore'
 import {split_blueprint_doc, join_blueprint_doc, resolve_design_name, get_cover_title,
@@ -18,11 +18,14 @@ import {generate_token} from '@/services/utils'
 import {report_error} from '@/services/errors'
 import {translate} from '@/services/i18n'
 
-import {build_new_blueprint} from '@/services/new_design'
+import {build_new_blueprint, read_wizard_state} from '@/services/new_design'
+import {rehydrate_version_blueprint} from '@/services/version_assets'
+import {clear_design_fonts, load_design_fonts} from '@/services/custom_fonts'
 
-import type {Blueprint, ContentItem, CoverConfig, DesignMeta, ViewedDesign, DesignEditorInfo}
-    from '@/services/types'
-import type {NewDesignDraft} from '@/services/new_design'
+import type {Blueprint, ContentItem, CoverConfig, DesignMeta, ViewedDesign, DesignEditorInfo,
+    MeasureUnit} from '@/services/types'
+import type {NewDesignDraft, WizardState} from '@/services/new_design'
+import type {StoredFontMeta} from 'paper-bible-typst'
 
 
 // Debounce delay for saving design edits (long enough to batch bursts of typing/slider drags)
@@ -43,10 +46,27 @@ export const current_design_id = ref(null as string|null)
 // a re-derivation from the Blueprint it produced). Kept as a simple full-replace on every
 // snapshot (not diffed like `blue`) since these are only ever written by one explicit user
 // action at a time (finishing a wizard-edit, or clicking "Advanced")
-export const design_wizard = reactive({
+export const design_wizard = reactive<WizardState>({
     simple_mode: false,
-    draft: null as NewDesignDraft|null,
+    wizard_draft: null,
 })
+
+
+// Designs whose uploaded assets have already been marked as in-use this session, so opening
+// the same design repeatedly doesn't re-stamp them (see /api/touch_assets on the server)
+const touched_designs = new Set<string>()
+
+
+function touch_design_assets(id:string):void{
+    // Tell the server this design's uploaded fonts/images are still in use, so a future
+    // retention sweep can tell them apart from an abandoned account's. Entirely fire-and-forget
+    // — nothing reads the result, and failing to stamp is never worth interrupting the user for
+    if (touched_designs.has(id)){
+        return
+    }
+    touched_designs.add(id)
+    void api('/api/touch_assets', {design_id: id}).catch(() => undefined)
+}
 
 
 // Resolves once the first designs-list snapshot has arrived — a deep-linked /designs/:id whose
@@ -115,6 +135,22 @@ export function design_display_name(blueprint:Blueprint, name_auto:string):strin
     // here. `designs` list rows keep the raw '' and fall back in the markup, as they already did
     return resolve_design_name(blueprint.name, get_cover_title(blueprint.cover), name_auto)
         || translate('common.unnamed_design')
+}
+
+
+function design_assets_summary(data:DocumentData):DesignMeta['assets']{
+    // The uploads a design owns that another design could reuse, read straight off the raw doc
+    // — the designs listener already holds full document data, so this costs nothing extra
+    // (see asset_suggestions.ts). Only a custom cover background counts: a builtin is a
+    // reference to a publicly-hosted image with no bytes of this design's own, and must never
+    // be offered back to the cover editor, since that would turn the reference into a private
+    // copy (see the BgSuggestion contract in bookcover-web)
+    const blueprint = (data['blueprint'] ?? {}) as Record<string, unknown>
+    const bg = (blueprint['cover'] as CoverConfig|null)?.bg_image
+    return {
+        fonts: Object.values((data['fonts'] ?? {}) as Record<string, StoredFontMeta>),
+        cover_bg: bg?.kind === 'custom' ? {path: bg.path, hash: bg.hash} : null,
+    }
 }
 
 
@@ -293,7 +329,9 @@ export async function open_design(id:string):Promise<void>{
     synced = null
     current_design_id.value = id
     design_wizard.simple_mode = false
-    design_wizard.draft = null
+    design_wizard.wizard_draft = null
+    // Uploaded fonts belong to the design, so the previous one's go before this one's arrive
+    clear_design_fonts()
     // The page estimate belongs to the design that produced it — anything reading it (cover
     // spine, binding validity, the derived binding) must wait for this design's first preview
     // rather than size itself from the previous design's length
@@ -312,15 +350,20 @@ export async function open_design(id:string):Promise<void>{
             }
 
             const data = snap.data()
-            design_wizard.simple_mode = !!data['simple_mode']
-            design_wizard.draft = data['wizard_draft']
-                ? cloneDeep(data['wizard_draft'] as NewDesignDraft) : null
+            Object.assign(design_wizard, read_wizard_state(data))
+            // Font bytes are downloaded for families that have appeared and dropped for ones
+            // that have gone, so a co-editor adding a font arrives here like any other change
+            void load_design_fonts((data['fonts'] ?? {}) as Record<string, StoredFontMeta>)
+                .catch((error:unknown) => {
+                    report_error('banner', error)
+                })
 
             // First snapshot populates the whole blueprint; later ones merge field-by-field
             if (!synced){
                 const remote = doc_to_blueprint(data)
                 Object.assign(blue, remote)
                 synced = cloneDeep(remote)
+                touch_design_assets(id)
                 resolve()
             } else if (!snap.metadata.hasPendingWrites){
                 // Ignore local echoes — only apply snapshots that include the server's state
@@ -367,6 +410,7 @@ export async function create_design(from?:Blueprint, wizard_draft?:NewDesignDraf
         modified: serverTimestamp(),
         category: null,
         latest_version: null,
+        fonts: {},
         ...(wizard_draft ? {simple_mode, wizard_draft: cloneDeep(wizard_draft)} : {}),
         ...split_blueprint_doc(blueprint),
     })
@@ -392,20 +436,27 @@ export async function apply_wizard_edit(id:string, draft:NewDesignDraft):Promise
     const previous_name = blue.name
     Object.assign(blue, await build_new_blueprint(draft, estimated_pages.value))
     blue.name = previous_name
-    design_wizard.draft = cloneDeep(draft)  // Optimistic, mirrors leave_simple_mode() above
+    design_wizard.wizard_draft = cloneDeep(draft)  // Optimistic, mirrors leave_simple_mode()
     await updateDoc(doc(firestore, 'designs', id), {wizard_draft: cloneDeep(draft)})
 }
 
 
 export async function delete_design(id:string):Promise<void>{
-    // Delete a design (owner only, per security rules), moving away from it if currently open
+    // Delete a design, its whole render history and every object they own.
+    //
+    // Server-mediated: clients have no delete permission on any asset prefix, and the
+    // Firestore rules only let a version's own creator delete it, so a shared design's
+    // co-editor versions would otherwise survive it. Errors propagate — this is destructive
+    // and the caller must be able to tell the user it didn't happen
     if (current_design_id.value === id){
         save.cancel()
         unsub_doc?.()
         current_design_id.value = null
         synced = null
     }
-    await deleteDoc(doc(firestore, 'designs', id))
+
+    await api<{ok:boolean}>('/api/delete_design', {design_id: id})
+
     if (!current_design_id.value){
         await open_other_design(id)
     }
@@ -471,33 +522,58 @@ export async function clear_category(name:string):Promise<void>{
 
 
 export async function duplicate_design(id:string):Promise<string>{
-    // Copy a design's live blueprint into a brand new design (no version history copied).
+    // Copy a design's live content into a brand new design (no version history copied).
     // A wizard-created design's draft comes along too, so a copy of a simple design is still
-    // simple (and a copy of one that has left simple mode still knows its wizard answers)
-    const snap = await getDoc(doc(firestore, 'designs', id))
-    const data = snap.data() ?? {}
-    const blueprint = doc_to_blueprint(data)
-    const draft = data['wizard_draft']
-        ? cloneDeep(data['wizard_draft'] as NewDesignDraft) : undefined
-    return await create_design(blueprint, draft, !!data['simple_mode'])
+    // simple (and a copy of one that has left simple mode still knows its wizard answers).
+    // Server-mediated so the new design gets its own copies of every uploaded asset without
+    // the bytes travelling through the browser and back
+    const {design_id} = await api<{design_id:string}>('/api/duplicate_design', {design_id: id})
+    await open_design(design_id)
+    return design_id
+}
+
+
+export async function create_design_from_version(
+        version:{blueprint:Blueprint, wizard_draft:NewDesignDraft|null, simple_mode:boolean})
+        :Promise<string>{
+    // Fork a frozen version into a brand new design, along with the wizard state frozen into
+    // it, so forking a simple design gives another simple design.
+    // Two steps, and the order is forced: a design's assets can only be written once the
+    // design doc exists (Storage rules authorise against it), so the design is created still
+    // pointing at the version's snapshots and then repointed at its own copies. In between it
+    // renders identically — the snapshot and the copy are the same bytes
+    const id = await create_design(version.blueprint, version.wizard_draft ?? undefined,
+        version.simple_mode)
+    Object.assign(blue, await rehydrate_version_blueprint(version.blueprint, id))
+    await flush_changes()
+    return id
 }
 
 
 export async function restore_version_into_design(design_id:string,
-        version:{blueprint:Blueprint, save_token:string}):Promise<void>{
+        version:{blueprint:Blueprint, save_token:string, status:string, pages:number|null})
+        :Promise<void>{
     // Destructive: bulk-replace the live design's content with a frozen version's content.
     // Callers must warn the user first — any unsaved/unrendered changes are lost
     save.cancel()
+    // The version's snapshots come back into the design's own asset prefix first — a design
+    // must own what it references, or nothing could ever reclaim it (see version_assets.ts)
+    const blueprint = await rehydrate_version_blueprint(version.blueprint, design_id)
     // `name` is deliberately dropped from the split here: restoring a version restores what the
     // document *is*, not what the design is called — the user's current name stays put
-    const fields = split_blueprint_doc(cloneDeep(version.blueprint))
+    const fields = split_blueprint_doc(cloneDeep(blueprint))
     await updateDoc(doc(firestore, 'designs', design_id), {
         blueprint: fields.blueprint,
         content_items: fields.content_items,
         content_order: fields.content_order,
-        name_auto: gen_name_auto(version.blueprint),
+        name_auto: gen_name_auto(blueprint),
         save_token: version.save_token,
         modified: serverTimestamp(),
+        // The restored version is now the one representing this design's content, so it becomes
+        // the denormalized summary — otherwise the /designs row would report unrendered changes
+        // against a newer version whose content the design no longer has (see design_needs_version)
+        latest_version: {status: version.status, pages: version.pages,
+            save_token: version.save_token},
     })
     // The design's own onSnapshot listener (if open) picks up the echo and repopulates `blue`
 }
@@ -507,8 +583,7 @@ export async function restore_version_into_design(design_id:string,
 
 
 export async function reset_design_share_token(id:string):Promise<void>{
-    // Issue a fresh invite link, invalidating any previous one (owner only, per rules); also
-    // used to backfill a token for designs created before sharing was always-on
+    // Issue a fresh invite link, invalidating any previous one (owner only, per rules)
     await updateDoc(doc(firestore, 'designs', id), {share_token: generate_token()})
 }
 
@@ -571,10 +646,11 @@ function meta_from_doc(id:string, data:DocumentData):DesignMeta{
         category: (data['category'] ?? null) as string|null,
         content_summary: content_summary(data, bibles[0]),
         latest_version: (data['latest_version'] ?? null) as DesignMeta['latest_version'],
+        assets: design_assets_summary(data),
         paper: {
             service_id: (blueprint['service_id'] ?? '') as string,
             size_id: (blueprint['size_id'] ?? '') as string,
-            custom_unit: (blueprint['custom_unit'] ?? 'mm') as 'mm'|'inch',
+            custom_unit: (blueprint['custom_unit'] ?? 'mm') as MeasureUnit,
             custom_trim_width: (blueprint['custom_trim_width'] ?? 0) as number,
             custom_trim_height: (blueprint['custom_trim_height'] ?? 0) as number,
             booklet: (blueprint['booklet'] ?? false) as boolean,

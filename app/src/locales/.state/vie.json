@@ -93,9 +93,6 @@
   "svc.wizard.type_regular_desc": "How most bibles look, with verse numbers and headings",
   "svc.wizard.type_study": "Study Bible",
   "svc.wizard.type_study_desc": "Extensive footnotes to guide readers",
-  "view.help.beta_notice": "This app is still in beta so it may have some rough edges. Please contact us if you encounter any issues.",
-  "view.help.contact": "Contact",
-  "view.help.creator": "Creator",
-  "view.help.intro": "This is a free app for printing Scripture and we highly recommend watching the very short introduction video before using it.",
-  "view.help.source_code": "Source code"
+  "view.about.creator": "Creator",
+  "view.about.source_code": "Source code"
 }

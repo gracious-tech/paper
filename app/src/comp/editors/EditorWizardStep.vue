@@ -50,9 +50,9 @@ const {t} = useI18n()
 
 
 // A local copy of the design's wizard draft, edited freely and only applied on "Done" — cloned
-// so cancelling never mutates design_wizard.draft (the same object other views read for their
-// own summaries) before the change is actually saved
-const draft = reactive(cloneDeep(design_wizard.draft ?? get_default_draft()))
+// so cancelling never mutates design_wizard.wizard_draft (the same object other views read
+// for their own summaries) before the change is actually saved
+const draft = reactive(cloneDeep(design_wizard.wizard_draft ?? get_default_draft()))
 
 
 // Whether a step subview (the translation picker) is covering navigation, matching the wizard

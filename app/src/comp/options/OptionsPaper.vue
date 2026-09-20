@@ -100,6 +100,8 @@ import {blue, state, estimated_pages} from '@/services/state'
 import {format_dims, binding_page_issue} from '@/services/blueprints'
 import {service_select_items} from '@/services/printing_services'
 
+import type {MeasureUnit} from '@/services/types'
+
 
 const {t, locale} = useI18n()
 
@@ -111,7 +113,7 @@ const home_size_items = [
 ]
 
 
-// Measurement unit for custom dimensions (printing-services uses 'inch', not 'in')
+// Measurement unit for custom dimensions (literal labels, not translated)
 const custom_unit_items = [
     {value: 'mm', title: "mm"},
     {value: 'inch', title: "inch"},
@@ -120,8 +122,8 @@ const custom_unit_items = [
 
 // The unit toggle's value — setting it converts the existing measurements to the new unit
 const unit_model = computed({
-    get: () => blue.custom_unit as string,
-    set: (unit:string) => set_unit(unit),
+    get: () => blue.custom_unit,
+    set: (unit:MeasureUnit) => set_unit(unit),
 })
 
 
@@ -241,7 +243,7 @@ function on_size_select(value:string):void{
 
 
 // Convert a measurement between mm and inch, rounded to 3 decimals
-function convert_unit(value:number, from:string, to:string):number{
+function convert_unit(value:number, from:MeasureUnit, to:MeasureUnit):number{
     if (from === to){
         return value
     }
@@ -251,7 +253,7 @@ function convert_unit(value:number, from:string, to:string):number{
 
 
 // Toggle the unit, converting all custom measurements to match
-function set_unit(unit:string):void{
+function set_unit(unit:MeasureUnit):void{
     const from = blue.custom_unit
     if (from === unit){
         return
@@ -260,7 +262,7 @@ function set_unit(unit:string):void{
     blue.custom_trim_height = convert_unit(blue.custom_trim_height, from, unit)
     blue.custom_bleed = convert_unit(blue.custom_bleed, from, unit)
     blue.custom_spine = convert_unit(blue.custom_spine, from, unit)
-    blue.custom_unit = unit as 'mm'|'inch'
+    blue.custom_unit = unit
 }
 
 

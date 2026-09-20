@@ -165,8 +165,8 @@ const all_steps_valid = computed(() => {
 
 
 // Reset (create mode) or seed from the open design's existing draft (edit mode) every time the
-// dialog opens. cloneDeep is essential in edit mode — design_wizard.draft is the same object
-// read from the last Firestore snapshot, so assigning its arrays in by reference would let
+// dialog opens. cloneDeep is essential in edit mode — design_wizard.wizard_draft is the same
+// object read from the last Firestore snapshot, so assigning its arrays in by reference would let
 // in-progress (uncommitted) edits here mutate it directly, corrupting the "cancel discards
 // changes" guarantee and the ViewDesignSimple summary before Save is ever clicked
 watch(mode, m => {
@@ -174,7 +174,7 @@ watch(mode, m => {
         Object.assign(draft, get_default_draft())
         step.value = 'type'
     } else if (m === 'edit'){
-        Object.assign(draft, cloneDeep(design_wizard.draft) ?? get_default_draft())
+        Object.assign(draft, cloneDeep(design_wizard.wizard_draft) ?? get_default_draft())
         step.value = state.wizard_edit!.step
     }
 })

@@ -1,14 +1,65 @@
 rules_version = '2';
 
 
-// NOTE All paths are publicly gettable (not listable) — ids are unguessable url64, and letting
-//      PDFs/fonts be shared by link without an auth check keeps sharing simple; denying list
-//      keeps the exact path as the whole capability (no enumerating user_fonts/{uid}/ etc)
+// NOTE All paths are publicly gettable (never listable) — every id in a path is unguessable
+//      url64, so letting PDFs and assets be fetched by link without an auth check keeps
+//      sharing simple, while denying list keeps the exact path as the whole capability
+// NOTE Nothing here grants delete. Removing anything is the server's job (see assets.ts),
+//      which is what stops one editor destroying the inputs a published version renders from
 // NOTE Cross-service firestore.get() requires a one-time IAM grant for the Rules service
 //      account (prompted on first deploy)
 
 service firebase.storage {
     match /b/{bucket}/o {
+
+        // --- Per-design assets ------------------------------------------------------------
+        //
+        // Uploaded images and fonts belong to a design, not to an account: the design is the
+        // only scope in which "is anything still referencing this?" is answerable, which is
+        // what makes deletion possible at all. Three prefixes, all keyed by design id and all
+        // content-addressed (so a basename is a pure function of the bytes):
+        //   design_assets/  what the live design references — swept by the server when the
+        //                   design stops naming it
+        //   version_assets/ frozen snapshots, shared by every version of the design. Append-
+        //                   only, so editing a design can never break an already-rendered one
+        //   design_cache/   regenerable painted/torn variants, swept by a lifecycle rule
+        // Writes authorise against the *design* doc's editor_uids; deletes are Admin-SDK only
+        // (the client has no path to remove a published version's inputs), and nothing is
+        // listable, so the exact path stays the whole capability.
+
+        function design_editors(design_id) {
+            return firestore.get(
+                /databases/(default)/documents/designs/$(design_id)).data.editor_uids;
+        }
+
+        match /design_assets/{design_id}/{file} {
+            allow get: if true;
+
+            allow create, update: if request.auth != null
+                && request.auth.uid in design_editors(design_id)
+                && request.resource.size < 20 * 1024 * 1024;
+        }
+
+        // Append-only as a rule, not a convention — `resource == null` is what guarantees a
+        // design edit can't rewrite the bytes a published version renders from. Clients must
+        // therefore check existence first and treat a denied create as "a co-editor froze it
+        // already" (same bytes, same basename) rather than a failure
+        match /version_assets/{design_id}/{file} {
+            allow get: if true;
+
+            allow create: if request.auth != null
+                && resource == null
+                && request.auth.uid in design_editors(design_id)
+                && request.resource.size < 20 * 1024 * 1024;
+        }
+
+        match /design_cache/{design_id}/{file} {
+            allow get: if true;
+
+            allow create, update: if request.auth != null
+                && request.auth.uid in design_editors(design_id)
+                && request.resource.size < 20 * 1024 * 1024;
+        }
 
         // Version PDFs — create-once by owner (in-browser compile path), no overwrite/delete
         // by clients (re-creation is allowed again after lifecycle deletion since the object
@@ -41,74 +92,6 @@ service firebase.storage {
                     .data.owner == request.auth.uid
                 && request.resource.contentType == 'application/pdf'
                 && request.resource.size < 50 * 1024 * 1024;
-        }
-
-        // Per-version snapshots of custom font bytes (immutable alongside the version, and
-        // nested under versions/ so the lifecycle rule sweeps them together with the PDF)
-        match /versions/{version_id}/fonts/{file} {
-            allow get: if true;
-
-            allow create: if request.auth != null
-                && firestore.get(
-                    /databases/(default)/documents/versions/$(version_id))
-                    .data.owner == request.auth.uid
-                && request.resource.size < 20 * 1024 * 1024;
-        }
-
-        // Per-version snapshot of the cover's background image (swept with the version by the
-        // lifecycle rule, like the font snapshots above)
-        match /versions/{version_id}/cover/{file} {
-            allow get: if true;
-
-            allow create: if request.auth != null
-                && firestore.get(
-                    /databases/(default)/documents/versions/$(version_id))
-                    .data.owner == request.auth.uid
-                && request.resource.size < 20 * 1024 * 1024;
-        }
-
-        // Per-version snapshots of uploaded passage images (swept with the version by the
-        // lifecycle rule, like the font/cover snapshots above)
-        match /versions/{version_id}/images/{file} {
-            allow get: if true;
-
-            allow create: if request.auth != null
-                && firestore.get(
-                    /databases/(default)/documents/versions/$(version_id))
-                    .data.owner == request.auth.uid
-                && request.resource.size < 20 * 1024 * 1024;
-        }
-
-        // Per-user reusable custom font library
-        match /user_fonts/{uid}/{path=**} {
-            allow get: if true;
-
-            allow delete: if request.auth != null && request.auth.uid == uid;
-
-            allow create, update: if request.auth != null && request.auth.uid == uid
-                && request.resource.size < 20 * 1024 * 1024;
-        }
-
-        // Per-user cover background image library (content-addressed by hash, so re-saving an
-        // unchanged image is an idempotent overwrite of identical bytes)
-        match /user_cover_images/{uid}/{path=**} {
-            allow get: if true;
-
-            allow delete: if request.auth != null && request.auth.uid == uid;
-
-            allow create, update: if request.auth != null && request.auth.uid == uid
-                && request.resource.size < 20 * 1024 * 1024;
-        }
-
-        // Per-user reusable passage image library (content-addressed by hash, same as the cover
-        // bg image library above)
-        match /user_content_images/{uid}/{path=**} {
-            allow get: if true;
-
-            allow delete: if request.auth != null && request.auth.uid == uid;
-
-            allow create, update: if request.auth != null && request.auth.uid == uid
-                && request.resource.size < 20 * 1024 * 1024;
         }
     }
 }

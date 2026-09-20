@@ -48,6 +48,20 @@ let auth_token_getter:(() => Promise<string|null>)|null = null
 // UTILS
 
 
+function safe_url(href:string):string{
+    // Reduce the current page's URL to something safe to keep in a stored report. The query
+    // string and fragment go wholesale — a passwordless sign-in link carries its single-use
+    // code there, and nothing in a query is worth triaging — and a design invite link's token
+    // is masked out of the path, since it grants edit access to whoever reads it
+    try {
+        const url = new URL(href)
+        return url.origin + url.pathname.replace(/(\/invite\/)[^/]+/, '$1~')
+    } catch {
+        return ''
+    }
+}
+
+
 function save_error(message:string, severity:'critical'|'error',
         context?:Record<string, string|number>):string{
     // Send an error report to the server (which stores it in the bucket with the caller's IP)
@@ -69,7 +83,7 @@ function save_error(message:string, severity:'critical'|'error',
                 id,
                 severity,
                 message,
-                url: location.href,
+                url: safe_url(location.href),
                 language: navigator.language,
                 runtime_ms: new Date().getTime() - start_ms,
                 context,

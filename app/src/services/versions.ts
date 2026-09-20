@@ -2,7 +2,7 @@
 import {reactive, ref, computed} from 'vue'
 import {cloneDeep} from 'lodash-es'
 import {collection, doc, query, where, orderBy, limit, onSnapshot, getDoc, getDocs, setDoc,
-    addDoc, updateDoc, deleteDoc, serverTimestamp, Timestamp} from 'firebase/firestore'
+    addDoc, updateDoc, serverTimestamp, Timestamp} from 'firebase/firestore'
 import type {DocumentData, Unsubscribe} from 'firebase/firestore'
 import {ref as storage_ref, uploadBytes, getDownloadURL} from 'firebase/storage'
 import {PDFDocument} from 'pdf-lib'
@@ -15,16 +15,17 @@ import {user} from '@/services/auth'
 import {designs, current_design_id, design_display_name} from '@/services/designs'
 import {bible_content} from '@/services/content'
 import {typst_generator} from '@/services/typst'
-import {custom_fonts, get_custom_font_styles, plan_version_fonts, upload_version_fonts,
+import {custom_fonts, get_custom_font_styles, plan_version_fonts,
     load_font_from_meta} from '@/services/custom_fonts'
+import {apply_asset_copies} from '@/services/design_assets'
 import {plan_version_cover, render_cover_pdf} from '@/services/cover'
 import {plan_version_images} from '@/services/content_images'
+import {read_wizard_state} from '@/services/new_design'
 import {generate_token} from '@/services/utils'
 import {page_count_guess} from '@/services/state'
 import {report_error, error_to_string} from '@/services/errors'
 
 import type {CustomFont} from 'typst-fonts'
-import type {NewDesignDraft} from '@/services/new_design'
 import type {Blueprint, DesignMeta, Version} from '@/services/types'
 
 
@@ -43,21 +44,24 @@ export const selected_version = computed(() => {
 export const latest_version = computed(() => versions[0] ?? null)
 
 
-// Whether the open design has no rendered version yet, or has unsaved/unrendered changes since
-// its latest one — the condition ViewDesign.vue uses to decide editor-vs-version-list
+// Whether the open design has no rendered version matching its current content — the condition
+// ViewDesign.vue uses to decide editor-vs-version-list. Every version is checked, not just the
+// newest: after restoring an older version over the design (see restore_version_into_design)
+// the content *has* been rendered, just not by the most recent render
 export const design_needs_editor = computed(() => {
     const design = designs.find(item => item.id === current_design_id.value)
     if (!design){
         return true
     }
-    return !latest_version.value || design.save_token !== latest_version.value.save_token
+    return !versions.some(item => item.save_token === design.save_token)
 })
 
 
 // Same condition as design_needs_editor, but usable for any row in the /designs list (not just
 // the currently-open design) — reads the denormalized `latest_version` summary on the design doc
 // instead of the live per-design `versions` subscription, which is only ever populated for the
-// open design
+// open design. Every write of that summary keeps it pointed at the version representing the
+// design's current content, which is what makes the cheap save_token comparison here hold
 export function design_needs_version(design:DesignMeta):boolean{
     return !design.latest_version || design.save_token !== design.latest_version.save_token
 }
@@ -105,7 +109,9 @@ function version_from_doc(id:string, data:DocumentData):Version{
         copied_from: (data['copied_from'] ?? null) as string|null,
         custom_fonts: (data['custom_fonts'] ?? []) as Version['custom_fonts'],
         save_token: data['save_token'] as string,
-        wizard: (data['wizard'] ?? null) as Version['wizard'],
+        // Frozen from the parent design and validated like the blueprint beside it, since both
+        // are client-written (and server-written for a copy) — see read_wizard_state
+        ...read_wizard_state(data),
         error: (data['error'] ?? null) as string|null,
         error_id: (data['error_id'] ?? null) as string|null,
     }
@@ -157,31 +163,41 @@ export async function fetch_latest_version_id(design_id:string):Promise<string|n
 export async function create_pending_version(design_id:string, blueprint:Blueprint)
         :Promise<{id:string, title:string}>{
     // Freeze a blueprint into a new pending version doc and return its id + frozen display name
-    // (the caller passes that name back into the compile, for PDF metadata). Any uploaded fonts
-    // it references are snapshotted into the version's own Storage paths so regeneration never
-    // depends on the user's mutable font library. Reads the parent design's save_token directly
-    // (rather than trusting the `designs` list's own listener to have caught up yet) so the
-    // freshly-created version's save_token is always the exact one the caller just flushed
-    const id = generate_token()
+    // (the caller passes that name back into the compile, for PDF metadata). Every uploaded
+    // asset it references is snapshotted into the design's append-only version_assets prefix,
+    // so regeneration never depends on what the live design still happens to reference. Reads
+    // the parent design's save_token directly (rather than trusting the `designs` list's own
+    // listener to have caught up yet) so the freshly-created version's save_token is always the
+    // exact one the caller just flushed
+    const version_id = generate_token()
     const design_snap = await getDoc(doc(firestore, 'designs', design_id))
     const save_token = design_snap.data()?.['save_token'] as string
-    // The design's wizard state is frozen alongside the blueprint, from the same doc read, so
-    // copying this version later can restore a simple design as simple (see Version['wizard'])
-    const wizard_draft = design_snap.data()?.['wizard_draft'] as NewDesignDraft|undefined
-    const wizard = wizard_draft ? {draft: cloneDeep(wizard_draft),
-        simple_mode: !!design_snap.data()?.['simple_mode']} : null
+    // The design's wizard state is frozen alongside the blueprint, from the same doc read and
+    // under the same field names, so copying this version later can restore a simple design as
+    // simple (see WizardState)
+    const wizard = read_wizard_state(design_snap.data() ?? {})
     // The design's *resolved* name, frozen — a version is a snapshot of what was rendered, and
     // its name must not shift later when the design is renamed or its content changes.
     // name_auto comes from the same doc read as save_token above
     const title = design_display_name(
         blueprint, (design_snap.data()?.['name_auto'] ?? '') as string)
-    const fonts = plan_version_fonts(id, blueprint)
-    // The cover's bg image is likewise snapshotted under the version's own Storage prefix
-    // (the frozen blueprint's cover points at the snapshot path, not the mutable library)
-    const cover = await plan_version_cover(id, blueprint)
+    // NOTE These take the *design* id, not the version id — snapshots are shared by every
+    // version of a design, so re-rendering unchanged content moves no bytes at all
+    const fonts = plan_version_fonts(design_id, blueprint)
+    // The cover's bg image is likewise snapshotted into version_assets (the frozen blueprint's
+    // cover points at the snapshot path, not at what the live design references)
+    const cover = plan_version_cover(design_id, blueprint)
     // Same snapshotting for any uploaded passage images referenced in the content list
-    const images = await plan_version_images(id, blueprint)
-    await setDoc(doc(firestore, 'versions', id), {
+    const images = plan_version_images(design_id, blueprint)
+
+    // Uploads first, doc second. Storage rules authorise version_assets writes against the
+    // *design* doc, so nothing here depends on the version existing yet — and failing before
+    // the doc is written leaves no version at all, rather than one stranded in 'pending' with
+    // nothing left to advance it. The orphans a failed run leaves behind are content-addressed,
+    // so the next attempt reuses them
+    await apply_asset_copies([...fonts.copies, ...cover.copies, ...images.copies])
+
+    await setDoc(doc(firestore, 'versions', version_id), {
         schema: SCHEMA_VERSION,
         design_id,
         owner: user.value!.uid,
@@ -198,36 +214,27 @@ export async function create_pending_version(design_id:string, blueprint:Bluepri
         cover_render_version: cover.frozen ? RENDER_VERSION : null,
         status: 'pending',
         pages: null,
-        pdf_path: `versions/${id}/doc.pdf`,
+        pdf_path: `versions/${version_id}/doc.pdf`,
         pdf_expires: null,
         copied_from: null,
         custom_fonts: fonts.meta,
         save_token,
-        wizard,
+        ...wizard,
         error: null,
         error_id: null,
     })
-    // The version doc now exists but its asset uploads (and denormalized summary) haven't run —
-    // if any fail here, the caller never gets `id` and compile_and_upload never runs for it, so
-    // mark it failed rather than stranding it in 'pending' with nothing left to advance it
-    try {
-        // Denormalized onto the parent design doc so the /designs list can show status/needs-
-        // attention chips without an N+1 per-design version query — see design_needs_version()
-        await updateDoc(doc(firestore, 'designs', design_id),
-            {latest_version: {status: 'pending', pages: null, save_token}})
-        // Font/image bytes may only be uploaded once the doc exists (Storage rules resolve the
-        // owner via the doc)
-        await upload_version_fonts(fonts.uploads)
-        for (const [path, bytes, content_type] of [...cover.uploads, ...images.uploads]){
-            await uploadBytes(storage_ref(firebase_storage, path), bytes,
-                {contentType: content_type})
-        }
-    } catch (error){
-        await updateDoc(doc(firestore, 'versions', id),
-            {status: 'failed', error: error_to_string(error)}).catch(() => undefined)
-        throw error
-    }
-    return {id, title}
+
+    // Denormalized onto the parent design doc so the /designs list can show status/needs-
+    // attention chips without an N+1 per-design version query — see design_needs_version().
+    // Best-effort: the version itself is already valid and compilable, and a stale summary
+    // only costs a wrong chip, so this must not fail the freeze
+    await updateDoc(doc(firestore, 'designs', design_id),
+        {latest_version: {status: 'pending', pages: null, save_token}})
+        .catch((error:unknown) => {
+            report_error('silent', error, {context: {stage: 'latest_version_summary'}})
+        })
+
+    return {id: version_id, title}
 }
 
 
@@ -661,10 +668,12 @@ export async function download_version_pdf(version:Version, which:'interior'|'co
 }
 
 
-export async function delete_version(id:string):Promise<void>{
-    // Delete a version's metadata — its PDF object becomes unreachable immediately (Storage
-    // rules can no longer resolve an owner) and is removed by the bucket's lifecycle rule
-    await deleteDoc(doc(firestore, 'versions', id))
+export async function delete_version(version:Version):Promise<void>{
+    // Delete a version: its doc, its PDFs, and any frozen snapshot no sibling version still
+    // needs. Server-mediated — clients can't delete Storage objects, and the parent design's
+    // denormalized summary has to be repointed in the same breath so the /designs row never
+    // describes a version that's gone (see handle_delete_version)
+    await api<{ok:boolean}>('/api/delete_version', {version_id: version.id})
 }
 
 

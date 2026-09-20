@@ -26,13 +26,20 @@ export type {BundledFont} from './fonts.js'
 export {BibleContent} from './bible_content.js'
 export type {BibleContentOptions} from './bible_content.js'
 
+// Storage paths for a design's uploaded assets (shared so client and server never diverge)
+export {design_assets_prefix, version_assets_prefix, design_cache_prefix, asset_basename,
+    to_version_asset, to_design_asset, DESIGN_ASSETS, VERSION_ASSETS, DESIGN_CACHE}
+    from './asset_paths.js'
+export type {StoredFontMeta} from './asset_paths.js'
+
 // Blueprint <-> Firestore doc-shape splitting (shared so client and server never diverge)
 export {split_blueprint_doc, join_blueprint_doc, resolve_design_name, get_cover_title,
     get_cover_title_from_form, COVER_TITLE_KEY} from './blueprint_doc.js'
 export type {BlueprintDocFields} from './blueprint_doc.js'
 
 // Constants shared between the app and the server
-export {SCHEMA_VERSION, PDF_LIFETIME_MS, COMPILE_STATS_LIFETIME_MS} from './consts.js'
+export {SCHEMA_VERSION, PDF_LIFETIME_MS, COMPILE_STATS_LIFETIME_MS,
+    COMPILE_QUOTA_LIFETIME_MS} from './consts.js'
 
 // Blueprint shape validation (schema factory — callers supply the defaults to fall back to)
 export {make_blueprint_schema, clean_content_items, cover_config_schema} from './blueprint_schema.js'
@@ -45,12 +52,16 @@ export {cover_form_for_render, cover_render_key, STOCK_BG_PHOTOS, KNOWN_BUILTIN_
 
 // Trim-size resolution (service + named size, or custom dimensions) and a mm/in converter —
 // used for the interior margin clamp and, in the app, the cover's create-time back-margin seed
-export {resolve_trim, resolve_reading_trim, convert_unit, norm_unit, resolve_binding_gutter}
+export {resolve_trim, resolve_reading_trim, convert_unit, typst_unit, resolve_binding_gutter}
     from './trim.js'
 
 // Bundled title-page decorative pattern SVGs (name → corner SVG), used by the resolver and the
 // app's title-page editor
 export {PATTERNS} from './generated/patterns.js'
+
+// Whether a passage image's url is one a server-side compile may fetch — the content list is
+// client-written, so the compile service checks every url before accepting a version
+export {is_fetchable_image_url, MAX_IMAGE_BYTES} from './image_cache.js'
 
 // Custom-page prose helpers (ProseMirror → Typst + the auto-copyright marker)
 export {prose_to_typst, prose_to_text, doc_has_copyright, replace_copyright_marker,
@@ -88,8 +99,10 @@ export type {
     ContentTitle,
     ContentPassage,
     ContentPassageImage,
+    ContentImageRef,
     ContentCustom,
     ContentPictureStory,
     PictureStorySlide,
     ImageStyle,
+    MeasureUnit,
 } from './types.js'

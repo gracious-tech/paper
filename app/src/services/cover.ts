@@ -11,13 +11,13 @@ import {make_blank_form_values, asset_path, BACKGROUNDS_DIR, resolve_dimensions,
     font_families_in_form} from 'bookcover-core'
 import {cover_form_for_render, cover_render_key, STOCK_BG_PHOTOS, KNOWN_BUILTIN_BACKGROUNDS,
     doc_has_copyright, gen_copyright_typst, COPYRIGHT_MARKER, resolve_reading_trim, convert_unit,
-    COVER_TITLE_KEY} from 'paper-bible-typst'
+    COVER_TITLE_KEY, design_assets_prefix, to_version_asset, to_design_asset, asset_basename}
+    from 'paper-bible-typst'
 import {PDFDocument, rgb} from 'pdf-lib'
 
 import {firebase_storage} from '@/services/firebase'
 import {ASSETS_PREFIX} from '@/services/typst'
 import {page_count_guess} from '@/services/state'
-import {user} from '@/services/auth'
 import {content} from '@/services/content'
 import {custom_fonts} from '@/services/custom_fonts'
 import {book_icon} from '@/services/icons'
@@ -27,6 +27,7 @@ import type {DimensionInputs, EmbedFormState} from 'bookcover-core'
 import type {ImageRegions} from 'bookcover-web'
 import type {CustomFont} from 'typst-fonts'
 import type {PmDoc} from 'paper-bible-typst'
+import type {AssetCopy} from '@/services/design_assets'
 import type {Blueprint, CoverConfig} from '@/services/types'
 import type {CoverWorkerRequest, CoverWorkerResponse, CoverRenderResult, DistributiveOmit}
     from './cover_worker'
@@ -52,6 +53,13 @@ const BG_MIME_EXT:Record<string, string> = {
 }
 const BG_EXT_MIME = Object.fromEntries(
     Object.entries(BG_MIME_EXT).map(([mime, ext]) => [ext, mime]))
+
+
+function bg_mime_for(name:string):string {
+    // The content type a background's filename or Storage path implies — needed wherever bytes
+    // are handled as a raw buffer rather than a Blob that carries its own type
+    return BG_EXT_MIME[name.slice(name.lastIndexOf('.') + 1).toLowerCase()] ?? 'image/jpeg'
+}
 
 
 // Thematic default background per Bible book (fetch.bible book id -> backgrounds/ filename),
@@ -251,12 +259,14 @@ export async function load_cover_bg(cover:CoverConfig)
     if (!bg){
         return null
     }
-    const [key, ext, fetch_bytes] = bg.kind === 'builtin'
-        ? [bg.id, bg.id.slice(bg.id.lastIndexOf('.') + 1).toLowerCase(),
-            () => fetch(asset_path(ASSETS_PREFIX, BACKGROUNDS_DIR, bg.id))
-                .then(res => res.arrayBuffer()).then(buf => new Uint8Array(buf))]
-        : [bg.hash, bg.path.slice(bg.path.lastIndexOf('.') + 1).toLowerCase(),
-            () => getBytes(storage_ref(firebase_storage, bg.path)).then(buf => new Uint8Array(buf))]
+    const [key, name, fetch_bytes]:[string, string, () => Promise<Uint8Array>] =
+        bg.kind === 'builtin'
+            ? [bg.id, bg.id,
+                () => fetch(asset_path(ASSETS_PREFIX, BACKGROUNDS_DIR, bg.id))
+                    .then(res => res.arrayBuffer()).then(buf => new Uint8Array(buf))]
+            : [bg.hash, bg.path,
+                () => getBytes(storage_ref(firebase_storage, bg.path))
+                    .then(buf => new Uint8Array(buf))]
     let bytes = bg_cache.get(key)
     if (!bytes){
         bytes = fetch_bytes()
@@ -264,7 +274,17 @@ export async function load_cover_bg(cover:CoverConfig)
         // Don't cache failures — a later call should retry the download
         bytes.catch(() => bg_cache.delete(key))
     }
-    return {data: await bytes, type: BG_EXT_MIME[ext] ?? 'image/jpeg'}
+    return {data: await bytes, type: bg_mime_for(name)}
+}
+
+
+export async function load_bg_suggestion(path:string):Promise<File> {
+    // Fetch a suggested background's bytes for the cover editor, as the File the widget's own
+    // upload path expects. Named by its content-addressed basename: the widget hands the File
+    // straight back byte-for-byte (a guarantee of the embed protocol, which handle_finished's
+    // hash check depends on), so the name is display and extension sugar only
+    const bytes = await getBytes(storage_ref(firebase_storage, path))
+    return new File([bytes], asset_basename(path), {type: bg_mime_for(path)})
 }
 
 
@@ -275,13 +295,13 @@ export async function hash_bytes(bytes:Uint8Array):Promise<string> {
 }
 
 
-// Upload a cover bg image to the user's library, content-addressed so re-saving a design with
-// an unchanged image is idempotent. Returns the Storage path + hash to store on the blueprint
-export async function upload_cover_bg(bytes:Uint8Array, mime:string)
+// Upload a cover bg image into the design's own asset prefix, content-addressed so re-saving a
+// design with an unchanged image is idempotent. Returns the Storage path + hash for the blueprint
+export async function upload_cover_bg(design_id:string, bytes:Uint8Array, mime:string)
         :Promise<{path:string, hash:string}> {
     const hash = await hash_bytes(bytes)
     const ext = BG_MIME_EXT[mime] ?? 'jpg'
-    const path = `user_cover_images/${user.value!.uid}/${hash}.${ext}`
+    const path = `${design_assets_prefix(design_id)}${hash}.${ext}`
     await uploadBytes(storage_ref(firebase_storage, path), bytes, {contentType: mime})
     // Pre-warm the download cache — the bytes are already in hand
     bg_cache.set(hash, Promise.resolve(bytes))
@@ -289,11 +309,21 @@ export async function upload_cover_bg(bytes:Uint8Array, mime:string)
 }
 
 
+// Bring a cover background that lives in a version's snapshot prefix back into a live design —
+// the inverse of plan_version_cover() below, for when a frozen blueprint becomes an editable
+// design again (see version_assets.ts). A pure path swap; the returned copy job moves the bytes
+export function plan_cover_bg_into_design(path:string, design_id:string)
+        :{path:string, copy:AssetCopy} {
+    const moved = to_design_asset(path, design_id)
+    return {path: moved, copy: {from: path, to: moved, content_type: bg_mime_for(moved)}}
+}
+
+
 // Render a blueprint's cover via the worker, with a small bounded cache keyed by everything
 // that affects the output (resolved form incl. size fields, bg image, font set, output format)
-// — so book-only edits reuse a previous render untouched. Bounded (rather than the single slot
-// this used to be) because the wizard now keeps several preview variants (photo/pattern/icon)
-// warm simultaneously alongside the one real active cover. The worker always splits the
+// — so book-only edits reuse a previous render untouched. It holds several entries because the
+// wizard keeps its preview variants (photo/pattern/icon) warm simultaneously alongside the one
+// real active cover, and bounds them because each is a full render. The worker always splits the
 // wraparound render into its individual panels too (cheap post-process, not a second compile),
 // so one render serves both the full cover (the preview and stored versions) and the front-only
 // panel (the wizard's cover-selection previews).
@@ -413,7 +443,7 @@ export function default_cover_preset(blueprint:Blueprint):Record<string, unknown
     // of whatever bookcover's default happens to be; it's a normal form field afterwards (the
     // user can change it in the cover editor, and it doesn't follow later page-size changes)
     const trim = resolve_reading_trim(blueprint)
-    if (convert_unit(trim.width, trim.unit, 'in') < 5.5){
+    if (convert_unit(trim.width, trim.unit, 'inch') < 5.5){
         form['margin_back'] = 3
     }
 
@@ -510,13 +540,12 @@ async function get_bg_regions(id:string):Promise<ImageRegions> {
     let cached = bg_regions_cache.get(id)
     if (!cached){
         cached = (async () => {
-            const ext = id.slice(id.lastIndexOf('.') + 1).toLowerCase()
             const url = asset_path(ASSETS_PREFIX, BACKGROUNDS_DIR, id)
             const data = new Uint8Array(await (await fetch(url)).arrayBuffer())
             const client = get_cover_generator()
             await generator_ready
             return await client.send({action: 'analyze_regions',
-                image: {data, type: BG_EXT_MIME[ext] ?? 'image/jpeg', name: id}}) as ImageRegions
+                image: {data, type: bg_mime_for(id), name: id}}) as ImageRegions
         })()
         bg_regions_cache.set(id, cached)
         // Don't cache failures — a later call should retry
@@ -540,13 +569,12 @@ export async function render_wizard_cover_preview(kind:CoverPreset, blueprint:Bl
     let image_override:{data:Uint8Array, type:string, name:string}|undefined
     let image_regions:ImageRegions|undefined
     if (bg_image_id){
-        const ext = bg_image_id.slice(bg_image_id.lastIndexOf('.') + 1).toLowerCase()
         const thumb_url = asset_path(ASSETS_PREFIX, BACKGROUNDS_DIR, 'previews', bg_image_id)
         const [thumb_bytes, regions] = await Promise.all([
             fetch(thumb_url).then(res => res.arrayBuffer()).then(buf => new Uint8Array(buf)),
             get_bg_regions(bg_image_id),
         ])
-        image_override = {data: thumb_bytes, type: BG_EXT_MIME[ext] ?? 'image/jpeg', name: bg_image_id}
+        image_override = {data: thumb_bytes, type: bg_mime_for(bg_image_id), name: bg_image_id}
         image_regions = regions
     }
     const result = await render_cover({...blueprint, cover}, page_count_guess(), undefined,
@@ -561,24 +589,22 @@ export async function render_wizard_cover_preview(kind:CoverPreset, blueprint:Bl
 // an immutable, publicly-hosted asset already, referenced by id rather than any mutable path.
 // Returns the CoverConfig to freeze on the version doc plus the upload to send once the doc
 // exists (Storage rules require that ordering)
-export async function plan_version_cover(version_id:string, blueprint:Blueprint)
-        :Promise<{frozen:CoverConfig|null, uploads:[string, Uint8Array, string][]}> {
+export function plan_version_cover(design_id:string, blueprint:Blueprint)
+        :{frozen:CoverConfig|null, copies:AssetCopy[]} {
     const cover = blueprint.cover
     if (!cover){
-        return {frozen: null, uploads: []}
+        return {frozen: null, copies: []}
     }
     const frozen = cloneDeep(toRaw(cover))
+    // A builtin background is already durably hosted in the public assets bucket, so it's kept
+    // as a reference rather than snapshotted
     if (!cover.bg_image || cover.bg_image.kind === 'builtin'){
-        return {frozen, uploads: []}
+        return {frozen, copies: []}
     }
-    const image = await load_cover_bg(cover)
-    if (!image){
-        return {frozen, uploads: []}
-    }
-    const ext = cover.bg_image.path.slice(cover.bg_image.path.lastIndexOf('.') + 1)
-    const path = `versions/${version_id}/cover/bg.${ext}`
+    const path = to_version_asset(cover.bg_image.path, design_id)
     frozen.bg_image = {kind: 'custom', path, hash: cover.bg_image.hash}
-    return {frozen, uploads: [[path, image.data, image.type]]}
+    return {frozen, copies: [{from: cover.bg_image.path, to: path,
+        content_type: bg_mime_for(path)}]}
 }
 
 

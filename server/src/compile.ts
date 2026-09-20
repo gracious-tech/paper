@@ -5,14 +5,15 @@ import {mkdtemp, writeFile, readFile, rm} from 'node:fs/promises'
 
 import {Timestamp} from 'firebase-admin/firestore'
 import {PDFDocument} from 'pdf-lib'
-import {PDF_LIFETIME_MS, COMPILE_STATS_LIFETIME_MS, cover_form_for_render,
-    is_builtin_background, doc_has_copyright, replace_copyright_marker,
-    gen_copyright_typst} from 'paper-bible-typst'
+import {PDF_LIFETIME_MS, COMPILE_STATS_LIFETIME_MS, COMPILE_QUOTA_LIFETIME_MS,
+    cover_form_for_render, is_builtin_background, is_fetchable_image_url, doc_has_copyright,
+    replace_copyright_marker, gen_copyright_typst, version_assets_prefix} from 'paper-bible-typst'
 import {compile_pdf_from_blueprint} from 'paper-bible-typst-node'
 import {generate as generate_cover, build_schema} from 'bookcover-node'
 
 import {admin_db, admin_bucket} from './firebase.ts'
 import {config} from './config.ts'
+import {collect_image_urls} from './assets.ts'
 import {shared_content} from './content.ts'
 import {save_error, generate_error_id} from './errors.ts'
 
@@ -41,7 +42,12 @@ async function compile_quota_allows(uid:string):Promise<boolean>{
         if (count > DAILY_COMPILE_LIMIT){
             return false
         }
-        txn.set(doc_ref, {day, count})
+        // A row is meaningless the moment its day is over, so it carries an expiry for the
+        // Firestore TTL policy to collect (see .bin/setup_firebase) — otherwise the collection
+        // would keep one permanent row per uid that ever reached the server fallback. Pushed
+        // out well past the day itself so an in-progress window is never swept mid-use
+        txn.set(doc_ref, {day, count,
+            expires: Timestamp.fromMillis(Date.now() + COMPILE_QUOTA_LIFETIME_MS)})
         return true
     })
 }
@@ -179,16 +185,19 @@ export async function handle_compile(uid:string, version_id:string, client_ip:st
     // fields are client-written, and trusting them would let a crafted doc make the Admin SDK
     // read/overwrite arbitrary bucket objects
     const pdf_path = `versions/${version_id}/doc.pdf`
-    const fonts_prefix = `versions/${version_id}/fonts/`
+    // Snapshots live under the parent *design*, shared by all its versions — design_id is
+    // pinned at create by the rules and immutable thereafter, so it can only name a design the
+    // writer could already edit
+    const assets_prefix = version_assets_prefix(data['design_id'] as string)
     const fonts_meta = (data['custom_fonts'] ?? []) as
         {family:string, style:'serif'|'sans', files:string[]}[]
-    if (fonts_meta.some(meta => meta.files.some(path => !path.startsWith(fonts_prefix)))){
+    if (fonts_meta.some(meta => meta.files.some(path => !path.startsWith(assets_prefix)))){
         return {status: 400, body: {error: 'bad_font_path'}}
     }
 
     // The cover's bg image reference lives inside the client-written blueprint, so it gets
     // the same distrust as font paths (including its type, since nothing validates the doc's
-    // shape server-side): a 'custom' snapshot must sit under the version's own prefix, a
+    // shape server-side): a 'custom' snapshot must sit under the design's version prefix, a
     // 'builtin' id must be one of the known assets-bucket filenames — required since it's
     // used to build a filesystem path against the assets mount (render_cover() above)
     const blueprint = data['blueprint'] as Blueprint
@@ -200,7 +209,7 @@ export async function handle_compile(uid:string, version_id:string, client_ip:st
         const rec = bg_image as Record<string, unknown>
         if (rec['kind'] === 'custom'){
             const p = rec['path']
-            if (typeof p !== 'string' || !p.startsWith(`versions/${version_id}/cover/`)){
+            if (typeof p !== 'string' || !p.startsWith(assets_prefix)){
                 return {status: 400, body: {error: 'bad_cover_path'}}
             }
         } else if (rec['kind'] === 'builtin'){
@@ -210,6 +219,17 @@ export async function handle_compile(uid:string, version_id:string, client_ip:st
             }
         } else {
             return {status: 400, body: {error: 'bad_cover_image'}}
+        }
+    }
+
+    // Passage images are fetched by url at render time (see image_cache.ts), and the content
+    // list is client-written like everything else on the doc — so every url gets checked here
+    // before the compile runs. Without this the compile service would fetch whatever address a
+    // crafted version doc named, including ones on its own network. The browser path needs no
+    // equivalent: there the fetch happens under the page's own origin policy
+    for (const url of collect_image_urls(blueprint)){
+        if (!is_fetchable_image_url(url, config.dev)){
+            return {status: 400, body: {error: 'bad_image_url'}}
         }
     }
 

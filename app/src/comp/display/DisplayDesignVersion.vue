@@ -283,8 +283,8 @@ watch(selected_version, version => {
             // Advance the shared clock so `stuck` re-evaluates
             now.value = Date.now()
 
-            // Count from the current compile attempt (a regen/retry re-stamps compile_started),
-            // falling back to creation for older versions that predate the field
+            // Count from the current compile attempt, not the version's age — a regen or retry
+            // re-stamps compile_started (see version_stuck)
             const started = version.compile_started ?? version.created
             const diff = (new Date().getTime() - started.getTime()) / 1000
             const minutes = Math.floor(diff / 60).toString()

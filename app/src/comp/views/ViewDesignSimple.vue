@@ -52,7 +52,7 @@ const {t} = useI18n()
 
 
 const type_summary = computed(() => {
-    const type = design_wizard.draft?.type
+    const type = design_wizard.wizard_draft?.type
     return type ? wizard_type_label(type, t).label : ''
 })
 
@@ -118,7 +118,7 @@ const cover_summary = computed(() => {
     if (title){
         return title
     }
-    const cover = design_wizard.draft?.cover
+    const cover = design_wizard.wizard_draft?.cover
     return cover ? wizard_cover_label(cover, t) : ''
 })
 

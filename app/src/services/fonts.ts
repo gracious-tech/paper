@@ -3,11 +3,15 @@ import {computed, type ComputedRef} from 'vue'
 
 import {content} from './content'
 import {custom_fonts} from './custom_fonts'
+import {font_suggestions} from './asset_suggestions'
+import {translate} from './i18n'
 
 
-// A v-select item: a font family name, a subheader, or (font_items_with_auto only) the
-// "Auto" entry
-export type FontItem = string | {type:'subheader', title:string} | {title:string, value:null}
+// A v-select item: a font family name (rendered as its own preview), a subheader, or an entry
+// that is named but can't preview itself — the "Auto" option, and families from the user's
+// other designs, whose files aren't loaded in this browser
+export type FontItem = string | {type:'subheader', title:string}
+    | {title:string, value:string|null}
 
 
 // Shown in a font picker item when no real example text is available yet
@@ -48,9 +52,21 @@ export const font_items = computed(():FontItem[] => {
     }
 
     if (custom_fonts.length){
-        items.push({type: 'subheader', title: "Uploaded"})
+        items.push({type: 'subheader', title: translate('svc.fonts.uploaded')})
         for (const font of custom_fonts){
             items.push(font.family)
+        }
+    }
+
+    // Families the user's other designs hold. Fonts belong to a design, so these aren't usable
+    // here yet — picking one copies it in (see AppFontSelect). Listed by name only: their files
+    // aren't loaded in this browser, and fetching every font of every design just to populate a
+    // dropdown would be far more than the preview is worth. Once adopted it previews normally
+    const elsewhere = font_suggestions.value.filter(font => !custom_names.has(font.family))
+    if (elsewhere.length){
+        items.push({type: 'subheader', title: translate('svc.fonts.other_designs')})
+        for (const font of elsewhere){
+            items.push({title: font.family, value: font.family})
         }
     }
 

@@ -86,8 +86,8 @@ const is_owner = computed(() => {
 })
 
 
-// Live share-invite token for this design (null only for designs created before sharing was
-// always-on; backfilled below rather than shown as a disabled state)
+// Live share-invite token for this design — every design is created with one, so the null
+// here only covers a doc that somehow lost it (issue a fresh one rather than dead-ending)
 const share_token = computed(() => {
     return designs.find(item => item.id === props.id)?.share_token ?? null
 })
@@ -107,8 +107,8 @@ const editors = ref([] as DesignEditorInfo[])
 const loading_editors = ref(false)
 
 
-// Sharing is always on — generate a link immediately for any design that predates this. Also
-// (re)fetch the participant list every time the dialog opens
+// Sharing is always on, so a design without a link gets one immediately rather than showing
+// the owner a dead dialog. Also (re)fetch the participant list every time the dialog opens
 watch(() => props.modelValue, async open => {
     if (!open || is_anonymous.value){
         return

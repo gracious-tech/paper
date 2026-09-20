@@ -1,114 +1,201 @@
 
 // Store of user-uploaded custom fonts (not in the curated typst-fonts manifest). Parsing/
 // grouping logic itself lives in typst-fonts' process_font_files (shared with other apps) —
-// this module is just the thin Vue-reactive wrapper + browser File reading paper.bible needs
+// this module is the thin Vue-reactive wrapper + browser File reading paper.bible needs.
+//
+// Fonts belong to a design, not to an account: the bytes live under the design's own asset
+// prefix and the design doc carries a `fonts` map naming them. So `custom_fonts` below is the
+// *open design's* font set, refilled whenever a different design is opened — which is what
+// lets an unused font actually be reclaimed (see design_assets.ts). Reuse across designs is
+// offered as suggestions that copy the bytes into the design that wants them.
 
 import {reactive} from 'vue'
 
-import {collection, doc, getDocs, setDoc} from 'firebase/firestore'
+import {doc, updateDoc, FieldPath, deleteField} from 'firebase/firestore'
 import {ref as storage_ref, uploadBytes, getBytes} from 'firebase/storage'
 import {process_font_files} from 'typst-fonts'
 import {register_custom_font_preview} from 'typst-fonts/web'
+import {design_assets_prefix, to_version_asset} from 'paper-bible-typst'
 
 import {firestore, firebase_storage} from '@/services/firebase'
-import {user} from '@/services/auth'
 import {typst_generator} from '@/services/typst'
+import {hash_bytes} from '@/services/cover'
+import {request_reconcile} from '@/services/design_assets'
 import {generate_token} from '@/services/utils'
-import {report_error} from '@/services/errors'
 
+import type {StoredFontMeta} from 'paper-bible-typst'
+import type {AssetCopy} from '@/services/design_assets'
 import type {CustomFont, FontStyle} from 'typst-fonts'
 import type {Blueprint} from '@/services/types'
 
-
-// Storage-path metadata for a persisted custom font (library docs + version snapshots)
-export interface StoredFontMeta {
-    family:string
-    style:FontStyle
-    files:string[]  // Storage object paths
-}
+export type {StoredFontMeta}
 
 
-// Reactive list of uploaded font families, shared by the font pickers and the PDF generator
-// (the generator's worker holds a copy, so every upload re-sends the set — see below)
+// Reactive list of the open design's uploaded font families, shared by the font pickers and
+// the PDF generator (the generator's worker holds a copy, so every change re-sends the set)
 export const custom_fonts:CustomFont[] = reactive([])
 
 
+// The same set as it's recorded on the design doc, keyed by font id — kept alongside the bytes
+// above so a family can be found and dropped by id, and so freezing a version knows the
+// Storage paths without re-deriving them
+export const design_font_meta = reactive({} as Record<string, StoredFontMeta>)
+
+
+export function clear_design_fonts():void {
+    // Drop the open design's fonts, ready for another design's to load
+    custom_fonts.splice(0, custom_fonts.length)
+    for (const key of Object.keys(design_font_meta)){
+        delete design_font_meta[key]
+    }
+}
+
+
+async function push_to_worker():Promise<void> {
+    // Re-send the font set to the generator's worker (it holds a copy, not our array
+    // reference). If the worker isn't ready yet, init.ts sends the set once it is
+    if (typst_generator.value){
+        await typst_generator.value.set_custom_fonts(custom_fonts)
+    }
+}
+
+
+export async function load_design_fonts(meta:Record<string, StoredFontMeta>):Promise<void> {
+    // Mirror the open design's `fonts` map into the reactive set, downloading the bytes of any
+    // family that has appeared and dropping any that has gone. Diffed rather than rebuilt so a
+    // co-editor's unrelated change doesn't re-download everything — and so the bytes of a font
+    // this client just uploaded are never thrown away and fetched back
+    const wanted = new Set(Object.keys(meta))
+    for (const id of Object.keys(design_font_meta)){
+        if (!wanted.has(id)){
+            const family = design_font_meta[id]!.family
+            delete design_font_meta[id]
+            const index = custom_fonts.findIndex(font => font.family === family)
+            if (index !== -1){
+                custom_fonts.splice(index, 1)
+            }
+        }
+    }
+    const added:CustomFont[] = []
+    for (const [id, entry] of Object.entries(meta)){
+        if (id in design_font_meta){
+            continue
+        }
+        design_font_meta[id] = entry
+        const font = await load_font_from_meta(entry)
+        custom_fonts.push(font)
+        added.push(font)
+    }
+    for (const font of added){
+        await register_custom_font_preview(font)
+    }
+    await push_to_worker()
+}
+
+
 // Read uploaded files (individual .ttf/.otf, or .zip archives), register any new families for
-// preview + generation, and return the newly-added family names (skips names already uploaded)
-export async function upload_custom_fonts(files:File[]):Promise<string[]> {
+// preview + generation, and return the newly-added family names
+export async function upload_custom_fonts(design_id:string, files:File[]):Promise<string[]> {
     const inputs = await Promise.all(files.map(async file => ({
         name: file.name,
         data: new Uint8Array(await file.arrayBuffer()),
     })))
-    return add_custom_fonts(process_font_files(inputs))
+    return add_design_fonts(design_id, process_font_files(inputs))
 }
 
 
-// Add already-parsed font families to the library (used by the upload flow above, and for
+// Add already-parsed font families to the open design (used by the upload flow above, and for
 // fonts uploaded inside the embedded cover editor, which arrive pre-parsed as CustomFont[]).
-// Registers new families for preview + generation, persists them, and returns their names
-export async function add_custom_fonts(fonts:CustomFont[]):Promise<string[]> {
-    const existing = new Set(custom_fonts.map(f => f.family))
+// Uploads the bytes, records them on the design doc, and returns the family names added.
+//
+// NOTE The reactive set is updated here rather than left to the design snapshot to refill.
+// DialogCoverEditor adds the widget's fonts and then immediately computes
+// cover_font_families(), which intersects the form's families with `custom_fonts` — anything
+// missing at that moment is silently dropped from the cover. The doc write is awaited first,
+// so load_design_fonts()'s "drop what the doc no longer has" pass can't race these away
+export async function add_design_fonts(design_id:string, fonts:CustomFont[]):Promise<string[]> {
     const added:string[] = []
-    for (const font of fonts) {
-        if (existing.has(font.family))
-            continue
-        custom_fonts.push(font)
-        existing.add(font.family)
+    const updates:unknown[] = []
+    const entries:[string, StoredFontMeta][] = []
+
+    for (const font of fonts){
+        // A family the design already has is *replaced*, not skipped — re-uploading is how a
+        // user fixes a wrong or incomplete file, and silently keeping the old one looks broken.
+        // The superseded bytes are reclaimed by the reconcile at the end
+        const existing = Object.entries(design_font_meta)
+            .find(([, entry]) => entry.family === font.family)
+        if (existing){
+            updates.push(new FieldPath('fonts', existing[0]), deleteField())
+        }
+
+        const font_id = generate_token()
+        const files:string[] = []
+        for (const bytes of font.files){
+            const path = `${design_assets_prefix(design_id)}${await hash_bytes(bytes)}.bin`
+            await uploadBytes(storage_ref(firebase_storage, path), bytes)
+            files.push(path)
+        }
+        const entry:StoredFontMeta = {family: font.family, style: font.style, files}
+        updates.push(new FieldPath('fonts', font_id), entry)
+        entries.push([font_id, entry])
         added.push(font.family)
+    }
+
+    if (!updates.length){
+        return []
+    }
+    await updateDoc(doc(firestore, 'designs', design_id),
+        updates[0] as FieldPath, updates[1], ...updates.slice(2))
+
+    // Now the doc says so, mirror it locally rather than waiting for the snapshot
+    for (const [font_id, entry] of entries){
+        const stale = Object.entries(design_font_meta)
+            .find(([id, item]) => id !== font_id && item.family === entry.family)
+        if (stale){
+            delete design_font_meta[stale[0]]
+        }
+        design_font_meta[font_id] = entry
+    }
+    for (const font of fonts){
+        const index = custom_fonts.findIndex(item => item.family === font.family)
+        if (index === -1){
+            custom_fonts.push(font)
+        } else {
+            custom_fonts.splice(index, 1, font)
+        }
         await register_custom_font_preview(font)
     }
-
-    // Push the updated font set to the generator's worker (it holds a copy, not our array
-    // reference). If the worker isn't ready yet, init.ts sends the set once it is.
-    if (added.length && typst_generator.value){
-        await typst_generator.value.set_custom_fonts(custom_fonts)
-    }
-
-    // Persist new families to the user's online library (best effort — uploads still usable
-    // this session even if persistence fails)
-    for (const font of fonts){
-        if (added.includes(font.family)){
-            void persist_font(font).catch((error:unknown) => {
-                report_error('banner', error)
-            })
-        }
-    }
+    await push_to_worker()
+    request_reconcile(design_id)
 
     return added
 }
 
 
-// Save one font family to the user's library (bytes in Storage + metadata doc)
-async function persist_font(font:CustomFont):Promise<void> {
-    const uid = user.value!.uid
-    const font_id = generate_token()
-    const paths:string[] = []
-    for (const [i, bytes] of font.files.entries()){
-        const path = `user_fonts/${uid}/${font_id}/${i}.bin`
-        await uploadBytes(storage_ref(firebase_storage, path), bytes)
-        paths.push(path)
+// Remove an uploaded font family from the design. Only the doc entry goes — the bytes are
+// reclaimed by the server, which re-reads the design so a co-editor who started using the same
+// family in the meantime doesn't lose it. Already-created versions are untouched: each froze
+// its own snapshot, so their PDFs still regenerate exactly as rendered. The design itself falls
+// back to a default font at its next compile if it still names the family
+export async function remove_design_font(design_id:string, family:string):Promise<void> {
+    const ids = Object.entries(design_font_meta)
+        .filter(([, entry]) => entry.family === family)
+        .map(([id]) => id)
+    if (!ids.length){
+        return
     }
-    await setDoc(doc(firestore, 'users', uid, 'fonts', font_id),
-        {family: font.family, style: font.style, files: paths})
-}
-
-
-// Load the user's font library from online storage into the reactive set (called at boot and
-// after switching accounts)
-export async function restore_custom_fonts():Promise<void> {
-    const uid = user.value!.uid
-    const snap = await getDocs(collection(firestore, 'users', uid, 'fonts'))
-    const restored = await Promise.all(snap.docs.map(
-        item => load_font_from_meta(item.data() as StoredFontMeta)))
-
-    custom_fonts.splice(0, custom_fonts.length, ...restored)
-    for (const font of restored){
-        await register_custom_font_preview(font)
+    const updates = ids.flatMap(id => [new FieldPath('fonts', id), deleteField()])
+    await updateDoc(doc(firestore, 'designs', design_id),
+        updates[0] as FieldPath, updates[1], ...updates.slice(2))
+    for (const id of ids){
+        delete design_font_meta[id]
     }
-    if (typst_generator.value){
-        await typst_generator.value.set_custom_fonts(custom_fonts)
+    const index = custom_fonts.findIndex(font => font.family === family)
+    if (index !== -1){
+        custom_fonts.splice(index, 1)
     }
+    await push_to_worker()
+    request_reconcile(design_id)
 }
 
 
@@ -133,30 +220,27 @@ export function fonts_for_blueprint(blueprint:Blueprint):CustomFont[] {
 }
 
 
-// Snapshot the custom fonts a version depends on into its own immutable Storage paths, so
-// regeneration (by the owner or a copy recipient) never depends on the user's mutable library.
-// Returns the metadata to freeze on the version doc; upload_version_fonts() sends the bytes
-// (only allowed after the version doc exists, per Storage rules).
-export function plan_version_fonts(version_id:string, blueprint:Blueprint)
-        :{meta:StoredFontMeta[], uploads:[string, Uint8Array][]} {
+// Snapshot the custom fonts a version depends on into the design's append-only version_assets
+// prefix, so regeneration never depends on what the live design still references. Returns the
+// metadata to freeze on the version doc plus the copy jobs that put the bytes there — which
+// are usually no-ops, since a re-render of unchanged content finds them already in place
+export function plan_version_fonts(design_id:string, blueprint:Blueprint)
+        :{meta:StoredFontMeta[], copies:AssetCopy[]} {
     const meta:StoredFontMeta[] = []
-    const uploads:[string, Uint8Array][] = []
-    for (const [f, font] of fonts_for_blueprint(blueprint).entries()){
-        const paths:string[] = []
-        for (const [i, bytes] of font.files.entries()){
-            const path = `versions/${version_id}/fonts/${f}_${i}.bin`
-            paths.push(path)
-            uploads.push([path, bytes])
+    const copies:AssetCopy[] = []
+    for (const font of fonts_for_blueprint(blueprint)){
+        const entry = Object.values(design_font_meta).find(item => item.family === font.family)
+        if (!entry){
+            continue
         }
-        meta.push({family: font.family, style: font.style, files: paths})
+        const files = entry.files.map(path => to_version_asset(path, design_id))
+        for (const [i, path] of files.entries()){
+            copies.push({from: entry.files[i]!, to: path,
+                content_type: 'application/octet-stream'})
+        }
+        meta.push({family: font.family, style: font.style, files})
     }
-    return {meta, uploads}
-}
-
-export async function upload_version_fonts(uploads:[string, Uint8Array][]):Promise<void> {
-    for (const [path, bytes] of uploads){
-        await uploadBytes(storage_ref(firebase_storage, path), bytes)
-    }
+    return {meta, copies}
 }
 
 

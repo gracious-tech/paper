@@ -10,6 +10,9 @@ import {handle_compile} from './compile.ts'
 import {handle_design_invite_preview, handle_redeem_design_invite, handle_design_editors,
     handle_copy_version} from './share.ts'
 import {handle_merge} from './merge.ts'
+import {handle_touch_assets, handle_reconcile_assets} from './assets.ts'
+import {handle_delete_design, handle_delete_version, handle_duplicate_design}
+    from './designs.ts'
 
 
 // The API server — reached via Firebase Hosting's /api/** rewrite in production and Vite's
@@ -127,6 +130,80 @@ if (config.roles.includes('light')){
             return context.json({error: 'bad_request'}, 400)
         }
         const result = await handle_copy_version(uid, body.version_id)
+        return context.json(result.body, result.status as 200)
+    })
+
+    // Mark a design's uploaded fonts/images as still in use (GCS customTime). Fire-and-forget
+    // from the client when a design is opened — see handle_touch_assets for why it exists
+    app.post('/api/touch_assets', async context => {
+        const uid = await verify_uid(context.req.header('Authorization'))
+        if (!uid){
+            return context.json({error: 'unauthenticated'}, 401)
+        }
+        const body = await context.req.json().catch(() => null) as {design_id?:unknown}|null
+        if (typeof body?.design_id !== 'string'){
+            return context.json({error: 'bad_request'}, 400)
+        }
+        const result = await handle_touch_assets(uid, body.design_id)
+        return context.json(result.body, result.status as 200)
+    })
+
+    // Reclaim the uploads a design no longer references. The server re-reads the design so
+    // it sees co-editors' concurrent edits, which is why this can't be done client-side
+    app.post('/api/reconcile_design_assets', async context => {
+        const uid = await verify_uid(context.req.header('Authorization'))
+        if (!uid){
+            return context.json({error: 'unauthenticated'}, 401)
+        }
+        const body = await context.req.json().catch(() => null) as {design_id?:unknown}|null
+        if (typeof body?.design_id !== 'string'){
+            return context.json({error: 'bad_request'}, 400)
+        }
+        const result = await handle_reconcile_assets(uid, body.design_id)
+        return context.json(result.body, result.status as 200)
+    })
+
+    // Delete a design, its whole render history and every object they own. Server-side
+    // because clients can't delete Storage objects, nor co-editors' version docs
+    app.post('/api/delete_design', async context => {
+        const uid = await verify_uid(context.req.header('Authorization'))
+        if (!uid){
+            return context.json({error: 'unauthenticated'}, 401)
+        }
+        const body = await context.req.json().catch(() => null) as {design_id?:unknown}|null
+        if (typeof body?.design_id !== 'string'){
+            return context.json({error: 'bad_request'}, 400)
+        }
+        const result = await handle_delete_design(uid, body.design_id)
+        return context.json(result.body, result.status as 200)
+    })
+
+    // Delete a single version: its doc, its PDFs, and any snapshot no sibling still needs
+    app.post('/api/delete_version', async context => {
+        const uid = await verify_uid(context.req.header('Authorization'))
+        if (!uid){
+            return context.json({error: 'unauthenticated'}, 401)
+        }
+        const body = await context.req.json().catch(() => null) as {version_id?:unknown}|null
+        if (typeof body?.version_id !== 'string'){
+            return context.json({error: 'bad_request'}, 400)
+        }
+        const result = await handle_delete_version(uid, body.version_id)
+        return context.json(result.body, result.status as 200)
+    })
+
+    // Copy a design's live content into a new design of the caller's own. Server-side so the
+    // asset copies happen inside the bucket rather than through the client
+    app.post('/api/duplicate_design', async context => {
+        const uid = await verify_uid(context.req.header('Authorization'))
+        if (!uid){
+            return context.json({error: 'unauthenticated'}, 401)
+        }
+        const body = await context.req.json().catch(() => null) as {design_id?:unknown}|null
+        if (typeof body?.design_id !== 'string'){
+            return context.json({error: 'bad_request'}, 400)
+        }
+        const result = await handle_duplicate_design(uid, body.design_id)
         return context.json(result.body, result.status as 200)
     })
 

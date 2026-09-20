@@ -14,14 +14,10 @@ service cloud.firestore {
             return request.auth != null;
         }
 
-        // User profiles, their custom font library, and their viewed-designs history (all
-        // owner only)
+        // User profiles and their viewed-designs history (owner only). Uploaded fonts are
+        // *not* here — they belong to the design that uses them (see asset_paths.ts)
         match /users/{uid} {
             allow read, write: if signed_in() && request.auth.uid == uid;
-
-            match /fonts/{font_id} {
-                allow read, write: if signed_in() && request.auth.uid == uid;
-            }
 
             match /viewed/{design_id} {
                 allow read, write: if signed_in() && request.auth.uid == uid;
@@ -46,11 +42,14 @@ service cloud.firestore {
                     || !request.resource.data.diff(resource.data).affectedKeys()
                         .hasAny(['editor_uids', 'editors', 'share_token', 'owner']));
 
-            // Only the owner may delete
-            allow delete: if signed_in() && request.auth.uid == resource.data.owner;
+            // Deleting is server-mediated (/api/delete_design): it has to remove Storage
+            // objects clients can't touch, and versions belonging to other editors
+            allow delete: if false;
         }
 
-        // Versions (immutable rendered snapshots, nested under the design they came from)
+        // Versions (immutable rendered snapshots). A flat collection with a design_id FK, not
+        // a subcollection of designs — they need public-read-by-id ACLs of their own, which a
+        // subcollection could only express by resolving the parent's ownership with a get()
         match /versions/{version_id} {
 
             // Only editors of the parent design may attach versions to it, and lifecycle fields
@@ -79,10 +78,12 @@ service cloud.firestore {
             allow update: if signed_in() && request.auth.uid == resource.data.owner
                 && !request.resource.data.diff(resource.data).affectedKeys()
                     .hasAny(['blueprint', 'owner', 'created', 'design_id', 'copied_from',
-                        'custom_fonts', 'save_token', 'wizard', 'pdf_path', 'title',
-                        'cover_render_version']);
+                        'custom_fonts', 'save_token', 'wizard_draft', 'simple_mode',
+                        'pdf_path', 'title', 'cover_render_version']);
 
-            allow delete: if signed_in() && request.auth.uid == resource.data.owner;
+            // Server-mediated too (/api/delete_version) — the PDFs and any snapshot no
+            // sibling version still needs have to go with the doc
+            allow delete: if false;
         }
 
         // Compile performance telemetry — one row per interior compile attempt (browser or

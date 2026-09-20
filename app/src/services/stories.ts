@@ -146,7 +146,8 @@ export function story_to_slides(story:Story):PictureStorySlide[] {
         const image_id = verse.images[WILDBIBLE]![0]!
         slides.push({
             id: generate_token(),
-            image: {source: 'url', url: story_image_url(WILDBIBLE, image_id), path: null, hash: null},
+            image: {source: 'url', url: story_image_url(WILDBIBLE, image_id), path: null,
+                hash: null, original: null},
             mode: 'passage',
             book: story.book,
             start_chapter: range_start.chapter,

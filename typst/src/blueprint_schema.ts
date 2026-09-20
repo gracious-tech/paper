@@ -4,7 +4,7 @@ import {z} from 'zod'
 import type {PmDoc} from 'pm-to-typst'
 import {is_builtin_background} from './cover.js'
 
-import type {Blueprint, ContentItem, ContentPassageImage, CoverConfig,
+import type {Blueprint, ContentImageRef, ContentItem, ContentPassageImage, CoverConfig,
     PictureStorySlide} from './types.js'
 
 
@@ -23,10 +23,10 @@ const pm_doc_schema = z.custom<PmDoc>(value => {
 })
 
 
-// Decorative title page item. Per-field .catch() (rather than the wholesale item-drop that a bad
-// field would otherwise trigger, see clean_content_items below) tolerates old saved designs that
-// predate this field shape — a title item with no title_subtitle/title_icon at all still loads
-// with sensible blanks instead of vanishing entirely
+// Decorative title page item. Per-field .catch() rather than the wholesale item-drop a bad
+// field would otherwise trigger (see clean_content_items below): the subtitle and icon are
+// decoration, so an item that lost one still loads with a sensible blank rather than
+// disappearing from its author's own content list
 const content_title_schema = z.object({
     type: z.literal('title'),
     id: z.string().min(1),
@@ -36,23 +36,27 @@ const content_title_schema = z.object({
 }) satisfies z.ZodType<ContentItem>
 
 
-// A passage image (URL or user-uploaded, see ContentPassageImage) — per-field .catch() so an
-// old/malformed image config degrades to "no image" rather than dropping the whole passage
-const content_passage_image_schema = z.object({
+// A passage image (URL or user-uploaded, see ContentPassageImage) — per-field .catch() so a
+// malformed image config degrades to "no image" rather than dropping the whole passage
+const content_image_ref_schema = z.object({
     source: z.enum(['url', 'upload']).catch('url'),
     url: z.string().nullable().catch(null),
     path: z.string().nullable().catch(null),
     hash: z.string().nullable().catch(null),
+}) satisfies z.ZodType<ContentImageRef>
+const content_passage_image_schema = content_image_ref_schema.extend({
+    // A bad unmasked source costs the image its "undo the mask" path, not the image itself —
+    // dropping it here just means a duplicate/restore keeps the masked copy
+    original: content_image_ref_schema.nullable().catch(null),
 }) satisfies z.ZodType<ContentPassageImage>
 
 
 // Bible passage reference item. title/title_subtitle/title_icon use per-field .catch() for the
-// same reason as content_title_schema above — old saved designs have `title` as a boolean (the
-// pre-redesign "show heading" toggle) and no title_subtitle/title_icon at all; without .catch()
-// here, a type mismatch on any one field would drop the whole passage (book/chapters/verses
-// included), not just its title. title itself falls back to null (auto-generate from the
-// reference) rather than '' (explicitly no heading) — closer to that old toggle's default-on
-// meaning than an empty string would be
+// same reason as content_title_schema above, but the stakes are higher here: the heading is
+// decoration around a reference, so a type mismatch on any one of those fields must not drop
+// the whole passage (book/chapters/verses included) from its author's content list. title
+// falls back to null (auto-generate a heading from the reference) rather than '' (explicitly
+// no heading at all), since a passage silently losing its heading is the harder loss to spot
 const content_passage_schema = z.object({
     type: z.literal('passage'),
     id: z.string().min(1),
@@ -206,7 +210,6 @@ export function make_blueprint_schema(defaults:Blueprint):z.ZodType<Blueprint>{
         show_wj_italic: z.boolean().catch(defaults.show_wj_italic),
         show_lines: z.boolean().catch(defaults.show_lines),
         notes: z.string().nullable().catch(defaults.notes),
-        crossref: z.enum(['small', 'medium', 'large']).nullable().catch(defaults.crossref),
         half_blank: z.enum(['left', 'right']).nullable().catch(defaults.half_blank),
         passage_title: z.enum(['titlepage', 'heading']).nullable().catch(defaults.passage_title),
 
@@ -242,7 +245,7 @@ export function make_blueprint_schema(defaults:Blueprint):z.ZodType<Blueprint>{
         image_style: z.enum(['borderless', 'padded', 'painted', 'torn']).catch(defaults.image_style),
 
         // Spacing
-        margin_unit: z.enum(['mm', 'in']).catch(defaults.margin_unit),
+        margin_unit: z.enum(['mm', 'inch']).catch(defaults.margin_unit),
         margin_top: z.number().catch(defaults.margin_top),
         margin_bottom: z.number().catch(defaults.margin_bottom),
         margin_inner: z.number().catch(defaults.margin_inner),

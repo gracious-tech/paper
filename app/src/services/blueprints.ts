@@ -10,8 +10,8 @@ import {blue} from '@/services/state'
 
 import {count_phrase, translate} from '@/services/i18n'
 
-import type {Blueprint, ContentItem, ContentCustom, ContentPassage, ContentPictureStory}
-    from '@/services/types'
+import type {Blueprint, ContentItem, ContentCustom, ContentPassage, ContentPictureStory,
+    MeasureUnit} from '@/services/types'
 import type {Translate} from '@/services/i18n'
 
 
@@ -67,7 +67,6 @@ export function get_default_blueprint():Blueprint{
         show_wj_italic: false,
         show_lines: true,
         notes: null,
-        crossref: null,
         half_blank: null,
         passage_title: 'heading',
 
@@ -392,11 +391,17 @@ export function content_preview(items:ContentItem[], bible=blue.bibles[0]):strin
 }
 
 
+// Short label for a measurement unit as shown to the user — printing-services spells inches
+// "inch", which is too long to sit beside a number in a chip or a hint
+export function unit_label(unit:MeasureUnit):string{
+    return unit === 'mm' ? 'mm' : 'in'
+}
+
+
 // Format a size's dimensions for display, e.g. "152 × 229 mm" or "6 × 9 in"
-export function format_dims(width:number, height:number, unit:string):string{
-    const u = unit === 'mm' ? 'mm' : 'in'
-    const fmt = (v:number) => u === 'mm' ? String(Math.round(v)) : String(v)
-    return `${fmt(width)} × ${fmt(height)} ${u}`
+export function format_dims(width:number, height:number, unit:MeasureUnit):string{
+    const fmt = (v:number) => unit === 'mm' ? String(Math.round(v)) : String(v)
+    return `${fmt(width)} × ${fmt(height)} ${unit_label(unit)}`
 }
 
 
@@ -548,8 +553,9 @@ export function page_reduction_suggestions(blueprint:Blueprint, t:Translate):Pag
     // quotes the current largest margin, not all four. The floor stays at 10mm even for print
     // services: consumer printers can't image up to the sheet edge, and it's a safe stopping
     // point everywhere
-    const unit = blueprint.margin_unit
-    const [margin_comfortable, margin_floor] = unit === 'mm' ? [12, 10] : [0.5, 0.4]
+    const unit = unit_label(blueprint.margin_unit)
+    const [margin_comfortable, margin_floor] =
+        blueprint.margin_unit === 'mm' ? [12, 10] : [0.5, 0.4]
     const margin_max = Math.max(blueprint.margin_top, blueprint.margin_bottom,
         blueprint.margin_inner, blueprint.margin_outer)
     const margin_target = reduce_step(margin_max, margin_comfortable, margin_floor)

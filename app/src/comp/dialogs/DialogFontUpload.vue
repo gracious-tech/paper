@@ -52,6 +52,7 @@ import {ref} from 'vue'
 import {useI18n} from '@/services/i18n'
 
 import {upload_custom_fonts} from '@/services/custom_fonts'
+import {current_design_id} from '@/services/designs'
 import {use_is_mobile} from '@/services/display'
 
 import AppIcon from '@/comp/global/AppIcon.vue'
@@ -81,7 +82,7 @@ async function handle_files(files:File[]):Promise<void> {
     status.value = t("dialog.fonts.processing")
     status_error.value = false
     try {
-        const added = await upload_custom_fonts(files)
+        const added = await upload_custom_fonts(current_design_id.value!, files)
         if (added.length){
             emit('font-added', added[0]!)
             dialog.value = false

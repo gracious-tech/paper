@@ -1,62 +1,8 @@
 
 import {FieldPath, FieldValue} from 'firebase-admin/firestore'
 
-import {admin_auth, admin_db, admin_bucket} from './firebase.ts'
-
-
-// Firestore batches cap at 500 operations (and field transforms count extra), so stay well
-// under it per chunk — a guest with a large history must not fail the whole merge
-const BATCH_CHUNK_OPS = 250
-
-
-// A WriteBatch stand-in that transparently rotates to a new batch at the chunk limit and
-// commits them sequentially. Chunking trades the single batch's atomicity for unbounded size,
-// which is fine here — the merge only moves docs, so a partial failure just leaves some data
-// on the guest account for a retry to pick up
-class ChunkedBatch {
-
-    private batches:FirebaseFirestore.WriteBatch[] = []
-    private ops = 0
-
-    private next():FirebaseFirestore.WriteBatch{
-        // The batch currently being filled, rotating at the chunk limit
-        if (this.ops % BATCH_CHUNK_OPS === 0){
-            this.batches.push(admin_db.batch())
-        }
-        this.ops += 1
-        return this.batches[this.batches.length - 1]!
-    }
-
-    update(ref:FirebaseFirestore.DocumentReference,
-            ...args:[FirebaseFirestore.UpdateData<FirebaseFirestore.DocumentData>]
-                |[string|FieldPath, unknown, ...unknown[]]):void{
-        // Mirror WriteBatch.update (both the object and field/value forms)
-        (this.next().update as (ref:FirebaseFirestore.DocumentReference,
-            ...rest:unknown[]) => unknown)(ref, ...args)
-    }
-
-    set(ref:FirebaseFirestore.DocumentReference, data:FirebaseFirestore.DocumentData,
-            options?:FirebaseFirestore.SetOptions):void{
-        // Mirror WriteBatch.set
-        if (options){
-            this.next().set(ref, data, options)
-        } else {
-            this.next().set(ref, data)
-        }
-    }
-
-    delete(ref:FirebaseFirestore.DocumentReference):void{
-        // Mirror WriteBatch.delete
-        this.next().delete(ref)
-    }
-
-    async commit():Promise<void>{
-        // Commit all accumulated chunks in order
-        for (const batch of this.batches){
-            await batch.commit()
-        }
-    }
-}
+import {admin_auth, admin_db} from './firebase.ts'
+import {ChunkedBatch} from './batch.ts'
 
 
 export async function handle_merge(new_uid:string, anon_token:string)
@@ -112,21 +58,12 @@ export async function handle_merge(new_uid:string, anon_token:string)
         batch.update(snap.ref, {owner: new_uid})
     }
 
-    // User profile + custom font library docs
+    // User profile
     const profile = await admin_db.doc(`users/${anon_uid}`).get()
     if (profile.exists){
         batch.set(admin_db.doc(`users/${new_uid}`), profile.data() ?? {}, {merge: true})
         batch.delete(profile.ref)
     }
-    const fonts = await admin_db.collection(`users/${anon_uid}/fonts`).get()
-    for (const snap of fonts.docs){
-        const data = snap.data()
-        const files = ((data['files'] ?? []) as string[]).map(
-            path => path.replace(`user_fonts/${anon_uid}/`, `user_fonts/${new_uid}/`))
-        batch.set(admin_db.doc(`users/${new_uid}/fonts/${snap.id}`), {...data, files})
-        batch.delete(snap.ref)
-    }
-
     // Read-access "viewed" history
     const viewed = await admin_db.collection(`users/${anon_uid}/viewed`).get()
     for (const snap of viewed.docs){
@@ -136,13 +73,9 @@ export async function handle_merge(new_uid:string, anon_token:string)
 
     await batch.commit()
 
-    // Custom font files in Storage
-    const [font_files] = await admin_bucket.getFiles({prefix: `user_fonts/${anon_uid}/`})
-    for (const file of font_files){
-        await file.copy(admin_bucket.file(
-            file.name.replace(`user_fonts/${anon_uid}/`, `user_fonts/${new_uid}/`)))
-        await file.delete()
-    }
+    // NOTE Nothing moves in Storage. Uploaded assets are keyed by *design* id, not by uid
+    // (see asset_paths.ts), and a design keeps its id through a merge — so every path stays
+    // valid and no blueprint needs repointing
 
     // Retire the guest account
     await admin_auth.deleteUser(anon_uid)

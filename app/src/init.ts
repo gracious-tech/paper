@@ -36,11 +36,13 @@ import {i18n, load_locale, translate} from '@/services/i18n'
 import {show_toast} from '@/services/state'
 import {detect_locale} from '@/services/locale'
 import {router} from '@/services/router'
-import {ensure_signed_in, complete_email_link} from '@/services/auth'
+import {ensure_signed_in, is_email_link, stored_email_for_link, complete_email_link}
+    from '@/services/auth'
+import {finish_email_link} from '@/services/account'
 import {init_designs, start_design_sync, start_viewed_sync} from '@/services/designs'
 import {content, bible_content, load_fonts} from '@/services/content'
 import {typst_generator, TypstWorkerClient, ASSETS_PREFIX} from '@/services/typst'
-import {custom_fonts, restore_custom_fonts} from '@/services/custom_fonts'
+import {custom_fonts} from '@/services/custom_fonts'
 import {start_watchers} from '@/services/watchers'
 import {report_error, vue_error_handler} from '@/services/errors'
 
@@ -136,12 +138,26 @@ void (async () => {
     // (auth must resolve before any Firestore/Storage access below)
     await Promise.all([ensure_signed_in(), bible_content.init()])
 
-    // If arriving via a passwordless email sign-in link, complete it before loading any user
-    // data (may switch to an existing account and merge the guest's data into it)
-    const email_link = await complete_email_link().catch((error:unknown) => {
-        report_error('banner', error)
-        return null
-    })
+    // If arriving via a passwordless email sign-in link, take the URL now and clean it — the
+    // code is single-use, so if the address stayed sign-in-shaped every later refresh would
+    // retry a spent code. Captured before the router is installed below, which would otherwise
+    // normalise the query away
+    const sign_in_link = is_email_link(location.href) ? location.href : null
+    if (sign_in_link){
+        history.replaceState(null, '', location.pathname)
+    }
+
+    // Complete it before loading any user data (it may switch to an existing account and merge
+    // the guest's data into it) — but only when this browser is the one that requested the
+    // link and so knows the address. Opened on another device, the address can only be asked
+    // for, and a dialog needs the app mounted, so that case is deferred to after the mount
+    const link_email = sign_in_link ? stored_email_for_link() : null
+    const email_link = sign_in_link && link_email
+        ? await complete_email_link(sign_in_link, link_email).catch((error:unknown) => {
+            report_error('banner', error)
+            return null
+        })
+        : null
 
     // A spent or stale link is a normal outcome, so say so rather than leaving the user wondering
     // why clicking it did nothing (the toast waits in state until the app mounts below)
@@ -183,16 +199,16 @@ void (async () => {
     // Keep the version-viewing history mirrored from Firestore ("Read access" on /designs)
     start_viewed_sync()
 
-    // Restore the user's uploaded fonts from their online library (non-blocking; pushes to
-    // the compiler worker itself once loaded)
-    void restore_custom_fonts().catch((error:unknown) => {
-        report_error('banner', error)
-    })
-
     // Start watchers (don't start earlier or will trigger during initially loading some things)
     start_watchers()
 
     // Start the router (resolves the current location automatically), then mount
     app.use(router)
     app.mount('#app')
+
+    // Deferred from above: a sign-in link opened on a device that never requested it. Now the
+    // app can render a dialog, ask which address it was sent to and finish the sign-in
+    if (sign_in_link && !link_email){
+        void finish_email_link(sign_in_link)
+    }
 })()

@@ -136,23 +136,26 @@ export async function send_email_link(email:string):Promise<void>{
 }
 
 
-export async function complete_email_link():Promise<'signed_in'|'expired'|null>{
-    // Finish a passwordless email sign-in if the page was opened via such a link
-    // (runs on boot before user data loads, so no reload is needed afterwards)
-    if (!isSignInWithEmailLink(firebase_auth, location.href)){
-        return null
-    }
+export function is_email_link(link:string):boolean{
+    // Whether a page was opened via a passwordless email sign-in link
+    return isSignInWithEmailLink(firebase_auth, link)
+}
 
-    // Consume the link before attempting anything that can fail — the code is single-use, so if
-    // the URL stayed sign-in-shaped every later refresh would retry a spent code and re-prompt
-    const link = location.href
-    history.replaceState(null, '', location.pathname)
-    const email = localStorage.getItem(EMAIL_FOR_LINK_KEY)
-        ?? prompt("Please confirm your email address")  // Link opened on a different device
+
+export function stored_email_for_link():string|null{
+    // The address a sign-in link was sent to, when this browser is the one that requested it.
+    // Null when the link was opened elsewhere (another browser or device), in which case the
+    // address has to be asked for — see finish_email_link() in account.ts
+    return localStorage.getItem(EMAIL_FOR_LINK_KEY)
+}
+
+
+export async function complete_email_link(link:string, email:string)
+        :Promise<'signed_in'|'expired'>{
+    // Finish a passwordless email sign-in, given the link the page was opened with and the
+    // address it was sent to. The caller owns the URL — it must already have been cleaned of
+    // the single-use code before getting here, or a later refresh would retry a spent one
     localStorage.removeItem(EMAIL_FOR_LINK_KEY)
-    if (!email){
-        return null
-    }
 
     // Sign in with the link rather than linking it onto the guest account
     // WARN Whichever call is made first spends the code, so there is only ever one attempt and

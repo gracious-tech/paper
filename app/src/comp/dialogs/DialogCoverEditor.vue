@@ -23,14 +23,18 @@ import {useI18n} from '@/services/i18n'
 import AppIcon from '@/comp/global/AppIcon.vue'
 import {blue, state, page_count_guess} from '@/services/state'
 import {COVER_EDITOR_URL, COVER_EDITOR_ORIGIN, default_cover_preset, load_cover_bg,
-    upload_cover_bg, hash_bytes, cover_font_families} from '@/services/cover'
-import {custom_fonts, add_custom_fonts} from '@/services/custom_fonts'
+    load_bg_suggestion, upload_cover_bg, hash_bytes, cover_font_families} from '@/services/cover'
+import {custom_fonts, add_design_fonts} from '@/services/custom_fonts'
+import {current_design_id} from '@/services/designs'
+import {request_reconcile} from '@/services/design_assets'
+import {cover_bg_suggestions} from '@/services/asset_suggestions'
 import {report_error} from '@/services/errors'
 import {cover_form_for_render, get_cover_title, get_cover_title_from_form, is_builtin_background}
     from 'paper-bible-typst'
 
 import type {EmbedFormState} from 'bookcover-core'
-import type {InitMessage, WidgetMessage} from 'bookcover-web'
+import type {InitMessage, HostMessage, WidgetMessage} from 'bookcover-web'
+import type {CoverBgSuggestion} from '@/services/asset_suggestions'
 import type {CoverConfig} from '@/services/types'
 
 
@@ -48,6 +52,12 @@ const loaded = ref(false)
 // new one, and skip re-uploading identical bytes under a fresh Storage path. Only used for
 // uploads now — a builtin identifies itself via the widget's bg_image_builtin field
 let sent_bg_hash:string|null = null
+
+// The background suggestions sent with the last init, keyed by the id the widget echoes back
+// when the user picks one. Resolution is answered from this snapshot rather than the live
+// computed, so the widget can only ever ask for an image it was actually offered, and a design
+// list that changes while the editor is open can't retarget a request already in flight
+let sent_bg_suggestions = new Map<string, CoverBgSuggestion>()
 
 
 // Answer the widget's 'ready' with the full init message: a complete form preset (stored
@@ -86,6 +96,13 @@ const send_init = async () => {
         }
     }
 
+    // Backgrounds the user's other covers already use, offered in the widget's own picker.
+    // Only the thumbnail url crosses over now — the bytes are fetched on demand, so a
+    // candidate nobody clicks is never downloaded. The id is this side's Storage path, opaque
+    // to the widget, which echoes it back verbatim to ask for the bytes
+    const suggestions = cover_bg_suggestions.value
+    sent_bg_suggestions = new Map(suggestions.map(item => [item.path, item]))
+
     const message:InitMessage = {
         type: 'init',
         // JSON round-trip so no Vue reactive proxies reach structured clone
@@ -96,10 +113,36 @@ const send_init = async () => {
         custom_fonts: [...toRaw(custom_fonts)],
         finished_mode: true,
         hide_size_section: true,
+        bg_suggestions: suggestions.map(({path, url, label}) => ({id: path, url, label})),
         locale: locale.value.startsWith('vi') ? 'vie' : 'eng',
     }
     frame_window.postMessage(message, COVER_EDITOR_ORIGIN)
     loaded.value = true
+}
+
+
+// Hand over the bytes behind a background suggestion the user picked. Only ids from the list
+// actually sent are resolvable, so a message from the iframe can't make the app read an
+// arbitrary Storage path. A null reply means "this one failed": the widget clears the tile's
+// pending state and leaves the current background alone, so every failure here can just say so
+// rather than needing its own UI. The bytes are handed back unchanged at Finished and land in
+// this design's own prefix like any upload — each design owns its copy
+const handle_bg_suggestion = async (id:string):Promise<void> => {
+    const frame_window = frame.value?.contentWindow
+    if (!frame_window){
+        return
+    }
+    let bg_image:File|null = null
+    const suggestion = sent_bg_suggestions.get(id)
+    if (suggestion){
+        try {
+            bg_image = await load_bg_suggestion(suggestion.path)
+        } catch (error){
+            report_error('silent', error, {context: {stage: 'bg_suggestion'}})
+        }
+    }
+    const message:HostMessage = {type: 'bg_suggestion_resolved', id, bg_image}
+    frame_window.postMessage(message, COVER_EDITOR_ORIGIN)
 }
 
 
@@ -109,10 +152,17 @@ const send_init = async () => {
 const handle_finished = async (
     message:Extract<WidgetMessage, {type:'finished'}>,
 ):Promise<void> => {
+    // Whether anything the design previously referenced was superseded here, so the server can
+    // be asked to reclaim it once the new blueprint has been written
+    let replaced_asset = false
     try {
-        // Fonts uploaded inside the widget become part of the user's library (deduped)
+        // Fonts uploaded inside the widget join the design's own font set, so the book's
+        // pickers offer them too.
+        // NOTE Must stay ahead of cover_font_families() below, which keeps only the families
+        // the design actually has — a font added after that call would be dropped from the
+        // cover it was just chosen for
         if (message.custom_fonts.length){
-            await add_custom_fonts(message.custom_fonts)
+            await add_design_fonts(current_design_id.value!, message.custom_fonts)
         }
 
         // Resolve the bg image's identity. A builtin the widget names is stored as a reference
@@ -130,9 +180,13 @@ const handle_finished = async (
             if (hash === sent_bg_hash && blue.cover?.bg_image){
                 bg_image = blue.cover.bg_image
             } else {
-                const {path, hash: new_hash} = await upload_cover_bg(bytes, message.bg_image.type)
+                const {path, hash: new_hash} = await upload_cover_bg(
+                    current_design_id.value!, bytes, message.bg_image.type)
                 bg_image = {kind: 'custom', path, hash: new_hash}
+                replaced_asset = !!blue.cover?.bg_image
             }
+        } else {
+            replaced_asset = blue.cover?.bg_image?.kind === 'custom'
         }
 
         const form = message.data as unknown as Record<string, unknown>
@@ -142,6 +196,9 @@ const handle_finished = async (
         const title_custom = blue.cover?.title_custom
             || get_cover_title_from_form(form) !== get_cover_title(blue.cover)
         blue.cover = {form, bg_image, font_families: cover_font_families(form), title_custom}
+        if (replaced_asset && current_design_id.value){
+            request_reconcile(current_design_id.value)
+        }
     } catch (error){
         report_error('banner', error)
     }
@@ -164,6 +221,8 @@ const on_message = (event:MessageEvent) => {
         state.cover_editor = false
     } else if (message.type === 'finished'){
         void handle_finished(message)
+    } else if (message.type === 'bg_suggestion_selected'){
+        void handle_bg_suggestion(message.id)
     }
     // 'data' messages are ignored — 'finished' carries the complete authoritative state
 }

@@ -180,7 +180,12 @@ async function compile(){
     try {
         // Swap in painted/torn variants of any images before resolving (a no-op for the plain
         // styles) — see content_images.ts for why this can't just happen inside resolve() itself
-        const styled_content = await resolve_content_for_style(blue.content, blue.image_style)
+        // Styled variants are cached under the design, so this only applies once one is open
+        // (the very first boot preview can run before that, and needs no masking anyway)
+        const styled_content = current_design_id.value
+            ? await resolve_content_for_style(current_design_id.value, blue.content,
+                blue.image_style)
+            : blue.content
 
         // The design's production URL, for the "customise this design" link + QR code in any
         // auto-copyright block (a created version uses its own version URL instead — see
@@ -367,7 +372,7 @@ function discrete_signature():string {
         blue.show_chapters, blue.show_chapters_style, blue.show_verses,
         blue.running_pages, blue.running_headings, blue.running_position, blue.running_align,
         blue.show_footnotes, blue.show_wj, blue.show_wj_bold,
-        blue.show_wj_italic, blue.show_lines, blue.notes, blue.crossref,
+        blue.show_wj_italic, blue.show_lines, blue.notes,
         blue.margin_unit, blue.public_domain, blue.app_link, blue.design_link,
         blue.titlepage_frame, blue.titlepage_always, blue.passage_title, blue.story_emphasis,
         // The whole cover config — it only ever changes atomically (editor Finished / Remove)

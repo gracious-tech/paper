@@ -7,7 +7,7 @@
 import {FetchClient, PassageReference} from '@gracious.tech/fetch-client'
 
 import {LruCache, estimate_bytes, escape_typst, emphasize_sentences} from './helpers.js'
-import {resolve_reading_trim, convert_unit, resolve_binding_gutter} from './trim.js'
+import {resolve_reading_trim, convert_unit, resolve_binding_gutter, typst_unit} from './trim.js'
 import {prose_to_typst, replace_copyright_marker} from './prose.js'
 import {gen_copyright_typst} from './copyright.js'
 import {resolve_icon} from './icon_cache.js'
@@ -436,16 +436,20 @@ export class BibleContent {
         const margin_inner = Math.min(blue.margin_inner + gutter, max_horizontal)
         const margin_outer = Math.min(blue.margin_outer, max_horizontal)
 
+        // Typst spells inches 'in' where the blueprint spells them 'inch' (see typst_unit)
+        const trim_unit = typst_unit(trim.unit)
+        const margin_unit = typst_unit(blue.margin_unit)
+
         return {
             // Reading-page size (already halved above for booklets); the 2-up sheet is
             // reassembled in apply_booklet()
-            width: `${trim.width}${trim.unit}`,
-            height: `${trim.height}${trim.unit}`,
-            margin_top: `${margin_top}${blue.margin_unit}`,
-            margin_bottom: `${margin_bottom}${blue.margin_unit}`,
+            width: `${trim.width}${trim_unit}`,
+            height: `${trim.height}${trim_unit}`,
+            margin_top: `${margin_top}${margin_unit}`,
+            margin_bottom: `${margin_bottom}${margin_unit}`,
             // Inner/outer map to typst's inside/outside binding-aware margins
-            margin_left: `${margin_inner}${blue.margin_unit}`,
-            margin_right: `${margin_outer}${blue.margin_unit}`,
+            margin_left: `${margin_inner}${margin_unit}`,
+            margin_right: `${margin_outer}${margin_unit}`,
         }
     }
 
@@ -526,7 +530,7 @@ export class BibleContent {
             show_lines: blue.show_lines,
             // null = auto-detect by book, true = 2 columns, false = single column
             columns: blue.columns === null ? 'auto' : (blue.columns ? 2 : 1),
-            column_gap: `${blue.column_gap}${blue.margin_unit}`,
+            column_gap: `${blue.column_gap}${typst_unit(blue.margin_unit)}`,
             book: passage.book,
             book_name: this.collection.get_books(blue.bibles[0], {object: true})[passage.book]
                 ?.name ?? passage.book,

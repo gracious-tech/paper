@@ -87,7 +87,7 @@ describe('cover_config_schema', () => {
 
     it('accepts a valid custom bg_image', () => {
         const result = cover_config_schema.safeParse(
-            make_cover({kind: 'custom', path: 'user_cover_images/u/h.jpg', hash: 'h'}))
+            make_cover({kind: 'custom', path: 'design_assets/d1/h.jpg', hash: 'h'}))
         expect(result.success).toBe(true)
     })
 
