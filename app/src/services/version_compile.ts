@@ -14,9 +14,9 @@ import {cloneDeep} from 'lodash-es'
 import {collection, doc, addDoc, getDoc, setDoc, updateDoc, serverTimestamp, Timestamp}
     from 'firebase/firestore'
 import {ref as storage_ref, uploadBytes, getDownloadURL} from 'firebase/storage'
-import {PDFDocument} from 'pdf-lib'
 import {SCHEMA_VERSION, PDF_LIFETIME_MS, COMPILE_STATS_LIFETIME_MS} from 'paper-bible-typst'
-import {RENDER_VERSION} from 'bookcover-core'
+// By module, not through the barrel — see the note on cover.ts's bookcover-core imports
+import {RENDER_VERSION} from 'bookcover-core/dist/defaults.js'
 
 import {firestore, firebase_storage} from '@/services/firebase'
 import {api, ApiError} from '@/services/api'
@@ -36,6 +36,7 @@ import {latest_version} from '@/services/versions'
 import {report_error, error_to_string} from '@/services/errors'
 
 import type {CustomFont} from 'typst-fonts'
+import type {CompiledPdf} from '@/services/typst'
 import type {Blueprint, Version} from '@/services/types'
 
 
@@ -190,23 +191,24 @@ export async function compile_and_upload(id:string, design_id:string, blueprint:
             const request = await bible_content.resolve(
                 blueprint, font_styles, undefined, share_url, page_estimate, doc_name)
 
-            // Compile in the worker (temporarily adding snapshotted fonts when regenerating),
-            // then count pages for the history badge
-            let bytes:Uint8Array
+            // Compile in the worker (temporarily adding snapshotted fonts when regenerating).
+            // The worker counts the pages for the history badge as it goes, so the PDF is never
+            // parsed a second time on this thread
+            let compiled:CompiledPdf
             if (fonts?.length){
                 const families = new Set(fonts.map(f => f.family))
                 await generator.set_custom_fonts(
                     [...custom_fonts.filter(f => !families.has(f.family)), ...fonts])
                 try {
-                    bytes = await generator.compile_pdf(request)
+                    compiled = await generator.compile_pdf(request)
                 } finally {
                     await generator.set_custom_fonts(custom_fonts)
                 }
             } else {
-                bytes = await generator.compile_pdf(request)
+                compiled = await generator.compile_pdf(request)
             }
             const interior_ms = performance.now() - interior_start
-            const pages = (await PDFDocument.load(bytes)).getPageCount()
+            const {bytes, pages} = compiled
 
             // Record the successful in-browser compile for offline performance analysis
             void record_compile_stat({
@@ -363,7 +365,13 @@ async function adopt_pending_pdf(version:Version, is_latest:boolean):Promise<boo
         throw error
     }
     const bytes = new Uint8Array(await (await fetch(url)).arrayBuffer())
-    const pages = (await PDFDocument.load(bytes)).getPageCount()
+    // Counted in the Typst worker (which owns pdf-lib) — this needs no compiler, so it still
+    // works on a device whose WASM init failed
+    const generator = typst_generator.value
+    if (!generator){
+        throw new Error('Typst compiler not ready')
+    }
+    const pages = await generator.page_count(bytes)
 
     // The cover PDF is uploaded after the interior, so it can be missing even when doc.pdf isn't
     // — render + upload just the cover in that case (cover.pdf is also create-once, but absent).

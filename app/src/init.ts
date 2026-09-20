@@ -11,7 +11,7 @@ import 'core-js/actual/object/has-own'  // Used by Vuetify?
 import './styles.sss'
 import 'vuetify/styles'
 
-import {createApp} from 'vue'
+import {createApp, defineAsyncComponent} from 'vue'
 import {createVuetify} from 'vuetify'
 import {md3} from 'vuetify/blueprints'
 import CheckboxBlank from '@material-symbols/svg-400/rounded/check_box_outline_blank.svg'
@@ -26,7 +26,6 @@ import ErrorIcon from '@material-symbols/svg-400/rounded/error-fill.svg'
 import CheckCircle from '@material-symbols/svg-400/rounded/check_circle-fill.svg'
 
 import AppIcon from './comp/global/AppIcon.vue'
-import AppProse from './comp/global/AppProse.vue'
 import AppColor from './comp/global/AppColor.vue'
 import AppFontSelect from './comp/global/AppFontSelect.vue'
 import AppOptionToggle from './comp/global/AppOptionToggle.vue'
@@ -51,7 +50,10 @@ import {report_error, vue_error_handler} from '@/services/errors'
 const app = createApp(AppRoot)
 app.config.errorHandler = vue_error_handler
 app.component('AppIcon', AppIcon)
-app.component('AppProse', AppProse)
+// Async: AppProse is the tiptap rich-text editor, ~100KB gzipped of ProseMirror that only the
+// custom-page and picture-story editors ever mount. Warmed in the background after boot (see
+// the prefetch below) so opening one of those doesn't wait on the network
+app.component('AppProse', defineAsyncComponent(() => import('./comp/global/AppProse.vue')))
 app.component('AppColor', AppColor)
 app.component('AppFontSelect', AppFontSelect)
 app.component('AppOptionToggle', AppOptionToggle)
@@ -135,7 +137,11 @@ app.use(createVuetify({
 void (async () => {
 
     // Sign in (anonymously if no persisted user) and init the Bible-content layer in parallel
-    // (auth must resolve before any Firestore/Storage access below)
+    // (auth must resolve before any Firestore/Storage access below).
+    // NOTE The content layer can't be deferred past the mount: the designs layer reads
+    // `content.collection`/`content.translations` throughout (clean_blueprint and
+    // get_default_blueprint in blueprints.ts, content_summary via meta_from_doc), so nothing
+    // below this line can run without it
     await Promise.all([ensure_signed_in(), bible_content.init()])
 
     // If arriving via a passwordless email sign-in link, take the URL now and clean it — the
@@ -210,5 +216,18 @@ void (async () => {
     // app can render a dialog, ask which address it was sent to and finish the sign-in
     if (sign_in_link && !link_email){
         void finish_email_link(sign_in_link)
+    }
+
+    // Warm the async chunks that a user is likely to reach but that no first paint needs, once
+    // the browser is otherwise idle. Splitting them out keeps them off the critical path; this
+    // keeps that from turning into a wait the first time one is opened. Failures are ignored —
+    // the same import is retried for real when the component actually mounts
+    const prefetch = () => {
+        void import('./comp/global/AppProse.vue').catch(() => undefined)
+    }
+    if ('requestIdleCallback' in window){
+        requestIdleCallback(prefetch, {timeout: 10000})
+    } else {
+        setTimeout(prefetch, 3000)
     }
 })()

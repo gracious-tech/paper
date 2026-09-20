@@ -7,16 +7,20 @@
 import {cloneDeep} from 'lodash-es'
 import {toRaw} from 'vue'
 import {ref as storage_ref, uploadBytes, getBytes} from 'firebase/storage'
-import {make_blank_form_values, asset_path, BACKGROUNDS_DIR, resolve_dimensions,
-    font_families_in_form} from 'bookcover-core'
+// NOTE bookcover-core is imported by module rather than through its barrel: the barrel reaches
+// its vector-background data (~277KB of inlined SVG), bwip-js and chroma-js, none of which the
+// main thread ever uses — the cover worker owns all of that
+import {make_blank_form_values} from 'bookcover-core/dist/form_state.js'
+import {asset_path, BACKGROUNDS_DIR} from 'bookcover-core/dist/assets.js'
+import {resolve_dimensions} from 'bookcover-core/dist/dimensions.js'
+import {font_families_in_form} from 'bookcover-core/dist/form_schema.js'
 import {cover_form_for_render, cover_render_key, STOCK_BG_PHOTOS, KNOWN_BUILTIN_BACKGROUNDS,
     doc_has_copyright, gen_copyright_typst, COPYRIGHT_MARKER, resolve_reading_trim, convert_unit,
     COVER_TITLE_KEY, design_assets_prefix, to_version_asset, to_design_asset, asset_basename}
     from 'paper-bible-typst'
-import {PDFDocument, rgb} from 'pdf-lib'
 
 import {firebase_storage} from '@/services/firebase'
-import {ASSETS_PREFIX} from '@/services/typst'
+import {ASSETS_PREFIX, typst_generator} from '@/services/typst'
 import {page_count_guess} from '@/services/state'
 import {content} from '@/services/content'
 import {custom_fonts} from '@/services/custom_fonts'
@@ -29,6 +33,7 @@ import type {CustomFont} from 'typst-fonts'
 import type {PmDoc} from 'paper-bible-typst'
 import type {AssetCopy} from '@/services/design_assets'
 import type {Blueprint, CoverConfig} from '@/services/types'
+import type {CoverPageGeometry} from './typst_worker'
 import type {CoverWorkerRequest, CoverWorkerResponse, CoverRenderResult, DistributiveOmit}
     from './cover_worker'
 
@@ -615,47 +620,40 @@ export function plan_version_cover(design_id:string, blueprint:Blueprint)
 // content is untouched and the real cover PDF is produced by a different path
 export async function prepend_cover_page(cover_bytes:Uint8Array, book_bytes:Uint8Array,
         blueprint:Blueprint, page_count:number):Promise<Uint8Array> {
-    const book = await PDFDocument.load(book_bytes)
-    const cover_doc = await PDFDocument.load(cover_bytes)
-    const [cover_page] = await book.copyPages(cover_doc, [0])
-
-    // Use the same dimensions bookcover uses to split the wraparound into panels — its layout
-    // is mm-based, the page is pt, so convert mm -> pt exactly as bookcover's splitter does.
-    // Region y is top-down; pdf boxes are bottom-up (origin at the page's bottom-left)
-    if (blueprint.cover){
-        const dims = resolve_dimensions(cover_form_for_render(
-            blueprint.cover, blueprint, page_count) as unknown as DimensionInputs)
-        const mm_to_pt = (mm:number) => mm / 25.4 * 72
-        const page_h = cover_page!.getHeight()
-        const back = dims.cover_region_back
-        const front = dims.cover_region_front
-
-        // Crop to the trim box (drop the bleed) — a display-only crop, content is preserved
-        if (dims.cover_has_bleed){
-            const left = mm_to_pt(back.x.toNumber())
-            const right = mm_to_pt(front.x.toNumber() + front.w.toNumber())
-            const bottom = page_h - mm_to_pt(back.y.toNumber() + back.h.toNumber())
-            cover_page!.setCropBox(left, bottom, right - left, mm_to_pt(back.h.toNumber()))
-        }
-
-        // Gray fold guide lines (clipped by the crop box above to the visible trim height):
-        // the spine's left and right edges when the book has a spine, otherwise a single line
-        // on the fold between the back and front panels
-        const gray = rgb(0.5, 0.5, 0.5)
-        const fold_x = dims.cover_has_spine
-            ? [dims.cover_region_spine.x.toNumber(),
-                dims.cover_region_spine.x.toNumber() + dims.cover_region_spine.w.toNumber()]
-            : [front.x.toNumber()]
-        for (const mm of fold_x){
-            cover_page!.drawLine({
-                start: {x: mm_to_pt(mm), y: 0},
-                end: {x: mm_to_pt(mm), y: page_h},
-                thickness: 0.5,
-                color: gray,
-            })
-        }
+    const generator = typst_generator.value
+    if (!generator){
+        throw new Error('Typst compiler not ready')
     }
+    return generator.prepend_cover(cover_bytes, book_bytes,
+        blueprint.cover ? cover_page_geometry(blueprint, page_count) : null)
+}
 
-    book.insertPage(0, cover_page!)
-    return book.save()
+
+// Where the wraparound cover's trim box and fold guide lines fall on the rendered page, in PDF
+// points measured from its top-left. Uses the same dimensions bookcover uses to split the
+// wraparound into panels — its layout is mm-based and the page is pt, so this converts mm -> pt
+// exactly as bookcover's splitter does. Resolved here rather than in the worker so the pdf-lib
+// side of the merge needs no bookcover-core
+function cover_page_geometry(blueprint:Blueprint, page_count:number):CoverPageGeometry {
+    const dims = resolve_dimensions(cover_form_for_render(
+        blueprint.cover!, blueprint, page_count) as unknown as DimensionInputs)
+    const mm_to_pt = (mm:number) => mm / 25.4 * 72
+    const back = dims.cover_region_back
+    const front = dims.cover_region_front
+
+    // The trim box (bleed dropped) — only when there's bleed to hide
+    const left = mm_to_pt(back.x.toNumber())
+    const right = mm_to_pt(front.x.toNumber() + front.w.toNumber())
+    const crop = dims.cover_has_bleed
+        ? {left, top: mm_to_pt(back.y.toNumber()), width: right - left,
+            height: mm_to_pt(back.h.toNumber())}
+        : null
+
+    // The spine's left and right edges when the book has a spine, otherwise a single line on
+    // the fold between the back and front panels
+    const fold_mm = dims.cover_has_spine
+        ? [dims.cover_region_spine.x.toNumber(),
+            dims.cover_region_spine.x.toNumber() + dims.cover_region_spine.w.toNumber()]
+        : [front.x.toNumber()]
+    return {crop, fold_x: fold_mm.map(mm_to_pt)}
 }

@@ -43,7 +43,6 @@ div.preview
 
 import {ref, computed, watch, onUnmounted} from 'vue'
 import {debounce} from 'lodash-es'
-import {PDFDocument} from 'pdf-lib'
 import {useI18n} from '@/services/i18n'
 
 import BtnGenerate from '@/comp/views/assets/BtnGenerate.vue'
@@ -56,7 +55,7 @@ import {get_custom_font_styles} from '@/services/custom_fonts'
 import {resolve_content_for_style} from '@/services/content_images'
 import {render_cover_pdf, prepend_cover_page} from '@/services/cover'
 import {report_error} from '@/services/errors'
-import {truncate_for_preview, add_preview_strip} from 'paper-bible-typst'
+import {truncate_for_preview} from 'paper-bible-typst'
 
 import type {ProgressEvent, PreviewSection} from 'paper-bible-typst'
 
@@ -216,7 +215,10 @@ async function compile(){
             truncation.request.preview_cover_label = t("display.preview.inside_cover")
         }
 
-        let bytes = await generator.compile_pdf_preview(truncation.request, on_progress)
+        // The worker returns the spread count alongside the bytes, so a multi-megabyte PDF is
+        // never re-parsed on this thread just to be measured
+        let {bytes, pages: pdf_pages} = await generator.compile_pdf_preview(
+            truncation.request, on_progress)
 
         // Ignore if a newer compile has started since
         if (run !== latest_run){
@@ -229,10 +231,6 @@ async function compile(){
         // Reading spreads hold two book pages per PDF page. The start/end strips aren't in these
         // bytes yet, so nothing to exclude. Rounded to an even number since bound pages always
         // come in twos
-        const pdf_pages = (await PDFDocument.load(bytes)).getPageCount()
-        if (run !== latest_run){
-            return
-        }
         const window_pages = Math.max(1, pdf_pages * 2)
         const scale = truncation.window_chars > 0
             ? truncation.total_chars / truncation.window_chars
@@ -275,10 +273,10 @@ async function compile(){
         const [start_title, start_subtitle] = truncation.dropped_before
             ? [t("display.preview.start_of_preview"), t("display.preview.create_for_rest")]
             : [t("display.preview.banner_title"), t("display.preview.banner_subtitle")]
-        bytes = await add_preview_strip(
+        bytes = await generator.preview_strip(
             bytes, truncation.request.page.width, start_title, start_subtitle, 'start')
         if (truncation.dropped_after){
-            bytes = await add_preview_strip(
+            bytes = await generator.preview_strip(
                 bytes, truncation.request.page.width,
                 t("display.preview.end_of_preview"), t("display.preview.create_for_rest"), 'end')
         }

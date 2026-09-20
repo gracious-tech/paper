@@ -8,6 +8,31 @@ html
         meta(name='description' content="Print your own Bible, customise how it looks, and optionally include multiple translations and study notes.")
         meta(property='og:image' content='https://paper.bible/social.jpg')
         link(rel='icon' href='/icon.png')
+
+        //- Warm the connections boot blocks on, so their DNS + TLS handshakes overlap
+            downloading and parsing the bundle rather than starting after it. All four are hit
+            within the first moments: the Bible collection manifest and Firebase auth/Firestore
+            are awaited before the app mounts at all (see init.ts), and the Typst WASM compiler
+            plus the font manifest are requested immediately after. `crossorigin` is required —
+            these are all CORS fetches, and a preconnect without it warms the wrong connection
+            pool and is simply wasted. Production only: in dev these origins are served locally
+            (see content.ts and ASSETS_PREFIX in typst.ts)
+        if PROD
+            link(rel='preconnect' href='https://v1.fetch.bible' crossorigin)
+            link(rel='preconnect' href='https://assets.paper.bible' crossorigin)
+            link(rel='preconnect' href='https://firestore.googleapis.com' crossorigin)
+            link(rel='preconnect' href='https://identitytoolkit.googleapis.com' crossorigin)
+
+            //- The Bible collection manifest (~100KB compressed, ~750KB of JSON) is awaited
+                before the app mounts, and nothing in the designs layer can run without it —
+                clean_blueprint, get_default_blueprint and content_summary all read
+                `content.collection`/`content.translations`. Requesting it here starts it while
+                the bundle is still downloading and parsing instead of after, so the two
+                overlap rather than running in series. Must match the request fetch-client
+                actually makes (`endpoint + 'manifest.json'`, mode 'cors', no credentials) or
+                the browser fetches it twice rather than reusing this one
+            link(rel='preload' as='fetch' type='application/json'
+                href='https://v1.fetch.bible/manifest.json' crossorigin)
         style
             :sss
                 // LOADING SCREEN ONLY

@@ -3,7 +3,7 @@ import {shallowRef, toRaw} from 'vue'
 
 import type {CustomFont} from 'typst-fonts'
 import type {TypstRequest, ProgressFn} from 'paper-bible-typst'
-import type {WorkerAction, WorkerResponse} from './typst_worker'
+import type {CoverPageGeometry, WorkerAction, WorkerResponse} from './typst_worker'
 
 
 // The shared static assets tree (fonts/, typst/ WASM, and bookcover's docs/frames/backgrounds)
@@ -14,10 +14,23 @@ export const ASSETS_PREFIX = import.meta.env.DEV
     : 'https://assets.paper.bible/'
 
 
+// What the worker answers a request with: the action's own value, plus the page count of the
+// bytes when the action was a PDF compile (see WorkerResult in typst_worker.ts)
+interface ActionOutcome {
+    result:Uint8Array|string|number|null
+    pages:number|null
+}
+
+// A compiled PDF and how many pages it has — counted in the worker, so no caller needs pdf-lib
+export interface CompiledPdf {
+    bytes:Uint8Array
+    pages:number
+}
+
 // Handlers awaiting a response from the worker, keyed by request id. on_progress is undefined
-// for actions that never emit progress (init, set_custom_fonts)
+// for actions that never emit progress (init, set_custom_fonts, the pdf-lib actions)
 interface PendingHandlers {
-    resolve:(result:Uint8Array|string|null)=>void
+    resolve:(outcome:ActionOutcome)=>void
     reject:(error:Error)=>void
     on_progress:ProgressFn|undefined
 }
@@ -85,7 +98,7 @@ export class TypstWorkerClient {
 
             if (response.ok){
                 this.recycle_needed ||= response.worn
-                handlers.resolve(response.result)
+                handlers.resolve({result: response.result, pages: response.pages})
             } else {
                 handlers.reject(new Error(response.error))
             }
@@ -125,7 +138,7 @@ export class TypstWorkerClient {
 
     // Post one request to the current worker and await its matching result. on_progress, if
     // given, is called for every progress update the worker reports before the result arrives
-    private post(action:WorkerAction, on_progress?:ProgressFn):Promise<Uint8Array|string|null> {
+    private post(action:WorkerAction, on_progress?:ProgressFn):Promise<ActionOutcome> {
         const id = this.next_id++
         return new Promise((resolve, reject) => {
             this.pending.set(id, {resolve, reject, on_progress})
@@ -135,8 +148,7 @@ export class TypstWorkerClient {
 
     // As post(), but first waits out any in-progress worker recycle (all public API goes
     // through this)
-    private async send(action:WorkerAction, on_progress?:ProgressFn)
-            :Promise<Uint8Array|string|null> {
+    private async send(action:WorkerAction, on_progress?:ProgressFn):Promise<ActionOutcome> {
         await this.gate
         return this.post(action, on_progress)
     }
@@ -144,17 +156,17 @@ export class TypstWorkerClient {
     // Send a compile action, retrying once if it poisoned the worker: the failure triggers a
     // recycle (see onmessage above), so when it was caused by accumulated memory rather than
     // by the document itself, the retry succeeds on the fresh worker
-    private async send_compile<T extends Uint8Array|string>(
+    private async send_compile(
         action:WorkerAction, on_progress?:ProgressFn,
-    ):Promise<T> {
+    ):Promise<ActionOutcome> {
         try {
-            return await this.send(action, on_progress) as T
+            return await this.send(action, on_progress)
         } catch (error){
             if (!(error instanceof FatalWorkerError)){
                 throw error
             }
             try {
-                return await this.send(action, on_progress) as T
+                return await this.send(action, on_progress)
             } catch (retry_error){
                 // A fresh worker failing the same way means the document itself exceeds the
                 // 32-bit WASM heap — surface something clearer than the raw trap message
@@ -182,27 +194,55 @@ export class TypstWorkerClient {
         await this.send({action: 'set_custom_fonts', fonts: this.custom_fonts})
     }
 
-    // Compile a request to a finished PDF (booklet/alternate/half-blank handled in the worker).
+    // Compile a request to a finished PDF (booklet/alternate/half-blank handled in the worker),
+    // with the page count the worker counted off it.
     // preview relaxes print-only padding (trailing blanks dropped, even page counts only) for
     // on-screen display — never use it for a document that will be printed.
     async compile_pdf(
         request:TypstRequest, on_progress?:ProgressFn, preview = false,
-    ):Promise<Uint8Array> {
-        return await this.send_compile({action: 'compile_pdf', request, preview}, on_progress)
+    ):Promise<CompiledPdf> {
+        const outcome = await this.send_compile({action: 'compile_pdf', request, preview},
+            on_progress)
+        return {bytes: outcome.result as Uint8Array, pages: outcome.pages!}
     }
 
     // Compile a request to a preview PDF laid out as facing-page book spreads, as if the book
     // were opened: a blank left page beside page 1 on the right, then 2|3, 4|5, etc. For
-    // on-screen preview only.
-    async compile_pdf_preview(request:TypstRequest, on_progress?:ProgressFn):Promise<Uint8Array> {
-        return await this.send_compile({action: 'compile_pdf_preview', request}, on_progress)
+    // on-screen preview only. `pages` counts those spreads, not the book's own pages.
+    async compile_pdf_preview(request:TypstRequest, on_progress?:ProgressFn):Promise<CompiledPdf> {
+        const outcome = await this.send_compile({action: 'compile_pdf_preview', request},
+            on_progress)
+        return {bytes: outcome.result as Uint8Array, pages: outcome.pages!}
     }
 
     // Compile a single-page request straight to an SVG string, for showing a page as an image
     // on screen (the wizard's minimal-ink cover card) — not a printable path, see compile_svg
     // in typst-web
     async compile_svg(request:TypstRequest):Promise<string> {
-        return await this.send_compile({action: 'compile_svg', request})
+        return (await this.send_compile({action: 'compile_svg', request})).result as string
+    }
+
+    // Count the pages of a PDF this client didn't compile (one already sitting in Storage).
+    // Needs no compiler, so it works even if the WASM init failed
+    async page_count(pdf:Uint8Array):Promise<number> {
+        return (await this.send({action: 'page_count', pdf})).result as number
+    }
+
+    // Add a short "this is only a preview" / "end of preview" notice strip to the front or back
+    // of a preview PDF. Text is passed in already translated
+    async preview_strip(pdf:Uint8Array, page_width:string, title:string, subtitle:string,
+            position:'start'|'end'):Promise<Uint8Array> {
+        const outcome = await this.send(
+            {action: 'preview_strip', pdf, page_width, title, subtitle, position})
+        return outcome.result as Uint8Array
+    }
+
+    // Merge a rendered wraparound cover in as page 1 of a preview PDF, cropped and fold-marked
+    // per the given geometry (see cover_page_geometry in cover.ts)
+    async prepend_cover(cover:Uint8Array, book:Uint8Array, geometry:CoverPageGeometry|null)
+            :Promise<Uint8Array> {
+        return (await this.send({action: 'prepend_cover', cover, book, geometry}))
+            .result as Uint8Array
     }
 }
 

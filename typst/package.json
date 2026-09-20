@@ -2,6 +2,8 @@
     "name": "paper-bible-typst",
     "version": "0.1.0",
     "type": "module",
+    "//sideEffects": "Pure functions, constants and data only — so bundlers may drop any module of this package the consumer doesn't reach. Without it the barrel keeps pdf_postprocess (and its ~700KB of pdf-lib) in the app's main chunk, though only the Typst worker ever calls it",
+    "sideEffects": false,
     "main": "dist/index.js",
     "types": "dist/index.d.ts",
     "exports": {

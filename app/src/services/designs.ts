@@ -1,10 +1,10 @@
 
 import {reactive, ref, watch} from 'vue'
 import {cloneDeep, isEqual, debounce} from 'lodash-es'
-import {collection, doc, query, where, orderBy, onSnapshot, getDoc, getDocs, setDoc, updateDoc,
+import {collection, doc, query, where, orderBy, onSnapshot, getDoc, setDoc, updateDoc,
     deleteField, arrayRemove, serverTimestamp, FieldPath, Timestamp, writeBatch}
     from 'firebase/firestore'
-import type {DocumentData, Unsubscribe} from 'firebase/firestore'
+import type {DocumentData, QuerySnapshot, Unsubscribe} from 'firebase/firestore'
 import {split_blueprint_doc, join_blueprint_doc, resolve_design_name, get_cover_title,
     COVER_TITLE_KEY, SCHEMA_VERSION} from 'paper-bible-typst'
 
@@ -744,15 +744,30 @@ export async function init_designs(open_id:string|null = null, welcome = true):P
     const designs_query = query(collection(firestore, 'designs'),
         where('editor_uids', 'array-contains', uid), orderBy('modified', 'desc'))
 
-    // Keep the designs list in sync
+    // Keep the designs list in sync. The listener's own first snapshot is also what the open
+    // decision below is made from — a separate getDocs() of the same query would be a second
+    // round trip for identical data, on the critical path to the app's first paint.
+    // NOTE Sound because the Firestore cache is memory-only (see firebase.ts), so a freshly
+    // loaded page has nothing cached and the first event can only come from the server
+    let resolve_first:(snap:QuerySnapshot) => void
+    let reject_first:(error:unknown) => void
+    const first_snapshot = new Promise<QuerySnapshot>((resolve, reject) => {
+        resolve_first = resolve
+        reject_first = reject
+    })
     unsub_list?.()
     unsub_list = onSnapshot(designs_query, snap => {
         designs.splice(0, designs.length, ...snap.docs.map(item => {
             return meta_from_doc(item.id, item.data({serverTimestamps: 'estimate'}))
         }))
         resolve_designs_loaded()
+        resolve_first(snap)
     }, error => {
         report_error('banner', error)
+        // Surface to the awaiting boot too — otherwise it would wait on a first snapshot that
+        // is never coming (resolve/reject after settling is a no-op, so this is safe to pair
+        // with the resolve above)
+        reject_first(error)
     })
 
     // Open the requested design if it's actually one of ours (e.g. a deep link to a design
@@ -760,7 +775,7 @@ export async function init_designs(open_id:string|null = null, welcome = true):P
     // never was) — else the most recent, else create the user's first. Checking membership
     // first (rather than attempting to open and catching the permission error) avoids
     // provoking a Firestore permission-denied error for what's actually a normal, expected case
-    const existing = await getDocs(designs_query)
+    const existing = await first_snapshot
     if (existing.empty){
         // No designs yet — populate `blue` locally (never persisted; flush_changes can't write
         // while no design is open) so boot-time watchers that dereference it stay safe
