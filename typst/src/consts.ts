@@ -20,7 +20,8 @@ export const PDF_LIFETIME_MS = 365 * 24 * 60 * 60 * 1000
 export const COMPILE_STATS_LIFETIME_MS = 365 * 24 * 60 * 60 * 1000
 
 
-// How long a compile_quota row outlives the day it counts. A row is dead the moment its day
-// rolls over, but the margin keeps an in-progress window safe from clock/timezone skew
-// WARN Needs its own TTL policy on `expires` (see .bin/setup_firebase)
-export const COMPILE_QUOTA_LIFETIME_MS = 7 * 24 * 60 * 60 * 1000
+// How long a quota row outlives the day it counts (shared by every per-uid daily cap — see
+// server/src/quota.ts). A row is dead the moment its day rolls over, but the margin keeps an
+// in-progress window safe from clock/timezone skew
+// WARN Every quota collection needs its own TTL policy on `expires` (see .bin/setup_firebase)
+export const QUOTA_LIFETIME_MS = 7 * 24 * 60 * 60 * 1000

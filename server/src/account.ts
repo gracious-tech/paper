@@ -13,6 +13,7 @@ import {FieldPath, FieldValue, Timestamp} from 'firebase-admin/firestore'
 import {version_assets_prefix} from 'paper-bible-typst'
 
 import {admin_db, admin_auth} from './firebase.ts'
+import {QUOTA_COLLECTIONS} from './quota.ts'
 import {ChunkedBatch} from './batch.ts'
 import {collect_version_basenames, delete_prefix, design_prefixes, sweep_prefix} from './assets.ts'
 
@@ -180,7 +181,7 @@ async function leave_shared_designs(uid:string):Promise<number>{
 
 
 async function delete_user_records(uid:string):Promise<void>{
-    // The user's own documents: profile, read-access history, server-compile throttle counter,
+    // The user's own documents: profile, read-access history, every daily throttle counter,
     // and the compile telemetry rows carrying their uid.
     //
     // NOTE Error reports are deliberately not swept. They're stored by message fingerprint
@@ -194,7 +195,11 @@ async function delete_user_records(uid:string):Promise<void>{
         batch.delete(entry.ref)
     }
     batch.delete(admin_db.doc(`users/${uid}`))
-    batch.delete(admin_db.doc(`compile_quota/${uid}`))
+    // Every quota collection, so a new one can't be added without being cleaned up here — the
+    // rows would otherwise outlive the account until their TTL caught up
+    for (const collection of QUOTA_COLLECTIONS){
+        batch.delete(admin_db.doc(`${collection}/${uid}`))
+    }
 
     // Single-field equality, so Firestore's automatic index covers this with nothing declared
     const stats = await admin_db.collection('compile_stats').where('owner', '==', uid).get()

@@ -5,7 +5,7 @@ import {mkdtemp, writeFile, readFile, rm} from 'node:fs/promises'
 
 import {Timestamp} from 'firebase-admin/firestore'
 import {PDFDocument} from 'pdf-lib'
-import {PDF_LIFETIME_MS, COMPILE_STATS_LIFETIME_MS, COMPILE_QUOTA_LIFETIME_MS,
+import {PDF_LIFETIME_MS, COMPILE_STATS_LIFETIME_MS,
     cover_form_for_render, is_builtin_background, is_fetchable_image_url, doc_has_copyright,
     replace_copyright_marker, gen_copyright_typst, version_assets_prefix,
     migrate_version_blueprint} from 'paper-bible-typst'
@@ -14,6 +14,7 @@ import {generate as generate_cover, build_schema} from 'bookcover-node'
 
 import {admin_db, admin_bucket} from './firebase.ts'
 import {config} from './config.ts'
+import {quota_allows, QUOTA_COMPILE, DAILY_COMPILE_LIMIT} from './quota.ts'
 import {collect_image_urls} from './assets.ts'
 import {shared_content} from './content.ts'
 import {save_error, generate_error_id} from './errors.ts'
@@ -25,33 +26,6 @@ import type {Blueprint, CustomFont} from 'paper-bible-typst-node'
 
 // One compile at a time per user (heavy CPU/memory work; anonymous users can trigger this)
 const active_uids = new Set<string>()
-
-
-// Per-uid daily compile cap — deters cost abuse via minted anonymous accounts. Tracked in
-// Firestore (compile_quota/{uid}) so it holds across instances, unlike the Set above; the
-// path matches no security rule, so clients can't read or reset it
-const DAILY_COMPILE_LIMIT = 50
-
-
-async function compile_quota_allows(uid:string):Promise<boolean>{
-    // Count an attempted compile against the caller's daily quota, refusing once over it
-    const day = new Date().toISOString().slice(0, 10)
-    return await admin_db.runTransaction(async txn => {
-        const doc_ref = admin_db.doc(`compile_quota/${uid}`)
-        const data = (await txn.get(doc_ref)).data()
-        const count = (data?.['day'] === day ? data['count'] as number : 0) + 1
-        if (count > DAILY_COMPILE_LIMIT){
-            return false
-        }
-        // A row is meaningless the moment its day is over, so it carries an expiry for the
-        // Firestore TTL policy to collect (see .bin/setup_firebase) — otherwise the collection
-        // would keep one permanent row per uid that ever reached the server fallback. Pushed
-        // out well past the day itself so an in-progress window is never swept mid-use
-        txn.set(doc_ref, {day, count,
-            expires: Timestamp.fromMillis(Date.now() + COMPILE_QUOTA_LIFETIME_MS)})
-        return true
-    })
-}
 
 
 async function render_cover(blueprint:Blueprint, custom_fonts:CustomFont[], page_count:number,
@@ -241,7 +215,7 @@ export async function handle_compile(uid:string, version_id:string, client_ip:st
     if (active_uids.has(uid)){
         return {status: 429, body: {error: 'compile_in_progress'}}
     }
-    if (!await compile_quota_allows(uid)){
+    if (!await quota_allows(QUOTA_COMPILE, uid, DAILY_COMPILE_LIMIT)){
         return {status: 429, body: {error: 'quota_exceeded'}}
     }
     active_uids.add(uid)

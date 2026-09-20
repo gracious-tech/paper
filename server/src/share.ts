@@ -6,6 +6,7 @@ import {split_blueprint_doc, resolve_design_name, get_cover_title, SCHEMA_VERSIO
     migrate_version_blueprint} from 'paper-bible-typst'
 
 import {admin_db, admin_bucket, admin_auth} from './firebase.ts'
+import {quota_allows, QUOTA_COPY, DAILY_COPY_LIMIT} from './quota.ts'
 import {repath_assets, copy_basenames, collect_version_basenames} from './assets.ts'
 
 import type {Blueprint, CoverConfig, StoredFontMeta} from 'paper-bible-typst'
@@ -117,6 +118,17 @@ export async function handle_copy_version(uid:string, version_id:string)
     }
     if (data['status'] === 'pending'){
         return {status: 409, body: {error: 'still_pending'}}
+    }
+
+    // Throttle, after the checks above so a missing or still-compiling version costs the caller
+    // nothing — only a copy we're actually about to make counts against them.
+    // This route needs a cap for the same reason /api/compile does, and more so: every call
+    // duplicates a rendered PDF and its assets server-side, which means an attacker spends no
+    // bandwidth of their own and the cost they impose is storage that persists rather than CPU
+    // that ends. Nothing about the request identifies a victim, so the only account that can be
+    // filled up is the caller's own — this is a bill problem, not a data one
+    if (!await quota_allows(QUOTA_COPY, uid, DAILY_COPY_LIMIT)){
+        return {status: 429, body: {error: 'quota_exceeded'}}
     }
 
     // Two independent new docs — a design and a version — not to be confused with each other

@@ -177,7 +177,8 @@ paper_bible/
     Dockerfile             # Cloud Run image: node + workspaces + typst CLI (no fonts baked)
     deploy/                # Staged build context (gitignored; written by .bin/build_server)
     src/index.ts           # Hono routes, gated by SERVER_ROLES: compile | light (share/merge)
-    src/compile.ts         # compile_pdf_from_blueprint + upload + doc update + compile_quota
+    src/compile.ts         # compile_pdf_from_blueprint + upload + doc update
+    src/quota.ts           # per-uid daily caps on the expensive routes (compile, copy_version)
     src/content.ts         # Shared BibleContent: collection TTL + LRU book cache
     src/share.ts           # Share-token redemption, shared views, keep-own-copy
     src/assets.ts          # Asset path collection, copying, sweeping + reconcile/touch
@@ -231,12 +232,18 @@ versions/{version_id}         # immutable once created, publicly readable by id 
 
 compile_stats/{id}   # write-only telemetry, one row per interior compile attempt (browser or
                      #   server). Never read in-app; analysed offline via Firestore export
-compile_quota/{uid}  # cross-instance per-user server-compile throttle (Admin SDK only, no
-                     #   client rules — see compile_quota_allows in server/src/compile.ts)
+compile_quota/{uid}  # cross-instance per-user daily cap on server compiles
+copy_quota/{uid}     # ditto for "keep own copy" (/api/copy_version)
+                     #   Both are {day, count, expires}, Admin SDK only and matching no client
+                     #   rule, so a caller can neither read nor reset their own count.
+                     #   One helper: quota_allows() in server/src/quota.ts
 ```
 
-Both `compile_stats` and `compile_quota` rows carry an `expires` field with a Firestore native
+Every `compile_stats` and `*_quota` row carries an `expires` field with a Firestore native
 TTL policy on it (enabled by `.bin/setup_firebase`): ~1 year and ~1 week respectively.
+**A new quota collection needs three things or it leaks**: an entry in `QUOTA_COLLECTIONS`
+(so account deletion sweeps it), a `gcloud firestore fields ttls` line in `.bin/setup_firebase`
+(so rows expire), and a `quota_allows()` call on the route itself.
 
 `versions` is a flat collection + `design_id` FK, not a physical subcollection of `designs` —
 versions need independent public-read-by-id ACLs and to be queried both by parent design
@@ -304,7 +311,7 @@ editor destroying the inputs another's published version renders from.
 2. Publish the assets bucket from the bookcover repo (it owns bucket creation, CORS and
    content — the compile service mounts it and the app fetches from it)
 3. `.bin/setup_firebase <project-id>` — Storage lifecycle rules, Firestore TTL policies
-   (`compile_stats`, `compile_quota`), assets-bucket volume-mount IAM
+   (`compile_stats`, `compile_quota`, `copy_quota`), assets-bucket volume-mount IAM
 4. `.bin/deploy_server <project-id>`, `.bin/deploy_app [alias]`
 
 

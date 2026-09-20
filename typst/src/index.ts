@@ -39,7 +39,7 @@ export type {BlueprintDocFields} from './blueprint_doc.js'
 
 // Constants shared between the app and the server
 export {SCHEMA_VERSION, PDF_LIFETIME_MS, COMPILE_STATS_LIFETIME_MS,
-    COMPILE_QUOTA_LIFETIME_MS} from './consts.js'
+    QUOTA_LIFETIME_MS} from './consts.js'
 
 // Forward migration of stored blueprints written under an older SCHEMA_VERSION. Designs are
 // migrated on read and persist the upgrade on their next save; versions are migrated per-read

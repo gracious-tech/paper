@@ -158,6 +158,10 @@ const keep_copy = async () => {
         // A copy attempted while the version is still compiling is an expected case
         if (error instanceof ApiError && error.code === 'still_pending'){
             show_toast(t("view.design.still_generating"))
+        // Hitting the daily copy cap is a refusal, not a fault — say so rather than reporting
+        // it as an error, since the user can simply try again tomorrow
+        } else if (error instanceof ApiError && error.code === 'quota_exceeded'){
+            show_toast(t("view.design.copy_limit"))
         } else {
             report_error('banner', error)
         }
