@@ -397,6 +397,38 @@ editor destroying the inputs another's published version renders from.
 - **SERVER_ROLES gates routes, Hosting gates traffic** — both must agree: `/api/compile`
   is rewritten to `paper-bible-compile` (role `compile`), everything else to
   `paper-bible-api` (role `light`); dev defaults to both roles on one port
+- **The CSP in `firebase.json` is enforced, and JSON can't hold comments** — so the reasoning
+  lives here. It fails in production only, since Hosting headers never reach the Vite dev
+  server. It's split two ways on purpose: **`default-src` is the content allowlist** (every
+  origin the app loads images, fonts, video or fetch responses from — one list, rather than
+  repeating the same hosts across `img-src`/`font-src`/`connect-src`), while every directive
+  that can execute or be navigated to is **pinned separately and never inherits it**:
+  - `script-src` — `'wasm-unsafe-eval'` is the Typst WASM compiler, i.e. the browser's whole
+    render path. `apis.google.com` is Firebase Auth's popup plumbing
+  - `frame-src` — `paper-bible.firebaseapp.com` is Auth's hidden iframe (the authDomain from
+    `firebase.ts`, so it changes with the project alias); `blob:` is how every PDF preview
+    renders. Drop either and sign-in or the preview dies
+  - `worker-src 'self'` — deliberately without `blob:`, and explicit so it can't fall back to
+    `script-src`. Vite emits both workers as same-origin chunks (check `dist/assets/`), so
+    blob workers would be XSS surface bought for nothing
+  - `style-src` needs `'unsafe-inline'` twice over: Vuetify's inline `style` attributes, and
+    the loading-spinner `<style>` the index.pug plugin inlines into `dist/index.html`
+  - `object-src`/`base-uri`/`form-action`/`frame-ancestors` — the cheap always-on locks
+
+  `blob:` in `default-src` is load-bearing for `connect-src`: custom fonts become blob URLs
+  that typst.ts then *fetches*. Custom font **previews** don't need it — those go through
+  `new FontFace(family, bytes)`, which CSP doesn't govern at all.
+  Three origins appear in the bundle and are deliberately *not* allowed, because nothing
+  reaches them: `packages.typst.org` (no `@preview` imports exist in generated source),
+  `cdn.jsdelivr.net` (typst.ts's default font assets, disabled by `{assets: false}` in
+  `typst-web`), and `www.google.com/recaptcha` (Firebase Auth loads it only under reCAPTCHA
+  Enterprise, which this project doesn't use). **Enabling reCAPTCHA Enterprise or SMS
+  protections in the Firebase console would silently require adding `https://www.google.com`
+  to `script-src` and `frame-src`** — a console change that breaks sign-in via a file nobody
+  would think to edit
+- **`Referrer-Policy` is load-bearing, not hygiene** — a version id *is* the capability to
+  read that PDF (rules allow public read by id alone), so without it every outbound click
+  from `/designs/{id}/{version}` hands the whole URL to the destination in `Referer`
 - **Compile assets come from the bucket mount** (`ASSETS_DIR=/mnt/assets` via GCS FUSE, set
   in `deploy_server`; fonts default to `<assets_dir>/fonts`) — new fonts/templates are
   published from the bookcover repo, not a server redeploy; locally `serve_server` points at
