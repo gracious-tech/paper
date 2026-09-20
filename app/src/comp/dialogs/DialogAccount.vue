@@ -29,6 +29,16 @@ v-dialog(:model-value='modelValue' @update:model-value='close' max-width='440')
                     strong {{ user?.email || user?.displayName }}
                 v-btn(@click='logout' variant='tonal' :loading='busy') {{$t("dialog.account.sign_out")}}
 
+            //- Deleting ends the content, below a divider and away from the sign-in actions above,
+            //- since it's the one action here that can't be undone. Offered to guests too — an
+            //- anonymous account is still an account, and its designs are still the user's to
+            //- remove. What it destroys is spelled out in the confirmation it opens, so it needs
+            //- no caption of its own
+            v-divider(class='my-6')
+            h4(class='text-title-small mb-2') {{$t("dialog.account.management")}}
+            v-btn(@click='destroy' variant='text' :loading='busy')
+                | {{ delete_label }}
+
         v-card-actions
             v-spacer
             v-btn(@click='close') {{$t("common.close")}}
@@ -38,12 +48,12 @@ v-dialog(:model-value='modelValue' @update:model-value='close' max-width='440')
 
 <script lang='ts' setup>
 
-import {ref, watch} from 'vue'
+import {ref, computed, watch} from 'vue'
 
 import {user, is_anonymous, link_google, send_email_link, sign_out} from '@/services/auth'
-import {release_user_data, reload_user_data} from '@/services/account'
+import {release_user_data, reload_user_data, delete_account} from '@/services/account'
 import {report_error} from '@/services/errors'
-import {show_toast} from '@/services/state'
+import {show_toast, prompt_dialog} from '@/services/state'
 import {router} from '@/services/router'
 import {useI18n} from '@/services/i18n'
 
@@ -142,6 +152,41 @@ const logout = () => run_busy(async () => {
     await reload_user_data(false)
     close()
 })
+
+
+// What the destructive action is called. A guest has a real account in Firebase's terms, but has
+// never been asked to think of it as one — they were never shown a sign-up — so for them what
+// goes is their data. Derived once because the button and its confirmation must agree
+const delete_label = computed(() => {
+    return is_anonymous.value ? t('dialog.account.delete_data') : t('dialog.account.delete')
+})
+
+
+// Delete the account and everything in it, after a typed confirmation
+// NOTE Deliberately a typed word rather than a plain confirm: this is the one irreversible action
+// in the app that a mis-tap can't be recovered from, since there is nothing left to restore from
+const destroy = async () => {
+    // The word is its own key and reaches the message as a placeholder, so a translator can't
+    // leave the two saying different things (which would make the dialog impossible to satisfy)
+    const word = t('dialog.account.delete_word')
+    const answer = await prompt_dialog(t('dialog.account.delete_confirm', {word}), '', {
+        confirm_label: delete_label.value,
+        confirm_color: 'error',
+        require: word,
+    })
+    // Only a matching answer resolves with a value (the dialog keeps its button disabled
+    // otherwise), so anything null here is a cancel or a dismissal
+    if (answer === null){
+        return
+    }
+    await run_busy(async () => {
+        await delete_account()
+        // Land on the (now empty) design list rather than a design the deleted uid owned
+        await router.push({name: 'designs'})
+        show_toast(t('dialog.account.deleted'))
+        close()
+    })
+}
 
 
 const close = () => {

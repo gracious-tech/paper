@@ -5,7 +5,8 @@
 // request it), which all leave the app running under a different uid than it started with
 
 import {prompt_dialog, show_toast} from '@/services/state'
-import {complete_email_link} from '@/services/auth'
+import {complete_email_link, sign_out} from '@/services/auth'
+import {api} from '@/services/api'
 import {init_designs, start_viewed_sync, stop_design_sync} from '@/services/designs'
 import {stop_versions_sync} from '@/services/versions'
 import {report_error} from '@/services/errors'
@@ -28,6 +29,24 @@ export async function reload_user_data(welcome = true):Promise<void>{
     // to restore here
     await init_designs(null, welcome)
     start_viewed_sync()
+}
+
+
+export async function delete_account():Promise<void>{
+    // Delete the signed-in account and everything it owns, then start a fresh guest session.
+    //
+    // Listeners are released *before* the call, not after: the server removes the docs they're
+    // subscribed to, and a live listener would see them vanish (and then be refused outright once
+    // the Auth user goes) and report it as a failure of something the user just asked for
+    release_user_data()
+    // The empty body is load-bearing, not decoration: api() picks its method by whether one was
+    // given, so calling this without it would send a GET and miss the POST-only route entirely.
+    // The route has nothing to read from it — the ID token is the whole request
+    await api<{ok:boolean}>('/api/delete_account', {})
+    // The Auth user is gone by now, so this session's token is dead — signing out locally is
+    // what clears it and mints the fresh anonymous uid the app carries on under
+    await sign_out()
+    await reload_user_data(false)
 }
 
 

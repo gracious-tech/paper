@@ -71,8 +71,14 @@ export const state = reactive({
     toast: null as string|null,
     // Pending confirm-dialog request, rendered by DialogConfirm — null hides it (see confirm_dialog())
     confirm: null as null|{message:string, resolve:(confirmed:boolean) => void},
-    // Pending prompt-dialog request, rendered by DialogPrompt — null hides it (see prompt_dialog())
-    prompt: null as null|{message:string, value:string, resolve:(value:string|null) => void},
+    // Pending prompt-dialog request, rendered by DialogPrompt — null hides it (see prompt_dialog()).
+    // `confirm_label` renames the confirm button (null = "OK") and `confirm_color` recolours it
+    // (null = "primary"); `require` is an exact answer the user must type before that button
+    // enables, for a destructive action that wants more than a click (null = anything, including
+    // nothing, is accepted)
+    prompt: null as null|{message:string, value:string, confirm_label:string|null,
+        confirm_color:string|null, require:string|null,
+        resolve:(value:string|null) => void},
     // Pending alert-dialog request, rendered by DialogAlert — null hides it (see alert_dialog()).
     // `action` is an optional extra button label (e.g. "Try again"), resolve(true) when it's
     // clicked and resolve(false) on plain dismissal; `contact_url` optionally adds a "Contact
@@ -129,10 +135,19 @@ export function confirm_dialog(message:string):Promise<boolean>{
 }
 
 
-// Ask the user for text input via a Vuetify dialog (replaces the browser's native prompt())
-export function prompt_dialog(message:string, initial=''):Promise<string|null>{
+// Ask the user for text input via a Vuetify dialog (replaces the browser's native prompt()).
+// `confirm_label` renames the confirm button to name the action it performs and `confirm_color`
+// recolours it (e.g. 'error' for a destructive one); `require` makes the user type an exact answer
+// (compared trimmed and case-insensitively) before it enables, so a destructive action can't be
+// reached by a mis-tap — the dialog resolves with a value only when that answer matched, so
+// callers never see a half-confirmed one
+export function prompt_dialog(message:string, initial='',
+        {confirm_label, confirm_color, require}:
+            {confirm_label?:string, confirm_color?:string, require?:string} = {})
+        :Promise<string|null>{
     return new Promise(resolve => {
-        state.prompt = {message, value: initial, resolve}
+        state.prompt = {message, value: initial, confirm_label: confirm_label ?? null,
+            confirm_color: confirm_color ?? null, require: require ?? null, resolve}
     })
 }
 

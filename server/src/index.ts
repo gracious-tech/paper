@@ -13,6 +13,7 @@ import {handle_merge} from './merge.ts'
 import {handle_touch_assets, handle_reconcile_assets} from './assets.ts'
 import {handle_delete_design, handle_delete_version, handle_duplicate_design}
     from './designs.ts'
+import {handle_delete_account} from './account.ts'
 
 
 // The API server — reached via Firebase Hosting's /api/** rewrite in production and Vite's
@@ -204,6 +205,19 @@ if (config.roles.includes('light')){
             return context.json({error: 'bad_request'}, 400)
         }
         const result = await handle_duplicate_design(uid, body.design_id)
+        return context.json(result.body, result.status as 200)
+    })
+
+    // Delete the caller's account and everything it owns. The body is ignored — the ID token is
+    // both the authorisation and the entire subject, so there's nothing for a caller to name (and
+    // therefore no way to aim this at anyone else). Callers still have to send one, since api()
+    // in the app decides GET vs POST by whether a body was passed
+    app.post('/api/delete_account', async context => {
+        const uid = await verify_uid(context.req.header('Authorization'))
+        if (!uid){
+            return context.json({error: 'unauthenticated'}, 401)
+        }
+        const result = await handle_delete_account(uid)
         return context.json(result.body, result.status as 200)
     })
 
