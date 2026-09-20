@@ -81,6 +81,11 @@ export const designs_loaded = new Promise<void>(resolve => {
 // `synced` is the last blueprint state received from (or flushed to) Firestore — the base for
 // both outgoing diffs and three-way application of incoming snapshots
 let synced:Blueprint|null = null
+// The SCHEMA_VERSION the open design's doc was last seen written under. Below the current one
+// means doc_to_blueprint() migrated it on the way in, and the next flush should persist both the
+// upgraded fields and the new marker — a design is mutable, so unlike a version it can simply
+// move forward and stop paying the migration cost on every read
+let synced_schema = SCHEMA_VERSION
 let unsub_doc:Unsubscribe|null = null
 let unsub_list:Unsubscribe|null = null
 let unsub_viewed:Unsubscribe|null = null
@@ -104,13 +109,23 @@ export const viewed_designs = reactive([] as ViewedDesign[])
 
 
 function doc_to_blueprint(data:DocumentData):Blueprint{
-    // Reassemble a blueprint from a Firestore doc, validating since it may come from an editor
+    // Reassemble a blueprint from a Firestore doc, validating since it may come from an editor.
+    // join_blueprint_doc() migrates an older-schema doc to the current shape first (see
+    // migrate.ts) — the upgrade is only in memory here, and reaches the doc when flush_changes()
+    // next writes it back
     return clean_blueprint(join_blueprint_doc({
         blueprint: (data['blueprint'] ?? {}) as Record<string, unknown>,
         content_items: (data['content_items'] ?? {}) as Record<string, ContentItem>,
         content_order: (data['content_order'] ?? []) as string[],
         name: (data['name'] ?? '') as string,
+        schema: doc_schema(data),
     }))
+}
+
+
+function doc_schema(data:DocumentData):number{
+    // The SCHEMA_VERSION a doc was written under — docs predating the field are implicitly 1
+    return typeof data['schema'] === 'number' ? data['schema'] : 1
 }
 
 
@@ -227,15 +242,36 @@ export async function flush_changes():Promise<void>{
     if (!id || !synced){
         return
     }
-    const updates = gen_updates(synced, blue)
-    if (!updates.length){
+    const diff = gen_updates(synced, blue)
+    if (!diff.length){
+        // Nothing to write — including when the doc predates the current schema. Converging it
+        // waits for a real edit rather than happening on open, so merely viewing a design never
+        // bumps `modified` and reshuffles the user's list. Until then it stays migrated-on-read,
+        // which is a consistent state: the doc holds the old shape and the old marker
         return
     }
 
     // Whether anything that actually gets rendered changed. A rename on its own doesn't — the
     // name reaches the PDF only as metadata — so it must not flag existing versions as needing
     // a rebuild (see rename_design)
-    const render_affecting = updates.some(([path]) => path !== 'name')
+    const render_affecting = diff.some(([path]) => path !== 'name')
+
+    // A design whose doc predates the current schema was migrated on the way in (see
+    // doc_to_blueprint), and that upgrade can't travel as a field-level diff: `synced` already
+    // holds the migrated shape, so the migration's own changes don't register as edits, and a
+    // dotted path couldn't remove the keys a rename left behind even if they did. So the first
+    // flush after an upgrade *replaces* the diff with a wholesale write of the blueprint fields,
+    // landing the new shape and dropping the old one together.
+    // It has to replace rather than extend it: Firestore rejects an update naming both a field
+    // and a path beneath it, which is exactly what `blueprint` plus the diff's `blueprint.*`
+    // entries would be.
+    // The wholesale write is last-wins against a co-editor, which is the accepted cost of
+    // converging — leaving the doc half-migrated is worse, since the chain would re-run on the
+    // next read and could overwrite a newer edit with the stale value it was derived from
+    const upgrading = synced_schema < SCHEMA_VERSION
+    const updates:[string|FieldPath, unknown][] = upgrading
+        ? Object.entries(split_blueprint_doc(blue)).concat([['schema', SCHEMA_VERSION]])
+        : diff
 
     // Optimistically advance the sync base so the write's own echo isn't re-applied over any
     // newer local edits (restored on failure so the next flush re-diffs everything)
@@ -257,11 +293,15 @@ export async function flush_changes():Promise<void>{
     if (render_affecting){
         updates.push(['save_token', generate_token()])
     }
+    // The doc now carries the current shape, so later flushes go back to field-level diffs
+    const pre_flush_schema = synced_schema
+    synced_schema = SCHEMA_VERSION
     try {
         const [first, ...rest] = updates as [[string|FieldPath, unknown], ...[string|FieldPath, unknown][]]
         await updateDoc(doc(firestore, 'designs', id), first[0], first[1], ...rest.flat())
     } catch (error){
         synced = pre_flush
+        synced_schema = pre_flush_schema
         report_error('banner', error)
     }
 }
@@ -332,6 +372,9 @@ export async function open_design(id:string):Promise<void>{
     save.flush()
     unsub_doc?.()
     synced = null
+    // Paired with `synced` — both are set together from the first snapshot below, and neither is
+    // read while the other is null
+    synced_schema = SCHEMA_VERSION
     current_design_id.value = id
     design_wizard.simple_mode = false
     design_wizard.wizard_draft = null
@@ -365,6 +408,9 @@ export async function open_design(id:string):Promise<void>{
 
             // First snapshot populates the whole blueprint; later ones merge field-by-field
             if (!synced){
+                // Remembered before the blueprint is read, so flush_changes() knows whether
+                // doc_to_blueprint() had to migrate it (see `upgrading` there)
+                synced_schema = doc_schema(data)
                 const remote = doc_to_blueprint(data)
                 Object.assign(blue, remote)
                 synced = cloneDeep(remote)

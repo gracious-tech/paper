@@ -70,12 +70,16 @@ export function collect_image_urls(blueprint:Blueprint):string[]{
 
 
 export function join_design_blueprint(data:FirebaseFirestore.DocumentData):Blueprint{
-    // Reassemble a design doc's split blueprint fields into a whole Blueprint
+    // Reassemble a design doc's split blueprint fields into a whole Blueprint, migrating an
+    // older-schema doc to the current shape on the way (see migrate.ts). The upgrade is in
+    // memory only — this server only ever reads designs to find the assets they reference, and
+    // converging the doc is the editing client's job (see flush_changes in designs.ts)
     return join_blueprint_doc({
         blueprint: (data['blueprint'] ?? {}) as Record<string, unknown>,
         content_items: (data['content_items'] ?? {}) as Record<string, ContentItem>,
         content_order: (data['content_order'] ?? []) as string[],
         name: (data['name'] ?? '') as string,
+        schema: typeof data['schema'] === 'number' ? data['schema'] : 1,
     })
 }
 

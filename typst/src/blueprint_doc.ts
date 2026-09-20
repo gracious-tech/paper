@@ -1,4 +1,6 @@
 
+import {migrate_blueprint_doc} from './migrate.js'
+
 import type {Blueprint, ContentItem, CoverConfig} from './types.js'
 
 
@@ -74,11 +76,20 @@ export function split_blueprint_doc(blueprint:Blueprint):BlueprintDocFields{
 }
 
 
-// Reassemble a blueprint from its Firestore fields (the inverse of split_blueprint_doc)
+// Reassemble a blueprint from its Firestore fields (the inverse of split_blueprint_doc), bringing
+// it up to the current schema on the way out.
+//
+// `schema` is the doc's own `schema` field (docs predating it are 1) and is deliberately required
+// rather than defaulted: every caller reads a stored doc, and a new one that forgot to pass it
+// would silently skip migrations — the exact data loss the chain exists to prevent. Migration
+// runs on the joined shape, after content items are back in place, so a step can reach inside
+// them; validation is the caller's own concern and comes after (see clean_blueprint)
 export function join_blueprint_doc(fields:{blueprint:Record<string, unknown>,
         content_items:Record<string, ContentItem>, content_order:string[],
-        name:string}):Blueprint{
+        name:string, schema:number}):Blueprint{
     const content = fields.content_order.map(id => fields.content_items[id]).filter(
         (item):item is ContentItem => item !== undefined)
-    return {...fields.blueprint, content, name: fields.name} as Blueprint
+    const joined = {...fields.blueprint, content, name: fields.name}
+    migrate_blueprint_doc(joined, fields.schema)
+    return joined as Blueprint
 }

@@ -41,6 +41,13 @@ export type {BlueprintDocFields} from './blueprint_doc.js'
 export {SCHEMA_VERSION, PDF_LIFETIME_MS, COMPILE_STATS_LIFETIME_MS,
     COMPILE_QUOTA_LIFETIME_MS} from './consts.js'
 
+// Forward migration of stored blueprints written under an older SCHEMA_VERSION. Designs are
+// migrated on read and persist the upgrade on their next save; versions are migrated per-read
+// into a clone and never rewritten (see migrate.ts)
+export {migrate_blueprint_doc, migrate_version_blueprint, migration_steps,
+    MIGRATIONS} from './migrate.js'
+export type {BlueprintMigration} from './migrate.js'
+
 // Blueprint shape validation (schema factory — callers supply the defaults to fall back to)
 export {make_blueprint_schema, clean_content_items, cover_config_schema} from './blueprint_schema.js'
 

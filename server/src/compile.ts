@@ -7,7 +7,8 @@ import {Timestamp} from 'firebase-admin/firestore'
 import {PDFDocument} from 'pdf-lib'
 import {PDF_LIFETIME_MS, COMPILE_STATS_LIFETIME_MS, COMPILE_QUOTA_LIFETIME_MS,
     cover_form_for_render, is_builtin_background, is_fetchable_image_url, doc_has_copyright,
-    replace_copyright_marker, gen_copyright_typst, version_assets_prefix} from 'paper-bible-typst'
+    replace_copyright_marker, gen_copyright_typst, version_assets_prefix,
+    migrate_version_blueprint} from 'paper-bible-typst'
 import {compile_pdf_from_blueprint} from 'paper-bible-typst-node'
 import {generate as generate_cover, build_schema} from 'bookcover-node'
 
@@ -200,7 +201,10 @@ export async function handle_compile(uid:string, version_id:string, client_ip:st
     // shape server-side): a 'custom' snapshot must sit under the design's version prefix, a
     // 'builtin' id must be one of the known assets-bucket filenames — required since it's
     // used to build a filesystem path against the assets mount (render_cover() above)
-    const blueprint = data['blueprint'] as Blueprint
+    // Brought up to the current schema for this render only — migrate_version_blueprint() always
+    // clones, so the version's stored blueprint stays exactly as it was published (see
+    // migrate.ts). Everything below, validation included, works on the migrated shape
+    const blueprint = migrate_version_blueprint(data)
     const bg_image = (blueprint.cover?.bg_image ?? null) as unknown
     if (bg_image !== null){
         if (typeof bg_image !== 'object'){

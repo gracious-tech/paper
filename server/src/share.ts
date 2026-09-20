@@ -2,8 +2,8 @@ import {randomBytes} from 'node:crypto'
 
 import {FieldValue, Timestamp} from 'firebase-admin/firestore'
 import {split_blueprint_doc, resolve_design_name, get_cover_title, SCHEMA_VERSION,
-    PDF_LIFETIME_MS, design_assets_prefix, version_assets_prefix, asset_basename}
-    from 'paper-bible-typst'
+    PDF_LIFETIME_MS, design_assets_prefix, version_assets_prefix, asset_basename,
+    migrate_version_blueprint} from 'paper-bible-typst'
 
 import {admin_db, admin_bucket, admin_auth} from './firebase.ts'
 import {repath_assets, copy_basenames, collect_version_basenames} from './assets.ts'
@@ -178,7 +178,11 @@ export async function handle_copy_version(uid:string, version_id:string)
     // client's generate_token() — so the copy lands with design_needs_editor false, since its
     // live content is identical to the version it was just copied from
     const save_token = randomBytes(15).toString('base64url')
-    const blueprint = data['blueprint'] as Blueprint
+    // Migrated to the current schema before anything is derived from it — both docs written below
+    // are stamped with SCHEMA_VERSION, so copying an older blueprint through verbatim would
+    // leave them declaring a shape they don't have, and the chain would never run on them again.
+    // The *source* version is untouched, as always (migrate_version_blueprint clones)
+    const blueprint = migrate_version_blueprint(data)
     // The same assets described two ways: the new *version* points at the frozen snapshots,
     // while the new *design* points at its own editable copies. Nothing else about the
     // blueprint differs between them

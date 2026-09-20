@@ -6,7 +6,8 @@ import {collection, doc, query, where, orderBy, limit, onSnapshot, getDoc, getDo
 import type {DocumentData, Unsubscribe} from 'firebase/firestore'
 import {ref as storage_ref, uploadBytes, getDownloadURL} from 'firebase/storage'
 import {PDFDocument} from 'pdf-lib'
-import {SCHEMA_VERSION, PDF_LIFETIME_MS, COMPILE_STATS_LIFETIME_MS} from 'paper-bible-typst'
+import {SCHEMA_VERSION, PDF_LIFETIME_MS, COMPILE_STATS_LIFETIME_MS,
+    migrate_version_blueprint} from 'paper-bible-typst'
 import {RENDER_VERSION} from 'bookcover-core'
 
 import {firestore, firebase_storage} from '@/services/firebase'
@@ -99,7 +100,12 @@ function version_from_doc(id:string, data:DocumentData):Version{
         created: ((data['created'] ?? Timestamp.now()) as Timestamp).toDate(),
         compile_started: ((data['compile_started'] ?? null) as Timestamp|null)?.toDate() ?? null,
         title: data['title'] as string,
-        blueprint: data['blueprint'] as Blueprint,
+        // Migrated to the current schema here, at the single point every consumer reads a
+        // version's blueprint through — regeneration, cover re-render, "keep a copy" and
+        // restore-into-design all get the current shape without each needing to know. The clone
+        // migrate_version_blueprint() works on is what keeps that in memory: the stored blueprint
+        // is immutable by rule, and nothing here is ever written back to it (see migrate.ts)
+        blueprint: migrate_version_blueprint(data),
         status: data['status'] as Version['status'],
         cover_status: (data['cover_status'] ?? null) as Version['cover_status'],
         cover_render_version: (data['cover_render_version'] ?? null) as number|null,

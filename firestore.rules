@@ -82,12 +82,16 @@ service cloud.firestore {
             allow list: if resource.data.design_id is string;
 
             // Immutable except lifecycle fields (client updates status/pages/expiry when it
-            // compiles via WASM)
+            // compiles via WASM).
+            // `schema` is in the list because it selects which migrations run against the frozen
+            // blueprint at regeneration time (see migrate.ts) — left mutable, an owner could
+            // raise it to skip the chain or lower it to replay it against already-current data,
+            // and either way the version would stop rendering what was published
             allow update: if signed_in() && request.auth.uid == resource.data.owner
                 && !request.resource.data.diff(resource.data).affectedKeys()
                     .hasAny(['blueprint', 'owner', 'created', 'design_id', 'copied_from',
                         'custom_fonts', 'save_token', 'wizard_draft', 'simple_mode',
-                        'pdf_path', 'title', 'cover_render_version']);
+                        'pdf_path', 'title', 'cover_render_version', 'schema']);
 
             // Server-mediated too (/api/delete_version) — the PDFs and any snapshot no
             // sibling version still needs have to go with the doc
