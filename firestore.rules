@@ -32,8 +32,16 @@ service cloud.firestore {
                 && request.resource.data.owner == request.auth.uid
                 && request.auth.uid in request.resource.data.editor_uids;
 
-            // Any editor may read (owner is always in editor_uids)
-            allow read: if signed_in() && request.auth.uid in resource.data.editor_uids;
+            // Any editor may read (owner is always in editor_uids).
+            // A document that isn't there reads as allowed, because `resource` is then null and
+            // `resource.data` raises an evaluation error rather than evaluating false — which
+            // would break the very thing the app needs: an open design's listener has to be able
+            // to observe its own deletion (see delete_design/open_design in designs.ts), and a
+            // getDoc() of a design since deleted has to come back empty rather than throwing.
+            // Design ids are unguessable url64 tokens, so "no document at this id" tells a caller
+            // who already had to know the id nothing it didn't
+            allow read: if signed_in()
+                && (resource == null || request.auth.uid in resource.data.editor_uids);
 
             // Editors may update content, but only the owner may touch membership/sharing
             allow update: if signed_in() && request.auth.uid in resource.data.editor_uids

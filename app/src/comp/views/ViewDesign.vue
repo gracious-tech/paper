@@ -115,11 +115,13 @@ watch([version_param, latest_version], () => {
 }, {immediate: true})
 
 
-// Follow the open design if it changes out from under the route (e.g. deleted remotely and
-// designs.ts fell back to another one) so the URL stays accurate
-watch(current_design_id, new_id => {
-    if (new_id && new_id !== id.value){
-        void router.replace({name: 'design', params: {id: new_id}})
+// Go back to the designs list when this design stops being one of ours — deleted here, deleted
+// by a co-editor while we had it open, or access revoked — rather than leaving the URL pointing
+// at something that no longer exists. Watches the true→false edge specifically: someone viewing
+// a public version link was never in `designs`, so this can never fire them off the page
+watch(() => designs.some(item => item.id === id.value), (is_ours, was_ours) => {
+    if (was_ours && !is_ours){
+        void router.replace({name: 'designs'})
     }
 })
 

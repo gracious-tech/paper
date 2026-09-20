@@ -345,10 +345,10 @@ export async function open_design(id:string):Promise<void>{
     await new Promise<void>((resolve, reject) => {
         unsub_doc = onSnapshot(doc(firestore, 'designs', id), snap => {
 
-            // Design was deleted (e.g. by its owner in another session) — move to another
+            // Design was deleted (e.g. by its owner in another session) — close it
             if (!snap.exists()){
                 if (current_design_id.value === id && deleting_id !== id){
-                    void open_other_design(id)
+                    close_design()
                 }
                 resolve()
                 return
@@ -382,14 +382,23 @@ export async function open_design(id:string):Promise<void>{
 }
 
 
-async function open_other_design(deleted_id:string):Promise<void>{
-    // Open the most recent remaining design (or a fresh one) after the open design disappeared
-    const other = designs.find(item => item.id !== deleted_id)
-    if (other){
-        await open_design(other.id)
-    } else {
-        await create_design()
-    }
+function close_design():void{
+    // Leave no design open. Called when the open design is deleted — by this client, or by a
+    // co-editor while we had it open.
+    //
+    // Nothing is opened in its place: the user goes back to the designs list (ViewDesign.vue
+    // watches for this), which is what they asked for by deleting it. Falling through to another
+    // design left the URL pointing at the deleted one, and creating a replacement read as the
+    // delete having failed, since unnamed designs all look alike. init_designs() likewise
+    // declines to create a design for an account that has none
+    save.cancel()
+    unsub_doc?.()
+    unsub_doc = null
+    current_design_id.value = null
+    synced = null
+    // Populated locally so watchers that dereference it stay safe. With no design open,
+    // flush_changes() has nowhere to write it
+    Object.assign(blue, get_default_blueprint())
 }
 
 
@@ -478,10 +487,7 @@ export async function delete_design(id:string):Promise<void>{
     }
 
     if (was_open && current_design_id.value === id){
-        unsub_doc?.()
-        current_design_id.value = null
-        synced = null
-        await open_other_design(id)
+        close_design()
     }
 }
 
