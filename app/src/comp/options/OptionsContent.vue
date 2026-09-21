@@ -6,7 +6,7 @@ v-list(bg-color='transparent')
         template(#item='{element}')
             v-list-item(@click='() => edit(element)')
                 template(#prepend)
-                    v-chip(class='mr-3 text-primary') {{ type_label[element.type] }}
+                    v-chip(class='mr-3' variant='tonal') {{ type_label[element.type] }}
                 template(#append)
                     v-btn(icon variant='text' class='handle')
                         app-icon(name='drag_indicator')
@@ -15,12 +15,12 @@ v-list(bg-color='transparent')
                 v-list-item-title {{ gen_content_name(element) }}
 
 div.add(class='d-flex align-center flex-wrap')
-    strong(class='text-medium-emphasis mr-2') {{$t("common.add")}}
-    v-btn(@click='add_passage' size='small' variant='outlined') {{$t("common.passage")}}
-    v-btn(@click='add_custom' size='small' variant='outlined') {{$t("common.text")}}
-    v-btn(@click='add_title' size='small' variant='outlined') {{$t("options.content.title_page")}}
-    v-btn(@click='picker_open = true' size='small' variant='outlined') {{$t("options.content.picture_story")}}
-    v-btn(:disabled='has_interior_copyright' @click='add_copyright' size='small' variant='outlined')
+    app-icon(name='add')
+    v-btn(@click='add_custom' size='small' variant='flat') {{$t("common.text")}}
+    v-btn(@click='add_passage' size='small' variant='flat') {{$t("common.passage")}}
+    v-btn(@click='picker_open = true' size='small' variant='tonal') {{$t("options.content.picture_story")}}
+    v-btn(@click='add_title' size='small' variant='tonal') {{$t("options.content.title_page")}}
+    v-btn(:disabled='has_interior_copyright' @click='add_copyright' size='small' variant='tonal')
         | {{$t("common.copyright")}}
 
 div.warnings(v-if='warnings' class='hint')
@@ -208,8 +208,7 @@ const edit = (item:ContentItem) => {
     padding-inline: 0 !important
 
 .add
-    .v-btn
-        margin: 6px
+    gap: 6px
 
 .warnings
     color: hsl(33, 100%, 35%)
