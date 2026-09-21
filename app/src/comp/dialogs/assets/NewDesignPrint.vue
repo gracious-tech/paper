@@ -42,6 +42,7 @@ import img_btn_home from '@/assets/images/btn_home.avif'
 import img_btn_pro from '@/assets/images/btn_pro.avif'
 
 import {wizard_size_options} from '@/services/new_design'
+import {guess_paper_size, remember_paper_size} from '@/services/blueprints'
 
 import type {NewDesignDraft} from '@/services/new_design'
 
@@ -57,6 +58,12 @@ const {t} = useI18n()
 // Whether the professional branch is expanded (chosen but possibly no size picked yet)
 const professional = ref(draft.service_id !== null && draft.service_id !== 'home')
 
+// A draft resumed with home printing already chosen but no size yet (e.g. a saved wizard_draft
+// from before this default existed) — seed it the same way choose_home() would
+if (draft.service_id === 'home' && draft.size_id === null){
+    draft.size_id = guess_paper_size()
+}
+
 
 // Home paper sizes (the printer's sheet, not a book trim size)
 const HOME_SIZE_OPTIONS = [
@@ -65,11 +72,13 @@ const HOME_SIZE_OPTIONS = [
 ]
 
 
-// Bridge the toggle (always a string) to draft.size_id, which is null until a size is picked
+// Bridge the toggle (always a string) to draft.size_id, which is null until a size is picked.
+// A user-driven change is the one worth remembering for next time (see guess_paper_size)
 const home_size_id = computed({
     get: () => draft.size_id ?? '',
     set: value => {
         draft.size_id = value
+        remember_paper_size(value as 'a4'|'us_letter')
     },
 })
 
@@ -81,13 +90,13 @@ const SIZE_OPTIONS = computed(() => wizard_size_options(t))
 // Methods
 
 // Choose home printing — booklet folding is implied (build_new_blueprint sets it from the
-// service). Leaves the paper size for the user to pick, clearing it if it's a professional
+// service). Defaults the paper size to the user's likely printer size, replacing a professional
 // trim size left over from switching branches
 const choose_home = () => {
     professional.value = false
     draft.service_id = 'home'
     if (draft.size_id !== 'a4' && draft.size_id !== 'us_letter'){
-        draft.size_id = null
+        draft.size_id = guess_paper_size()
     }
 }
 

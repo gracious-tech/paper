@@ -7,7 +7,8 @@
 import {books_ordered} from '@gracious.tech/fetch-client'
 
 import {content} from '@/services/content'
-import {get_default_blueprint, font_default_for_bibles} from '@/services/blueprints'
+import {get_default_blueprint, font_default_for_bibles, guess_paper_size}
+    from '@/services/blueprints'
 import {seed_cover_preset} from '@/services/cover'
 import {generate_token} from '@/services/utils'
 import {create_design} from '@/services/designs'
@@ -54,7 +55,7 @@ export const EXAMPLE_DESIGNS:ExampleDesign[] = [
             icon_size: 1.05, icon_color: '#ffffff', pattern_id: 'texture', pattern_scale: 2.17,
             bg_vector_id: 'chevron-stack', blurb_bg_color: null,
         },
-        diff: {show_footnotes: false, notes: 'eng_tyndale', size_id: 'us_letter'},
+        diff: {show_footnotes: false, notes: 'eng_tyndale'},
     },
     {
         id: 'bilingual', image: img_bilingual, books: ['mrk'], trans: ['cmn_bibs'],
@@ -102,7 +103,6 @@ export const EXAMPLE_DESIGNS:ExampleDesign[] = [
         },
         diff: {
             font_size: 9, line_height: 1.2, show_headings: false, show_footnotes: false,
-            size_id: 'us_letter',
             bibles_align: 'verse',
         },
     },
@@ -187,6 +187,12 @@ export function build_example_blueprint(
         example:ExampleDesign, title:string, subtitle:string):Blueprint{
     const blueprint = get_default_blueprint()
     Object.assign(blueprint, example.diff)
+    // Examples printed at home don't pin a size themselves — default to the user's likely
+    // printer paper size rather than always A4 (professional trims are unaffected, since those
+    // examples set size_id explicitly in their diff)
+    if (blueprint.service_id === 'home' && !('size_id' in example.diff)){
+        blueprint.size_id = guess_paper_size()
+    }
 
     // Example's own translation(s) lead, the user's default follows
     if (example.trans){

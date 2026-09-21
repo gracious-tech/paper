@@ -431,6 +431,43 @@ export function format_paper_size(
 }
 
 
+// localStorage key remembering the home paper size the user last chose, so the wizard and
+// example designs default to it instead of re-guessing every time (mirrors guess_country/
+// remember_country in print_cost.ts)
+const PAPER_SIZE_KEY = 'home_paper_size'
+
+
+// Countries where Letter (not A4) is the standard printer paper size — North America and most
+// of Spanish-speaking Latin America, per ISO 216 adoption. Everywhere else defaults to A4
+const LETTER_COUNTRIES = new Set([
+    'US', 'CA', 'MX', 'CO', 'VE', 'CL', 'CR', 'GT', 'DO', 'PA', 'PH', 'PR',
+])
+
+
+// Best guess at the user's home printer paper size: the size they last chose, then the region
+// their browser language names, then A4 (the world default)
+export function guess_paper_size():'a4'|'us_letter'{
+    const remembered = localStorage.getItem(PAPER_SIZE_KEY)
+    if (remembered === 'a4' || remembered === 'us_letter'){
+        return remembered
+    }
+    const tags = navigator.languages?.length ? navigator.languages : [navigator.language]
+    for (const tag of tags){
+        const region = tag.split('-')[1]?.toUpperCase()
+        if (region){
+            return LETTER_COUNTRIES.has(region) ? 'us_letter' : 'a4'
+        }
+    }
+    return 'a4'
+}
+
+
+// Remember the home paper size for next time (see guess_paper_size)
+export function remember_paper_size(size:'a4'|'us_letter'):void{
+    localStorage.setItem(PAPER_SIZE_KEY, size)
+}
+
+
 // The passage content items in a blueprint, for summarising what's included
 export function get_passages(blueprint:Blueprint):ContentPassage[]{
     return blueprint.content.filter((item):item is ContentPassage => item.type === 'passage')
