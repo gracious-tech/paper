@@ -11,7 +11,7 @@ v-card-title(class='d-flex align-center')
 
 v-divider
 
-v-card-text(class='flex-grow-1 d-flex flex-column')
+v-card-text(class='flex-grow-1 d-flex flex-column overflow-y-auto')
     NewDesignStories(v-if='step === "books" && draft.type === "picture_story"' :draft='draft')
     NewDesignBooks(v-else-if='step === "books"' :draft='draft')
     NewDesignBibles(v-else-if='step === "bibles"' :draft='draft' @busy='busy = $event')
