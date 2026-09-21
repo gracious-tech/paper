@@ -52,10 +52,16 @@ const emit = defineEmits<{(e:'select'):void}>()
         width: 100%
         aspect-ratio: 2 / 1
         object-fit: cover
-        background-color: rgba(var(--v-theme-primary), 0.08)
+
+    // The minimal-ink preview is a Typst page with a transparent background (no cover art behind
+    // it), so it needs an opaque white backing rather than the tinted placeholder below — a
+    // themed tint would bleed through as if the printed page itself were colored
+    img
+        background-color: white
 
     // Gently pulsed so an empty box reads as "coming" rather than "broken"
     .pending
+        background-color: rgba(var(--v-theme-primary), 0.08)
         animation: pending_pulse 1.6s ease-in-out infinite
 
     .text
