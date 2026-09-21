@@ -1,8 +1,14 @@
 
 <template lang='pug'>
 
-v-dialog(:model-value='!!state.viewed_version && !state.viewed_confirmed' persistent
-        max-width='420')
+//- Waits on any unanswered design invite. Following an invite link lands on /designs/:id with
+//- no version, which ViewDesign resolves to the design's latest one — so without this both
+//- dialogs open at once and this one, being mounted later, sits on top of the invite's own
+//- Accept/Ignore buttons and swallows the clicks. Answering the invite clears design_invite
+//- either way: accepting makes the user an editor (so there's nothing left to prompt about),
+//- and ignoring falls through to this prompt, which is the right thing to ask next
+v-dialog(:model-value='!!state.viewed_version && !state.viewed_confirmed && !state.design_invite'
+        persistent max-width='420')
 
     //- Loaded — ask whether to view the shared design (ViewDesign.vue shows the regular
     //- read-only version view once confirmed)

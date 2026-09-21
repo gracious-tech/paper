@@ -8,7 +8,7 @@
 import {mkdirSync, readFileSync, writeFileSync, existsSync} from 'node:fs'
 import {join} from 'node:path'
 
-import {test} from '@playwright/test'
+import {test, expect} from '@playwright/test'
 import {PDFDocument} from 'pdf-lib'
 
 import {build_blueprint} from './tiers'
@@ -85,6 +85,9 @@ test('wasm compile stress matrix', async ({browser}) => {
     const harness = readFileSync(join(e2e_dir, 'page_harness.js'), 'utf-8')
     const assets_prefix = 'http://localhost:5301/generator_assets/'
 
+    // Configs that never reached the compiler, collected for the assertion at the end
+    const unresolved:ConfigResult[] = []
+
     // Run every config even after a failure — how each one fails is exactly the data wanted
     for (const config of get_configs()){
 
@@ -143,5 +146,14 @@ test('wasm compile stress matrix', async ({browser}) => {
         }
         console.log(JSON.stringify(entry))
         record_result(results_file, entry)
+        if (entry.stage === 'resolve'){
+            unresolved.push(entry)
+        }
     }
+
+    // A config failing to *compile* is the measurement this harness exists for. Failing to
+    // *resolve* means no document was ever built, so the row is a zero rather than a result —
+    // and the cause is always this harness, not Typst. See the same check in stress_wasm
+    expect(unresolved, 'configs that never reached the compiler:\n'
+        + unresolved.map(entry => `  ${entry.config}: ${entry.error}`).join('\n')).toEqual([])
 })

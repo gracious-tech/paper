@@ -61,9 +61,17 @@ export function lulu_print_spec(blueprint:Blueprint, pages:number|null):PrintSpe
         return null
     }
     const lulu = get_service('lulu')
-    const size_id = blueprint.size_id as SizeId
-    const binding_type = blueprint.binding_type as BindingTypeId
-    const ink_type = blueprint.ink_type as InkTypeId
+    // A blueprint's option ids come off a client-written doc (a co-editor's, or a version frozen
+    // before an option was renamed), and printing-services *throws* on an id it doesn't know
+    // rather than returning an empty list — so an unknown one is dropped as a filter here, and
+    // the "no such option" answer comes from the lookups below like any other
+    const known = (group:Record<string, unknown>, id:string):boolean => id in group
+    const size_id = (known(lulu.raw.sizes, blueprint.size_id)
+        ? blueprint.size_id : '') as SizeId
+    const binding_type = (known(lulu.raw.binding_types, blueprint.binding_type)
+        ? blueprint.binding_type : '') as BindingTypeId
+    const ink_type = (known(lulu.raw.ink_types, blueprint.ink_type)
+        ? blueprint.ink_type : '') as InkTypeId
 
     // Each list is scoped to what's actually compatible with the choices made so far, same as
     // OptionsPaper's own dropdowns, so a "cheaper" suggestion is never one the book can't use

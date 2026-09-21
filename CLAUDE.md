@@ -102,6 +102,8 @@ paper_bible/
                                     #   no delete anywhere (server-only), no list
   firebase_storage_lifecycle.json   # Deletes versions/**.pdf (365d), design_cache/ (90d),
                                     #   errors/ (90d) — applied via gcloud, see setup_firebase
+  firebase_test.json       # Emulator config for the test suites only — same rules files, its
+                            #   own ports, no import/export (see the Testing section)
   .bin/                    # All dev/deploy commands (package.json has no scripts)
     setup                  # npm install
     setup_typst            # Download the Typst CLI binary to .bin/typst (gitignored)
@@ -110,11 +112,15 @@ paper_bible/
     build_typst            # Build all local TS packages in dependency order
     serve_app              # Vite dev server (port 5300)
     serve_emulators        # Firebase emulator suite (auth 9099, firestore 8080, storage 9199)
+    serve_emulators_test   # The *test* emulators (auth 9098, firestore 8081, storage 9198) —
+                            #   optional, keeps audit_unit warm between runs
     serve_server           # Local API server against the emulators (port 8788)
     deploy_app             # vite build + firebase deploy (hosting, rules)
     build_server           # Stage server/deploy/ (allowlisted Docker build context)
     deploy_server          # Runs build_server, gcloud run deploy of both services from one build
     i18n_status/_sync/_check/_extract  # Translation tooling (logic in app/i18n/); see i18n section
+    audit_unit             # Every unit/integration suite (typst, typst-node, app, rules,
+                            #   server) — starts its own emulators; see the Testing section
     audit_e2e              # Playwright e2e tests (needs the dev stack running; see e2e/)
     audit_stress           # Compile stress ladder, browser (WASM) + server (see e2e/tiers.ts)
     audit_errors           # Download + triage error reports (TUI; claude groups them)
@@ -179,6 +185,8 @@ paper_bible/
     i18n/                  # Translation tooling (node, own tsconfig; excluded from app tsconfig)
                             #   lib/status/sync/check/extract + context.json/glossary.json
     tools/                 # Other node tooling (own tsconfig): gen_lulu_prices.ts
+    tests/                 # Vitest suites for the service logic (vitest.config.mts aliases
+                            #   services/content + services/state to stubs/); no component tests
   server/                  # Cloud Run API server (workspace; run directly by node)
     Dockerfile             # Cloud Run image: node + workspaces + typst CLI (no fonts baked)
     deploy/                # Staged build context (gitignored; written by .bin/build_server)
@@ -198,6 +206,10 @@ paper_bible/
     src/firebase.ts        # Admin SDK init (admin_db / admin_bucket / admin_auth)
     src/config.ts          # Env-derived config (roles, ports, assets dir, dev flag)
     src/errors.ts          # ErrorRecord + save_error() → errors/{fingerprint}/{id}.json
+  tests/              # Emulator-backed suites (not a workspace; run via .bin/audit_unit)
+    helpers/          #   emulator.ts (rules test env) + server.ts (Admin SDK fixtures)
+    rules/            #   firestore.rules + firebase_storage.rules, asserted from a client
+    server/           #   server/src handlers direct, plus routes.test.ts over real HTTP
   errors/             # .bin/audit_errors internals: bucket sync, claude clustering, triage TUI
   branding/           # Source icon/social/splash artwork
   typst/                   # paper-bible-typst: core (Blueprint→TypstRequest, typst gen,
@@ -310,8 +322,7 @@ browser's guess and is denied.
   in prod (`app/src/services/content.ts`; server via `FETCH_ENDPOINT` env)
 - The server workspace has no build step — node runs `server/src/*.ts` directly
   (erasable-syntax TS; typecheck with `npx tsc -p server/tsconfig.json`)
-- **No unit-test framework in the app.** `typst-node`/`typst` have vitest suites. Emulator
-  integration is tested manually; `vite build` catches compile errors
+- Everything but the Vue components is covered by tests — see the Testing section below
 - **Playwright e2e/stress** lives in `e2e/` (run via `.bin/audit_e2e`, needs the dev stack
   running). Browsers install into `e2e/browsers/` (gitignored) — keep them inside the
   repo, apt/system state doesn't persist across dev-container rebuilds. The compile stress
@@ -330,6 +341,85 @@ browser's guess and is denied.
 3. `.bin/setup_firebase <project-id>` — Storage lifecycle rules, Firestore TTL policies
    (`compile_stats`, `compile_quota`, `copy_quota`), assets-bucket volume-mount IAM
 4. `.bin/deploy_server <project-id>`, `.bin/deploy_app [alias]`
+
+
+## Testing
+
+```bash
+.bin/audit_unit                 # everything below (~1 min; starts its own emulators)
+.bin/audit_unit app             # one group: typst | typst-node | app | rules | server
+.bin/audit_unit rules storage   # a group plus a vitest filter
+.bin/audit_e2e                  # Playwright journeys (needs the dev stack running)
+```
+
+| Suite | Where | Needs |
+|---|---|---|
+| `typst`, `typst-node` | `typst/tests/`, `typst-node/tests/` | nothing |
+| app service logic | `app/tests/` | nothing |
+| security rules | `tests/rules/` | the test emulators |
+| server handlers + routes | `tests/server/` | the test emulators |
+| user journeys | `e2e/smoke`, `e2e/sharing` | the dev stack |
+| a real compile | `e2e/compile` | the dev stack + fetch.bible on :8430 |
+
+- **Emulator suites use `firebase_test.json`, never the dev emulators.** Own ports, same rules
+  files, no import/export. They call `clearFirestore()` between cases, which against
+  `.bin/serve_emulators` would delete whatever you were working on. `audit_unit` reuses those
+  test ports if something is already listening (`.bin/serve_emulators_test`) and otherwise
+  starts and stops its own
+- **Every port in `firebase_test.json` is shifted, hub and logging included.** The hub (4400),
+  logging (4500) and Firestore's websocket (9150) aren't derived from the emulator ports — left
+  at their defaults, starting a test run while the dev stack is up **kills the dev emulators**,
+  which surfaces as an unrelated "socket hang up" in whatever was talking to them
+- **`env.clearStorage()` is not usable** — it only deletes objects `listAll()` reports at the
+  bucket root and never descends into prefixes, so every object this app writes would survive
+  it, silently inverting the create-once rules. Use `clear_storage()` from
+  `tests/helpers/emulator.ts`
+- **The rules suites assert from a *client* context.** Anything the server does bypasses rules
+  via the Admin SDK, so it belongs in `tests/server/` instead — where the ownership checks are
+  written in code and are the only thing enforcing them
+- **`tests/server/routes.test.ts` spawns the real entry point** (twice, once per `SERVER_ROLES`
+  value) and talks HTTP to it. It's the only way to see `authed_post()`'s token + field checks
+  and the role gating, which are invisible when handlers are called directly
+- **`at_later_time()`** (`tests/helpers/server.ts`) fakes only `Date`, never timers — the
+  Firestore/Storage clients need real ones. It's what lets the 10-minute `SWEEP_GRACE_MS` in
+  `assets.ts` be tested from both sides
+- **The app suites alias two modules to stubs** (`app/vitest.config.mts`): `services/content`
+  owns a live fetch-client and is null until boot, `services/state` is the open design's
+  reactive singleton. Everything else is imported for real. There are **no component tests** —
+  Pug + Vuetify would need a DOM and far more mocking than the assertions would be worth
+- Two suites guard config that nothing imports, so drift is otherwise invisible until data goes
+  missing: `typst/tests/consts.test.ts` ties `PDF_LIFETIME_MS` to
+  `firebase_storage_lifecycle.json`, and `tests/server/quota.test.ts` ties `QUOTA_COLLECTIONS`
+  to the `gcloud firestore fields ttls` lines in `.bin/setup_firebase`
+- `app/tests/lulu_skus.test.ts` asserts the generated price table covers **every** product
+  `list_app_pod_package_ids()` can produce — a gap there quotes "not printable" for an option
+  the user can see in the dropdown
+- **e2e seeds the other party with the Admin SDK** (`e2e/helpers/admin.ts`) — the browser can
+  only ever be one user, and these journeys are about what someone *else* shared. The browser's
+  own uid is read out of Firebase Auth's IndexedDB store, not guessed from recent writes
+- **`e2e/compile.test.ts` is the only journey that renders anything**, and it treats its two
+  outside dev servers differently, because they aren't equally required: no fetch.bible server
+  (:8430) means no scripture, so it skips with a warning; no bookcover server (:5301) only
+  means `load_fonts()` fails its (caught) banner and Typst substitutes, so it warns and
+  compiles anyway. It seeds the design rather than driving the new-design wizard — the subject
+  is the compile, and five wizard steps in front of it would make a Typst failure look like a
+  broken dropdown
+- **Probe a dev server with a TCP connect on both loopback families.** `fetch()` answers through
+  whatever proxy the environment has configured: a dead port came back as a cheerful 403 here,
+  which reads as "up" and skips nothing. And `127.0.0.1` alone isn't enough either — the
+  bookcover dev server binds `::1` only, so an IPv4 probe calls a running server down while the
+  browser (which resolves `localhost` across both) reaches it fine. See `listening()` in
+  `e2e/compile.test.ts`
+- **The stress suites assert only that every tier *resolved*.** A tier failing to compile is the
+  measurement `stress_wasm`/`stress_matrix` exist to collect — that's where the server fallback
+  takes over — so it records the row and moves on. A tier failing to **resolve** built no
+  document at all and is always a harness fault, so that one fails the run. Without it a stale
+  `build_blueprint()` in `e2e/tiers.ts` sat here for some time reporting `ok: false` for every
+  single tier under a green tick
+- **`e2e/` is typechecked** (`npx tsc -p e2e/tsconfig.json`) and needs to be: Playwright only
+  transpiles, so the `:Blueprint` annotation on `build_blueprint()` caught nothing when the
+  interface renamed a field out from under it, and `resolve_design_name()` reads `blue.name`
+  unguarded. Nothing else in the repo imports these files
 
 
 ## Code Style & Conventions

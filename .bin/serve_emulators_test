@@ -1,0 +1,15 @@
+#!/usr/bin/env bash
+
+# Run the emulator suite the *tests* use (firebase_test.json — its own ports, no import/export),
+# so repeated .bin/audit_unit runs reuse one already-warm emulator instead of starting their own
+# each time. Optional: audit_unit starts and stops its own when this isn't running.
+#
+# Deliberately separate from .bin/serve_emulators: the rules suites clear Firestore between
+# cases, which against the dev emulator would delete whatever you were working on.
+
+set -euo pipefail
+cd "$(dirname "$0")/.."
+
+export FIREBASE_EMULATORS_PATH="$PWD/.emulator_cache"
+npx firebase emulators:start --config firebase_test.json --project paper-bible-test \
+    --only auth,firestore,storage "$@"

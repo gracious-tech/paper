@@ -7,7 +7,7 @@
 import {mkdirSync, readFileSync, writeFileSync} from 'node:fs'
 import {join} from 'node:path'
 
-import {test} from '@playwright/test'
+import {test, expect} from '@playwright/test'
 import {PDFDocument} from 'pdf-lib'
 
 import {get_tiers, build_blueprint} from './tiers'
@@ -128,4 +128,14 @@ test('wasm compile stress tiers', async ({browser}) => {
         const results_file = process.env['STRESS_BOOKS'] ? 'wasm_custom.json' : 'wasm.json'
         writeFileSync(join(results_dir, results_file), JSON.stringify(results, null, 4))
     }
+
+    // A tier failing to *compile* is the result this harness exists to collect — that's the
+    // point at which the server fallback takes over, and it must not fail the run. A tier
+    // failing to *resolve* is different: no document was ever built, so there is nothing to
+    // measure, and the cause is always this harness rather than Typst. Left unasserted that
+    // reads as a green tick over a file of zeroes, which is how a stale build_blueprint() sat
+    // here unnoticed
+    const unresolved = results.filter(entry => entry.stage === 'resolve')
+    expect(unresolved, `tiers that never reached the compiler:\n`
+        + unresolved.map(entry => `  ${entry.tier}: ${entry.error}`).join('\n')).toEqual([])
 })

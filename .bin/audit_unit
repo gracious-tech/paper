@@ -1,0 +1,106 @@
+#!/usr/bin/env bash
+
+# Run every unit and integration suite:
+#
+#   typst, typst-node   pure packages (vitest, no infrastructure)
+#   app                 the app's service logic (vitest; see app/vitest.config.mts)
+#   tests/rules         firestore.rules + firebase_storage.rules, against the emulators
+#   tests/server        the API server's handlers and routes, against the emulators
+#
+# The emulator-backed suites need auth/firestore/storage running. They use firebase_test.json —
+# its own ports and no import/export — rather than the dev emulators from .bin/serve_emulators,
+# because the rules suites clear Firestore between cases and doing that to the dev stack would
+# delete whatever you were working on. If those test ports are already listening (you left
+# .bin/serve_emulators_test running) this reuses them; otherwise it starts its own and shuts
+# them down afterwards.
+#
+# Usage:
+#   .bin/audit_unit                 everything
+#   .bin/audit_unit typst           just that group (typst | typst-node | app | rules | server)
+#   .bin/audit_unit rules storage   a group, plus a filter passed through to vitest
+
+set -euo pipefail
+cd "$(dirname "$0")/.."
+
+export FIREBASE_EMULATORS_PATH="$PWD/.emulator_cache"
+
+# The group to run (default all), and anything after it as a vitest name/path filter
+GROUP="${1:-all}"
+shift || true
+FILTER=("$@")
+
+# Ports from firebase_test.json, so there is one place to change them
+FIRESTORE_PORT="$(node -p "require('./firebase_test.json').emulators.firestore.port")"
+
+run_group(){
+    # Run one vitest root, echoing which group it is
+    local name="$1" root="$2"
+    echo
+    echo "── $name ─────────────────────────────────────────"
+    npx vitest run --root "$root" "${FILTER[@]}"
+}
+
+emulators_up(){
+    # Whether something is already answering on the test emulator's Firestore port
+    node -e "
+        const net = require('node:net')
+        const socket = net.connect($FIRESTORE_PORT, '127.0.0.1')
+        socket.on('connect', () => {socket.end(); process.exit(0)})
+        socket.on('error', () => process.exit(1))
+        socket.setTimeout(1000, () => {socket.destroy(); process.exit(1)})
+    " 2>/dev/null
+}
+
+run_emulator_suites(){
+    # Run the emulator-backed suites, reusing a running test emulator or starting one
+    local filter_args=""
+    if [ ${#FILTER[@]} -gt 0 ]; then
+        filter_args=" ${FILTER[*]}"
+    fi
+    local command="npx vitest run --root tests${1:+ $1}${filter_args}"
+    if emulators_up; then
+        echo "(reusing the test emulators already on :$FIRESTORE_PORT)"
+        eval "$command"
+    else
+        npx firebase emulators:exec \
+            --config firebase_test.json \
+            --project paper-bible-test \
+            --only auth,firestore,storage \
+            "$command"
+    fi
+}
+
+case "$GROUP" in
+    all)
+        run_group "typst" typst
+        run_group "typst-node" typst-node
+        run_group "app" app
+        echo
+        echo "── rules + server (emulators) ────────────────────"
+        run_emulator_suites ""
+        ;;
+    typst)
+        run_group "typst" typst
+        ;;
+    typst-node)
+        run_group "typst-node" typst-node
+        ;;
+    app)
+        run_group "app" app
+        ;;
+    rules)
+        echo "── rules (emulators) ─────────────────────────────"
+        run_emulator_suites "rules/"
+        ;;
+    server)
+        echo "── server (emulators) ────────────────────────────"
+        run_emulator_suites "server/"
+        ;;
+    *)
+        echo "Unknown group '$GROUP' (typst | typst-node | app | rules | server | all)" >&2
+        exit 1
+        ;;
+esac
+
+echo
+echo "All requested suites passed."

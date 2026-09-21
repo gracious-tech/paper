@@ -2,7 +2,7 @@
 import {describe, it, expect} from 'vitest'
 
 import {cover_render_key, cover_config_schema, cover_form_for_render,
-    KNOWN_BUILTIN_BACKGROUNDS, STOCK_BG_PHOTOS} from '../src/index.js'
+    KNOWN_BUILTIN_BACKGROUNDS, STOCK_BG_PHOTOS, is_builtin_background} from '../src/index.js'
 
 import type {Blueprint, CoverConfig} from '../src/types.js'
 
@@ -74,6 +74,51 @@ describe('cover_form_for_render size_mode', () => {
         expect(form['size_id']).toBe('a5')
     })
 
+})
+
+
+describe('is_builtin_background', () => {
+
+    // A shape check, not an allowlist — its whole job is bounding a client-supplied id to a
+    // single plain filename that both the app (a URL) and the server (a path against the assets
+    // mount) can safely join onto their own base
+
+    it('accepts a plain image filename', () => {
+        expect(is_builtin_background('hills.jpg')).toBe(true)
+        expect(is_builtin_background('a.jpeg')).toBe(true)
+        expect(is_builtin_background('a.png')).toBe(true)
+        expect(is_builtin_background('a.webp')).toBe(true)
+    })
+
+    it('accepts an uppercase extension', () => {
+        expect(is_builtin_background('HILLS.JPG')).toBe(true)
+    })
+
+    it('rejects an empty id', () => {
+        expect(is_builtin_background('')).toBe(false)
+    })
+
+    it('rejects a non-image extension', () => {
+        expect(is_builtin_background('evil.svg')).toBe(false)
+        expect(is_builtin_background('evil.html')).toBe(false)
+        expect(is_builtin_background('noextension')).toBe(false)
+    })
+
+    it('rejects anything with a path separator', () => {
+        expect(is_builtin_background('sub/dir.jpg')).toBe(false)
+        expect(is_builtin_background('sub\\dir.jpg')).toBe(false)
+        expect(is_builtin_background('/absolute.jpg')).toBe(false)
+    })
+
+    it('rejects traversal even without a separator', () => {
+        expect(is_builtin_background('..jpg')).toBe(false)
+        expect(is_builtin_background('..%2fevil.jpg')).toBe(false)
+    })
+
+    it('rejects an over-long id', () => {
+        expect(is_builtin_background(`${'a'.repeat(124)}.jpg`)).toBe(true)
+        expect(is_builtin_background(`${'a'.repeat(125)}.jpg`)).toBe(false)
+    })
 })
 
 

@@ -1,0 +1,45 @@
+{
+    "//": [
+        "Emulator config for the test suites only (.bin/audit_unit).",
+        "Separate from firebase.json so tests never touch the dev emulator's persisted",
+        ".emulator_data/ — the rules suites clear Firestore between cases, which against the",
+        "dev stack would delete whatever you were working on.",
+        "Same rules files, different ports, no import/export."
+    ],
+    "firestore": {
+        "rules": "firestore.rules",
+        "indexes": "firestore.indexes.json"
+    },
+    "storage": {
+        "rules": "firebase_storage.rules"
+    },
+    "//ports": [
+        "Every port here is one below its firebase.json counterpart, hub and logging included.",
+        "The hub (4400), logging (4500) and Firestore's websocket (9150) are NOT derived from",
+        "the emulator ports — leave them at their defaults and a test run started while the dev",
+        "stack is up takes the dev emulators down with it, which looks like an unrelated",
+        "'socket hang up' in whatever was talking to them at the time."
+    ],
+    "emulators": {
+        "auth": {
+            "port": 9098
+        },
+        "firestore": {
+            "port": 8081,
+            "websocketPort": 9149
+        },
+        "storage": {
+            "port": 9198
+        },
+        "hub": {
+            "port": 4399
+        },
+        "logging": {
+            "port": 4499
+        },
+        "ui": {
+            "enabled": false
+        },
+        "singleProjectMode": true
+    }
+}

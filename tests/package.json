@@ -1,0 +1,9 @@
+{
+    "//": [
+        "Not a workspace — this only marks the emulator suites as ESM,",
+        "so vitest.config.ts loads natively rather than as CommonJS."
+    ],
+    "name": "paper-bible-tests",
+    "private": true,
+    "type": "module"
+}

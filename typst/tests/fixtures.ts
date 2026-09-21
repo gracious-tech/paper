@@ -1,7 +1,8 @@
 
 import type {
     TypstRequest, PageConfig, TypographyConfig, TitlepageConfig, FeatureConfig,
-    TypstPassage, TypstTitlePage, TypstCustomPage, TypstLinesPage,
+    TypstPassage, TypstTitlePage, TypstCustomPage, TypstLinesPage, TypstPictureStory,
+    TypstPictureStorySlide, Blueprint,
 } from '../src/types.js'
 
 
@@ -117,6 +118,129 @@ export function make_lines(overrides:Partial<TypstLinesPage> = {}):TypstLinesPag
     return {
         type: 'lines',
         spacing: '10mm',
+        ...overrides,
+    }
+}
+
+
+// Minimal picture-story slide for testing
+export function make_slide(overrides:Partial<TypstPictureStorySlide> = {}):TypstPictureStorySlide {
+    return {
+        image: null,
+        body: 'Once there was a garden.',
+        body2: null,
+        ...overrides,
+    }
+}
+
+
+// Minimal picture story for testing
+export function make_story(overrides:Partial<TypstPictureStory> = {}):TypstPictureStory {
+    return {
+        type: 'picture_story',
+        slides: [make_slide()],
+        ...overrides,
+    }
+}
+
+
+// A complete, valid Blueprint — the same shape get_default_blueprint() builds in the app, with a
+// fixed bible id in place of the one it resolves from the live Bible collection. Kept here rather
+// than imported because this package deliberately has no default of its own: callers supply one
+// (see make_blueprint_schema), and a test needs a known-good starting point to mutate
+export function make_blueprint(overrides:Partial<Blueprint> = {}):Blueprint {
+    return {
+        name: '',
+        cover: null,
+
+        // Printing
+        service_id: 'home',
+        size_id: 'a4',
+        binding_type: 'paperback',
+        ink_type: 'bw',
+        paper_type: 'white',
+        custom_unit: 'mm',
+        custom_trim_width: 152,
+        custom_trim_height: 229,
+        custom_bleed: 3,
+        custom_spine: 10,
+        booklet: true,
+        booklet_portrait: false,
+
+        // Content
+        content: [],
+        last_item_at_end: false,
+        bibles: ['eng_bsb'],
+        bibles_layout: 'columns',
+        bibles_align: 'paragraph',
+
+        // Features
+        show_headings: true,
+        show_headings_bold: true,
+        show_headings_italic: false,
+        show_headings_size: 0.9,
+        show_chapters: true,
+        show_chapters_style: 'divider',
+        show_verses: true,
+        running_pages: true,
+        running_headings: true,
+        running_position: 'header',
+        running_align: 'outer',
+        show_footnotes: true,
+        show_wj: false,
+        show_wj_color: '#cc0000',
+        show_wj_bold: false,
+        show_wj_italic: false,
+        show_lines: true,
+        notes: null,
+        half_blank: null,
+        passage_title: 'heading',
+
+        // Style
+        font_text: 'Source Serif 4',
+        font_text2: null,
+        font_headings: null,
+        font_size: 10,
+        font_size2: 1,
+        line_height: 1.35,
+        line_height2: 1,
+        justify: null,
+        hyphenate: true,
+        poetry_outdent: true,
+        text_color: null,
+        columns: null,
+        story_emphasis: true,
+        story_emphasis_color: '#4862ad',
+        story_layout: 'single',
+        story_alternate: false,
+
+        // Title pages
+        titlepage_frame: 'subtle',
+        titlepage_color_text: null,
+        titlepage_color_icon: null,
+        titlepage_color_frame: null,
+        titlepage_font: null,
+        titlepage_text_size: 1,
+        titlepage_icon_size: 1,
+        titlepage_always: 'right',
+
+        // Images
+        image_style: 'padded',
+
+        // Spacing
+        margin_unit: 'mm',
+        margin_top: 20,
+        margin_bottom: 20,
+        margin_inner: 15,
+        margin_outer: 15,
+        margin_gutter_auto: true,
+        column_gap: 6,
+
+        // Legal
+        public_domain: true,
+        app_link: true,
+        design_link: true,
+
         ...overrides,
     }
 }

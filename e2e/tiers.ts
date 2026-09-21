@@ -72,11 +72,15 @@ export function build_blueprint(tier:Tier, overrides:Partial<Blueprint> = {}):Bl
         title: book,
         title_subtitle: '',
         title_icon: null,
+        image: null,
     }))
 
     return {
 
-        title: `Stress ${tier.id}`,
+        // The design's own name (never printed — it reaches the PDF as metadata and the
+        // download filename). resolve_design_name() reads it unguarded, so it must be a string
+        name: `Stress ${tier.id}`,
+        cover: null,
 
         // Printing
         service_id: 'home',
@@ -94,6 +98,7 @@ export function build_blueprint(tier:Tier, overrides:Partial<Blueprint> = {}):Bl
 
         // Content
         content,
+        last_item_at_end: false,
         bibles: [STRESS_BIBLE],
         bibles_layout: 'columns',
         bibles_align: 'paragraph',
@@ -117,19 +122,26 @@ export function build_blueprint(tier:Tier, overrides:Partial<Blueprint> = {}):Bl
         show_wj_italic: false,
         show_lines: true,
         notes: null,
-        crossref: null,
         half_blank: null,
         passage_title: 'heading',
 
         // Style
-        font_text: "Crimson Pro",
+        font_text: 'Crimson Pro',
         font_text2: null,
         font_headings: null,
         font_size: 10,
+        font_size2: 1,
         line_height: 1.75,
+        line_height2: 1,
         justify: null,
+        hyphenate: true,
+        poetry_outdent: true,
         text_color: null,
         columns: null,
+        story_emphasis: true,
+        story_emphasis_color: '#4862ad',
+        story_layout: 'single',
+        story_alternate: false,
 
         // Title pages
         titlepage_frame: 'straight',
@@ -137,8 +149,12 @@ export function build_blueprint(tier:Tier, overrides:Partial<Blueprint> = {}):Bl
         titlepage_color_icon: null,
         titlepage_color_frame: null,
         titlepage_font: null,
+        titlepage_text_size: 1,
         titlepage_icon_size: 1,
         titlepage_always: 'right',
+
+        // Images
+        image_style: 'padded',
 
         // Spacing
         margin_unit: 'mm',
@@ -152,6 +168,7 @@ export function build_blueprint(tier:Tier, overrides:Partial<Blueprint> = {}):Bl
         // Legal
         public_domain: true,
         app_link: true,
+        design_link: true,
 
         ...overrides,
     }
