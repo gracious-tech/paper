@@ -99,5 +99,10 @@ const cancel = () => {
 
 <style lang='sss' scoped>
 
+// Vuetify's v-card-text defaults to auto min-height, which lets it grow past the surrounding
+// v-card's bounded height (clipped by the card's own overflow:hidden) rather than shrinking —
+// pushing the fields below app-prose out of view instead of letting app-prose scroll internally
+.v-card-text
+    min-height: 0
 
 </style>
