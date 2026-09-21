@@ -8,6 +8,9 @@ div.passage-field
     v-text-field(v-bind='$attrs' v-model='tmp_ref'
         :placeholder='$t("editor.passage.book_or_passage")' :messages='messages'
         :error-messages='errors' :hide-details='false')
+        template(v-if='tmp_ref.trim()' #append-inner)
+            app-icon(:name='error ? "cancel" : "check_circle"'
+                :class='error ? "text-error" : "text-success"')
     div(v-if='warnings.length' class='mt-2 text-error text-body-medium')
         div(v-for='warning of warnings') {{ warning }}
 

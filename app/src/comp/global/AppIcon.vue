@@ -39,6 +39,8 @@ import description from '@material-symbols/svg-400/outlined/description.svg?comp
 import print from '@material-symbols/svg-400/outlined/print.svg?component'
 import warning from '@material-symbols/svg-400/outlined/warning.svg?component'
 import check from '@material-symbols/svg-400/outlined/check.svg?component'
+import check_circle from '@material-symbols/svg-400/outlined/check_circle.svg?component'
+import cancel from '@material-symbols/svg-400/outlined/cancel.svg?component'
 import search from '@material-symbols/svg-400/outlined/search.svg?component'
 import edit from '@material-symbols/svg-400/outlined/edit.svg?component'
 import help from '@material-symbols/svg-400/outlined/help.svg?component'
@@ -64,8 +66,8 @@ const icons = {
     subject, download, upload, error, info, more_vert, more_horiz, lists, history_toggle_off, donate,
     add, content_copy, 'delete': delete_icon, group, share, account_circle, account_circle_fill,
     straighten,
-    menu_book, description, print, warning, check, search, edit, help, mail, payments, google,
-    no_accounts,
+    menu_book, description, print, warning, check, check_circle, cancel, search, edit, help, mail,
+    payments, google, no_accounts,
 } as Record<string, FunctionalComponent>
 
 
