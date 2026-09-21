@@ -188,9 +188,11 @@ async function compile(){
 
         // The design's production URL, for the "customise this design" link + QR code in any
         // auto-copyright block (a created version uses its own version URL instead — see
-        // versions.ts). Omitted if no design is open yet
+        // versions.ts). Hardcoded to the real domain (not location.origin) so a dev/preview
+        // compile still bakes a working link/QR into the document — mirrors version_compile.ts.
+        // Omitted if no design is open yet
         const share_url = current_design_id.value
-            ? `${location.origin}/designs/${current_design_id.value}`
+            ? `https://paper.bible/designs/${current_design_id.value}`
             : undefined
 
         // The preview lays the pages out as facing-page book spreads, as if the book were opened
