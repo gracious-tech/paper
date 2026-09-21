@@ -9,7 +9,7 @@ v-divider
 
 v-card-text(class='overflow-y-auto')
 
-    h2(class='mb-4') {{$t("options.layout.margins")}}
+    h2 {{$t("options.layout.margins")}}
 
     div(class='d-flex align-center')
         v-text-field(v-model.number='blue.margin_top' type='number' variant='underlined'
@@ -36,43 +36,36 @@ v-card-text(class='overflow-y-auto')
 
     v-divider(class='my-8')
 
-    h2(class='mb-4') {{$t("editor.advanced.running_heading")}}
+    h2 {{$t("common.text")}}
 
-    p(v-if='!blue.running_pages && !blue.running_headings' class='hint') {{$t("editor.advanced.running_disabled_note")}}
+    v-checkbox(v-model='blue.hyphenate' :label='$t("editor.advanced.hyphenate")' hide-details)
+    p(class='hint') {{$t("editor.advanced.hyphenate_note")}}
 
-    AppOptionToggle(v-model='blue.running_position' :label='$t("common.position")'
-        :items='running_position_items'
-        :disabled='!blue.running_pages && !blue.running_headings' class='my-4')
-    AppOptionToggle(v-model='blue.running_align' :label='$t("editor.advanced.page_num_align")'
-        :items='running_align_items'
-        :disabled='!blue.running_pages && !blue.running_headings' class='my-4')
+    v-checkbox(v-model='blue.poetry_outdent' :label='$t("editor.advanced.poetry_outdent")' class='mt-4' hide-details)
+    p(class='hint') {{$t("editor.advanced.poetry_outdent_note")}}
 
-    v-divider(class='my-8')
+    //- Relative to font_size, same as text2_size — a minimum absolute point size is floored in
+    //- when resolving the blueprint, so the low end of this range can't become illegible
+    v-slider(v-model='blue.footnote_size' :label='$t("editor.advanced.footnote_size")' :min='0.5'
+            :max='1' :step='0.01' thumb-label class='mt-4')
+        template(#thumb-label='{modelValue}')
+            | {{ Math.round(modelValue * 100) }}%
+    p(class='hint') {{$t("editor.advanced.footnote_size_note")}}
 
-    h2(class='mb-4') {{$t("common.chapter_numbers")}}
+    AppColor(v-model='blue.text_color' :label='$t("editor.advanced.text_color_label")')
+    p(class='hint') {{$t("editor.advanced.big_text_note")}}
 
-    v-select(v-model='blue.show_chapters_style' :items='chapter_styles'
-        :disabled='!blue.show_chapters' :label='$t("common.style")' variant='outlined'
-        :hint='chapter_style_hint' persistent-hint)
-
-    v-divider(class='my-8')
-
-    h2(class='mb-4') {{$t("editor.advanced.headings")}}
-
-    AppFontSelect(v-model='blue.font_headings' :label='$t("editor.advanced.headings_font")' auto
-        example='heading' class='mb-4')
-
-    v-checkbox(v-model='blue.show_headings_bold' :label='$t("common.bold")')
-    v-checkbox(v-model='blue.show_headings_italic' :label='$t("common.italic")')
-
-    v-slider(v-model='blue.show_headings_size' :label='$t("common.size")' :min='0.8' :max='2'
-        :step='0.05' thumb-label class='my-4')
+    v-checkbox(v-model='blue.show_wj' :disabled='!supports_wj' :label='wj_label' class='mt-4')
+    div(v-if='blue.show_wj && supports_wj' class='wj_style')
+        AppColor(v-model='blue.show_wj_color' :label='$t("options.features.wj_color_label")')
+        v-checkbox(v-model='blue.show_wj_bold' :label='$t("common.bold")' density='compact' hide-details)
+        v-checkbox(v-model='blue.show_wj_italic' :label='$t("common.italic")' density='compact' hide-details)
 
     template(v-if='blue.bibles.length > 1')
 
         v-divider(class='my-8')
 
-        h2(class='mb-4') {{$t("editor.advanced.second_translation")}}
+        h2 {{$t("editor.advanced.second_translation")}}
 
         AppFontSelect(v-model='blue.font_text2' :label='$t("editor.advanced.text2_font")' auto
             example='verse' class='mb-4')
@@ -94,46 +87,50 @@ v-card-text(class='overflow-y-auto')
 
     v-divider(class='my-8')
 
-    h2(class='mb-4') {{$t("common.text")}}
+    h2 {{$t("editor.advanced.running_heading")}}
 
-    v-checkbox(v-model='blue.hyphenate' :label='$t("editor.advanced.hyphenate")' hide-details)
-    p(class='hint') {{$t("editor.advanced.hyphenate_note")}}
+    p(v-if='!blue.running_pages && !blue.running_headings' class='hint') {{$t("editor.advanced.running_disabled_note")}}
 
-    v-checkbox(v-model='blue.poetry_outdent' :label='$t("editor.advanced.poetry_outdent")' class='mt-4' hide-details)
-    p(class='hint') {{$t("editor.advanced.poetry_outdent_note")}}
-
-    v-divider(class='my-8')
-
-    h2(class='mb-4') {{$t("editor.advanced.footnotes")}}
-
-    //- Relative to font_size, same as text2_size — a minimum absolute point size is floored in
-    //- when resolving the blueprint, so the low end of this range can't become illegible
-    v-slider(v-model='blue.footnote_size' :label='$t("editor.advanced.footnote_size")' :min='0.5'
-            :max='1' :step='0.01' thumb-label class='mt-4')
-        template(#thumb-label='{modelValue}')
-            | {{ Math.round(modelValue * 100) }}%
-    p(class='hint') {{$t("editor.advanced.footnote_size_note")}}
+    AppOptionToggle(v-model='blue.running_position' :label='$t("common.position")'
+        :items='running_position_items'
+        :disabled='!blue.running_pages && !blue.running_headings' class='my-4')
+    AppOptionToggle(v-model='blue.running_align' :label='$t("editor.advanced.page_num_align")'
+        :items='running_align_items'
+        :disabled='!blue.running_pages && !blue.running_headings' class='my-4')
 
     v-divider(class='my-8')
 
-    h2(class='mb-4') {{$t("editor.advanced.text_color")}}
+    h2 {{$t("common.chapter_numbers")}}
 
-    AppColor(v-model='blue.text_color' :label='$t("editor.advanced.text_color_label")')
-    p(class='hint') {{$t("editor.advanced.big_text_note")}}
+    v-select(v-model='blue.show_chapters_style' :items='chapter_styles'
+        :disabled='!blue.show_chapters' :label='$t("common.style")' variant='outlined'
+        :hint='chapter_style_hint' persistent-hint)
 
     v-divider(class='my-8')
 
-    h2(class='mb-4') {{$t("editor.advanced.title_pages")}}
-    p(class='hint') {{$t("editor.advanced.titlepages_note")}}
+    h2 {{$t("editor.advanced.headings")}}
 
-    AppFontSelect(v-model='blue.titlepage_font' :label='$t("editor.advanced.titlepage_font")' auto
-        example='title' class='mb-4')
+    AppFontSelect(v-model='blue.font_headings' :label='$t("editor.advanced.headings_font")' auto
+        example='heading' class='mb-4')
+
+    v-checkbox(v-model='blue.show_headings_bold' :label='$t("common.bold")')
+    v-checkbox(v-model='blue.show_headings_italic' :label='$t("common.italic")')
+
+    v-slider(v-model='blue.show_headings_size' :label='$t("common.size")' :min='0.8' :max='2'
+        :step='0.05' thumb-label class='my-4')
+
+    v-divider(class='my-8')
+
+    h2 {{$t("editor.advanced.title_pages")}}
 
     div.patterns
         div.none(@click='blue.titlepage_frame = null'
             :class='{active: blue.titlepage_frame === null}') {{$t("common.none")}}
         img(v-for='pattern of pattern_items' :src='pattern.src' @click='pattern.click'
             :class='{active: blue.titlepage_frame === pattern.pattern}')
+
+    AppFontSelect(v-model='blue.titlepage_font' :label='$t("editor.advanced.titlepage_font")' auto
+        example='title' class='mb-4')
 
     div(class='mb-4')
         AppColor(v-model='blue.titlepage_color_text' :label='$t("editor.advanced.text_color_label")')
@@ -153,15 +150,14 @@ v-card-text(class='overflow-y-auto')
 
     v-divider(class='my-8')
 
-    h2(class='mb-4') {{$t("common.images")}}
-    p(class='hint') {{$t("editor.advanced.images_note")}}
+    h2 {{$t("common.images")}}
 
     AppOptionToggle(v-model='blue.image_style' :label='$t("editor.advanced.image_border")'
         :items='image_style_items')
 
     v-divider(class='my-8')
 
-    h2(class='mb-4') {{$t("editor.advanced.stories")}}
+    h2 {{$t("editor.advanced.stories")}}
 
     AppOptionToggle(v-model='blue.story_layout' :label='$t("editor.advanced.images_per_page")'
         :items='story_layout_items' class='mb-2')
@@ -177,7 +173,13 @@ v-card-text(class='overflow-y-auto')
 
     v-divider(class='my-8')
 
-    h2(class='mb-4') {{$t("common.copyright")}}
+    h2 {{$t("editor.advanced.blank_pages")}}
+
+    v-checkbox(v-model='blue.show_lines' :label='$t("editor.advanced.draw_lines")' hide-details)
+
+    v-divider(class='my-8')
+
+    h2 {{$t("common.copyright")}}
 
     v-checkbox(v-model='blue.app_link' :label='$t(`editor.advanced.app_link`)' class='mt-4')
 
@@ -186,13 +188,13 @@ v-card-text(class='overflow-y-auto')
 
     v-checkbox(v-model='blue.public_domain' :label='$t("editor.advanced.dedicate_pd")' class='mt-4' hide-details)
     p(class='hint') {{$t("editor.advanced.pd_note")}} #[a(href='https://freely.giving/questions/public-domain' target='_blank' rel='noopener') {{$t('editor.advanced.pd_learn_more')}}]
-    p(v-if='!blue.public_domain' class='hint text-error') {{$t("editor.advanced.design_link_warning")}}
+    p(v-if='!blue.public_domain' class='text-error') {{$t("editor.advanced.design_link_warning")}}
 
     v-divider(class='my-8')
 
-    h2(class='mb-4') {{$t("editor.advanced.workarounds")}}
+    h2 {{$t("editor.advanced.workarounds")}}
 
-    v-switch(v-model='blue.booklet_portrait' color='primary' :label="$t(`editor.advanced.flip_edge`)" class='mt-4' :disabled='!blue.booklet' hide-details)
+    v-switch(v-model='blue.booklet_portrait' color='primary' :label="$t(`editor.advanced.flip_edge`)" :disabled='!blue.booklet' hide-details)
     p(class='hint') {{$t("editor.advanced.flip_edge_note")}}
 
 </template>
@@ -204,7 +206,7 @@ import {computed} from 'vue'
 import {useI18n} from '@/services/i18n'
 import {PATTERNS as patterns, resolve_binding_gutter} from 'paper-bible-typst'
 
-import {blue, state, page_count_guess} from '@/services/state'
+import {blue, state, page_count_guess, supports_wj} from '@/services/state'
 import {unit_label} from '@/services/blueprints'
 
 const {t} = useI18n()
@@ -278,6 +280,14 @@ const margin_unit = computed({
 })
 
 
+// Label for the words-of-Jesus toggle, flagging when no chosen translation supports it
+const wj_label = computed(() => {
+    return supports_wj.value
+        ? t(`options.features.wj_color`)
+        : t(`options.features.wj_color_na`)
+})
+
+
 // Page estimate the gutter preview is calculated against (a thicker book needs a deeper gutter)
 const gutter_pages = computed(() => page_count_guess())
 
@@ -328,8 +338,8 @@ const gutter_amount = computed(() => {
 
 // Chapter number style options
 const chapter_styles = [
-    {value: 'divider', title: t("editor.advanced.divider") + " / --- 2 ---"},
-    {value: 'float', title: t("editor.advanced.margin_number") + " / 2"},
+    {value: 'divider', title: t("editor.advanced.divider") + " | --- 2 ---"},
+    {value: 'float', title: t("editor.advanced.margin_number") + " | 2"},
     {value: 'heading', title: t("editor.advanced.heading_chapter") + " 2"},
 ]
 
@@ -376,7 +386,15 @@ const titlepage_always = computed({
 
 h2
     font-size: 18px
-    margin-bottom: 12px
+    margin-bottom: 16px
+
+
+.wj_style
+    display: flex
+    align-items: center
+    flex-wrap: wrap
+    gap: 12px
+    margin-top: 8px
 
 
 .patterns

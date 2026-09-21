@@ -14,9 +14,6 @@ AppOptionToggle(v-model='half_blank' :label='$t("options.layout.half_blank")'
     :items='half_blank_items'
     :disabled='blue.bibles.length > 1 && blue.bibles_layout === "alternate"' class='my-6')
 
-AppOptionToggle(v-model='passage_title' :label='$t("options.layout.passage_titles")'
-    :items='passage_title_items' class='my-6')
-
 </template>
 
 
@@ -62,14 +59,6 @@ const half_blank_items = computed(() => [
 ])
 
 
-// How to present passage titles
-const passage_title_items = computed(() => [
-    {value: 'null', title: t("common.none")},
-    {value: 'heading', title: t("options.layout.show_as_heading")},
-    {value: 'titlepage', title: t("options.layout.show_as_title_page")},
-])
-
-
 // Wrap columns so the toggle works with string values (null isn't a valid option value)
 const columns = computed({
     get: () => String(blue.columns),
@@ -84,15 +73,6 @@ const half_blank = computed({
     get: () => String(blue.half_blank),
     set: value => {
         blue.half_blank = value === 'null' ? null : (value as 'left'|'right')
-    },
-})
-
-
-// Wrap passage_title so the toggle works with string values (null isn't a valid option value)
-const passage_title = computed({
-    get: () => String(blue.passage_title),
-    set: value => {
-        blue.passage_title = value === 'null' ? null : (value as 'titlepage'|'heading')
     },
 })
 

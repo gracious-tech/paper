@@ -33,10 +33,6 @@ div.cont(v-if='!trigger_rerender')
     OptionsFeatures
     v-divider(class='my-8')
 
-    h2 {{$t("common.study")}}
-    OptionsStudy
-    v-divider(class='my-8')
-
     h2 {{$t("common.style")}}
     OptionsStyle
     v-divider(class='my-8')
@@ -64,7 +60,6 @@ import OptionsFeatures from '@/comp/options/OptionsFeatures.vue'
 import OptionsStyle from '@/comp/options/OptionsStyle.vue'
 import OptionsLayout from '@/comp/options/OptionsLayout.vue'
 import OptionsPaper from '@/comp/options/OptionsPaper.vue'
-import OptionsStudy from '@/comp/options/OptionsStudy.vue'
 import OptionsBibles from '@/comp/options/OptionsBibles.vue'
 
 import {blue, state} from '@/services/state'
