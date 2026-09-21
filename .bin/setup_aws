@@ -29,6 +29,9 @@ cd "$(dirname "$0")/.."
 STACK="${STACK:-paper-bible}"
 REGION="${REGION:-${AWS_REGION:-us-west-2}}"
 DOMAIN="${DOMAIN:-paper.bible}"
+# The Firebase/GCP project id (see .firebaserc) — server/src/firebase.ts needs this as
+# GCLOUD_PROJECT to initialize the Admin SDK against the right project
+GCP_PROJECT="${GCP_PROJECT:-paper-bible}"
 # The bookcover repo's assets bucket by its actual S3 name, not the assets.paper.bible domain
 # fronting it — lambda_bootstrap.ts's S3 SDK calls need the real bucket name
 ASSETS_BUCKET="${ASSETS_BUCKET:-paper-cover-assets-073034502699}"
@@ -127,6 +130,7 @@ fi
 
 PARAM_OVERRIDES=(
     "Domain=$DOMAIN"
+    "GcpProjectId=$GCP_PROJECT"
     "AssetsBucketName=$ASSETS_BUCKET"
     "CertificateArn=$CERT_ARN"
     "ImageUri=$IMAGE_URI"

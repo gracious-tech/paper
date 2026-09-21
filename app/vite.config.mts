@@ -33,8 +33,8 @@ export default defineConfig(() => {
             fs: {
                 strict: true,
             },
-            // Same-origin path to the local API server (mirrors Hosting's /api/** rewrite to
-            // Cloud Run in production — see .bin/serve_server)
+            // Same-origin path to the local API server (mirrors CloudFront's /api/* cache
+            // behavior in production — see .bin/serve_server)
             proxy: {
                 '/api': 'http://localhost:8788',
             },

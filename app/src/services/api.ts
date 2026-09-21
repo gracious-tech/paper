@@ -63,7 +63,7 @@ function is_network_failure(error:unknown):boolean{
 
 
 export async function api<T>(path:string, body?:unknown):Promise<T>{
-    // Call the API server (Cloud Run via Hosting's /api rewrite, or Vite's dev proxy) with the
+    // Call the API server (Lambda via CloudFront's /api rewrite, or Vite's dev proxy) with the
     // user's ID token attached
     const current = firebase_auth.currentUser
     if (!current){

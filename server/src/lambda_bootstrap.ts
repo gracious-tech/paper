@@ -78,7 +78,14 @@ async function run_sync():Promise<void>{
 
 
 export function ensure_assets_synced():Promise<void>{
-    // Kick off (or await an in-flight) sync — safe to call on every compile request
-    sync_promise ??= run_sync()
+    // Kick off (or await an in-flight) sync — safe to call on every compile request. On failure,
+    // clear the memo so the *next* invocation retries from scratch instead of this warm
+    // environment being permanently stuck failing on a transient S3 hiccup for its whole
+    // lifetime — the request that hit the failure still sees it (the throw below), only later
+    // ones get a fresh attempt
+    sync_promise ??= run_sync().catch(error => {
+        sync_promise = null
+        throw error
+    })
     return sync_promise
 }

@@ -17,6 +17,13 @@ Parameters:
   Domain:
     Type: String
 
+  GcpProjectId:
+    Type: String
+    Description: >
+      The Firebase/GCP project id (see .firebaserc) — server/src/firebase.ts reads this from
+      GCLOUD_PROJECT to initialize the Admin SDK; without it, Firestore/Storage/Auth calls would
+      target an empty project id in production.
+
   AssetsBucketName:
     Type: String
     Description: >
@@ -274,6 +281,7 @@ Resources:
       Environment:
         Variables:
           SERVER_ROLES: light
+          GCLOUD_PROJECT: !Ref GcpProjectId
           GCP_CREDENTIALS_SECRET_ARN: !Ref GcpCredentialsSecret
 
   # /api/compile only — the in-browser (WASM) compile fallback + expired-PDF regeneration, not
@@ -303,6 +311,7 @@ Resources:
           FONTS_DIR: /tmp/assets/fonts
           TYPST_PATH: /usr/local/bin/typst
           ASSETS_BUCKET: !Ref AssetsBucketName
+          GCLOUD_PROJECT: !Ref GcpProjectId
           GCP_CREDENTIALS_SECRET_ARN: !Ref GcpCredentialsSecret
 
   # One HTTP API for both functions — API Gateway's own literal-vs-{proxy+} route precedence

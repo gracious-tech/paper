@@ -37,7 +37,8 @@ const ip_reports = new Map<string, {count:number, since:number}>()
 
 
 export function get_client_ip(context:Context):string|null{
-    // The caller's IP — first x-forwarded-for element (Hosting/Cloud Run append their own hops)
+    // The caller's IP — first x-forwarded-for element (CloudFront/API Gateway append their own
+    // hops)
     const first = context.req.header('x-forwarded-for')?.split(',')[0]?.trim()
     return first || null
 }

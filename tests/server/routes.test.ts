@@ -5,8 +5,8 @@
 // that can only be seen from outside: authed_post(), the wrapper every authenticated route goes
 // through. It does the token check and the body-field checks so a route can't be added without
 // them, and forgetting either is a security hole rather than a visible bug. The other property
-// checked here is role gating — SERVER_ROLES decides which routes exist at all, and Hosting
-// routes /api/compile to a different service, so the two have to agree.
+// checked here is role gating — SERVER_ROLES decides which routes exist at all, and CloudFront
+// routes /api/compile to a different Lambda function, so the two have to agree.
 
 import {spawn} from 'node:child_process'
 import {fileURLToPath} from 'node:url'
@@ -128,7 +128,7 @@ const LIGHT_ROUTES:{path:string, body:Record<string, unknown>}[] = [
 
 describe('health', () => {
 
-    it('answers on both roles, for Cloud Run\'s startup probe', async () => {
+    it('answers on both roles', async () => {
         for (const server of [light, compile]){
             const response = await fetch(`${server.url}/api/health`)
             expect(response.status).toBe(200)
@@ -246,8 +246,9 @@ describe('body validation', () => {
 
 describe('role gating', () => {
 
-    // SERVER_ROLES decides which routes exist; Hosting decides which service gets the traffic.
-    // Both must agree or a route is reachable on the wrong instance size (or not at all)
+    // SERVER_ROLES decides which routes exist; CloudFront/API Gateway decide which Lambda
+    // function gets the traffic. Both must agree or a route is reachable on the wrong function
+    // size (or not at all)
 
     it('does not serve /api/compile on the light role', async () => {
         const result = await post(light, '/api/compile', {version_id: 'v1'}, `Bearer ${token}`)

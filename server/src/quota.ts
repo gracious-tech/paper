@@ -6,10 +6,11 @@
 // cost for free. Minting a fresh uid per batch costs an attacker real effort; looping a
 // single one costs nothing at all, and that asymmetry is the whole point.
 //
-// Counting lives in Firestore rather than in memory because Cloud Run runs many instances and
-// scales to zero — a per-instance counter would reset on every cold start and be trivially
-// evaded by spreading calls across instances. The quota collections match no security rule,
-// so clients can neither read their own count nor reset it.
+// Counting lives in Firestore rather than in memory because Lambda runs many concurrent,
+// isolated execution environments — a per-instance counter would reset on every cold start
+// (and share nothing with any other concurrent invocation) and be trivially evaded by
+// spreading calls across them. The quota collections match no security rule, so clients can
+// neither read their own count nor reset it.
 
 import {Timestamp} from 'firebase-admin/firestore'
 import {QUOTA_LIFETIME_MS} from 'paper-bible-typst'

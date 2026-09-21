@@ -6,8 +6,11 @@ import {config} from './config.ts'
 
 // One BibleContent for the whole instance, so the collection manifest and fetched books stay
 // warm across compiles (Bible content is static, and usage is heavily skewed to a few popular
-// translations — an LRU keeps those hot). Per-instance only: a fresh Cloud Run instance starts
-// cold and relies on fetch.bible's CDN for its first fills
+// translations — an LRU keeps those hot). Per-instance only: a fresh Lambda execution
+// environment starts cold and relies on fetch.bible's CDN for its first fills — and unlike a
+// Cloud-Run-style min-instances pool, concurrent Lambda invocations don't share this cache at
+// all, so cold fills happen more often. Acceptable here since /api/compile is a low-traffic
+// fallback, not the hot path (most compiles run client-side in the browser)
 export const shared_content = new BibleContent({
     endpoint: config.endpoint,
     // The manifest (list of available translations) can gain new entries at any time, so

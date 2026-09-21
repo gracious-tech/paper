@@ -3,7 +3,7 @@ set -euo pipefail
 
 # The Typst CLI version must match the engine vendored by the typst.ts packages the browser
 # compiles with, or the same blueprint renders differently in the browser and on the server
-# (and a rebuilt Cloud Run image could change output with no code change). Both are pinned:
+# (and a rebuilt Lambda image could change output with no code change). Both are pinned:
 # @myriaddreamin/* are exact versions in app/package.json and typst-web/package.json, and the
 # mapping between the two is:
 #     typst.ts v0.7.0 -> typst 0.14.2

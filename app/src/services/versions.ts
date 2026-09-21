@@ -55,9 +55,10 @@ export function design_needs_version(design:DesignMeta):boolean{
 
 
 // A pending version is treated as stuck once it's sat this long past its latest compile attempt.
-// That's well beyond any realistic compile time (the server fallback is capped near 5 min by the
-// Cloud Run request timeout), so crossing it almost always means the compile's driver went away
-// — the tab that clicked "Create" reloaded/closed/crashed, or the server instance was killed.
+// That's well beyond any realistic compile time (the server fallback is capped at 5 min by the
+// compile Lambda's own configured timeout), so crossing it almost always means the compile's
+// driver went away — the tab that clicked "Create" reloaded/closed/crashed, or the invocation
+// was killed.
 // `compile_and_upload` (version_compile.ts) runs only in that one tab and nothing else ever
 // advances a pending doc, so past this the UI offers a retry instead of an unbounded progress
 // screen
