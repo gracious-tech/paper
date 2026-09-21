@@ -2,7 +2,8 @@
 <template lang='pug'>
 
 v-dialog(:model-value='mode !== null' @update:model-value='cancel' :fullscreen='fullscreen'
-        :content-class='fullscreen ? undefined : "wizard-dialog"' scrollable persistent)
+        :content-class='fullscreen ? undefined : "wizard-dialog"' scrollable persistent
+        @click:outside='request_close' @keydown.esc='request_close')
     v-card.wizard(:class='{fullscreen}')
 
         v-stepper.stepper-progress(:model-value='step_index + 1' @update:model-value='set_step'
@@ -59,7 +60,7 @@ import {cloneDeep} from 'lodash-es'
 import {useI18n} from '@/services/i18n'
 import {useRouter} from 'vue-router'
 
-import {state} from '@/services/state'
+import {state, confirm_dialog} from '@/services/state'
 import {create_design, design_wizard, apply_wizard_edit, current_design_id}
     from '@/services/designs'
 import {get_default_draft, build_new_blueprint, WIZARD_STEPS, is_wizard_step_valid,
@@ -189,6 +190,16 @@ const cancel = () => {
     }
     state.new_design = false
     state.wizard_edit = null
+}
+
+
+// Confirm before discarding (clicking outside or pressing escape — the dialog is `persistent`
+// so neither closes it directly, but both still fire, letting the wizard's progress be lost by
+// an accidental click otherwise)
+const request_close = async () => {
+    if (!creating.value && await confirm_dialog(t("wizard.close_confirm"))){
+        cancel()
+    }
 }
 
 
