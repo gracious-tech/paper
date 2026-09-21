@@ -108,6 +108,9 @@ export interface TypographyConfig {
     font_size:string        // e.g. "10pt"
     // Font size for the second translation, when 2 bibles are selected (defaults to font_size)
     font_size2:string
+    // Resolved footnote/study-note text size (see Blueprint.footnote_size) — already floored to
+    // a minimum legible point size, so always an absolute value, never a bare ratio
+    footnote_size:string
     // Document language, as Typst's `lang` (ISO 639-1 where the language has one — see
     // resolve_lang in lang.ts), taken from the primary translation. Drives which hyphenation
     // patterns and quote style apply, so a wrong value hyphenates by another language's rules
@@ -401,6 +404,11 @@ export interface Blueprint {
     font_headings:string|null  // null = auto (matches font_text)
     font_size:number
     font_size2:number          // 2nd translation size as a multiple of font_size (1 = match)
+    // Footnote/study-note text size, as a multiple of font_size (Typst's own default footnote
+    // ratio is 0.85). Resolving to an absolute size floors it at a minimum legible point size,
+    // so a small font_size combined with a low ratio can't compound into illegible notes — see
+    // MIN_FOOTNOTE_SIZE_PT in bible_content.ts
+    footnote_size:number
     line_height:number
     // 2nd translation's own line spacing as a multiple of line_height (1 = match). Applied on
     // top of font_size2 rather than instead of it: leading always scales with font_size2 first

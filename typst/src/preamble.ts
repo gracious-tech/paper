@@ -524,8 +524,14 @@ export function gen_preamble(request:TypstRequest, overrides:PreambleOverrides =
 // pages and picture-story text), so this is document-wide purely to cover both of those paths
 #set underline(offset: 0.12em)
 
-// Footnote area styling
+// Footnote area styling. Both translator footnotes and study notes land here (study notes are
+// footnotes with a blank mark — see studynote below), so one size covers Blueprint.footnote_size
+// for both. It has to be set here, in the preamble, and not in a passage's scoped block: the page
+// resolves its footnote area against the style chain in force before any content is laid out, so
+// a footnote.entry rule introduced after the first piece of content on the page is silently
+// ignored (which is why the entry recipe in content_passage.ts has never taken effect)
 #set footnote.entry(separator: line(length: 30%, stroke: 0.2mm + rgb("#000")))
+#show footnote.entry: set text(size: ${typography.footnote_size})
 
 // Consumer-function definitions emitted by the USX→Typst converter
 ${chapter}

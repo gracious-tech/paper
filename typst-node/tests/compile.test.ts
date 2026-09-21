@@ -28,6 +28,7 @@ const TEST_TYPOGRAPHY:TypographyConfig = {
     font_fallbacks: [],
     font_fallbacks2: [],
     font_size: '10pt',
+    footnote_size: '8.5pt',
     lang: 'en',
     lang2: null,
     line_height: 1.5,

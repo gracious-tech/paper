@@ -87,6 +87,8 @@ export function get_default_blueprint():Blueprint{
 
         font_size: 10,
         font_size2: 1,  // 2nd translation size as a multiple of font_size (1 = match)
+        // Footnote/study-note size as a multiple of font_size (Typst's own built-in ratio is 0.85)
+        footnote_size: 0.8,
         line_height: 1.35,
         line_height2: 1,  // 2nd translation's own leading as a multiple of line_height (1 = match)
 

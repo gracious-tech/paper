@@ -131,6 +131,7 @@ export function build_blueprint(tier:Tier, overrides:Partial<Blueprint> = {}):Bl
         font_headings: null,
         font_size: 10,
         font_size2: 1,
+        footnote_size: 0.85,
         line_height: 1.75,
         line_height2: 1,
         justify: null,

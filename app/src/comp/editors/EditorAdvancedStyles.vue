@@ -104,6 +104,18 @@ v-card-text(class='overflow-y-auto')
 
     v-divider(class='my-8')
 
+    h2(class='mb-4') {{$t("editor.advanced.footnotes")}}
+
+    //- Relative to font_size, same as text2_size — a minimum absolute point size is floored in
+    //- when resolving the blueprint, so the low end of this range can't become illegible
+    v-slider(v-model='blue.footnote_size' :label='$t("editor.advanced.footnote_size")' :min='0.5'
+            :max='1' :step='0.01' thumb-label class='mt-4')
+        template(#thumb-label='{modelValue}')
+            | {{ Math.round(modelValue * 100) }}%
+    p(class='hint') {{$t("editor.advanced.footnote_size_note")}}
+
+    v-divider(class='my-8')
+
     h2(class='mb-4') {{$t("editor.advanced.text_color")}}
 
     AppColor(v-model='blue.text_color' :label='$t("editor.advanced.text_color_label")')

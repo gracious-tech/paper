@@ -32,6 +32,10 @@ import type {Blueprint, ContentPassage, ContentCustom, ContentPictureStory, Pict
 // Default Bible content API endpoint (production fetch.bible)
 const DEFAULT_ENDPOINT = 'https://v1.fetch.bible/'
 
+// Footnotes/study notes can never resolve smaller than this, however low a user sets
+// Blueprint.footnote_size or font_size — below this print type stops being reliably legible
+const MIN_FOOTNOTE_SIZE_PT = 6
+
 
 // Options for constructing a BibleContent instance
 export interface BibleContentOptions {
@@ -334,6 +338,9 @@ export class BibleContent {
         const font_text2 = blue.font_text2 ?? blue.font_text
         // font_size2 is a multiple of the primary text size (1 = match)
         const font_size2 = blue.font_size * blue.font_size2
+        // footnote_size is also a multiple of the primary text size, floored so a small
+        // font_size combined with a low ratio can't compound into illegible notes
+        const footnote_size = Math.max(MIN_FOOTNOTE_SIZE_PT, blue.font_size * blue.footnote_size)
 
         // Document language comes from the primary translation; the second translation only
         // carries its own where the two actually differ (see resolve_lang)
@@ -379,6 +386,7 @@ export class BibleContent {
                         : undefined),
                 font_size: `${blue.font_size}pt`,
                 font_size2: `${font_size2}pt`,
+                footnote_size: `${footnote_size}pt`,
                 lang,
                 lang2,
                 line_height: blue.line_height,

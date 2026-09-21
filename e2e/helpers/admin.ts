@@ -134,6 +134,7 @@ function blueprint_options():Record<string, unknown>{
         font_headings: null,
         font_size: 10,
         font_size2: 1,
+        footnote_size: 0.85,
         line_height: 1.35,
         line_height2: 1,
         justify: null,

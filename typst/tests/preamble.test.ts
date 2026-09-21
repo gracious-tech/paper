@@ -102,6 +102,14 @@ describe('gen_preamble', () => {
         expect(result).toContain('#set footnote.entry(separator:')
     })
 
+    // Must be emitted here rather than per-passage: a page resolves its footnote area against the
+    // style chain in force before any content, so a footnote.entry rule that follows content on
+    // the page is silently ignored (see the note beside this rule in preamble.ts)
+    it('sizes footnote entries from typography.footnote_size', () => {
+        const result = gen_preamble(make_request())
+        expect(result).toContain('#show footnote.entry: set text(size: 8.5pt)')
+    })
+
     it('includes page footer when running_pages is true', () => {
         const result = gen_preamble(make_request({running_pages: true}))
         expect(result).toContain('counter(page).display()')
