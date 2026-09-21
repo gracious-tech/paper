@@ -176,7 +176,7 @@ export function gen_passage(
 
     // Build the scoped block with passage-specific function definitions and show rules
     const inner = gen_passage_inner(passage, use_grid, font_size, font_text2, font_headings2,
-        font_size2, font_fallbacks2, lang2, line_height, line_height2, passage.column_gap, null,
+        font_size2, font_fallbacks2, lang2, line_height, line_height2, passage.column_gap,
         chapter_style, poetry_outdent)
 
     // Wrap in a scoped block so settings don't leak to other content
@@ -191,13 +191,13 @@ ${inner}
 // Generate a passage for a double-width facing-pages document (see generate_typst_facing):
 // the aligned rows' two columns become the two facing pages once post-processing splits each
 // page down the centre. gutter is the centre gap (2x the inner margin, so each half keeps the
-// target page's text width) and entry_width confines footnote entries to the left half so a
-// long note can't straddle the cut.
+// target page's text width). Keeping a long footnote from straddling the cut is the preamble's
+// job — see PreambleOverrides.footnote_entry_width.
 export function gen_passage_facing(
     passage:TypstPassage, page:PageConfig, image_style:ImageStyle,
     font_size:string, font_text2:string, font_headings2:string, font_size2:string,
     font_fallbacks2:string[], lang2:string|null, line_height:number, line_height2:number,
-    gutter:string, entry_width:string, poetry_outdent:boolean,
+    gutter:string, poetry_outdent:boolean,
 ):string {
     const parts:string[] = []
 
@@ -224,12 +224,12 @@ export function gen_passage_facing(
         parts.push('')
     }
 
-    // Same scoped block as gen_passage, with the facing gutter and footnote width constraint.
+    // Same scoped block as gen_passage, with the facing gutter.
     // Chapter markers stay per-translation here: each half is split into its own physical page,
     // so a full-width divider would be cut in two and the second half's margin numeral lands in
     // a real inside margin — both already correct without the columns-layout adjustment.
     const inner = gen_passage_inner(passage, true, font_size, font_text2, font_headings2,
-        font_size2, font_fallbacks2, lang2, line_height, line_height2, gutter, entry_width,
+        font_size2, font_fallbacks2, lang2, line_height, line_height2, gutter,
         'none', poetry_outdent)
     parts.push(`#[
 ${inner}
@@ -260,13 +260,12 @@ export function passage_columns(passage:TypstPassage):1|2 {
 
 
 // Generate the inner content of a passage block (function defs, show rules, content).
-// gutter is the grid column gap when a multi-bible grid renders; entry_width (facing pages
-// only) confines footnote entries to the left half of the double page.
+// gutter is the grid column gap when a multi-bible grid renders.
 function gen_passage_inner(
     passage:TypstPassage, use_grid:boolean,
     font_size:string, font_text2:string, font_headings2:string, font_size2:string,
     font_fallbacks2:string[], lang2:string|null, line_height:number, line_height2:number,
-    gutter:string, entry_width:string|null,
+    gutter:string,
     chapter_style:ChapterStyle, poetry_outdent:boolean,
 ):string {
     const lines:string[] = []
@@ -275,8 +274,8 @@ function gen_passage_inner(
     // Heading show rules
     lines.push(gen_heading_rules(passage, font_size, line_height))
 
-    // Footnote show rules
-    lines.push(gen_footnote_rules(passage, entry_width))
+    // Footnote rules (entry styling is document-wide — see gen_footnote_rules)
+    lines.push(gen_footnote_rules(passage))
 
     // Flatten the baseline indent for poetry-heavy books (opt-out via the poetry_outdent
     // setting): re-bind #q/#qm so every poetry level shifts one step left — a first-level line
@@ -477,45 +476,23 @@ function gen_heading_rules(passage:TypstPassage, font_size:string, line_height:n
 }
 
 
-// Generate footnote show rules. entry_width (facing pages only) wraps each entry in a
-// width-capped box so it stays within the left half of the double page — the constraint must
-// live inside whichever entry show rule is active, since a later-defined rule on the same
-// element replaces an earlier one rather than composing with it.
-function gen_footnote_rules(passage:TypstPassage, entry_width:string|null):string {
+// Generate the passage's footnote rules. Only rules that act where the note is *called* belong
+// here — how the entries themselves look at the foot of the page is set document-wide in
+// gen_preamble, because a footnote.entry rule this deep in the document is silently ignored
+// (see the footnote area note there).
+function gen_footnote_rules(passage:TypstPassage):string {
     if (!passage.show_footnotes) {
-        const lines:string[] = []
-        // Study notes call the preamble-captured footnote (see gen_preamble), so their entries
-        // still render — keep them within the left half on facing pages. This must precede the
-        // shadow below: once #footnote names a user-defined function, `footnote.entry` is a
-        // field access on that function, not the element, and fails to compile
-        if (entry_width !== null) {
-            lines.push(`#show footnote.entry: it => box(width: ${entry_width}, it)`)
-        }
         // Shadow the footnote function so notes are never registered. A `#show footnote: none`
-        // rule only hides the in-text call — the entry and separator still render at page bottom
-        // (and entry show rules can't reach the page footnote area from this scoped block).
-        lines.push('#let footnote(..args) = none')
-        return lines.join('\n')
+        // rule only hides the in-text call — the entry and separator still render at page bottom.
+        // A binding like this works from a scoped block where a show rule wouldn't, since it's
+        // resolved where the content calls it rather than where the page lays the entry out
+        return '#let footnote(..args) = none'
     }
 
-    const lines:string[] = []
-
     // Enumerate footnotes alphabetically (a, b, c, …aa, ab…) so each in-text call shows a
-    // visible superscript letter marking the word/phrase the note refers to
-    lines.push('#set footnote(numbering: "a")')
-
-    // Footnote entry styling (the content at page bottom), prefixed with its matching mark so
-    // readers can pair each note with its superscript call in the text
-    const entry = `{
-    super(numbering("a", ..counter(footnote).at(it.note.location())))
-    h(1pt)
-    it.note.body
-}`
-    lines.push(entry_width === null
-        ? `#show footnote.entry: it => ${entry}`
-        : `#show footnote.entry: it => box(width: ${entry_width}, ${entry})`)
-
-    return lines.join('\n')
+    // visible superscript letter marking the word/phrase the note refers to, and the matching
+    // entry at the foot of the page repeats it (Typst's default entry displays this numbering)
+    return '#set footnote(numbering: "a")'
 }
 
 

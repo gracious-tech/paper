@@ -136,10 +136,17 @@ describe('gen_passage', () => {
             const result = call(make_passage({
                 show_footnotes: true,
             }))
-            expect(result).toContain('#show footnote.entry')
             // Alphabetic enumeration and a visible in-text mark (no empty-numbering override)
             expect(result).toContain('#set footnote(numbering: "a")')
             expect(result).not.toContain('numbering: it => []')
+        })
+
+        // Entry styling belongs to the preamble — a footnote.entry rule emitted from a passage's
+        // scoped block is silently ignored by Typst (see gen_preamble's footnote area note)
+        it('never styles footnote entries from the passage block', () => {
+            for (const show_footnotes of [true, false]) {
+                expect(call(make_passage({show_footnotes}))).not.toContain('footnote.entry')
+            }
         })
 
         it('hides footnotes entirely when show_footnotes is false', () => {
@@ -425,9 +432,9 @@ describe('gen_passage', () => {
                 multi_layout: 'columns',
                 show_footnotes: true,
             }))
-            // The primary still shows notes (entry rule present), while the second cell
+            // The primary still shows notes (alphabetic numbering set), while the second cell
             // shadows #footnote so its notes never register
-            expect(result).toContain('#show footnote.entry')
+            expect(result).toContain('#set footnote(numbering: "a")')
             const shadow = result.indexOf('#let footnote(..args) = none')
             expect(shadow).toBeGreaterThan(-1)
             expect(result.slice(shadow)).toContain('Bible 2 content')

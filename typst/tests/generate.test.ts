@@ -345,6 +345,30 @@ describe('generate_typst_facing', () => {
         expect(result).toContain('column-gutter: 2 * 10mm')
     })
 
+    // Without this a note long enough to wrap runs across the centre cut, and split_facing
+    // slices it between the two pages. It has to come from the preamble, since Typst ignores a
+    // footnote.entry rule emitted once the page has content (see gen_preamble)
+    it('caps footnote entries to one half so a long note cannot straddle the cut', () => {
+        const result = generate_typst_facing(facing_request(), facing_passage())
+        const rule = '#show footnote.entry: it => box(width: 148mm - 10mm - 20mm, it)'
+        expect(result).toContain(rule)
+        // Before the passage block, not inside it
+        expect(result.indexOf(rule)).toBeLessThan(result.indexOf('NIV content'))
+    })
+
+    // A bare 30% would resolve against the double-width footnote area, drawing the rule at
+    // twice its intended length once the page is split
+    it('draws the footnote separator against one half, not the double width', () => {
+        const result = generate_typst_facing(facing_request(), facing_passage())
+        expect(result).toContain('separator: line(length: 30% * (148mm - 10mm - 20mm)')
+    })
+
+    it('leaves ordinary documents at full measure', () => {
+        const result = generate_typst(make_request())
+        expect(result).not.toContain('#show footnote.entry: it => box(')
+        expect(result).toContain('separator: line(length: 30%,')
+    })
+
     it('prints a computed page number per half, offset by start_page', () => {
         const result = generate_typst_facing(facing_request(), facing_passage(), 7)
         expect(result).toContain('str(7 + 2 * (n - 1))')

@@ -475,6 +475,23 @@ browser's guess and is denied.
 - **Lambda-era leftovers** live under `.private/generator/` — dead code, ignore
 - **WASM memory:** the Typst worker leaks per unique source; `TypstWorkerClient`
   recycles worn workers automatically (see `typst.ts`)
+- **`footnote.entry` rules only work from the preamble.** A page resolves its footnote area
+  against the style chain in force *before any content is laid out*, so a `#show footnote.entry`
+  rule that follows the first piece of content on the page — including one emitted from a
+  passage's own scoped block — is accepted and then silently ignored, with no warning and no
+  visible difference (Typst's default entry looks close enough to hide it). Three rules sat dead
+  in `gen_footnote_rules()` for a long time this way. Anything that styles the footnote area
+  (size, separator, width cap) belongs in `gen_preamble()`; per-passage variation can only be
+  expressed as a *binding*, like the `#let footnote(..args) = none` shadow that disables notes,
+  which resolves where the content calls it rather than where the page lays the entry out.
+  Preamble rules do stack: a `show footnote.entry: set text(...)` and a
+  `show footnote.entry: it => box(...)` recipe compose fine
+- **Verify Typst output against a real compile, not a minimal `.typ`.** A hand-written repro puts
+  the rule under test at the top of an otherwise empty document, which is exactly the position
+  where the gotcha above *doesn't* bite — so the bug renders correctly in isolation and wrongly
+  in the app. Drive `compile_pdf_from_blueprint` (typst-node) with a real passage instead. Note
+  also that a green `typst-node` suite says nothing about the browser: it shells out to the
+  Typst CLI and never touches the WASM engine the app actually compiles with
 - **clean_blueprint()** (`blueprints.ts`) validates untrusted blueprints (Firestore docs
   from co-editors) via the zod schemas in `typst/src/blueprint_schema.ts`, content items
   included. Those schemas are type-locked to the interfaces in `typst/src/types.ts` with

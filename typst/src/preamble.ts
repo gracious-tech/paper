@@ -114,6 +114,10 @@ export interface PreambleOverrides {
     // RunningSeed. Callers that render their own content list pass the seed of the item the
     // compile opens on; anything else gets the inert defaults
     seed?:RunningSeed
+    // Facing-pages documents only (see generate_typst_facing): the text width of one half of
+    // the double-width page. Footnote entries are capped to it so a note can't run across the
+    // centre cut that split_facing later slices the page along
+    footnote_entry_width?:string
 }
 
 
@@ -263,6 +267,34 @@ function gen_ch_divider_binding(name:string, chapter_state:string):string {
         state("heading-tight", false).update(true)
     }
 }`
+}
+
+
+// How much of the notes' own measure the rule above the footnote area spans
+const FOOTNOTE_SEPARATOR_SHARE = '30%'
+
+
+// The rule drawn above the footnote area. A bare percentage resolves against the whole footnote
+// area, which on a facing document is the full double-width page — so the rule would come out
+// twice as long as intended, running most of the way to the centre cut. Resolve it against one
+// half's measure there instead, so it reads the same on the finished page as anywhere else
+function gen_footnote_separator(width:string|undefined):string {
+    const length = width === undefined
+        ? FOOTNOTE_SEPARATOR_SHARE
+        : `${FOOTNOTE_SEPARATOR_SHARE} * (${width})`
+    return `#set footnote.entry(separator: line(length: ${length}, stroke: 0.2mm + rgb("#000")))`
+}
+
+
+// Cap footnote entries to one half of a facing document's double-width page, so a note long
+// enough to wrap can't cross the centre cut and end up sliced between the two pages that
+// split_facing makes of it (see PreambleOverrides.footnote_entry_width). Ordinary documents
+// pass nothing and get the full-measure default
+function gen_footnote_entry_width(width:string|undefined):string {
+    if (width === undefined) {
+        return ''
+    }
+    return `#show footnote.entry: it => box(width: ${width}, it)`
 }
 
 
@@ -524,14 +556,15 @@ export function gen_preamble(request:TypstRequest, overrides:PreambleOverrides =
 // pages and picture-story text), so this is document-wide purely to cover both of those paths
 #set underline(offset: 0.12em)
 
-// Footnote area styling. Both translator footnotes and study notes land here (study notes are
-// footnotes with a blank mark — see studynote below), so one size covers Blueprint.footnote_size
-// for both. It has to be set here, in the preamble, and not in a passage's scoped block: the page
-// resolves its footnote area against the style chain in force before any content is laid out, so
-// a footnote.entry rule introduced after the first piece of content on the page is silently
-// ignored (which is why the entry recipe in content_passage.ts has never taken effect)
-#set footnote.entry(separator: line(length: 30%, stroke: 0.2mm + rgb("#000")))
+// Footnote area styling. Everything that styles the footnote area has to live here, in the
+// preamble, and not in a passage's scoped block: a page resolves its footnote area against the
+// style chain in force before any content is laid out, so a footnote.entry rule introduced after
+// the first piece of content on the page is accepted and then silently ignored.
+// Both translator footnotes and study notes land here (study notes are footnotes with a blank
+// mark — see studynote below), so one size covers Blueprint.footnote_size for both
+${gen_footnote_separator(overrides.footnote_entry_width)}
 #show footnote.entry: set text(size: ${typography.footnote_size})
+${gen_footnote_entry_width(overrides.footnote_entry_width)}
 
 // Consumer-function definitions emitted by the USX→Typst converter
 ${chapter}

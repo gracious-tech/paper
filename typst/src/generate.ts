@@ -267,7 +267,12 @@ export function generate_typst_facing(
     const states = gen_running_states(seed)
     const furniture = gen_facing_furniture(request, seed, start_page, gutter,
         !!passage.passage_title)
-    const overrides:PreambleOverrides = {width: `2 * ${page.width}`, margin, seed}
+    // One half's text width — what footnote entries are capped to so a long note stays on the
+    // page it belongs to once split_facing cuts the double page down the centre
+    const half_width = `${page.width} - ${page.margin_left} - ${page.margin_right}`
+    const overrides:PreambleOverrides = {
+        width: `2 * ${page.width}`, margin, seed, footnote_entry_width: half_width,
+    }
     if (request.running_position === 'footer') {
         overrides.footer = furniture === 'none' ? 'none' : `context ${furniture}`
     } else {
@@ -294,7 +299,6 @@ export function generate_typst_facing(
         typography.font_headings2, typography.font_size2, typography.font_fallbacks2,
         typography.lang2, typography.line_height, typography.line_height2,
         `2 * ${page.margin_left}`,
-        `${page.width} - ${page.margin_left} - ${page.margin_right}`,
         typography.poetry_outdent))
     return parts.join('\n\n')
 }
