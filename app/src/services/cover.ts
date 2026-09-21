@@ -440,6 +440,11 @@ export function default_cover_preset(blueprint:Blueprint):Record<string, unknown
     // home printing (the user can still turn it off in the cover widget)
     form['home_print_margin'] = blueprint.service_id === 'home'
 
+    // Bookcover's own default (3% of trim height) sits the title too close to the top edge for
+    // paper.bible's presets — seeded here as an explicit form value, same reasoning as
+    // margin_back below
+    form['title_margin_top'] = 8
+
     // Narrow books (interior trim under 5.5") get a tighter back-panel margin — bookcover's own
     // default (a percentage of face height) leaves too little width for the blurb on a small
     // back panel. Seeded once here at creation as an explicit form value, so it's independent
@@ -448,6 +453,13 @@ export function default_cover_preset(blueprint:Blueprint):Record<string, unknown
     const trim = resolve_reading_trim(blueprint)
     if (convert_unit(trim.width, trim.unit, 'inch') < 5.5){
         form['margin_back'] = 3
+    }
+
+    // Home printers can't reach the paper edge even with the white matte on, so widen the
+    // front/back panel margins too — takes precedence over the narrow-trim margin_back above
+    if (blueprint.service_id === 'home'){
+        form['margin_front'] = 10
+        form['margin_back'] = 7
     }
 
     // Size fields always mirror the blueprint (the widget's size UI is hidden when embedded),
