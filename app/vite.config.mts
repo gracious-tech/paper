@@ -6,14 +6,14 @@ import plugin_vuetify from 'vite-plugin-vuetify'
 import plugin_svg_loader from 'vite-svg-loader'
 import {defineConfig} from 'vite'
 
-import plugin_index from './vite_plugin_index'
+import plugin_index from './vite_plugin_index.mts'
 
 
 export default defineConfig(() => {
     return {
         clearScreen: false,
         plugins: [
-            plugin_index(path.join(__dirname, 'src/index.pug')),
+            plugin_index(path.join(import.meta.dirname, 'src/index.pug')),
             plugin_vue(),
             plugin_vuetify({autoImport: true}),
             plugin_svg_loader(),
@@ -22,7 +22,7 @@ export default defineConfig(() => {
             alias: [
                 {
                     find: '@',
-                    replacement: path.resolve(__dirname, 'src'),
+                    replacement: path.resolve(import.meta.dirname, 'src'),
                 },
             ],
         },
