@@ -28,7 +28,8 @@ v-card-text(class='flex-grow-1 d-flex flex-column')
     div(class='mb-6')
         v-text-field(v-model='tmp_title_subtitle' variant='underlined' :label='$t("common.subtitle")')
     IconField(v-model:icon='tmp_title_icon')
-    ImageField(v-model:image='tmp_image')
+    //- Passage images not yet published, so hidden here (still functional for existing designs)
+    //- ImageField(v-model:image='tmp_image')
 
 </template>
 
@@ -42,7 +43,7 @@ import {blue, state} from '@/services/state'
 import {content} from '@/services/content'
 import {generate_token} from '@/services/utils'
 import IconField from '@/comp/editors/assets/IconField.vue'
-import ImageField from '@/comp/editors/assets/ImageField.vue'
+// import ImageField from '@/comp/editors/assets/ImageField.vue'  // not yet published, see template
 import PassageField from '@/comp/editors/assets/PassageField.vue'
 
 import type {ContentPassage, ContentPassageImage} from '@/services/types'

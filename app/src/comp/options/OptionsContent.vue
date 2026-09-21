@@ -18,7 +18,8 @@ div.add(class='d-flex align-center flex-wrap')
     app-icon(name='add')
     v-btn(@click='add_custom' size='small' variant='flat') {{$t("common.text")}}
     v-btn(@click='add_passage' size='small' variant='flat') {{$t("common.passage")}}
-    v-btn(@click='picker_open = true' size='small' variant='tonal') {{$t("options.content.picture_story")}}
+    //- Picture stories not yet published, so hidden here (still functional for existing designs)
+    //- v-btn(@click='picker_open = true' size='small' variant='tonal') {{$t("options.content.picture_story")}}
     v-btn(@click='add_title' size='small' variant='tonal') {{$t("options.content.title_page")}}
     v-btn(:disabled='has_interior_copyright' @click='add_copyright' size='small' variant='tonal')
         | {{$t("common.copyright")}}

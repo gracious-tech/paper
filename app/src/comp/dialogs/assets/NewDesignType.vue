@@ -41,12 +41,15 @@ const select = (id:NewDesignType) => {
 
 // Labels/subtitles per type (shared with the simple-mode summary row), joined with each
 // preset's image
-const types = computed(() => TYPE_PRESETS.map(preset => ({
-    id: preset.id,
-    image: preset.image,
-    tint: preset.id === 'picture_story' ? 'yellow' as const : 'blue' as const,
-    ...wizard_type_label(preset.id, t),
-})))
+// NOTE picture_story excluded as not yet published (still a valid/functional type otherwise)
+const types = computed(() => TYPE_PRESETS
+    .filter(preset => preset.id !== 'picture_story')
+    .map(preset => ({
+        id: preset.id,
+        image: preset.image,
+        tint: preset.id === 'picture_story' ? 'yellow' as const : 'blue' as const,
+        ...wizard_type_label(preset.id, t),
+    })))
 
 
 </script>
