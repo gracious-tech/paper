@@ -1,0 +1,30 @@
+#!/usr/bin/env bash
+
+# Stage a minimal build context for server/Dockerfile.lambda at server/deploy/ (gitignored) —
+# just the paths the Dockerfile COPYs, so local-only dirs (assets/, .private/, branding/,
+# node_modules) can never leak into the image by accident, no matter what else is in the tree.
+# Builds and tags the image with the current commit hash (CloudFormation needs a *changing*
+# ImageUri value to know a Lambda function actually needs updating — reusing a fixed tag like
+# :latest wouldn't trigger one). Used by .bin/deploy_api; also runnable standalone.
+# Requires .bin/typst (setup_typst) to exist locally.
+
+set -euo pipefail
+cd "$(dirname "$0")/.."
+
+CONTEXT="server/deploy"
+rm -rf "$CONTEXT"
+mkdir -p "$CONTEXT/server" "$CONTEXT/.bin"
+cp server/Dockerfile.lambda package.json package-lock.json .typst-version "$CONTEXT/"
+cp server/package.json server/tsconfig.json server/tsconfig.build.json "$CONTEXT/server/"
+cp -r server/src "$CONTEXT/server/src"
+cp -r typst typst-node "$CONTEXT/"
+cp .bin/typst "$CONTEXT/.bin/typst"
+find "$CONTEXT" -type d \( -name node_modules -o -name dist \) -prune -exec rm -rf {} +
+
+# .bin/push_server_lambda recomputes this same tag independently, so nothing has to pass it
+# between the two scripts
+TAG="$(git rev-parse --short HEAD)$(git diff --quiet || echo -dirty)"
+
+docker build -f "$CONTEXT/Dockerfile.lambda" -t "paper-bible-lambda:$TAG" "$CONTEXT"
+
+echo "Built paper-bible-lambda:$TAG"

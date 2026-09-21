@@ -1,0 +1,22 @@
+#!/usr/bin/env bash
+
+# Push the image .bin/build_server_lambda just built to ECR. Pass the account id, e.g.
+# `push_server_lambda 123456789012`. Used by .bin/deploy_api; also runnable standalone.
+
+set -euo pipefail
+cd "$(dirname "$0")/.."
+
+ACCOUNT_ID="${1:?Usage: push_server_lambda <aws-account-id> [region]}"
+REGION="${2:-${AWS_REGION:-us-west-2}}"
+ECR_REPO="${ECR_REPO:-paper-bible}"
+ECR_REGISTRY="$ACCOUNT_ID.dkr.ecr.$REGION.amazonaws.com"
+
+TAG="$(git rev-parse --short HEAD)$(git diff --quiet || echo -dirty)"
+
+aws ecr get-login-password --region "$REGION" \
+    | docker login --username AWS --password-stdin "$ECR_REGISTRY"
+
+docker tag "paper-bible-lambda:$TAG" "$ECR_REGISTRY/$ECR_REPO:$TAG"
+docker push "$ECR_REGISTRY/$ECR_REPO:$TAG"
+
+echo "$ECR_REGISTRY/$ECR_REPO:$TAG"

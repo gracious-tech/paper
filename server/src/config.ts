@@ -5,8 +5,10 @@
 // routes, tiny instance) and 'compile' (typst + fonts, big instance) — dev serves both
 
 // Root of the shared assets tree published by the bookcover repo (fonts/, docs/, frames/,
-// backgrounds/) — the assets bucket mounted via GCS FUSE on Cloud Run
-const assets_dir = process.env['ASSETS_DIR'] ?? '/mnt/assets'
+// backgrounds/) — in production, the compile Lambda's own synced copy under /tmp (see
+// lambda_bootstrap.ts; Lambda has no bucket-as-filesystem mount the way Cloud Run's GCS FUSE
+// volume did), locally a plain directory (see .bin/serve_server)
+const assets_dir = process.env['ASSETS_DIR'] ?? '/tmp/assets'
 
 export const config = {
     port: Number(process.env['PORT'] ?? 8788),

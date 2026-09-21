@@ -1,6 +1,5 @@
 
 import {Hono} from 'hono'
-import {serve} from '@hono/node-server'
 
 import {config} from './config.ts'
 import {verify_uid} from './auth.ts'
@@ -19,11 +18,13 @@ import type {Context} from 'hono'
 import type {HandlerResult} from './types.ts'
 
 
-// The API server — reached via Firebase Hosting's /api/** rewrite in production and Vite's
+// The API server — reached via CloudFront's /api/** cache behavior in production and Vite's
 // dev proxy locally, so all routes are same-origin for the app (no CORS needed)
-// In production this codebase is deployed as two Cloud Run services (see .bin/deploy_server):
-// Hosting routes /api/compile to the 'compile' service and everything else to 'light'
-const app = new Hono()
+// In production this codebase is deployed as two Lambda functions sharing one image (see
+// infra/cloudformation.yml): API Gateway routes /api/compile to the 'compile' function and
+// everything else to 'light'. This module only builds the app — server/src/dev_server.ts
+// serves it locally via a real listener, server/src/lambda.ts wraps it for Lambda
+export const app = new Hono()
 
 
 // The raw request, given to the rare handler that needs more than its required string fields:
@@ -65,7 +66,8 @@ function authed_post<const F extends readonly string[]>(path:string, fields:F,
 }
 
 
-// Health check (also used by Cloud Run startup probes)
+// Health check (harmless to keep; not required by Lambda/API Gateway's invoke model the way
+// it was for Cloud Run's startup/liveness probes, but tests and manual checks still use it)
 app.get('/api/health', context => {
     return context.json({ok: true})
 })
@@ -183,9 +185,11 @@ app.onError((error, context) => {
 })
 
 
-// Last-resort capture of errors outside any request handler
+// Last-resort capture of errors outside any request handler (fire-and-forget; both Lambda and
+// the local dev_server share this — neither should crash the process over it, since Lambda
+// replaces execution environments on its own terms and there's no Cloud-Run-style benefit to
+// forcing an exit here)
 function save_process_error(kind:string, error:unknown):void{
-    // Log and save a process-level failure (fire-and-forget)
     console.error(error)
     void save_error({
         id: generate_error_id(),
@@ -207,14 +211,4 @@ process.on('unhandledRejection', reason => {
 })
 process.on('uncaughtException', error => {
     save_process_error('uncaughtException', error)
-    // Give the bucket write a moment to flush, then die so Cloud Run replaces the instance
-    setTimeout(() => {
-        process.exit(1)
-    }, 2000)
-})
-
-
-// Start listening
-serve({fetch: app.fetch, port: config.port}, info => {
-    console.log(`paper-bible-server (${config.roles.join('+')}) listening on :${info.port}`)
 })

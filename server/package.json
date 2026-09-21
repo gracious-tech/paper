@@ -4,6 +4,8 @@
     "private": true,
     "type": "module",
     "dependencies": {
+        "@aws-sdk/client-s3": "^3.1136.0",
+        "@aws-sdk/client-secrets-manager": "^3.1136.0",
         "@hono/node-server": "^2.0.8",
         "bookcover-node": "^0.15.0",
         "firebase-admin": "^14.1.0",

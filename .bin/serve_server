@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 
 # Run the API server locally against the emulator suite (start .bin/serve_emulators first).
-# Vite's dev proxy forwards the app's /api requests here (see app/vite.config.ts).
+# Vite's dev proxy forwards the app's /api requests here (see app/vite.config.mts).
 
 set -euo pipefail
 cd "$(dirname "$0")/.."
@@ -17,4 +17,4 @@ export TYPST_PATH="$PWD/.bin/typst"
 export ASSETS_DIR="$PWD/assets"
 export FETCH_ENDPOINT="${FETCH_ENDPOINT:-http://localhost:8430/}"
 
-node --watch server/src/index.ts
+node --watch server/src/dev_server.ts

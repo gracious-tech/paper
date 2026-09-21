@@ -34,7 +34,7 @@ interface Server {
 
 async function start_server(roles:string, port:number):Promise<Server>{
     // Boot the real entry point with the test emulator env, and wait until it answers
-    const child = spawn('node', ['server/src/index.ts'], {
+    const child = spawn('node', ['server/src/dev_server.ts'], {
         cwd: REPO_ROOT,
         env: {
             ...process.env,

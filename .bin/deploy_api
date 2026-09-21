@@ -1,0 +1,27 @@
+#!/usr/bin/env bash
+
+# Build, push, and deploy new server code to the (already-provisioned — see .bin/setup_aws)
+# paper-bible stack. Only the Lambda functions' ImageUri actually changes: `aws cloudformation
+# deploy` re-supplies every parameter not explicitly overridden with its current stack value, so
+# passing just ImageUri here is a fast, scoped update rather than a full redeploy.
+# Requires .bin/typst (setup_typst) to exist locally.
+
+set -euo pipefail
+cd "$(dirname "$0")/.."
+
+STACK="${STACK:-paper-bible}"
+REGION="${REGION:-${AWS_REGION:-us-west-2}}"
+ACCOUNT_ID="$(aws sts get-caller-identity --query Account --output text)"
+
+.bin/build_server_lambda
+IMAGE_URI="$(.bin/push_server_lambda "$ACCOUNT_ID" "$REGION" | tail -1)"
+
+aws cloudformation deploy \
+    --region "$REGION" \
+    --stack-name "$STACK" \
+    --template-file infra/cloudformation.yml \
+    --capabilities CAPABILITY_NAMED_IAM \
+    --no-fail-on-empty-changeset \
+    --parameter-overrides "ImageUri=$IMAGE_URI"
+
+echo "Deployed $IMAGE_URI to $STACK"

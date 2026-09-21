@@ -1,16 +1,14 @@
 #!/usr/bin/env bash
 
-# Build the app and deploy it (plus Firestore/Storage rules) to Firebase Hosting.
-# Pass a project alias to target it, e.g. `deploy_app prod` (defaults to dev).
+# Deploy the app in full: static hosting to AWS (S3/CloudFront, see .bin/deploy_hosting) and
+# Firestore/Storage rules to Firebase — these remain on Firebase regardless of where the app
+# itself is hosted. Pass a project alias to target Firebase, e.g. `deploy_app prod` (defaults
+# to dev); AWS targeting is via the STACK/REGION env vars .bin/deploy_hosting reads.
 
 set -euo pipefail
 cd "$(dirname "$0")/.."
 
 PROJECT="${1:-dev}"
 
-# Refresh Lulu's print prices from their published spec sheet, so each deploy ships current
-# ones (see app/tools/gen_lulu_prices.ts). Committed output, so this is usually a no-op diff
-.bin/gen_lulu_prices
-
-(cd app && npx vite build)
-npx firebase deploy --project "$PROJECT" --only hosting,firestore,storage
+.bin/deploy_hosting
+npx firebase deploy --project "$PROJECT" --only firestore,storage

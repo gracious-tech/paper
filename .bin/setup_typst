@@ -8,11 +8,13 @@ set -euo pipefail
 # mapping between the two is:
 #     typst.ts v0.7.0 -> typst 0.14.2
 #     typst.ts v0.8.1 -> typst 0.15.1
-# Bump this together with those, never on its own.
-TYPST_VERSION="v0.14.2"
+# Bump this together with those, never on its own. The version itself lives in
+# .typst-version (repo root) so server/Dockerfile.lambda can assert against the same value
+# without a second hardcoded copy.
+BIN_DIR="$(dirname "$0")"
+TYPST_VERSION="v$(cat "$BIN_DIR/../.typst-version")"
 
 ASSET="typst-x86_64-unknown-linux-musl.tar.xz"
-BIN_DIR="$(dirname "$0")"
 URL="https://github.com/typst/typst/releases/download/$TYPST_VERSION/$ASSET"
 
 # Extract only the typst binary directly into the .bin dir

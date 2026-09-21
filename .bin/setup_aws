@@ -1,0 +1,160 @@
+#!/usr/bin/env bash
+
+# One-time (and safe to re-run) provisioning of this app's AWS hosting: an S3 bucket + CloudFront
+# distribution for the static app, Lambda + API Gateway for the server, all defined in
+# infra/cloudformation.yml. Everything here is infrastructure — app content goes up separately
+# via .bin/deploy_hosting, and server code via .bin/deploy_api.
+#
+# The stack goes to us-west-2. The certificate is handled first and separately, because
+# CloudFront can only read certificates from us-east-1 whatever region its origin buckets are
+# in, and issuing one needs DNS validation records that a human has to add. On a first run this
+# script requests the certificate, prints those records and stops; add them at Porkbun, then run
+# it again to continue.
+#
+# The ECR repository is also provisioned here rather than in the template, for the same reason:
+# a fresh Lambda function needs a real image to reference at creation time, and on a first run
+# nothing has been pushed yet — so this seeds a placeholder image (real server code lands
+# afterwards via .bin/deploy_api, and this never overwrites a real image with the placeholder
+# again once one's been deployed).
+#
+# Requires: aws CLI authenticated against the target account, docker.
+#
+# Usage:
+#   .bin/setup_aws
+#   STACK=paper-bible-staging DOMAIN=staging.paper.bible .bin/setup_aws
+
+set -euo pipefail
+cd "$(dirname "$0")/.."
+
+STACK="${STACK:-paper-bible}"
+REGION="${REGION:-${AWS_REGION:-us-west-2}}"
+DOMAIN="${DOMAIN:-paper.bible}"
+# The bookcover repo's assets bucket by its actual S3 name, not the assets.paper.bible domain
+# fronting it — lambda_bootstrap.ts's S3 SDK calls need the real bucket name
+ASSETS_BUCKET="${ASSETS_BUCKET:-paper-cover-assets-073034502699}"
+PRICE_CLASS="${PRICE_CLASS:-PriceClass_All}"
+ECR_REPO="${ECR_REPO:-paper-bible}"
+
+# CloudFront reads certificates from us-east-1 only, whatever region the stack itself uses
+CERT_REGION="us-east-1"
+
+ACCOUNT_ID="$(aws sts get-caller-identity --query Account --output text)"
+ECR_REGISTRY="$ACCOUNT_ID.dkr.ecr.$REGION.amazonaws.com"
+
+# Find a certificate already requested for this domain
+find_cert(){
+    aws acm list-certificates --region "$CERT_REGION" \
+        --certificate-statuses ISSUED PENDING_VALIDATION \
+        --query "CertificateSummaryList[?DomainName=='$DOMAIN'].CertificateArn | [0]" \
+        --output text 2>/dev/null
+}
+
+# Request a certificate and print the DNS record that validates it
+request_cert(){
+    local arn
+    arn="$(aws acm request-certificate --region "$CERT_REGION" \
+        --domain-name "$DOMAIN" \
+        --validation-method DNS \
+        --query CertificateArn --output text)"
+
+    # ACM populates the validation record asynchronously, so give it a moment to appear
+    echo "Requested $arn — waiting for validation record..."
+    sleep 10
+
+    echo
+    echo "Add this CNAME record at Porkbun, then re-run this script:"
+    aws acm describe-certificate --region "$CERT_REGION" --certificate-arn "$arn" \
+        --query 'Certificate.DomainValidationOptions[].ResourceRecord.[Name,Value]' \
+        --output text
+    echo
+}
+
+# Report whether a certificate has finished validating
+cert_status(){
+    aws acm describe-certificate --region "$CERT_REGION" --certificate-arn "$1" \
+        --query Certificate.Status --output text
+}
+
+CERT_ARN="${CERT_ARN:-$(find_cert)}"
+
+# No certificate yet: request one and stop, since the stack can't be built without it
+if [ -z "$CERT_ARN" ] || [ "$CERT_ARN" = "None" ]; then
+    echo "No certificate found for $DOMAIN in $CERT_REGION."
+    request_cert
+    exit 0
+fi
+
+# Certificate exists but DNS validation hasn't completed, so CloudFront would reject it
+STATUS="$(cert_status "$CERT_ARN")"
+if [ "$STATUS" != "ISSUED" ]; then
+    echo "Certificate $CERT_ARN is $STATUS, not ISSUED." >&2
+    echo "Add the validation record below and re-run once ACM reports ISSUED:" >&2
+    aws acm describe-certificate --region "$CERT_REGION" --certificate-arn "$CERT_ARN" \
+        --query 'Certificate.DomainValidationOptions[].ResourceRecord.[Name,Value]' \
+        --output text >&2
+    exit 1
+fi
+
+echo "Using certificate $CERT_ARN"
+
+# The ECR repo has to exist, with something pushed to it, before the stack's Lambda functions
+# can be created — create it and seed a placeholder image if this is a first run
+if ! aws ecr describe-repositories --region "$REGION" --repository-names "$ECR_REPO" \
+        >/dev/null 2>&1; then
+    echo "Creating ECR repository $ECR_REPO..."
+    aws ecr create-repository --region "$REGION" --repository-name "$ECR_REPO" >/dev/null
+fi
+
+IMAGE_URI="$ECR_REGISTRY/$ECR_REPO:bootstrap"
+if ! aws ecr describe-images --region "$REGION" --repository-name "$ECR_REPO" \
+        --image-ids imageTag=bootstrap >/dev/null 2>&1; then
+    echo "Seeding a placeholder image (real code lands via .bin/deploy_api)..."
+    aws ecr get-login-password --region "$REGION" \
+        | docker login --username AWS --password-stdin "$ECR_REGISTRY"
+    docker pull public.ecr.aws/lambda/nodejs:22
+    docker tag public.ecr.aws/lambda/nodejs:22 "$IMAGE_URI"
+    docker push "$IMAGE_URI"
+fi
+
+# On a later run, keep whatever image is actually deployed rather than reverting to the
+# placeholder — .bin/deploy_api is the only thing that should ever change this
+CURRENT_IMAGE="$(aws cloudformation describe-stacks --region "$REGION" --stack-name "$STACK" \
+    --query "Stacks[0].Parameters[?ParameterKey=='ImageUri'].ParameterValue | [0]" \
+    --output text 2>/dev/null || true)"
+if [ -n "$CURRENT_IMAGE" ] && [ "$CURRENT_IMAGE" != "None" ]; then
+    IMAGE_URI="$CURRENT_IMAGE"
+fi
+
+PARAM_OVERRIDES=(
+    "Domain=$DOMAIN"
+    "AssetsBucketName=$ASSETS_BUCKET"
+    "CertificateArn=$CERT_ARN"
+    "ImageUri=$IMAGE_URI"
+    "PriceClass=$PRICE_CLASS"
+)
+
+# CAPABILITY_NAMED_IAM because the template creates a named execution role
+aws cloudformation deploy \
+    --region "$REGION" \
+    --stack-name "$STACK" \
+    --template-file infra/cloudformation.yml \
+    --capabilities CAPABILITY_NAMED_IAM \
+    --no-fail-on-empty-changeset \
+    --parameter-overrides "${PARAM_OVERRIDES[@]}"
+
+echo
+echo "Stack $STACK deployed. Outputs:"
+aws cloudformation describe-stacks --region "$REGION" --stack-name "$STACK" \
+    --query 'Stacks[0].Outputs[].[OutputKey,OutputValue]' --output table
+
+SECRET_ARN="$(aws cloudformation describe-stacks --region "$REGION" --stack-name "$STACK" \
+    --query "Stacks[0].Outputs[?OutputKey=='GcpCredentialsSecretArn'].OutputValue | [0]" \
+    --output text)"
+
+echo
+echo "Next:"
+echo "  1. Point $DOMAIN at the DistributionDomainName value above (a Porkbun ALIAS record)"
+echo "  2. Put the GCP service-account key into Secrets Manager:"
+echo "       aws secretsmanager put-secret-value --region $REGION --secret-id $SECRET_ARN \\"
+echo "           --secret-string file://path/to/key.json"
+echo "  3. .bin/deploy_api && .bin/deploy_hosting"

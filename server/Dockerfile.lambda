@@ -1,0 +1,51 @@
+# API server image for Lambda (container-image packaging — see infra/cloudformation.yml).
+# One image backs both functions: 'light' (share/merge) and 'compile' (typst) — SERVER_ROLES
+# picks the routes, same as the retired Cloud Run image. Unlike that image, server/src is
+# precompiled to plain JS here (see server/tsconfig.build.json) rather than run directly via
+# Node's erasable-syntax type stripping — this decouples the Lambda base image's Node version
+# from that local-dev convention, and Lambda's own font/background sync (lambda_bootstrap.ts)
+# replaces the GCS-FUSE volume mount Cloud Run used; nothing is baked in here either.
+# `.bin/build_server_lambda` stages a repo-root-shaped copy at server/deploy/ and builds from
+# there, so these COPY paths stay relative to that staged root. Requires .bin/typst
+# (setup_typst).
+
+FROM public.ecr.aws/lambda/nodejs:22
+
+# No WORKDIR override — the base image already sets it to $LAMBDA_TASK_ROOT (/var/task), which
+# is exactly where npm's workspace hoisting needs to put node_modules for the Lambda Runtime
+# Interface Client's module resolution to find them
+
+# Install workspace dependencies (only the packages the server needs)
+COPY package.json package-lock.json ./
+COPY server/package.json server/
+COPY typst/package.json typst/
+COPY typst-node/package.json typst-node/
+RUN npm ci --workspace server --workspace paper-bible-typst --workspace paper-bible-typst-node \
+    --include-workspace-root
+
+# Build the local packages the server imports (dependency order, see .bin/build_typst)
+COPY typst/ typst/
+COPY typst-node/ typst-node/
+RUN for module in typst typst-node; \
+    do (cd "$module" && npx tsc); done
+
+# The Typst CLI binary (see .bin/setup_typst) — version-pinned by .typst-version; this asserts
+# it, so an image built from a stale .bin/typst fails here rather than silently shipping an
+# engine that renders differently from the browser's
+COPY .typst-version /tmp/
+COPY .bin/typst /usr/local/bin/typst
+RUN chmod +x /usr/local/bin/typst \
+    && test "$(/usr/local/bin/typst --version | awk '{print $2}')" = "$(cat /tmp/.typst-version)" \
+    || (echo "typst must be $(cat /tmp/.typst-version) — re-run .bin/setup_typst" >&2 && exit 1) \
+    && rm /tmp/.typst-version
+
+# The server itself, precompiled (see server/tsconfig.build.json) — unlike the Cloud Run image,
+# which ran server/src/index.ts directly
+COPY server/tsconfig.json server/tsconfig.build.json server/
+COPY server/src/ server/src/
+RUN npx tsc -p server/tsconfig.build.json
+
+ENV NODE_ENV=production
+ENV TYPST_PATH=/usr/local/bin/typst
+
+CMD ["server/dist/lambda.handler"]
