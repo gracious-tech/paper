@@ -15,8 +15,7 @@ import {collection, doc, addDoc, getDoc, setDoc, updateDoc, serverTimestamp, Tim
     from 'firebase/firestore'
 import {ref as storage_ref, uploadBytes, getDownloadURL} from 'firebase/storage'
 import {SCHEMA_VERSION, PDF_LIFETIME_MS, COMPILE_STATS_LIFETIME_MS} from 'paper-bible-typst'
-// By module, not through the barrel — see the note on cover.ts's bookcover-core imports
-import {RENDER_VERSION} from 'bookcover-core/dist/defaults.js'
+import {RENDER_VERSION} from 'bookcover-core'
 
 import {firestore, firebase_storage} from '@/services/firebase'
 import {api, ApiError} from '@/services/api'

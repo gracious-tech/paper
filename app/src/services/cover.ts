@@ -7,13 +7,11 @@
 import {cloneDeep} from 'lodash-es'
 import {toRaw} from 'vue'
 import {ref as storage_ref, uploadBytes, getBytes} from 'firebase/storage'
-// NOTE bookcover-core is imported by module rather than through its barrel: the barrel reaches
-// its vector-background data (~277KB of inlined SVG), bwip-js and chroma-js, none of which the
-// main thread ever uses — the cover worker owns all of that
-import {make_blank_form_values} from 'bookcover-core/dist/form_state.js'
-import {asset_path, BACKGROUNDS_DIR} from 'bookcover-core/dist/assets.js'
-import {resolve_dimensions} from 'bookcover-core/dist/dimensions.js'
-import {font_families_in_form} from 'bookcover-core/dist/form_schema.js'
+// bookcover-core ships `sideEffects: false` and only exposes its barrel (plus `/patterns-svg`)
+// via package.json `exports`, so Rollup tree-shakes the unused vector-background data,
+// bwip-js and chroma-js out of this main-thread bundle — the cover worker owns all of that
+import {make_blank_form_values, asset_path, BACKGROUNDS_DIR, resolve_dimensions,
+    font_families_in_form} from 'bookcover-core'
 import {cover_form_for_render, cover_render_key, STOCK_BG_PHOTOS, KNOWN_BUILTIN_BACKGROUNDS,
     doc_has_copyright, gen_copyright_typst, COPYRIGHT_MARKER, resolve_reading_trim, convert_unit,
     COVER_TITLE_KEY, design_assets_prefix, to_version_asset, to_design_asset, asset_basename}
