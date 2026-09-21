@@ -6,7 +6,7 @@ div
     v-textarea(v-model='passage_input' :label='$t("common.passages")' rows='4' hide-details='auto'
         variant='outlined')
     div.mode_switch
-        v-btn(size='small' variant='tonal' color='primary' :disabled='!passage_input.trim()'
+        v-btn(variant='tonal' color='primary' :disabled='!passage_input.trim()'
             @click='add_passages') {{$t("common.add")}}
         slot(name='switch')
     AppDraggableList(v-if='draft.passages.length' :list='draft.passages' :item_key='i => i.id'
@@ -67,9 +67,10 @@ const parse_passage = (id:string, text:string):DraftPassage => {
 }
 
 
-// Parse every non-blank line of the textarea into a new draft passage, appended in order
+// Parse every non-blank line/comma-separated entry of the textarea into a new draft passage,
+// appended in order
 const add_passages = () => {
-    const lines = passage_input.value.split('\n').map(line => line.trim()).filter(line => line)
+    const lines = passage_input.value.split(/[\n,]/).map(line => line.trim()).filter(line => line)
     for (const line of lines){
         draft.passages.push(parse_passage(generate_token(), line))
     }
@@ -100,6 +101,7 @@ const rm_passage = (item:DraftPassage) => {
     display: flex
     align-items: center
     gap: 8px
+    margin-top: 6px
 
 .passage_row
     display: flex

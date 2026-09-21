@@ -566,7 +566,7 @@
   "wizard.books.whole_bible_p": "This app can produce it, but printing it is another story. The Bible is larger than most books, and would be very thick and heavy using standard printing services. Published bibles use thin paper which is only available for bulk orders. If you're new to this app, we recommend trying to print a single book of the Bible first.",
   "wizard.cover.question": "What do you want the cover to look like?",
   "wizard.included": "included",
-  "wizard.passages.hint": "List the passages you want, one per line, e.g. \"Genesis 1:1-5\" or \"Matthew 5\", then click Add.",
+  "wizard.passages.hint": "List the passages you want, e.g. \"Genesis 1:1-5, Matthew 5\"",
   "wizard.passages.hint_with_images": "List the passages you want, one per line, e.g. \"Genesis 1:1-5\" or \"Matthew 5\", then click Add. You can add images to each afterward from Advanced settings.",
   "wizard.print.at_home": "At home",
   "wizard.print.extra_large": "Extra Large",
