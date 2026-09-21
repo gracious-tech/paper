@@ -11,36 +11,6 @@ import {resolve_reading_trim} from './trim.js'
 import type {Blueprint, CoverConfig} from './types.js'
 
 
-// The wizard's generic fallback stock photos (offered when a book has no thematic default).
-// bookcover dropped these images' black_/white_ prefixes in its 0.9.0 release — filenames here
-// must track the assets bucket's actual current names, not just be internally consistent
-export const STOCK_BG_PHOTOS = [
-    'hills_trees.jpg',
-    'hills.jpg',
-    'snow_trees.jpg',
-    'stars.jpg',
-]
-
-
-// The builtin backgrounds this app seeds covers from (STOCK_BG_PHOTOS plus every value used by
-// the app's own book-themed BOOK_BG_PHOTO map, duplicated here since a shared core package
-// can't depend on app-only code) — keep in sync with BOOK_BG_PHOTO's values (a DEV-only console
-// check in app/src/services/cover.ts catches drift).
-// Curation only: it is NOT the validator for a client-supplied bg_image.id. bookcover publishes
-// far more backgrounds than these, and the user can pick any of them inside the cover widget —
-// validating against this set would reject those and force them to be stored as private uploads
-// instead of references. Identity is bounded by is_builtin_background() below
-export const KNOWN_BUILTIN_BACKGROUNDS = new Set<string>([
-    ...STOCK_BG_PHOTOS,
-    'earth_whole.jpg', 'israel.jpg', 'stars.jpg', 'wilderness.jpg', 'lost_sheep.jpg',
-    'sword.jpg', 'wasteland.jpg', 'crops.jpg', 'crown.jpg', 'growing.jpg', 'sunset.jpg',
-    'lake.jpg', 'hills_trees.jpg', 'mist.jpg', 'flowers.jpg', 'israel_lake.jpg', 'lion.jpg',
-    'desert.jpg', 'sea.jpg', 'cross_sun.jpg', 'church.jpg', 'opening.jpg', 'tomb.jpg',
-    'awe.jpg', 'hills.jpg', 'grass.jpg', 'sheep.jpg', 'burning.jpg', 'green.jpg', 'cross.jpg',
-    'earth.jpg',
-])
-
-
 // Image extensions a builtin background filename may have (bookcover publishes .jpg only today,
 // the rest are accepted so a future format doesn't need a coordinated release here)
 const BG_EXTENSIONS = ['.jpg', '.jpeg', '.png', '.webp']

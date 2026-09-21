@@ -12,9 +12,9 @@ import {ref as storage_ref, uploadBytes, getBytes} from 'firebase/storage'
 // bwip-js and chroma-js out of this main-thread bundle — the cover worker owns all of that
 import {make_blank_form_values, asset_path, BACKGROUNDS_DIR, resolve_dimensions,
     font_families_in_form} from 'bookcover-core'
-import {cover_form_for_render, cover_render_key, STOCK_BG_PHOTOS, KNOWN_BUILTIN_BACKGROUNDS,
-    doc_has_copyright, gen_copyright_typst, COPYRIGHT_MARKER, resolve_reading_trim, convert_unit,
-    COVER_TITLE_KEY, design_assets_prefix, to_version_asset, to_design_asset, asset_basename}
+import {cover_form_for_render, cover_render_key, doc_has_copyright, gen_copyright_typst,
+    COPYRIGHT_MARKER, resolve_reading_trim, convert_unit, COVER_TITLE_KEY, design_assets_prefix,
+    to_version_asset, to_design_asset, asset_basename}
     from 'paper-bible-typst'
 
 import {firebase_storage} from '@/services/firebase'
@@ -65,9 +65,14 @@ function bg_mime_for(name:string):string {
 }
 
 
+// Fallback background for the wizard's "photo" preset when the first passage's book has no
+// thematic default (or there's no passage yet) — a fixed choice rather than a random stock photo
+const DEFAULT_BG_PHOTO = 'cross_sun.jpg'
+
+
 // Thematic default background per Bible book (fetch.bible book id -> backgrounds/ filename),
 // used to seed the wizard's "photo" preset with an image matching the design's first passage
-// rather than a random stock photo
+// rather than the default background
 const BOOK_BG_PHOTO:Record<string, string> = {
     'gen': 'earth_whole.jpg',
     'exo': 'israel.jpg',
@@ -156,18 +161,6 @@ const BOOK_COLOR_GROUPS:{books:string[], color:string}[] = [
 ]
 const BOOK_BG_COLOR:Record<string, string> = Object.fromEntries(
     BOOK_COLOR_GROUPS.flatMap(group => group.books.map(book => [book, group.color])))
-
-// Dev-only guard: every BOOK_BG_PHOTO value must also appear in the shared package's curated
-// KNOWN_BUILTIN_BACKGROUNDS set. A typo here wouldn't fail validation (any well-formed filename
-// is a valid reference — see is_builtin_background) — it would 404 against the assets bucket at
-// render time and lose that book's cover background, which is much harder to notice
-if (import.meta.env.DEV){
-    for (const filename of Object.values(BOOK_BG_PHOTO)){
-        if (!KNOWN_BUILTIN_BACKGROUNDS.has(filename)){
-            console.error(`BOOK_BG_PHOTO references unknown builtin background: ${filename}`)
-        }
-    }
-}
 
 
 // Client for the cover Web Worker (cover_worker.ts): a minimal id-tagged request/response
@@ -511,10 +504,9 @@ function build_cover_preset_form(kind:CoverPreset, blueprint:Blueprint)
     }
     if (kind === 'photo'){
         // Full-spread photo mode. Prefer a background themed to the first included passage's
-        // book, falling back to a random stock photo when there isn't one
+        // book, falling back to a fixed default when there isn't one
         form['bg_image_coverage'] = 'full'
-        const filename = (passage && BOOK_BG_PHOTO[passage.book])
-            || STOCK_BG_PHOTOS[Math.floor(Math.random() * STOCK_BG_PHOTOS.length)]!
+        const filename = (passage && BOOK_BG_PHOTO[passage.book]) || DEFAULT_BG_PHOTO
         return {form, bg_image_id: filename}
     }
     return {form, bg_image_id: null}

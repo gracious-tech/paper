@@ -2,7 +2,7 @@
 import {describe, it, expect} from 'vitest'
 
 import {cover_render_key, cover_config_schema, cover_form_for_render,
-    KNOWN_BUILTIN_BACKGROUNDS, STOCK_BG_PHOTOS, is_builtin_background} from '../src/index.js'
+    is_builtin_background} from '../src/index.js'
 
 import type {Blueprint, CoverConfig} from '../src/types.js'
 
@@ -125,8 +125,8 @@ describe('is_builtin_background', () => {
 describe('cover_config_schema', () => {
 
     it('accepts a valid builtin bg_image', () => {
-        const filename = STOCK_BG_PHOTOS[0]!
-        const result = cover_config_schema.safeParse(make_cover({kind: 'builtin', id: filename}))
+        const result = cover_config_schema.safeParse(
+            make_cover({kind: 'builtin', id: 'hills.jpg'}))
         expect(result.success).toBe(true)
     })
 
@@ -142,11 +142,10 @@ describe('cover_config_schema', () => {
     })
 
     it('accepts a builtin bookcover publishes but this app never seeds from', () => {
-        // KNOWN_BUILTIN_BACKGROUNDS is the curated set the wizard seeds from, not a validator:
-        // the user can pick any background bookcover publishes inside the cover widget, and
-        // rejecting those would force them to be stored as private uploads instead
+        // The schema is a shape check, not an allowlist: the user can pick any background
+        // bookcover publishes inside the cover widget, and rejecting those would force them to
+        // be stored as private uploads instead
         const id = 'some_other_published_background.jpg'
-        expect(KNOWN_BUILTIN_BACKGROUNDS.has(id)).toBe(false)
         const result = cover_config_schema.safeParse(make_cover({kind: 'builtin', id}))
         expect(result.success).toBe(true)
         expect(result.data?.bg_image).toEqual({kind: 'builtin', id})
@@ -174,13 +173,6 @@ describe('cover_config_schema', () => {
         const result = cover_config_schema.safeParse(old_shape)
         expect(result.success).toBe(true)
         expect(result.data?.bg_image).toBe(null)
-    })
-
-    it('every KNOWN_BUILTIN_BACKGROUNDS entry parses as a valid builtin', () => {
-        for (const id of KNOWN_BUILTIN_BACKGROUNDS){
-            const result = cover_config_schema.safeParse(make_cover({kind: 'builtin', id}))
-            expect(result.success).toBe(true)
-        }
     })
 
 })
