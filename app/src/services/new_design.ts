@@ -186,6 +186,8 @@ export const TYPE_PRESETS:{id:NewDesignType, image:string, diff:Partial<Blueprin
     {id: 'picture_story', image: '/wizard/type_picture_story.webp', diff: {
         hyphenate: false,
         line_height: 2,
+        passage_title: 'titlepage',
+        titlepage_frame: null,
     }},
 ]
 
