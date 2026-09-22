@@ -2,6 +2,7 @@
 import {execFileSync} from 'node:child_process'
 
 import {load_issues, save_issues} from './store.ts'
+import {symbolicate} from './sourcemap.ts'
 
 import type {ErrorRecord} from '../server/src/errors.ts'
 import type {Issue} from './store.ts'
@@ -26,7 +27,7 @@ function build_prompt(existing:Record<string, Issue>,
                 severity: sample.record.severity,
                 url: sample.record.url,
                 user_agent: sample.record.user_agent,
-                message: sample.record.message.slice(0, 2000),
+                message: symbolicate(sample.record.message).slice(0, 3000),
             }, undefined, 4),
             '```',
         ].join('\n')
@@ -46,7 +47,9 @@ function build_prompt(existing:Record<string, Issue>,
         '',
         'Assign EVERY new fingerprint to exactly one issue (existing or new). For new issues',
         'invent a short kebab-case id, a one-line summary, the likely cause, and any suspected',
-        'files in this repository (inspect the code if helpful).',
+        'files in this repository (inspect the code if helpful). A message\'s trailing',
+        '"Resolved source locations" section, when present, maps a minified stack frame to its',
+        'original source file/line — prefer that over guessing from the minified position.',
         '',
         'Respond with ONLY this JSON (no markdown fences, no other text):',
         '{"issues": [{"id": "kebab-case-id", "summary": "...", "cause": "...",',

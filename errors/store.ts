@@ -2,6 +2,8 @@
 import {mkdirSync, readdirSync, readFileSync, writeFileSync, rmSync} from 'node:fs'
 import {join} from 'node:path'
 
+import {symbolicate} from './sourcemap.ts'
+
 import type {ErrorRecord} from '../server/src/errors.ts'
 
 
@@ -228,7 +230,9 @@ export function write_prompt(issue:IssueView):string{
         }
         seen.add(record.fingerprint)
         lines.push('', '```json',
-            JSON.stringify({...record, ip: undefined}, undefined, 4), '```')
+            JSON.stringify({...record, ip: undefined, message: symbolicate(record.message)},
+                undefined, 4),
+            '```')
     }
 
     const path = join(PROMPTS_DIR, `${issue.id.replace(/[^A-Za-z0-9_-]/g, '_')}.md`)

@@ -5,7 +5,8 @@
         "server",
         "typst",
         "typst-web",
-        "typst-node"
+        "typst-node",
+        "errors"
     ],
     "dependencies": {
         "typescript": "^6.0.3"

@@ -42,6 +42,10 @@ export default defineConfig(() => {
         build: {
             target: 'es2018',  // Currently supporting browsers ES2015+
             cssTarget: 'safari10',  // Prevent things like top/left/bottom/right -> 'inset'
+            // 'hidden': emit .map files (for .bin/audit_errors to symbolicate stack traces
+            // with, see .bin/deploy_hosting) without a sourceMappingURL comment in the bundle,
+            // so end users' browsers never fetch original source
+            sourcemap: 'hidden',
         },
     }
 })

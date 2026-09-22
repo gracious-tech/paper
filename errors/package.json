@@ -1,5 +1,8 @@
 {
     "name": "paper-bible-errors-tool",
     "private": true,
-    "type": "module"
+    "type": "module",
+    "dependencies": {
+        "@jridgewell/trace-mapping": "^0.3.31"
+    }
 }

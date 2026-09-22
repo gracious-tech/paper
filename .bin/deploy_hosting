@@ -19,6 +19,13 @@ REGION="${REGION:-${AWS_REGION:-us-west-2}}"
 
 (cd app && npx vite build)
 
+# Archive this build's sourcemaps locally for .bin/audit_errors to symbolicate stack traces
+# with (see vite.config.mts: sourcemap:'hidden') — filenames are content-hashed, so archiving
+# is just an accumulating, collision-free copy, never pruned. Never shipped to the bucket: kept
+# out of the sync below so original source is never publicly fetchable
+mkdir -p errors/sourcemaps
+cp app/dist/assets/*.map errors/sourcemaps/ 2>/dev/null || true
+
 BUCKET="$(aws cloudformation describe-stacks --region "$REGION" --stack-name "$STACK" \
     --query "Stacks[0].Outputs[?OutputKey=='SiteBucketName'].OutputValue | [0]" --output text)"
 DISTRIBUTION_ID="$(aws cloudformation describe-stacks --region "$REGION" --stack-name "$STACK" \
@@ -26,7 +33,7 @@ DISTRIBUTION_ID="$(aws cloudformation describe-stacks --region "$REGION" --stack
 
 # Long-immutable for the content-hashed assets directory — must land first, so nothing else can
 # briefly land with a matching immutable Cache-Control from a stale rule ordering
-aws s3 sync app/dist/assets/ "s3://$BUCKET/assets/" --delete \
+aws s3 sync app/dist/assets/ "s3://$BUCKET/assets/" --delete --exclude "*.map" \
     --cache-control "public, max-age=31536000, immutable"
 
 # Everything else (index.html, icons, etc) — no caching, so a deploy is visible immediately.
