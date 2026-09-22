@@ -50,7 +50,7 @@ Resources:
 
   # --- Static site (S3 + CloudFront) -----------------------------------------------------
 
-  # Private bucket — the app's build output only reaches it via `aws s3 sync` (.bin/deploy_hosting),
+  # Private bucket — the app's build output only reaches it via `aws s3 sync` (.bin/deploy_app),
   # and is only ever read through CloudFront (via the OAC below), never directly
   SiteBucket:
     Type: AWS::S3::Bucket
@@ -177,7 +177,7 @@ Resources:
           ViewerProtocolPolicy: redirect-to-https
           Compress: true
           # AWS managed "CachingOptimized" — respects the Cache-Control set at sync time
-          # (.bin/deploy_hosting), long-immutable for /assets/**, short for index.html etc
+          # (.bin/deploy_app), long-immutable for /assets/**, short for index.html etc
           CachePolicyId: 658327ea-f89d-4fab-a63d-7e88639e58f6
           ResponseHeadersPolicyId: !Ref SecurityHeadersPolicy
         CacheBehaviors:

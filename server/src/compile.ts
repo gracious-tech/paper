@@ -112,7 +112,7 @@ async function record_compile_stat(fields:{version_id:string, design_id:string, 
             ...fields,
             created: Timestamp.now(),
             // Firestore's TTL policy on this field drops the row after ~1 year (see
-            // .bin/deploy_firebase); analysis only ever wants the recent window
+            // .bin/deploy_firebase_initial); analysis only ever wants the recent window
             expires: Timestamp.fromMillis(Date.now() + COMPILE_STATS_LIFETIME_MS),
         })
     } catch (error){

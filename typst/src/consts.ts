@@ -16,12 +16,13 @@ export const PDF_LIFETIME_MS = 365 * 24 * 60 * 60 * 1000
 
 // How long a compile_stats telemetry row is kept before Firestore's TTL policy deletes it —
 // written onto each row as `expires` (see record_compile_stat in the app and server)
-// WARN The TTL policy on the `expires` field is created by .bin/deploy_firebase
+// WARN The TTL policy on the `expires` field is created by .bin/deploy_firebase_initial
 export const COMPILE_STATS_LIFETIME_MS = 365 * 24 * 60 * 60 * 1000
 
 
 // How long a quota row outlives the day it counts (shared by every per-uid daily cap — see
 // server/src/quota.ts). A row is dead the moment its day rolls over, but the margin keeps an
 // in-progress window safe from clock/timezone skew
-// WARN Every quota collection needs its own TTL policy on `expires` (see .bin/deploy_firebase)
+// WARN Every quota collection needs its own TTL policy on `expires` (see
+// .bin/deploy_firebase_initial)
 export const QUOTA_LIFETIME_MS = 7 * 24 * 60 * 60 * 1000

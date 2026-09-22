@@ -6,7 +6,7 @@ import {TraceMap, originalPositionFor} from '@jridgewell/trace-mapping'
 
 
 // Resolves minified 'file.js:line:col' references in a report's message back to original
-// source, using the sourcemaps .bin/deploy_hosting archives locally per build (see
+// source, using the sourcemaps .bin/deploy_app archives locally per build (see
 // vite.config.mts: sourcemap:'hidden') — bundle filenames are content-hashed, so a map found
 // here is guaranteed to match the exact code that produced the report
 

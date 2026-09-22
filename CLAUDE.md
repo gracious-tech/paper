@@ -119,13 +119,13 @@ paper_bible/
   firebase_storage.rules            # Per-design asset prefixes + create-once version PDFs;
                                     #   no delete anywhere (server-only), no list
   firebase_storage_lifecycle.json   # Deletes versions/**.pdf (365d), design_cache/ (90d),
-                                    #   errors/ (90d) — applied via gcloud, see deploy_firebase
+                                    #   errors/ (90d) — applied via gcloud, see deploy_firebase_initial
   firebase_test.json       # Emulator config for the test suites only — same rules files, its
                             #   own ports, no import/export (see the Testing section)
   .bin/                    # All dev/deploy commands (package.json has no scripts)
     setup                  # npm install
     setup_typst            # Download the Typst CLI binary to .bin/typst (gitignored)
-    deploy_firebase        # One-time per-project Firebase setup (Storage lifecycle rules,
+    deploy_firebase_initial  # One-time per-project Firebase setup (Storage lifecycle rules,
                             #   Firestore TTL policies) — hosting/compute setup is deploy_aws now
     deploy_aws             # One-time (re-runnable) AWS provisioning: requests/finds the ACM
                             #   cert (us-east-1, DNS-validated at Porkbun — a human step, so
@@ -140,11 +140,11 @@ paper_bible/
                             #   optional, keeps audit_unit warm between runs
     serve_server           # Local API server against the emulators (port 8788; runs
                             #   server/src/dev_server.ts, not the Lambda entry point)
-    deploy_app             # deploy_hosting + firebase deploy (firestore/storage rules only —
-                            #   hosting itself is AWS, deployed separately from Firebase rules)
-    deploy_hosting          # Pure content shipping, no CloudFormation: vite build, two-tier
+    deploy_app             # Pure content shipping, no CloudFormation: vite build, two-tier
                             #   `aws s3 sync` (immutable for hashed assets/, no-cache for
                             #   index.html etc), then a small CloudFront invalidation
+    deploy_firebase        # firebase deploy --only firestore,storage — rules/indexes only,
+                            #   run on every deploy (not one-time, unlike deploy_firebase_initial)
     build_server_lambda     # Stage server/deploy/ (allowlisted context for Dockerfile.lambda),
                             #   docker build tagged with the current commit hash
     push_server_lambda      # docker push the built image to ECR
@@ -308,10 +308,10 @@ copy_quota/{uid}     # ditto for "keep own copy" (/api/copy_version)
 ```
 
 Every `compile_stats` and `*_quota` row carries an `expires` field with a Firestore native
-TTL policy on it (enabled by `.bin/deploy_firebase`): ~1 year and ~1 week respectively.
+TTL policy on it (enabled by `.bin/deploy_firebase_initial`): ~1 year and ~1 week respectively.
 **A new quota collection needs three things or it leaks**: an entry in `QUOTA_COLLECTIONS`
-(so account deletion sweeps it), a `gcloud firestore fields ttls` line in `.bin/deploy_firebase`
-(so rows expire), and a `quota_allows()` call on the route itself.
+(so account deletion sweeps it), a `gcloud firestore fields ttls` line in
+`.bin/deploy_firebase_initial` (so rows expire), and a `quota_allows()` call on the route itself.
 
 `versions` is a flat collection + `design_id` FK, not a physical subcollection of `designs` —
 versions need independent public-read-by-id ACLs and to be queried both by parent design
@@ -389,7 +389,7 @@ neither side knows about the other's setup process.
 2. Publish the assets bucket from the bookcover repo (it owns bucket creation, CORS and
    content — the compile Lambda reads it directly via same-account IAM, the app fetches from
    its CloudFront domain)
-3. `.bin/deploy_firebase <project-id>` — Storage lifecycle rules, Firestore TTL policies
+3. `.bin/deploy_firebase_initial <project-id>` — Storage lifecycle rules, Firestore TTL policies
    (`compile_stats`, `compile_quota`, `copy_quota`)
 4. Create a GCP service account for the Lambda functions' Admin SDK credential (least
    privilege: `roles/datastore.user`, `roles/storage.objectAdmin` scoped to the Storage
@@ -399,7 +399,8 @@ neither side knows about the other's setup process.
    prints a DNS record to add at Porkbun on a first run, re-run once added), then deploys
    `infra/cloudformation.yml`
 6. Put the GCP service-account key from step 4 into the secret `.bin/deploy_aws` just created
-7. `.bin/deploy_api` (server code) and `.bin/deploy_app [alias]` (app + Firestore/Storage rules)
+7. `.bin/deploy_api` (server code), `.bin/deploy_app [alias]` (app hosting), and
+   `.bin/deploy_firebase [alias]` (Firestore/Storage rules)
 8. Point the domain's DNS at the printed CloudFront distribution (a Porkbun ALIAS record —
    DNS isn't on Route53, so this step is manual, not part of the CloudFormation stack)
 
@@ -451,7 +452,7 @@ neither side knows about the other's setup process.
 - Two suites guard config that nothing imports, so drift is otherwise invisible until data goes
   missing: `typst/tests/consts.test.ts` ties `PDF_LIFETIME_MS` to
   `firebase_storage_lifecycle.json`, and `tests/server/quota.test.ts` ties `QUOTA_COLLECTIONS`
-  to the `gcloud firestore fields ttls` lines in `.bin/deploy_firebase`
+  to the `gcloud firestore fields ttls` lines in `.bin/deploy_firebase_initial`
 - `app/tests/lulu_skus.test.ts` asserts the generated price table covers **every** product
   `list_app_pod_package_ids()` can produce — a gap there quotes "not printable" for an option
   the user can see in the dropdown

@@ -1,0 +1,56 @@
+#!/usr/bin/env bash
+
+# One-time Firebase/GCP setup for a project (run per dev/prod project after creating it in the
+# Firebase console and upgrading it to the Blaze plan). Requires `firebase login` first.
+# Firestore/Auth/Storage are the only Firebase pieces this project still uses — hosting and
+# compute are AWS (see .bin/deploy_aws) — so this script only covers those three.
+#
+# Manual console steps not covered here:
+#   1. Create the Firebase project + web app (copy config into app/src/services/firebase.ts)
+#   2. Upgrade to Blaze plan
+#   3. Enable Auth providers: Anonymous, Google, Email link
+#   4. Enable Firestore (native mode) + default Storage bucket
+
+set -euo pipefail
+cd "$(dirname "$0")/.."
+
+PROJECT="${1:?Usage: deploy_firebase_initial <gcp-project-id>}"
+
+# Apply the 1-year lifecycle rule for creation PDFs to the default Storage bucket
+gcloud storage buckets update "gs://$PROJECT.firebasestorage.app" \
+    --project "$PROJECT" --lifecycle-file=firebase_storage_lifecycle.json
+
+# download_version_pdf() (app/src/services/versions.ts) fetch()es the PDF cross-origin to build
+# a same-origin blob url (contentDisposition is 'inline', so plain <a download> is ignored) —
+# that needs the bucket's blessing via CORS, which the default Storage bucket doesn't have out
+# of the box. Objects here are already effectively public (an id/token in the url is the whole
+# capability — see CLAUDE.md's Storage section), so there's no security benefit to restricting
+# origins the way there would be for an authenticated endpoint
+tmp_cors="$(mktemp)"
+cat > "$tmp_cors" <<'EOF'
+[
+    {
+        "origin": ["*"],
+        "method": ["GET", "HEAD"],
+        "responseHeader": ["Content-Type"],
+        "maxAgeSeconds": 3600
+    }
+]
+EOF
+gcloud storage buckets update "gs://$PROJECT.firebasestorage.app" --cors-file="$tmp_cors"
+rm "$tmp_cors"
+
+# Expire compile_stats telemetry rows after ~1 year, and every daily quota row a week after the
+# day it counts (Firestore native TTL on the `expires` field each row carries — see
+# COMPILE_STATS_LIFETIME_MS / QUOTA_LIFETIME_MS in typst/src/consts.ts). Idempotent:
+# re-running with a policy already enabled is a no-op.
+# WARN Each quota collection needs its own line — they're listed in QUOTA_COLLECTIONS
+# (server/src/quota.ts), and one without a policy here keeps a permanent row per user
+gcloud firestore fields ttls update expires \
+    --collection-group=compile_stats --enable-ttl --project "$PROJECT" --quiet
+gcloud firestore fields ttls update expires \
+    --collection-group=compile_quota --enable-ttl --project "$PROJECT" --quiet
+gcloud firestore fields ttls update expires \
+    --collection-group=copy_quota --enable-ttl --project "$PROJECT" --quiet
+
+echo "Done. Now run .bin/deploy_aws"

@@ -23,8 +23,8 @@ const lifecycle = JSON.parse(readFileSync(
 
 
 // The one-time GCP setup script, which is where Firestore TTL policies are enabled
-const deploy_firebase = readFileSync(
-    fileURLToPath(new URL('../../.bin/deploy_firebase', import.meta.url)), 'utf8')
+const deploy_firebase_initial = readFileSync(
+    fileURLToPath(new URL('../../.bin/deploy_firebase_initial', import.meta.url)), 'utf8')
 
 
 describe('PDF_LIFETIME_MS', () => {
@@ -48,7 +48,7 @@ describe('Firestore TTL policies', () => {
     // A collection carrying an `expires` field but no policy keeps every row forever
 
     it('enables a policy for compile_stats', () => {
-        expect(deploy_firebase).toContain('--collection-group=compile_stats --enable-ttl')
+        expect(deploy_firebase_initial).toContain('--collection-group=compile_stats --enable-ttl')
         expect(COMPILE_STATS_LIFETIME_MS).toBeGreaterThan(0)
     })
 
@@ -56,7 +56,8 @@ describe('Firestore TTL policies', () => {
         // The collection names themselves are asserted against QUOTA_COLLECTIONS in the server
         // suite; here it is only that each has a line at all
         for (const collection of ['compile_quota', 'copy_quota']){
-            expect(deploy_firebase).toContain(`--collection-group=${collection} --enable-ttl`)
+            expect(deploy_firebase_initial).toContain(
+                `--collection-group=${collection} --enable-ttl`)
         }
     })
 

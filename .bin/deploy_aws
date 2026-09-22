@@ -3,7 +3,7 @@
 # One-time (and safe to re-run) provisioning of this app's AWS hosting: an S3 bucket + CloudFront
 # distribution for the static app, Lambda + API Gateway for the server, all defined in
 # infra/cloudformation.yml. Everything here is infrastructure — app content goes up separately
-# via .bin/deploy_hosting, and server code via .bin/deploy_api.
+# via .bin/deploy_app, and server code via .bin/deploy_api.
 #
 # The stack goes to us-west-2. The certificate is handled first and separately, because
 # CloudFront can only read certificates from us-east-1 whatever region its origin buckets are
@@ -172,4 +172,4 @@ echo "  1. Point $DOMAIN at the DistributionDomainName value above (a Porkbun AL
 echo "  2. Put the GCP service-account key into Secrets Manager:"
 echo "       aws secretsmanager put-secret-value --region $REGION --secret-id $SECRET_ARN \\"
 echo "           --secret-string file://path/to/key.json"
-echo "  3. .bin/deploy_api && .bin/deploy_hosting"
+echo "  3. .bin/deploy_api && .bin/deploy_app && .bin/deploy_firebase"

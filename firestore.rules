@@ -104,8 +104,8 @@ service cloud.firestore {
         // shared version id. The server writes here too, via the Admin SDK (bypasses rules).
         // signed_in() never blocks a real write: anon users are signed in (see note above), and
         // a compile always has a signed-in owner anyway (versions require one to be created).
-        // Rows carry an `expires` field and a Firestore TTL policy (set by .bin/deploy_firebase)
-        // drops them after ~1 year
+        // Rows carry an `expires` field and a Firestore TTL policy (set by
+        // .bin/deploy_firebase_initial) drops them after ~1 year
         match /compile_stats/{stat_id} {
             allow create: if signed_in() && request.resource.data.owner == request.auth.uid;
         }

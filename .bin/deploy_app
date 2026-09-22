@@ -1,14 +1,48 @@
 #!/usr/bin/env bash
 
-# Deploy the app in full: static hosting to AWS (S3/CloudFront, see .bin/deploy_hosting) and
-# Firestore/Storage rules to Firebase — these remain on Firebase regardless of where the app
-# itself is hosted. Pass a project alias to target Firebase, e.g. `deploy_app prod` (defaults
-# to dev); AWS targeting is via the STACK/REGION env vars .bin/deploy_hosting reads.
+# Build and ship the app's static content — pure content shipping, no CloudFormation involved
+# (the S3 bucket + CloudFront distribution themselves come from .bin/deploy_aws). Two-tier
+# cache-control: content-hashed files under assets/ are immutable forever, everything else
+# (notably index.html) is never cached, so a deploy is visible to returning visitors
+# immediately. The CloudFront invalidation only needs to cover the non-hashed paths — hashed
+# assets/* objects never change under an existing name, so there's nothing there to invalidate.
 
 set -euo pipefail
 cd "$(dirname "$0")/.."
 
-PROJECT="${1:-paper-bible}"
+STACK="${STACK:-paper-bible}"
+REGION="${REGION:-${AWS_REGION:-us-west-2}}"
 
-.bin/deploy_hosting
-npx firebase deploy --project "$PROJECT" --only firestore,storage
+# Refresh Lulu's print prices from their published spec sheet, so each deploy ships current
+# ones (see app/tools/gen_lulu_prices.ts). Committed output, so this is usually a no-op diff
+.bin/gen_lulu_prices
+
+(cd app && npx vite build)
+
+# Archive this build's sourcemaps locally for .bin/audit_errors to symbolicate stack traces
+# with (see vite.config.mts: sourcemap:'hidden') — filenames are content-hashed, so archiving
+# is just an accumulating, collision-free copy, never pruned. Never shipped to the bucket: kept
+# out of the sync below so original source is never publicly fetchable
+mkdir -p errors/sourcemaps
+cp app/dist/assets/*.map errors/sourcemaps/ 2>/dev/null || true
+
+BUCKET="$(aws cloudformation describe-stacks --region "$REGION" --stack-name "$STACK" \
+    --query "Stacks[0].Outputs[?OutputKey=='SiteBucketName'].OutputValue | [0]" --output text)"
+DISTRIBUTION_ID="$(aws cloudformation describe-stacks --region "$REGION" --stack-name "$STACK" \
+    --query "Stacks[0].Outputs[?OutputKey=='DistributionId'].OutputValue | [0]" --output text)"
+
+# Long-immutable for the content-hashed assets directory — must land first, so nothing else can
+# briefly land with a matching immutable Cache-Control from a stale rule ordering
+aws s3 sync app/dist/assets/ "s3://$BUCKET/assets/" --delete --exclude "*.map" \
+    --cache-control "public, max-age=31536000, immutable"
+
+# Everything else (index.html, icons, etc) — no caching, so a deploy is visible immediately.
+# With max-age=0/must-revalidate CloudFront shouldn't serve stale copies anyway, but a small
+# invalidation of just the non-hashed root paths is a cheap extra guarantee — the hashed
+# assets/* objects never need it, since a changed file gets a new name, not new content at an
+# old one
+aws s3 sync app/dist/ "s3://$BUCKET/" --delete --exclude "assets/*" \
+    --cache-control "public, max-age=0, must-revalidate"
+
+aws cloudfront create-invalidation --distribution-id "$DISTRIBUTION_ID" \
+    --paths "/" "/index.html" --query "Invalidation.Id" --output text
