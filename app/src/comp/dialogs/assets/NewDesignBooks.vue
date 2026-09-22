@@ -120,13 +120,14 @@ const select_none = (group:{books:GetBooksItem[]}) => {
 
 .testaments
     display: grid
-    grid-template-columns: 1fr 1fr
+    grid-template-columns: minmax(0, 1fr) minmax(0, 1fr)
     gap: 16px
     align-items: start
 
     .head
         display: flex
         flex-direction: row
+        flex-wrap: wrap
         align-items: center
         margin-bottom: 8px
 
@@ -134,6 +135,13 @@ const select_none = (group:{books:GetBooksItem[]}) => {
             display: flex
             gap: 4px
             margin-left: 12px
+
+@media (max-width: 900px)
+    .testaments
+        gap: 0
+        .v-list-item
+            padding-left: 6px
+            padding-right: 6px
 
 .mode_switch
     display: flex
