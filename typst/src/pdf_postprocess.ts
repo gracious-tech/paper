@@ -381,7 +381,7 @@ const PREVIEW_STRIP_LINE_GAP = 6
 const PREVIEW_STRIP_PADDING = 11
 
 // Light orange fill so the strip reads as a notice rather than a page of content
-const PREVIEW_STRIP_FILL = rgb(0.996, 0.925, 0.82)
+const PREVIEW_STRIP_FILL = rgb(1, 0.878, 0.698)
 
 
 // Add a short two-line notice strip to a preview PDF — position 'start' prepends it as page 1
