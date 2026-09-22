@@ -245,6 +245,11 @@ addEventListener('unhandledrejection', event => {
 
 
 addEventListener('securitypolicyviolation', event => {
+    // Ignore Firebase Auth's cleardot.gif tracking pixel, a known benign img-src violation from
+    // Google's own gapi plumbing that isn't worth allowlisting
+    if (event.blockedURI.includes('google.com/images/cleardot.gif')) {
+        return
+    }
     // Report CSP issues
     const msg = `CSP error: ${event.blockedURI} violated ${event.violatedDirective}`
     report_error('silent', msg)
