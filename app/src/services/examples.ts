@@ -19,7 +19,7 @@ import img_large_print from '@/assets/images/examples/large_print.webp'
 import img_greek from '@/assets/images/examples/greek.webp'
 import img_nt_reading from '@/assets/images/examples/nt_reading.webp'
 
-import type {Blueprint, ContentPassage} from '@/services/types'
+import type {Blueprint, ContentCustom, ContentPassage} from '@/services/types'
 import type {CoverPreset} from '@/services/cover'
 import type {Translate} from '@/services/i18n'
 
@@ -41,6 +41,8 @@ export interface ExampleDesign {
     // Builtin background filename, overriding the 'photo' preset's own book-themed pick — not
     // part of `cover.form` so it can't travel through cover_overrides (see CoverConfig)
     cover_bg_image?:string
+    // Open with a generic personal message page for the user to fill in (gift editions)
+    message?:boolean
     diff:Partial<Blueprint>
 }
 
@@ -71,7 +73,7 @@ export const EXAMPLE_DESIGNS:ExampleDesign[] = [
         },
     },
     {
-        id: 'journal', image: img_journal, books: ['pro'], cover: 'photo',
+        id: 'journal', image: img_journal, books: ['pro'], cover: 'photo', message: true,
         cover_overrides: {
             title1_font: 'Caveat', title1_size: 2.71, title1_weight: 400, title_margin_top: 0,
             subtitle_font: 'Caveat', subtitle_size: 1.69, subtitle_weight: 400,
@@ -180,11 +182,30 @@ function whole_books(book_ids:string[]):ContentPassage[]{
 }
 
 
+// A centered, italic dedication page for the user to personalise
+function personal_message_item(t:Translate):ContentCustom{
+    return {
+        type: 'custom',
+        id: generate_token(),
+        name: t("svc.examples.message_name"),
+        doc: {type: 'doc', content: [{
+            type: 'paragraph',
+            attrs: {textAlign: 'center'},
+            content: [
+                {type: 'text', text: t("svc.examples.message_body"), marks: [{type: 'italic'}]},
+            ],
+        }]},
+        position: 'middle',
+    }
+}
+
+
 // Build a real Blueprint for an example: defaults, its diff, its content, then a cover carrying
 // the example's own title/subtitle (there's no wizard title field involved here, so it's staged
-// directly rather than through blueprint.name)
-export function build_example_blueprint(
-        example:ExampleDesign, title:string, subtitle:string):Blueprint{
+// directly rather than through blueprint.name). `message` is the example's translated opening
+// message page, if it has one
+export function build_example_blueprint(example:ExampleDesign, title:string, subtitle:string,
+        message:ContentCustom|null = null):Blueprint{
     const blueprint = get_default_blueprint()
     Object.assign(blueprint, example.diff)
     // Examples printed at home don't pin a size themselves — default to the user's likely
@@ -201,6 +222,9 @@ export function build_example_blueprint(
     blueprint.font_text = font_default_for_bibles(blueprint.bibles)
 
     blueprint.content = whole_books(example.books)
+    if (message){
+        blueprint.content.unshift(message)
+    }
 
     // Staged on `name` since that's what seed_cover_preset() reads the title from (see
     // build_new_blueprint() for the same pattern)
@@ -223,5 +247,6 @@ export function build_example_blueprint(
 export function create_example_design(id:string, t:Translate):Promise<string>{
     const example = EXAMPLE_DESIGNS.find(item => item.id === id)!
     const {title, subtitle} = example_label(id, t)
-    return create_design(build_example_blueprint(example, title, subtitle))
+    const message = example.message ? personal_message_item(t) : null
+    return create_design(build_example_blueprint(example, title, subtitle, message))
 }
