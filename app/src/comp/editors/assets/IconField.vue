@@ -45,6 +45,8 @@ div.icon-field
 
 import {computed, nextTick, ref, watch} from 'vue'
 
+import {find_preset_icon_svg} from 'bookcover-core/preset-icons-svg'
+
 import {biblical_icons} from '@/services/icons'
 import DialogIconHelp from '@/comp/dialogs/DialogIconHelp.vue'
 
@@ -56,10 +58,16 @@ const icon = defineModel<string|null>('icon', {required: true})
 const size = defineModel<number|undefined>('size', {required: false})
 
 
-// Build a preview URL for an Iconify ID (or a pasted raw SVG) via the Iconify SVG API
+// Build a preview URL for an Iconify ID (or a pasted raw SVG). Curated suggestions ship their
+// SVG bundled in bookcover-core (see typst's icon_cache.ts), so those render from a data URI
+// with no network request; only a custom id the user typed in falls back to the Iconify API
 const icon_url = (id:string):string => {
     if (id.trimStart().startsWith('<')){
         return `data:image/svg+xml,${encodeURIComponent(id)}`
+    }
+    const preset_svg = find_preset_icon_svg(id)
+    if (preset_svg !== undefined){
+        return `data:image/svg+xml,${encodeURIComponent(preset_svg)}`
     }
     const [collection, name] = id.split(':')
     return `https://api.iconify.design/${collection}/${name}.svg`
