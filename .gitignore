@@ -8,6 +8,7 @@ node_modules/
 /firebase-export-*
 
 /.bin/typst
+/.bin/.ecr_token
 /.emulator_cache/
 /.emulator_data/
 /app/.env.*.local

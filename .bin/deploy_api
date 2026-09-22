@@ -6,15 +6,33 @@
 # passing just ImageUri here is a fast, scoped update rather than a full redeploy.
 # Requires .bin/typst (setup_typst) to exist locally.
 
+# Runs from inside the dev container, which has no docker daemon access (deliberately — no
+# socket mount). The build/push step needs docker, so this script pauses and asks for it to be
+# run on the host instead, rather than exposing the host's docker socket into the container just
+# for this. aws itself stays container-side throughout: ACCOUNT_ID and IMAGE_URI are resolved
+# here (from aws/git, not docker), and the ECR login password is fetched here too and handed to
+# the host via a short-lived gitignored file, so .bin/push_server_lambda's own `aws ecr
+# get-login-password` call is skipped and the host never needs aws credentials at all.
+
 set -euo pipefail
 cd "$(dirname "$0")/.."
 
 STACK="${STACK:-paper-bible}"
 REGION="${REGION:-${AWS_REGION:-us-west-2}}"
+ECR_REPO="${ECR_REPO:-paper-bible}"
 ACCOUNT_ID="$(aws sts get-caller-identity --query Account --output text)"
+TAG="$(git rev-parse --short HEAD)$(git diff --quiet || echo -dirty)"
+IMAGE_URI="$ACCOUNT_ID.dkr.ecr.$REGION.amazonaws.com/$ECR_REPO:$TAG"
 
-.bin/build_server_lambda
-IMAGE_URI="$(.bin/push_server_lambda "$ACCOUNT_ID" "$REGION" | tail -1)"
+TOKEN_FILE=".bin/.ecr_token"
+aws ecr get-login-password --region "$REGION" > "$TOKEN_FILE"
+chmod 600 "$TOKEN_FILE"
+trap 'rm -f "$TOKEN_FILE"' EXIT
+
+echo "Run this on the host now:"
+echo "  export ECR_PASSWORD=\"\$(cat $TOKEN_FILE)\""
+echo "  .bin/build_server_lambda && .bin/push_server_lambda $ACCOUNT_ID $REGION"
+read -rp "Press enter once that's finished (pushed as $IMAGE_URI)... "
 
 aws cloudformation deploy \
     --region "$REGION" \

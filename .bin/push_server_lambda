@@ -1,7 +1,14 @@
 #!/usr/bin/env bash
 
 # Push the image .bin/build_server_lambda just built to ECR. Pass the account id, e.g.
-# `push_server_lambda 123456789012`. Used by .bin/deploy_api; also runnable standalone.
+# `push_server_lambda 123456789012`. Used by .bin/deploy_api; also runnable standalone (needs
+# the aws CLI authenticated, in addition to docker).
+#
+# If ECR_PASSWORD is already set, it's used as-is instead of calling `aws ecr
+# get-login-password` — this is what lets .bin/deploy_api ask for docker (this script) to run on
+# the host while aws itself only ever runs in the dev container: it fetches the password
+# in-container and hands it over via that env var, so no aws credentials need to exist on the
+# host at all.
 
 set -euo pipefail
 cd "$(dirname "$0")/.."
@@ -13,8 +20,12 @@ ECR_REGISTRY="$ACCOUNT_ID.dkr.ecr.$REGION.amazonaws.com"
 
 TAG="$(git rev-parse --short HEAD)$(git diff --quiet || echo -dirty)"
 
-aws ecr get-login-password --region "$REGION" \
-    | docker login --username AWS --password-stdin "$ECR_REGISTRY"
+if [ -n "${ECR_PASSWORD:-}" ]; then
+    echo "$ECR_PASSWORD" | docker login --username AWS --password-stdin "$ECR_REGISTRY"
+else
+    aws ecr get-login-password --region "$REGION" \
+        | docker login --username AWS --password-stdin "$ECR_REGISTRY"
+fi
 
 docker tag "paper-bible-lambda:$TAG" "$ECR_REGISTRY/$ECR_REPO:$TAG"
 docker push "$ECR_REGISTRY/$ECR_REPO:$TAG"

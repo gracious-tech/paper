@@ -111,12 +111,23 @@ fi
 IMAGE_URI="$ECR_REGISTRY/$ECR_REPO:bootstrap"
 if ! aws ecr describe-images --region "$REGION" --repository-name "$ECR_REPO" \
         --image-ids imageTag=bootstrap >/dev/null 2>&1; then
-    echo "Seeding a placeholder image (real code lands via .bin/deploy_api)..."
-    aws ecr get-login-password --region "$REGION" \
-        | docker login --username AWS --password-stdin "$ECR_REGISTRY"
-    docker pull public.ecr.aws/lambda/nodejs:22
-    docker tag public.ecr.aws/lambda/nodejs:22 "$IMAGE_URI"
-    docker push "$IMAGE_URI"
+    # This runs from inside the dev container, which has no docker daemon access (deliberately
+    # — no socket mount), so seeding the placeholder image needs a run on the host instead. Only
+    # a first-time bootstrap hits this — real code lands afterwards via .bin/deploy_api, which
+    # never reverts a deployed image back to this placeholder. aws stays container-side: the
+    # login password is fetched here and handed to the host via a short-lived gitignored file,
+    # so the host only ever runs plain docker commands.
+    TOKEN_FILE=".bin/.ecr_token"
+    aws ecr get-login-password --region "$REGION" > "$TOKEN_FILE"
+    chmod 600 "$TOKEN_FILE"
+    trap 'rm -f "$TOKEN_FILE"' EXIT
+
+    echo "Run this on the host now, to seed a placeholder image (real code lands via .bin/deploy_api):"
+    echo "  cat $TOKEN_FILE | docker login --username AWS --password-stdin $ECR_REGISTRY"
+    echo "  docker pull public.ecr.aws/lambda/nodejs:24"
+    echo "  docker tag public.ecr.aws/lambda/nodejs:24 $IMAGE_URI"
+    echo "  docker push $IMAGE_URI"
+    read -rp "Press enter once that's finished... "
 fi
 
 # On a later run, keep whatever image is actually deployed rather than reverting to the

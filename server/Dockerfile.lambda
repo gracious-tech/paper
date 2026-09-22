@@ -9,7 +9,7 @@
 # there, so these COPY paths stay relative to that staged root. Requires .bin/typst
 # (setup_typst).
 
-FROM public.ecr.aws/lambda/nodejs:22
+FROM public.ecr.aws/lambda/nodejs:24
 
 # No WORKDIR override — the base image already sets it to $LAMBDA_TASK_ROOT (/var/task), which
 # is exactly where npm's workspace hoisting needs to put node_modules for the Lambda Runtime
