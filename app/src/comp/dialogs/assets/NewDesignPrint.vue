@@ -129,6 +129,10 @@ const choose_professional = () => {
     grid-template-columns: repeat(4, 1fr)
     gap: 8px
 
+@media (max-width: 900px)
+    .grid_sizes
+        grid-template-columns: repeat(2, 1fr)
+
 .choice
     cursor: pointer
 
