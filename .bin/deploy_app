@@ -8,7 +8,7 @@
 set -euo pipefail
 cd "$(dirname "$0")/.."
 
-PROJECT="${1:-dev}"
+PROJECT="${1:-paper-bible}"
 
 .bin/deploy_hosting
 npx firebase deploy --project "$PROJECT" --only firestore,storage
