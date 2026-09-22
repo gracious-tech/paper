@@ -136,7 +136,7 @@ async function record_compile_stat(fields:{version_id:string, design_id:string, 
             owner: user.value!.uid,
             created: serverTimestamp(),
             // Firestore's TTL policy on this field drops the row after ~1 year (see
-            // .bin/setup_firebase); analysis only ever wants the recent window
+            // .bin/deploy_firebase); analysis only ever wants the recent window
             expires: Timestamp.fromMillis(Date.now() + COMPILE_STATS_LIFETIME_MS),
             user_agent: navigator.userAgent,
         })

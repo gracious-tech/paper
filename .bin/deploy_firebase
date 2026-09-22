@@ -3,7 +3,7 @@
 # One-time Firebase/GCP setup for a project (run per dev/prod project after creating it in the
 # Firebase console and upgrading it to the Blaze plan). Requires `firebase login` first.
 # Firestore/Auth/Storage are the only Firebase pieces this project still uses — hosting and
-# compute are AWS (see .bin/setup_aws) — so this script only covers those three.
+# compute are AWS (see .bin/deploy_aws) — so this script only covers those three.
 #
 # Manual console steps not covered here:
 #   1. Create the Firebase project + web app (copy config into app/src/services/firebase.ts)
@@ -14,7 +14,7 @@
 set -euo pipefail
 cd "$(dirname "$0")/.."
 
-PROJECT="${1:?Usage: setup_firebase <gcp-project-id>}"
+PROJECT="${1:?Usage: deploy_firebase <gcp-project-id>}"
 
 # Apply the 1-year lifecycle rule for creation PDFs to the default Storage bucket
 gcloud storage buckets update "gs://$PROJECT.firebasestorage.app" \
@@ -53,4 +53,4 @@ gcloud firestore fields ttls update expires \
 gcloud firestore fields ttls update expires \
     --collection-group=copy_quota --enable-ttl --project "$PROJECT" --quiet
 
-echo "Done. Now run .bin/setup_aws"
+echo "Done. Now run .bin/deploy_aws"

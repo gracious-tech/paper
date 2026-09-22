@@ -113,21 +113,21 @@ paper_bible/
                             #   cert and ECR repo are deliberately NOT resources here — both have
                             #   a chicken-and-egg problem with a from-scratch deploy (DNS
                             #   validation needs a human step; a fresh Lambda needs a real image
-                            #   to reference at creation) — see .bin/setup_aws
+                            #   to reference at creation) — see .bin/deploy_aws
   firestore.rules          # Designs/versions/users access rules
   firestore.indexes.json   # designs editor_uids+modified, versions design_id+created
   firebase_storage.rules            # Per-design asset prefixes + create-once version PDFs;
                                     #   no delete anywhere (server-only), no list
   firebase_storage_lifecycle.json   # Deletes versions/**.pdf (365d), design_cache/ (90d),
-                                    #   errors/ (90d) — applied via gcloud, see setup_firebase
+                                    #   errors/ (90d) — applied via gcloud, see deploy_firebase
   firebase_test.json       # Emulator config for the test suites only — same rules files, its
                             #   own ports, no import/export (see the Testing section)
   .bin/                    # All dev/deploy commands (package.json has no scripts)
     setup                  # npm install
     setup_typst            # Download the Typst CLI binary to .bin/typst (gitignored)
-    setup_firebase         # One-time per-project Firebase setup (Storage lifecycle rules,
-                            #   Firestore TTL policies) — hosting/compute setup is setup_aws now
-    setup_aws              # One-time (re-runnable) AWS provisioning: requests/finds the ACM
+    deploy_firebase        # One-time per-project Firebase setup (Storage lifecycle rules,
+                            #   Firestore TTL policies) — hosting/compute setup is deploy_aws now
+    deploy_aws             # One-time (re-runnable) AWS provisioning: requests/finds the ACM
                             #   cert (us-east-1, DNS-validated at Porkbun — a human step, so
                             #   this stops and prints the record on a first run), seeds a
                             #   placeholder ECR image so the stack's Lambda functions have
@@ -308,9 +308,9 @@ copy_quota/{uid}     # ditto for "keep own copy" (/api/copy_version)
 ```
 
 Every `compile_stats` and `*_quota` row carries an `expires` field with a Firestore native
-TTL policy on it (enabled by `.bin/setup_firebase`): ~1 year and ~1 week respectively.
+TTL policy on it (enabled by `.bin/deploy_firebase`): ~1 year and ~1 week respectively.
 **A new quota collection needs three things or it leaks**: an entry in `QUOTA_COLLECTIONS`
-(so account deletion sweeps it), a `gcloud firestore fields ttls` line in `.bin/setup_firebase`
+(so account deletion sweeps it), a `gcloud firestore fields ttls` line in `.bin/deploy_firebase`
 (so rows expire), and a `quota_allows()` call on the route itself.
 
 `versions` is a flat collection + `design_id` FK, not a physical subcollection of `designs` —
@@ -389,16 +389,16 @@ neither side knows about the other's setup process.
 2. Publish the assets bucket from the bookcover repo (it owns bucket creation, CORS and
    content — the compile Lambda reads it directly via same-account IAM, the app fetches from
    its CloudFront domain)
-3. `.bin/setup_firebase <project-id>` — Storage lifecycle rules, Firestore TTL policies
+3. `.bin/deploy_firebase <project-id>` — Storage lifecycle rules, Firestore TTL policies
    (`compile_stats`, `compile_quota`, `copy_quota`)
 4. Create a GCP service account for the Lambda functions' Admin SDK credential (least
    privilege: `roles/datastore.user`, `roles/storage.objectAdmin` scoped to the Storage
-   bucket, `roles/firebaseauth.admin`), download its key — `.bin/setup_aws` prints where to
+   bucket, `roles/firebaseauth.admin`), download its key — `.bin/deploy_aws` prints where to
    put it (a Secrets Manager `put-secret-value` call) once the stack exists
-5. `.bin/setup_aws` — see `.bin/` list above; requests/validates the ACM cert (stops and
+5. `.bin/deploy_aws` — see `.bin/` list above; requests/validates the ACM cert (stops and
    prints a DNS record to add at Porkbun on a first run, re-run once added), then deploys
    `infra/cloudformation.yml`
-6. Put the GCP service-account key from step 4 into the secret `.bin/setup_aws` just created
+6. Put the GCP service-account key from step 4 into the secret `.bin/deploy_aws` just created
 7. `.bin/deploy_api` (server code) and `.bin/deploy_app [alias]` (app + Firestore/Storage rules)
 8. Point the domain's DNS at the printed CloudFront distribution (a Porkbun ALIAS record —
    DNS isn't on Route53, so this step is manual, not part of the CloudFormation stack)
@@ -451,7 +451,7 @@ neither side knows about the other's setup process.
 - Two suites guard config that nothing imports, so drift is otherwise invisible until data goes
   missing: `typst/tests/consts.test.ts` ties `PDF_LIFETIME_MS` to
   `firebase_storage_lifecycle.json`, and `tests/server/quota.test.ts` ties `QUOTA_COLLECTIONS`
-  to the `gcloud firestore fields ttls` lines in `.bin/setup_firebase`
+  to the `gcloud firestore fields ttls` lines in `.bin/deploy_firebase`
 - `app/tests/lulu_skus.test.ts` asserts the generated price table covers **every** product
   `list_app_pod_package_ids()` can produce — a gap there quotes "not printable" for an option
   the user can see in the dropdown

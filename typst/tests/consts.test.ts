@@ -15,7 +15,7 @@ import {SCHEMA_VERSION, PDF_LIFETIME_MS, COMPILE_STATS_LIFETIME_MS, QUOTA_LIFETI
 const DAY_MS = 24 * 60 * 60 * 1000
 
 
-// The bucket lifecycle rules, as applied by .bin/setup_firebase
+// The bucket lifecycle rules, as applied by .bin/deploy_firebase
 const lifecycle = JSON.parse(readFileSync(
     fileURLToPath(new URL('../../firebase_storage_lifecycle.json', import.meta.url)),
     'utf8')) as {rule:{action:{type:string},
@@ -23,8 +23,8 @@ const lifecycle = JSON.parse(readFileSync(
 
 
 // The one-time GCP setup script, which is where Firestore TTL policies are enabled
-const setup_firebase = readFileSync(
-    fileURLToPath(new URL('../../.bin/setup_firebase', import.meta.url)), 'utf8')
+const deploy_firebase = readFileSync(
+    fileURLToPath(new URL('../../.bin/deploy_firebase', import.meta.url)), 'utf8')
 
 
 describe('PDF_LIFETIME_MS', () => {
@@ -48,7 +48,7 @@ describe('Firestore TTL policies', () => {
     // A collection carrying an `expires` field but no policy keeps every row forever
 
     it('enables a policy for compile_stats', () => {
-        expect(setup_firebase).toContain('--collection-group=compile_stats --enable-ttl')
+        expect(deploy_firebase).toContain('--collection-group=compile_stats --enable-ttl')
         expect(COMPILE_STATS_LIFETIME_MS).toBeGreaterThan(0)
     })
 
@@ -56,7 +56,7 @@ describe('Firestore TTL policies', () => {
         // The collection names themselves are asserted against QUOTA_COLLECTIONS in the server
         // suite; here it is only that each has a line at all
         for (const collection of ['compile_quota', 'copy_quota']){
-            expect(setup_firebase).toContain(`--collection-group=${collection} --enable-ttl`)
+            expect(deploy_firebase).toContain(`--collection-group=${collection} --enable-ttl`)
         }
     })
 

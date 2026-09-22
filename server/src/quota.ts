@@ -19,7 +19,7 @@ import {admin_db} from './firebase.ts'
 
 
 // One collection per throttled action, each holding one row per uid per day.
-// WARN Every collection named here needs a TTL policy on `expires` adding to .bin/setup_firebase
+// WARN Every collection named here needs a TTL policy on `expires` adding to .bin/deploy_firebase
 // — without one the collection keeps a permanent row for every uid that ever hit the route
 export const QUOTA_COMPILE = 'compile_quota'
 export const QUOTA_COPY = 'copy_quota'

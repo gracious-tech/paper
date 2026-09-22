@@ -15,8 +15,8 @@ import {fileURLToPath} from 'node:url'
 
 // The setup script is the only place TTL policies are enabled, and a quota collection without
 // one keeps a permanent row for every uid that ever hit the route
-const setup_firebase = readFileSync(
-    fileURLToPath(new URL('../../.bin/setup_firebase', import.meta.url)), 'utf8')
+const deploy_firebase = readFileSync(
+    fileURLToPath(new URL('../../.bin/deploy_firebase', import.meta.url)), 'utf8')
 
 
 beforeEach(async () => {
@@ -99,7 +99,7 @@ describe('quota_allows', () => {
 describe('quota collection registry', () => {
 
     // A new quota collection leaks unless three things line up: an entry in QUOTA_COLLECTIONS so
-    // account deletion sweeps it, a TTL line in setup_firebase so rows expire, and a
+    // account deletion sweeps it, a TTL line in deploy_firebase so rows expire, and a
     // quota_allows() call on the route itself
 
     it('lists every collection the module defines', () => {
@@ -107,9 +107,9 @@ describe('quota collection registry', () => {
         expect(QUOTA_COLLECTIONS).toContain(QUOTA_COPY)
     })
 
-    it('has a TTL policy line in setup_firebase for each', () => {
+    it('has a TTL policy line in deploy_firebase for each', () => {
         for (const collection of QUOTA_COLLECTIONS){
-            expect(setup_firebase).toContain(`--collection-group=${collection} --enable-ttl`)
+            expect(deploy_firebase).toContain(`--collection-group=${collection} --enable-ttl`)
         }
     })
 

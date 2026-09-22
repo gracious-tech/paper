@@ -20,8 +20,8 @@
 # Requires: aws CLI authenticated against the target account, docker.
 #
 # Usage:
-#   .bin/setup_aws
-#   STACK=paper-bible-staging DOMAIN=staging.paper.bible .bin/setup_aws
+#   .bin/deploy_aws
+#   STACK=paper-bible-staging DOMAIN=staging.paper.bible .bin/deploy_aws
 
 set -euo pipefail
 cd "$(dirname "$0")/.."

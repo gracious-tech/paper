@@ -2,7 +2,7 @@ AWSTemplateFormatVersion: '2010-09-09'
 Description: >
   paper.bible hosting + API — S3/CloudFront for the static app, Lambda + API Gateway for the
   server (light + compile roles, one container image). Firestore/Auth/Storage stay on Firebase
-  — this stack only owns what moved to AWS. Deployed entirely in one region (see .bin/setup_aws
+  — this stack only owns what moved to AWS. Deployed entirely in one region (see .bin/deploy_aws
   for why the ACM certificate isn't a resource in this template).
 
 Parameters:
@@ -10,7 +10,7 @@ Parameters:
     Type: String
     Description: >
       ARN of an ACM certificate for Domain, already ISSUED. Requested and validated outside
-      CloudFormation by .bin/setup_aws (in us-east-1, the one region CloudFront can read certs
+      CloudFormation by .bin/deploy_aws (in us-east-1, the one region CloudFront can read certs
       from) since DNS validation against Porkbun needs a human step CloudFormation can't pause
       for.
 
@@ -30,7 +30,7 @@ Parameters:
       The bookcover repo's public assets bucket (same AWS account), by its actual S3 bucket
       name — not the assets.paper.bible domain fronting it, which the S3 SDK calls in
       lambda_bootstrap.ts can't address. The compile function reads fonts/ and backgrounds/
-      from it at cold start. No default here — .bin/setup_aws is the one place that sets it.
+      from it at cold start. No default here — .bin/deploy_aws is the one place that sets it.
 
   ImageUri:
     Type: String
@@ -38,7 +38,7 @@ Parameters:
       Full ECR image URI:tag for both Lambda functions (one image, split by SERVER_ROLES — see
       server/Dockerfile.lambda). The ECR repository itself isn't a resource here, for the same
       reason the certificate isn't: on a first deploy nothing has been pushed yet, so
-      .bin/setup_aws seeds a placeholder image before this stack is created at all. Real code
+      .bin/deploy_aws seeds a placeholder image before this stack is created at all. Real code
       lands via .bin/deploy_api, which redeploys this stack with a new tag.
 
   PriceClass:
@@ -250,7 +250,7 @@ Resources:
 
   # GCP service-account key for the Firebase Admin SDK (see server/src/firebase.ts) — the value
   # here is a placeholder only, so CreateSecret has something to create; the real key is set via
-  # `aws secretsmanager put-secret-value` (.bin/setup_aws prints the command) and never passed
+  # `aws secretsmanager put-secret-value` (.bin/deploy_aws prints the command) and never passed
   # as a template parameter, which would land it in changeset history
   GcpCredentialsSecret:
     Type: AWS::SecretsManager::Secret
@@ -258,7 +258,7 @@ Resources:
       Name: !Sub '${AWS::StackName}-gcp-credentials'
       Description: >-
         GCP service-account key for the Firebase Admin SDK — set via put-secret-value, not a
-        stack parameter. See .bin/setup_aws.
+        stack parameter. See .bin/deploy_aws.
       SecretString: '{"placeholder": true}'
 
   LightLogGroup:
@@ -402,4 +402,4 @@ Outputs:
 
   GcpCredentialsSecretArn:
     Value: !Ref GcpCredentialsSecret
-    Description: Target for `aws secretsmanager put-secret-value` — see .bin/setup_aws
+    Description: Target for `aws secretsmanager put-secret-value` — see .bin/deploy_aws

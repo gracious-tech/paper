@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 
 # Build and ship the app's static content — pure content shipping, no CloudFormation involved
-# (the S3 bucket + CloudFront distribution themselves come from .bin/setup_aws). Two-tier
+# (the S3 bucket + CloudFront distribution themselves come from .bin/deploy_aws). Two-tier
 # cache-control: content-hashed files under assets/ are immutable forever, everything else
 # (notably index.html) is never cached, so a deploy is visible to returning visitors
 # immediately. The CloudFront invalidation only needs to cover the non-hashed paths — hashed
