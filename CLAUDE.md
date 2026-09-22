@@ -609,7 +609,12 @@ neither side knows about the other's setup process.
     `firebase.ts`, so it changes with the project alias); `blob:` is how the in-progress editor
     preview (`DisplayPreview.vue`) renders; `firebasestorage.googleapis.com` is how a published
     version's PDF renders (`DisplayDesignVersion.vue` iframes `get_pdf_url()`'s download URL
-    directly, not a blob). Drop any of the three and sign-in or one of the two previews dies
+    directly, not a blob). Drop any of the three and sign-in or one of the two previews dies.
+    `storage.googleapis.com` is there too, alongside `firebasestorage.googleapis.com` (also
+    in `default-src`, for `download_version_pdf()`'s `fetch()`) — `getDownloadURL()` always
+    returns a `firebasestorage.googleapis.com` URL, but Firebase Storage's serving path
+    sometimes 302s a range-served PDF request to `storage.googleapis.com` instead (observed
+    on Android Chrome), and both directives check the post-redirect URL for navigations/fetches
   - `worker-src 'self'` — deliberately without `blob:`, and explicit so it can't fall back to
     `script-src`. Vite emits both workers as same-origin chunks (check `dist/assets/`), so
     blob workers would be XSS surface bought for nothing
