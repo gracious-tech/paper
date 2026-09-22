@@ -12,22 +12,29 @@ Live at [paper.bible](https://paper.bible). MIT No Attribution license.
 
 ## Architecture & Data Flow
 
-**Frontend:** Vue 3 SPA (Vite + Vuetify 3 + TypeScript + vue-router), hosted on Firebase Hosting
+**Frontend:** Vue 3 SPA (Vite + Vuetify 3 + TypeScript + vue-router), hosted on S3 + CloudFront
+  (AWS, `us-west-2`, one CloudFormation stack — see `infra/cloudformation.yml`)
 **Data:** Firebase Auth (anonymous by default) + Firestore (designs, version metadata)
-  + Cloud Storage (PDFs, uploaded fonts and images, error reports)
-**PDF engine:** Typst — in the browser via a WASM worker, and on a Cloud Run container
-  (Typst CLI) as fallback/regeneration path
-**API:** one server codebase deployed as two Cloud Run services (`SERVER_ROLES` env picks
-  routes): `paper-bible-api` (light: share/redeem/copy/merge, 256Mi) and
-  `paper-bible-compile` (`/api/compile` only, 2Gi/2cpu, assets bucket mounted via GCS FUSE)
-**Shared assets:** the public assets bucket (`https://assets.paper.bible/`) is owned and
-  published by the separate [bookcover repo](https://github.com/gracious-tech/bookcover) —
-  top-level dirs: `fonts/` (curated set + Noto fallbacks), `docs/`/`frames/`/`backgrounds/`
-  (bookcover generator assets), and `typst/<npm version>/` (vendored typst.ts WASM, write-once
-  since consumers pin version dirs with immutable caching). In dev the bookcover repo's dev
-  server serves the same tree at `http://localhost:5301/generator_assets/` (see `ASSETS_PREFIX`
-  in `app/src/services/typst.ts`); the compile service reads the bucket as a mounted volume
-  instead of baking anything into the image
+  + Cloud Storage (PDFs, uploaded fonts and images, error reports) — these three stay on
+  Firebase; only hosting and compute moved to AWS
+**PDF engine:** Typst — in the browser via a WASM worker, and on a Lambda function (Typst CLI)
+  as fallback/regeneration path
+**API:** one server codebase deployed as two Lambda functions sharing one container image
+  (`SERVER_ROLES` env picks routes): `paper-bible-light` (share/redeem/copy/merge, 512MB) and
+  `paper-bible-compile` (`/api/compile` only, 3GB/4GB ephemeral storage, fonts synced from S3
+  into `/tmp` on cold start — see `server/src/lambda_bootstrap.ts`), behind one API Gateway
+  HTTP API that CloudFront routes `/api/*` to
+**Shared assets:** the public assets bucket (`https://assets.paper.bible/`, S3 + CloudFront,
+  same AWS account) is owned and published by the separate
+  [bookcover repo](https://github.com/gracious-tech/bookcover) — top-level dirs: `fonts/`
+  (curated set + Noto fallbacks), `docs/`/`frames/`/`backgrounds/` (bookcover generator
+  assets), and `typst/<npm version>/` (vendored typst.ts WASM, write-once since consumers pin
+  version dirs with immutable caching). In dev the bookcover repo's dev server serves the same
+  tree at `http://localhost:5301/generator_assets/` (see `ASSETS_PREFIX` in
+  `app/src/services/typst.ts`); the compile Lambda syncs `fonts/`/`backgrounds/` from the
+  bucket directly (same-account IAM, not a public fetch) into its own `/tmp` on first
+  invocation per execution environment, since Lambda has no bucket-as-filesystem mount the way
+  Cloud Run's GCS FUSE volume did
 
 ### Data flow: user input to PDF
 
@@ -42,7 +49,7 @@ Live at [paper.bible](https://paper.bible). MIT No Attribution license.
    `save_token`), then compiled in the browser and uploaded to Storage
    (`versions.ts: compile_and_upload`)
 5. If the in-browser (WASM) compile fails, the client calls `POST /api/compile` and the
-   Cloud Run server compiles the same frozen blueprint with the Typst CLI
+   compile Lambda compiles the same frozen blueprint with the Typst CLI
 6. PDFs live in Storage for 1 year (GCS lifecycle rule); *only the PDFs expire* — the
    metadata and the design's frozen `version_assets/` snapshots stay, so the PDF can be
    regenerated (same hybrid path) afterwards
@@ -78,24 +85,35 @@ Live at [paper.bible](https://paper.bible). MIT No Attribution license.
   Versions are read-only and already keyed by an unguessable url64 id (`generate_token()`), so
   the id itself is the whole capability — Firestore/Storage rules allow public read directly,
   no server hop or token needed to view metadata or download the PDF
-- **Same-origin API:** Hosting rewrites `/api/compile` to the compile service and `/api/**`
-  to the light service (Vite proxies everything to `localhost:8788` in dev) — no CORS anywhere.
+- **Same-origin API:** CloudFront routes `/api/*` to one API Gateway HTTP API, which routes
+  `POST /api/compile` to the compile Lambda and everything else (`ANY /api/{proxy+}`) to the
+  light Lambda (Vite proxies everything to `localhost:8788` in dev) — no CORS anywhere.
   Light routes: `design_invite_preview`, `redeem_design_invite`, `design_editors`,
   `copy_version`, `duplicate_design`, `delete_design`, `delete_version`,
   `reconcile_design_assets`, `touch_assets`, `merge_account`, `report_error`
   (unauthenticated), plus `health` on both
 - **Static-content skew:** Bible translations (1000+ in prod) and Noto fallback fonts (192
-  families) are barely-changing content with heavily skewed popularity — the compile service
-  fetches both on demand (fonts via the bucket mount, books via fetch.bible) and keeps books
-  warm in a per-instance LRU (`server/src/content.ts`) rather than baking anything in
+  families) are barely-changing content with heavily skewed popularity — the compile Lambda
+  fetches both on demand (fonts via an S3 sync into `/tmp` on cold start, books via
+  fetch.bible) and keeps books warm in a per-execution-environment LRU (`server/src/content.ts`)
+  rather than baking anything in
 
 
 ## Monorepo layout (npm workspaces)
 
 ```
 paper_bible/
-  firebase.json            # Hosting (app/dist, /api rewrite), Firestore/Storage rules refs
+  firebase.json            # Firestore/Storage rules refs + emulator ports only — hosting and
+                            #   compute are AWS now (see infra/), not Firebase Hosting/Cloud Run
   .firebaserc              # Project aliases (default/dev/prod)
+  infra/
+    cloudformation.yml     # The one AWS stack (us-west-2): S3+CloudFront for the app, API
+                            #   Gateway + 2 Lambda functions (light/compile) for the server,
+                            #   IAM, Secrets Manager (GCP creds), CloudWatch log groups. The ACM
+                            #   cert and ECR repo are deliberately NOT resources here — both have
+                            #   a chicken-and-egg problem with a from-scratch deploy (DNS
+                            #   validation needs a human step; a fresh Lambda needs a real image
+                            #   to reference at creation) — see .bin/setup_aws
   firestore.rules          # Designs/versions/users access rules
   firestore.indexes.json   # designs editor_uids+modified, versions design_id+created
   firebase_storage.rules            # Per-design asset prefixes + create-once version PDFs;
@@ -107,17 +125,31 @@ paper_bible/
   .bin/                    # All dev/deploy commands (package.json has no scripts)
     setup                  # npm install
     setup_typst            # Download the Typst CLI binary to .bin/typst (gitignored)
-    setup_firebase         # One-time per-project GCP setup (lifecycle, Firestore TTL policies,
-                            #   assets-bucket mount IAM)
+    setup_firebase         # One-time per-project Firebase setup (Storage lifecycle rules,
+                            #   Firestore TTL policies) — hosting/compute setup is setup_aws now
+    setup_aws              # One-time (re-runnable) AWS provisioning: requests/finds the ACM
+                            #   cert (us-east-1, DNS-validated at Porkbun — a human step, so
+                            #   this stops and prints the record on a first run), seeds a
+                            #   placeholder ECR image so the stack's Lambda functions have
+                            #   something to reference on first create, then deploys
+                            #   infra/cloudformation.yml
     build_typst            # Build all local TS packages in dependency order
     serve_app              # Vite dev server (port 5300)
     serve_emulators        # Firebase emulator suite (auth 9099, firestore 8080, storage 9199)
     serve_emulators_test   # The *test* emulators (auth 9098, firestore 8081, storage 9198) —
                             #   optional, keeps audit_unit warm between runs
-    serve_server           # Local API server against the emulators (port 8788)
-    deploy_app             # vite build + firebase deploy (hosting, rules)
-    build_server           # Stage server/deploy/ (allowlisted Docker build context)
-    deploy_server          # Runs build_server, gcloud run deploy of both services from one build
+    serve_server           # Local API server against the emulators (port 8788; runs
+                            #   server/src/dev_server.ts, not the Lambda entry point)
+    deploy_app             # deploy_hosting + firebase deploy (firestore/storage rules only —
+                            #   hosting itself is AWS, deployed separately from Firebase rules)
+    deploy_hosting          # Pure content shipping, no CloudFormation: vite build, two-tier
+                            #   `aws s3 sync` (immutable for hashed assets/, no-cache for
+                            #   index.html etc), then a small CloudFront invalidation
+    build_server_lambda     # Stage server/deploy/ (allowlisted context for Dockerfile.lambda),
+                            #   docker build tagged with the current commit hash
+    push_server_lambda      # docker push the built image to ECR
+    deploy_api              # build_server_lambda + push_server_lambda, then a scoped
+                            #   `cloudformation deploy` passing just the new ImageUri
     i18n_status/_sync/_check/_extract  # Translation tooling (logic in app/i18n/); see i18n section
     audit_unit             # Every unit/integration suite (typst, typst-node, app, rules,
                             #   server) — starts its own emulators; see the Testing section
@@ -187,12 +219,25 @@ paper_bible/
     tools/                 # Other node tooling (own tsconfig): gen_lulu_prices.ts
     tests/                 # Vitest suites for the service logic (vitest.config.mts aliases
                             #   services/content + services/state to stubs/); no component tests
-  server/                  # Cloud Run API server (workspace; run directly by node)
-    Dockerfile             # Cloud Run image: node + workspaces + typst CLI (no fonts baked)
-    deploy/                # Staged build context (gitignored; written by .bin/build_server)
-    src/index.ts           # Hono routes, gated by SERVER_ROLES: compile | light (share/merge).
-                            #   Authed routes go through authed_post(), which does the token +
-                            #   body-field checks so a route can't be added without them
+  server/                  # API server (workspace) — one Hono app, three entry points onto it
+    Dockerfile.lambda      # Lambda image: precompiles server/src (see tsconfig.build.json)
+                            #   rather than running it directly, so the image's Node version is
+                            #   decoupled from local dev's erasable-syntax-TS convention; typst
+                            #   CLI baked in (no fonts — those sync from S3 at cold start)
+    tsconfig.build.json    # noEmit:false / outDir:dist override of tsconfig.json, used only by
+                            #   Dockerfile.lambda's build step
+    deploy/                # Staged build context (gitignored; written by .bin/build_server_lambda)
+    src/index.ts           # Builds and exports the bare Hono `app` — routes gated by
+                            #   SERVER_ROLES: compile | light (share/merge). Authed routes go
+                            #   through authed_post(), which does the token + body-field checks
+                            #   so a route can't be added without them
+    src/dev_server.ts      # Entry point for local dev/tests: serve()s `app` over a real
+                            #   listener (see .bin/serve_server, tests/server/routes.test.ts)
+    src/lambda.ts           # Production entry point: wraps `app` with hono/aws-lambda's
+                            #   handle(), and — compile role only — syncs fonts/backgrounds from
+                            #   S3 before the first real request in a cold execution environment
+    src/lambda_bootstrap.ts # The S3 sync itself (fonts/, backgrounds/ into ASSETS_DIR/tmp),
+                            #   memoized per execution environment, retried on failure
     src/types.ts           # HandlerResult — what every handle_* returns
     src/compile.ts         # compile_pdf_from_blueprint + upload + doc update
     src/quota.ts           # per-uid daily caps on the expensive routes (compile, copy_version)
@@ -203,7 +248,9 @@ paper_bible/
     src/batch.ts           # ChunkedBatch (shared by merge + design deletion)
     src/merge.ts           # Guest→existing account data merge
     src/auth.ts            # ID-token verification for authed routes
-    src/firebase.ts        # Admin SDK init (admin_db / admin_bucket / admin_auth)
+    src/firebase.ts        # Admin SDK init (admin_db / admin_bucket / admin_auth) — credential
+                            #   is implicit in dev (emulators) and fetched from Secrets Manager
+                            #   in production, since Lambda has no Cloud-Run-style ambient ADC
     src/config.ts          # Env-derived config (roles, ports, assets dir, dev flag)
     src/errors.ts          # ErrorRecord + save_error() → errors/{fingerprint}/{id}.json
   tests/              # Emulator-backed suites (not a workspace; run via .bin/audit_unit)
@@ -334,13 +381,27 @@ browser's guess and is denied.
 
 ### Deployment (per project alias: dev/prod)
 
+Firestore/Auth/Storage (Firebase) and hosting/compute (AWS) are provisioned separately —
+neither side knows about the other's setup process.
+
 1. Firebase console: create project, Blaze plan, enable Auth (Anonymous/Google/Email
    link), Firestore, Storage; copy the web config into `app/src/services/firebase.ts`
 2. Publish the assets bucket from the bookcover repo (it owns bucket creation, CORS and
-   content — the compile service mounts it and the app fetches from it)
+   content — the compile Lambda reads it directly via same-account IAM, the app fetches from
+   its CloudFront domain)
 3. `.bin/setup_firebase <project-id>` — Storage lifecycle rules, Firestore TTL policies
-   (`compile_stats`, `compile_quota`, `copy_quota`), assets-bucket volume-mount IAM
-4. `.bin/deploy_server <project-id>`, `.bin/deploy_app [alias]`
+   (`compile_stats`, `compile_quota`, `copy_quota`)
+4. Create a GCP service account for the Lambda functions' Admin SDK credential (least
+   privilege: `roles/datastore.user`, `roles/storage.objectAdmin` scoped to the Storage
+   bucket, `roles/firebaseauth.admin`), download its key — `.bin/setup_aws` prints where to
+   put it (a Secrets Manager `put-secret-value` call) once the stack exists
+5. `.bin/setup_aws` — see `.bin/` list above; requests/validates the ACM cert (stops and
+   prints a DNS record to add at Porkbun on a first run, re-run once added), then deploys
+   `infra/cloudformation.yml`
+6. Put the GCP service-account key from step 4 into the secret `.bin/setup_aws` just created
+7. `.bin/deploy_api` (server code) and `.bin/deploy_app [alias]` (app + Firestore/Storage rules)
+8. Point the domain's DNS at the printed CloudFront distribution (a Porkbun ALIAS record —
+   DNS isn't on Route53, so this step is manual, not part of the CloudFormation stack)
 
 
 ## Testing
@@ -525,9 +586,11 @@ browser's guess and is denied.
   `.bin/audit_errors` (claude clusters fingerprints into issues; triage state in gitignored
   `errors/records/`).
   Critical failures show the report id in a gracious.tech/contact link
-- **SERVER_ROLES gates routes, Hosting gates traffic** — both must agree: `/api/compile`
-  is rewritten to `paper-bible-compile` (role `compile`), everything else to
-  `paper-bible-api` (role `light`); dev defaults to both roles on one port
+- **SERVER_ROLES gates routes, API Gateway gates traffic** — both must agree: `POST
+  /api/compile` routes to the `paper-bible-compile` Lambda (role `compile`), everything else
+  (`ANY /api/{proxy+}`) to `paper-bible-light` (role `light`); dev defaults to both roles on
+  one port. This is asserted directly in `tests/server/routes.test.ts`, not just implied by
+  the CloudFormation routes matching the deployed roles
 - **The CSP in `infra/cloudformation.yml`'s `SecurityHeadersPolicy` is enforced, and CFN's
   YAML can't hold multi-line reasoning inline either** — so it lives here. It fails in
   production only, since CloudFront headers never reach the Vite dev server. It's split two
@@ -566,13 +629,30 @@ browser's guess and is denied.
 - **`Referrer-Policy` is load-bearing, not hygiene** — a version id *is* the capability to
   read that PDF (rules allow public read by id alone), so without it every outbound click
   from `/designs/{id}/{version}` hands the whole URL to the destination in `Referer`
-- **Compile assets come from the bucket mount** (`ASSETS_DIR=/mnt/assets` via GCS FUSE, set
-  in `deploy_server`; fonts default to `<assets_dir>/fonts`) — new fonts/templates are
-  published from the bookcover repo, not a server redeploy; locally `serve_server` points at
-  the untracked `assets/` dir (a copy/symlink of the bookcover repo's assets tree)
-- **Server caches are per-instance best-effort** (like the per-uid compile throttle):
-  `server/src/content.ts` keeps the fetch.bible collection (1h TTL) and an LRU of fetched
-  books warm across compiles, but a fresh instance starts cold — never rely on them
+- **Compile assets are synced from S3, not mounted** — Lambda has no equivalent of Cloud
+  Run's GCS-FUSE bucket-as-filesystem mount, so `lambda_bootstrap.ts` downloads
+  `fonts/`/`backgrounds/` from the bookcover bucket (same-account IAM) into `ASSETS_DIR`
+  (`/tmp/assets` in production) on the compile function's first invocation per execution
+  environment, memoized after that; new fonts/templates are still published from the
+  bookcover repo, not a server redeploy. This sync **must** run lazily inside the handler
+  (see `lambda.ts`), never as top-level `await` — Lambda's module-INIT phase has a fixed
+  ~10s budget the sync can easily exceed, unlike the single Secrets Manager call in
+  `firebase.ts` which safely does run at top level. Locally `serve_server` points at the
+  untracked `assets/` dir (a copy/symlink of the bookcover repo's assets tree) directly, no
+  sync involved
+- **Hono middleware registered after a route is composed after it, not before — even if
+  the middleware is meant to gate that route.** `lambda.ts` originally tried registering the
+  asset-sync as `app.use('/api/compile', ...)`, added after `index.ts` already registered the
+  `POST /api/compile` handler; since `authed_post()` never calls `next()`, that middleware was
+  unreachable. Fixed by wrapping the whole exported Lambda handler instead of using Hono
+  middleware — anything that must run before a specific route, added from a module that
+  imports (and therefore runs after) the module defining that route, needs the same treatment
+- **Server caches are per-execution-environment best-effort** (like the per-uid compile
+  throttle): `server/src/content.ts` keeps the fetch.bible collection (1h TTL) and an LRU of
+  fetched books warm across compiles, but a fresh Lambda environment starts cold — and unlike
+  a Cloud-Run-style min-instances pool, concurrent invocations don't share this cache at all,
+  so cold fills happen more often. Acceptable since `/api/compile` is a low-traffic fallback
+  (most compiles run client-side), never rely on it for anything that needs to be warm
 - **Lulu cost estimates need no credentials, by design** (`print_cost.ts`): a quote is Lulu's
   published print price (`lulu_prices.ts`) plus a live delivery quote from their
   `/shipping-options/` endpoint, which is unauthenticated, CORS-open, and prices purely by
