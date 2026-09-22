@@ -20,6 +20,26 @@ PROJECT="${1:?Usage: setup_firebase <gcp-project-id>}"
 gcloud storage buckets update "gs://$PROJECT.firebasestorage.app" \
     --project "$PROJECT" --lifecycle-file=firebase_storage_lifecycle.json
 
+# download_version_pdf() (app/src/services/versions.ts) fetch()es the PDF cross-origin to build
+# a same-origin blob url (contentDisposition is 'inline', so plain <a download> is ignored) —
+# that needs the bucket's blessing via CORS, which the default Storage bucket doesn't have out
+# of the box. Objects here are already effectively public (an id/token in the url is the whole
+# capability — see CLAUDE.md's Storage section), so there's no security benefit to restricting
+# origins the way there would be for an authenticated endpoint
+tmp_cors="$(mktemp)"
+cat > "$tmp_cors" <<'EOF'
+[
+    {
+        "origin": ["*"],
+        "method": ["GET", "HEAD"],
+        "responseHeader": ["Content-Type"],
+        "maxAgeSeconds": 3600
+    }
+]
+EOF
+gcloud storage buckets update "gs://$PROJECT.firebasestorage.app" --cors-file="$tmp_cors"
+rm "$tmp_cors"
+
 # Expire compile_stats telemetry rows after ~1 year, and every daily quota row a week after the
 # day it counts (Firestore native TTL on the `expires` field each row carries — see
 # COMPILE_STATS_LIFETIME_MS / QUOTA_LIFETIME_MS in typst/src/consts.ts). Idempotent:
