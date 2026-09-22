@@ -10,7 +10,7 @@
 // pulling in a spreadsheet library for two columns of numbers.
 
 import {inflateRawSync} from 'node:zlib'
-import {writeFileSync} from 'node:fs'
+import {existsSync, readFileSync, writeFileSync} from 'node:fs'
 import {join, dirname} from 'node:path'
 import {fileURLToPath} from 'node:url'
 
@@ -214,10 +214,28 @@ async function generate():Promise<void>{
         }
     }
 
+    // Keep the previous "generated" date when nothing else changed, so a re-run with
+    // unchanged upstream data doesn't dirty the git repo with a date-only diff
+    let generated = new Date().toISOString().slice(0, 10)
+    if (existsSync(OUT_PATH)){
+        const previous = JSON.parse(readFileSync(OUT_PATH, 'utf8')) as {
+            source_modified?:string, currencies?:string[]
+            prices?:Record<string, number[][]>, page_limits?:Record<string, [number, number]>
+            generated?:string
+        }
+        const unchanged = previous.source_modified === modified
+            && JSON.stringify(previous.currencies) === JSON.stringify(CURRENCIES.map(item => item.code))
+            && JSON.stringify(previous.prices) === JSON.stringify(prices)
+            && JSON.stringify(previous.page_limits) === JSON.stringify(page_limits)
+        if (unchanged && previous.generated){
+            generated = previous.generated
+        }
+    }
+
     writeFileSync(OUT_PATH, JSON.stringify({
         source: SPEC_URL,
         source_modified: modified,
-        generated: new Date().toISOString().slice(0, 10),
+        generated,
         currencies: CURRENCIES.map(item => item.code),
         prices,
         page_limits,
