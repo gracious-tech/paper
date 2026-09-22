@@ -34,7 +34,7 @@ v-dialog(:model-value='mode !== null' @update:model-value='cancel' :fullscreen='
         v-divider
 
         v-card-actions
-            v-btn(v-if='mode === "edit" || step_index === 0' @click='cancel' color=''
+            v-btn(v-if='step_index === 0' @click='cancel' color=''
                     variant='tonal' size='large')
                 | {{ $t("common.cancel") }}
             v-btn(v-else @click='back' color='' variant='tonal' size='large')
@@ -42,10 +42,7 @@ v-dialog(:model-value='mode !== null' @update:model-value='cancel' :fullscreen='
             v-spacer
             span.text-medium-emphasis(v-if='step === "books"') {{ books_selected_label }}
             v-spacer
-            v-btn(v-if='mode === "edit"' @click='finish' :disabled='!all_steps_valid'
-                    :loading='creating' color='secondary' variant='flat' size='large')
-                | {{ $t("common.save") }}
-            v-btn(v-else-if='step !== "type"' @click='next'
+            v-btn(v-if='step !== "type"' @click='next'
                     :disabled='step === "cover" ? !all_steps_valid : !step_valid'
                     :loading='creating' color='secondary' variant='flat' size='large')
                 | {{ step === 'cover' ? $t("common.confirm") : $t("common.next") }}
@@ -236,17 +233,9 @@ const finish = async () => {
 }
 
 
-// Advance to the next step (create mode's "Next" button), or finish (create mode's "Confirm" on
-// the last step). In edit mode, the only auto-navigation is the type step's auto-select emit
-// jumping to "books" — every other step's own action is the explicit "Save" button, not a forced
-// march through the rest of the steps
+// Advance to the next step ("Next" button, or the type step's auto-select emit), or finish
+// ("Confirm"/"Save" on the last step) — the same walk in both modes, "finish" is what differs
 const next = async () => {
-    if (mode.value === 'edit'){
-        if (step.value === 'type'){
-            step.value = STEPS[step_index.value + 1]!
-        }
-        return
-    }
     if (step.value !== 'cover'){
         step.value = STEPS[step_index.value + 1]!
         return
