@@ -28,11 +28,16 @@
 
 
 // Vuetify 4 removed its global CSS reset (moved to per-component styles) — restore zeroed
-// margins on plain elements since the app relies on that for its many bare h1-h6/p tags
+// margins on plain elements since the app relies on that for its many bare h1-h6/p tags. ul/ol
+// keep a left indent (unlike the other zeroed elements) since list-style-position is 'outside'
+// by default — without it the marker sits flush at the margin edge while the text stays flush
+// too, instead of the marker hanging to the left of the indented text
 @layer vuetify-core.reset
     ul, ol, figure, details, summary
         padding: 0
         margin: 0
+    ul, ol
+        padding-inline-start: 24px
     h1, h2, h3, h4, h5, h6, p
         margin: 0
 
