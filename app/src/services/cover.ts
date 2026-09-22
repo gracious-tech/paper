@@ -170,8 +170,14 @@ class CoverWorkerClient {
 
     private worker:Worker
     private next_id = 0
+    // When this client (and its worker's serial call queue, see cover_worker.ts) was created —
+    // stamped onto every failure report so a long-lived-worker theory (e.g. an ever-growing
+    // promise chain) can be confirmed or ruled out from the report alone, without needing the
+    // user to describe their editing session
+    private created_ms = Date.now()
     private pending = new Map<number,
-        {resolve:(result:CoverRenderResult|ImageRegions|null)=>void, reject:(error:Error)=>void}>()
+        {action:string, resolve:(result:CoverRenderResult|ImageRegions|null)=>void,
+            reject:(error:Error)=>void}>()
 
     constructor(){
         this.worker = new Worker(new URL('./cover_worker.ts', import.meta.url), {type: 'module'})
@@ -187,14 +193,16 @@ class CoverWorkerClient {
             if (response.ok){
                 handlers.resolve(response.result)
             } else {
-                handlers.reject(new Error(response.error))
+                handlers.reject(this.diagnostic_error(response.id, handlers.action,
+                    response.error, response.stack))
             }
         }
 
         // A crash of the worker script itself fails all in-flight calls, since no response
         // will ever arrive for them
         this.worker.onerror = event => {
-            const error = new Error(event.message || 'Cover worker failed')
+            const error = this.diagnostic_error(this.next_id - 1, 'worker crash',
+                event.message || 'Cover worker failed')
             for (const handlers of this.pending.values()){
                 handlers.reject(error)
             }
@@ -202,11 +210,26 @@ class CoverWorkerClient {
         }
     }
 
+    // Build an Error carrying both the worker's real throw site (its stack, when forwarded —
+    // see cover_worker.ts) and this call's position/age in the worker's lifetime, since this
+    // worker (unlike the book's TypstWorkerClient) is never recycled — a growing call count
+    // alongside a long worker age is the signature of an issue tied to session length rather
+    // than any single render
+    private diagnostic_error(call_id:number, action:string, message:string, stack?:string):Error{
+        const age_s = Math.round((Date.now() - this.created_ms) / 1000)
+        const error = new Error(
+            `${message} (cover worker: action=${action}, call=#${call_id}, age=${age_s}s)`)
+        if (stack){
+            error.stack = `${error.stack}\n\nWorker stack:\n${stack}`
+        }
+        return error
+    }
+
     // Post one request to the worker and await its matching result
     send(action:DistributiveOmit<CoverWorkerRequest, 'id'>):Promise<CoverRenderResult|ImageRegions|null> {
         const id = this.next_id++
         return new Promise((resolve, reject) => {
-            this.pending.set(id, {resolve, reject})
+            this.pending.set(id, {action: action.action, resolve, reject})
             this.worker.postMessage({...action, id})
         })
     }

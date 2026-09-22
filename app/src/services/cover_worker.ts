@@ -48,10 +48,12 @@ export type CoverWorkerRequest = CoverWorkerAction & {id:number}
 export type DistributiveOmit<T, K extends keyof any> = T extends unknown ? Omit<T, K> : never
 
 // Final response to a request: render result for generate, sampled regions for
-// analyze_regions, null for init/set_custom_fonts
+// analyze_regions, null for init/set_custom_fonts. `stack`, when present, is the original
+// throw site inside the worker (see the catch handler below) — without it, the main thread can
+// only construct a fresh Error whose stack points at the postMessage relay, not the real cause
 export type CoverWorkerResponse =
     | {id:number, ok:true, result:CoverRenderResult|ImageRegions|null}
-    | {id:number, ok:false, error:string}
+    | {id:number, ok:false, error:string, stack?:string}
 
 
 // The generator instance, created by the 'init' action (null until then)
@@ -133,10 +135,13 @@ self.addEventListener('message', (event:MessageEvent<CoverWorkerRequest>) => {
             const result = await handle_action(event.data)
             postMessage({id, ok: true, result} satisfies CoverWorkerResponse)
         } catch (error){
-            // Log here too since the Error loses its stack when serialised for the main thread
+            // Log here too as a fallback, and because DevTools shows a live stack better than
+            // any string ever could
             console.error(error)
             const error_msg = error instanceof Error ? error.message : String(error)
-            postMessage({id, ok: false, error: error_msg} satisfies CoverWorkerResponse)
+            const stack = error instanceof Error ? error.stack : undefined
+            postMessage(
+                {id, ok: false, error: error_msg, ...stack && {stack}} satisfies CoverWorkerResponse)
         }
     })
 })
