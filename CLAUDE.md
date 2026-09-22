@@ -528,14 +528,20 @@ browser's guess and is denied.
 - **SERVER_ROLES gates routes, Hosting gates traffic** — both must agree: `/api/compile`
   is rewritten to `paper-bible-compile` (role `compile`), everything else to
   `paper-bible-api` (role `light`); dev defaults to both roles on one port
-- **The CSP in `firebase.json` is enforced, and JSON can't hold comments** — so the reasoning
-  lives here. It fails in production only, since Hosting headers never reach the Vite dev
-  server. It's split two ways on purpose: **`default-src` is the content allowlist** (every
-  origin the app loads images, fonts, video or fetch responses from — one list, rather than
-  repeating the same hosts across `img-src`/`font-src`/`connect-src`), while every directive
-  that can execute or be navigated to is **pinned separately and never inherits it**:
+- **The CSP in `infra/cloudformation.yml`'s `SecurityHeadersPolicy` is enforced, and CFN's
+  YAML can't hold multi-line reasoning inline either** — so it lives here. It fails in
+  production only, since CloudFront headers never reach the Vite dev server. It's split two
+  ways on purpose: **`default-src` is the content allowlist** (every origin the app loads
+  images, fonts, video or fetch responses from — one list, rather than repeating the same
+  hosts across `img-src`/`font-src`/`connect-src`), while every directive that can execute or
+  be navigated to is **pinned separately and never inherits it**:
   - `script-src` — `'wasm-unsafe-eval'` is the Typst WASM compiler, i.e. the browser's whole
-    render path. `apis.google.com` is Firebase Auth's popup plumbing
+    render path; it's needed for `WebAssembly.compile`/`instantiate` but doesn't cover
+    JS-string eval, so `'unsafe-eval'` is also required — `@myriaddreamin/typst-ts-web-compiler`'s
+    wasm-bindgen glue calls `new Function(...)` during `compiler.init()`
+    (`js_sys::Function::new_no_args`/`new_with_args`), and without it every in-browser compile
+    throws an `EvalError` before it renders anything. `apis.google.com` is Firebase Auth's
+    popup plumbing
   - `frame-src` — `paper-bible.firebaseapp.com` is Auth's hidden iframe (the authDomain from
     `firebase.ts`, so it changes with the project alias); `blob:` is how every PDF preview
     renders. Drop either and sign-in or the preview dies

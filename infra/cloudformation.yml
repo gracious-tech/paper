@@ -91,7 +91,12 @@ Resources:
   # Replicates firebase.json's header rule verbatim (see CLAUDE.md's CSP section for why each
   # value is what it is) — attached to every cache behavior below, including /api/*, since
   # Firebase Hosting's "**" rule applied to API responses too and Referrer-Policy in particular
-  # is called out there as load-bearing, not hygiene. CloudFront rejects Content-Security-Policy,
+  # is called out there as load-bearing, not hygiene. script-src also carries 'unsafe-eval':
+  # @myriaddreamin/typst-ts-web-compiler's wasm-bindgen glue calls `new Function(...)` during
+  # compiler.init() (js_sys::Function::new_no_args/new_with_args), which 'wasm-unsafe-eval'
+  # doesn't cover — that token only permits WebAssembly.compile/instantiate, not JS-string eval.
+  # Without it every in-browser compile throws an EvalError before it can render anything.
+  # CloudFront rejects Content-Security-Policy,
   # Referrer-Policy, X-Content-Type-Options, X-Frame-Options and Strict-Transport-Security as
   # custom headers (they're reserved, each with a named field under SecurityHeadersConfig
   # instead); Cross-Origin-Opener-Policy and Permissions-Policy have no such field, so those two
@@ -110,7 +115,7 @@ Resources:
               https://api.iconify.design https://v1.fetch.bible https://api.lulu.com
               https://firestore.googleapis.com https://identitytoolkit.googleapis.com
               https://securetoken.googleapis.com; script-src 'self' 'wasm-unsafe-eval'
-              https://apis.google.com; style-src 'self' 'unsafe-inline'; frame-src 'self' blob:
+              'unsafe-eval' https://apis.google.com; style-src 'self' 'unsafe-inline'; frame-src 'self' blob:
               https://cover.paper.bible https://lets.church
               https://paper-bible.firebaseapp.com; worker-src 'self'; object-src 'none';
               base-uri 'self'; form-action 'self'; frame-ancestors 'none'
