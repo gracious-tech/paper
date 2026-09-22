@@ -147,4 +147,12 @@ watch(() => draft.service_id, () => {
     grid-template-columns: 1fr 1fr
     gap: 12px
 
+    // Reserve the border width for both states so selecting a card doesn't shift layout
+    :deep(.v-card)
+        border-width: 3px
+        border-color: transparent
+
+    :deep(.v-card.selected)
+        border-color: rgb(var(--v-theme-secondary))
+
 </style>

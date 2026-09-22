@@ -138,7 +138,6 @@ const choose_professional = () => {
 
     &.selected
         border-color: rgb(var(--v-theme-secondary))
-        border-width: 2px
         background-color: rgba(var(--v-theme-secondary), 0.08)
 
 .size_guide
