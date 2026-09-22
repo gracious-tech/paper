@@ -5,6 +5,7 @@
 // fully recolored SVG that the renderer can embed as a Typst image. Used by both the in-browser
 // and Node (server) pipelines, so it relies only on the global fetch.
 
+import {find_builtin_icon} from 'bookcover-core'
 import {find_preset_icon_svg} from 'bookcover-core/preset-icons-svg'
 
 // Module-level in-memory cache: iconify ID -> raw SVG string
@@ -24,6 +25,19 @@ async function fetch_icon_svg(iconify_id:string):Promise<string> {
         throw new Error(`Invalid iconify ID "${iconify_id}" — expected "collection:name"`)
     }
 
+    const collection = iconify_id.slice(0, colon)
+    const name = iconify_id.slice(colon + 1)
+
+    // "builtin:<id>" resolves from bookcover-core's own bundled icon set instead of the network
+    if (collection === 'builtin') {
+        const builtin_svg = find_builtin_icon(name)
+        if (builtin_svg === undefined) {
+            throw new Error(`Icon does not exist: ${iconify_id}`)
+        }
+        svg_cache.set(iconify_id, builtin_svg)
+        return builtin_svg
+    }
+
     // Curated suggestions (see app's icons.ts, kept identical to bookcover-core's own preset
     // list) ship their SVG bundled in bookcover-core — resolve from there before ever touching
     // the network, so choosing a suggested icon never hits Iconify's rate limit
@@ -33,8 +47,6 @@ async function fetch_icon_svg(iconify_id:string):Promise<string> {
         return preset_svg
     }
 
-    const collection = iconify_id.slice(0, colon)
-    const name = iconify_id.slice(colon + 1)
     const url = `https://api.iconify.design/${collection}/${name}.svg`
 
     // Fetch the icon, surfacing a clear error if it does not exist

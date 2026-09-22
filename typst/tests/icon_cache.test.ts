@@ -52,6 +52,22 @@ describe('raw SVG input', () => {
 })
 
 
+describe('builtin ids', () => {
+
+    it('resolves from the bundled set without fetching anything', async () => {
+        const svg = await resolve_icon('builtin:cross', '#ff0000')
+        expect(svg).not.toContain('currentColor')
+        expect(fetch_mock).not.toHaveBeenCalled()
+    })
+
+    it('reports a missing builtin icon clearly', async () => {
+        await expect(resolve_icon('builtin:no-such-icon', '#000000'))
+            .rejects.toThrow('Icon does not exist: builtin:no-such-icon')
+        expect(fetch_mock).not.toHaveBeenCalled()
+    })
+})
+
+
 describe('iconify ids', () => {
 
     it('fetches from the Iconify API and recolors the result', async () => {

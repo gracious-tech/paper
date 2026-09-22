@@ -45,6 +45,7 @@ div.icon-field
 
 import {computed, nextTick, ref, watch} from 'vue'
 
+import {find_builtin_icon} from 'bookcover-core'
 import {find_preset_icon_svg} from 'bookcover-core/preset-icons-svg'
 
 import {biblical_icons} from '@/services/icons'
@@ -70,6 +71,12 @@ const icon_url = (id:string):string => {
         return `data:image/svg+xml,${encodeURIComponent(preset_svg)}`
     }
     const [collection, name] = id.split(':')
+    if (collection === 'builtin'){
+        const builtin_svg = find_builtin_icon(name ?? '')
+        if (builtin_svg !== undefined){
+            return `data:image/svg+xml,${encodeURIComponent(builtin_svg)}`
+        }
+    }
     return `https://api.iconify.design/${collection}/${name}.svg`
 }
 

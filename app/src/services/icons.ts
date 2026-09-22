@@ -9,12 +9,11 @@ import {suggested_icons} from 'bookcover-core'
 
 
 // Curated suggestions, sourced from the bookcover widget's own curated set (both apps offer the
-// same icons) so there's a single list to keep thematic and Bible-appropriate. Excludes
-// "builtin:" ids — those resolve from bookcover's own bundled icon set (builtin_icons.ts),
-// which this app's typst/icon_cache.ts doesn't fetch from; every "builtin:" icon bookcover
-// offers also has an Iconify-sourced preset covering the same idea (e.g. "builtin:cross" next to
-// "mdi:cross"), so nothing is lost by dropping them.
-export const biblical_icons:string[] = suggested_icons.filter(id => !id.startsWith('builtin:'))
+// same icons) so there's a single list to keep thematic and Bible-appropriate. Includes
+// "builtin:" ids — those resolve from bookcover-core's own bundled icon set (see
+// typst/src/icon_cache.ts and IconField.vue's icon_url(), both of which resolve them locally,
+// same as the Iconify-sourced presets).
+export const biblical_icons:string[] = suggested_icons
 
 
 // Suggested icon for each book of the Bible
