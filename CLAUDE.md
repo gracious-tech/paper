@@ -606,8 +606,10 @@ neither side knows about the other's setup process.
     throws an `EvalError` before it renders anything. `apis.google.com` is Firebase Auth's
     popup plumbing
   - `frame-src` — `paper-bible.firebaseapp.com` is Auth's hidden iframe (the authDomain from
-    `firebase.ts`, so it changes with the project alias); `blob:` is how every PDF preview
-    renders. Drop either and sign-in or the preview dies
+    `firebase.ts`, so it changes with the project alias); `blob:` is how the in-progress editor
+    preview (`DisplayPreview.vue`) renders; `firebasestorage.googleapis.com` is how a published
+    version's PDF renders (`DisplayDesignVersion.vue` iframes `get_pdf_url()`'s download URL
+    directly, not a blob). Drop any of the three and sign-in or one of the two previews dies
   - `worker-src 'self'` — deliberately without `blob:`, and explicit so it can't fall back to
     `script-src`. Vite emits both workers as same-origin chunks (check `dist/assets/`), so
     blob workers would be XSS surface bought for nothing

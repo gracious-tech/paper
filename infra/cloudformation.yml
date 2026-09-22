@@ -117,7 +117,8 @@ Resources:
               https://securetoken.googleapis.com; script-src 'self' 'wasm-unsafe-eval'
               'unsafe-eval' https://apis.google.com; style-src 'self' 'unsafe-inline'; frame-src 'self' blob:
               https://cover.paper.bible https://lets.church
-              https://paper-bible.firebaseapp.com; worker-src 'self'; object-src 'none';
+              https://paper-bible.firebaseapp.com https://firebasestorage.googleapis.com;
+              worker-src 'self'; object-src 'none';
               base-uri 'self'; form-action 'self'; frame-ancestors 'none'
           ReferrerPolicy:
             Override: true
