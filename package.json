@@ -14,5 +14,8 @@
         "@firebase/rules-unit-testing": "^5.0.2",
         "@playwright/test": "^1.61.1",
         "firebase-tools": "^15.23.0"
+    },
+    "overrides": {
+        "jose": "5.10.0"
     }
 }
