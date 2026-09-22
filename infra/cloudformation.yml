@@ -111,13 +111,15 @@ Resources:
             Override: true
             ContentSecurityPolicy: >-
               default-src 'self' blob: data: https://assets.paper.bible
-              https://firebasestorage.googleapis.com https://images.freely.giving
+              https://firebasestorage.googleapis.com https://storage.googleapis.com
+              https://images.freely.giving
               https://api.iconify.design https://v1.fetch.bible https://api.lulu.com
               https://firestore.googleapis.com https://identitytoolkit.googleapis.com
               https://securetoken.googleapis.com; script-src 'self' 'wasm-unsafe-eval'
               'unsafe-eval' https://apis.google.com; style-src 'self' 'unsafe-inline'; frame-src 'self' blob:
               https://cover.paper.bible https://lets.church
-              https://paper-bible.firebaseapp.com https://firebasestorage.googleapis.com;
+              https://paper-bible.firebaseapp.com https://firebasestorage.googleapis.com
+              https://storage.googleapis.com;
               worker-src 'self'; object-src 'none';
               base-uri 'self'; form-action 'self'; frame-ancestors 'none'
           ReferrerPolicy:
