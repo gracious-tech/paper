@@ -28,8 +28,32 @@ const ignore_errors = [
 // STATE
 
 
-// Require a somewhat modern browser (may not actually use CSS grid)
-const browser_supported = !! (CSS && CSS.supports && CSS.supports('grid-template-rows', 'none'))
+function detect_browser_support():boolean{
+    // Whether this browser can actually run paper.bible, not just parse its JS. CSS grid is a
+    // cheap proxy for "modern enough" that catches ancient/oddball browsers outright (IE11, old
+    // WebViews); WebAssembly and Worker are what the Typst engine itself needs (compile/cover
+    // workers are module workers specifically, but that's been supported everywhere Worker and
+    // WebAssembly are — including Firefox — since 2023, so it's not worth testing separately);
+    // and the Web Crypto API is needed for asset hashing (content_images.ts, cover.ts)
+    if (!(CSS && CSS.supports && CSS.supports('grid-template-rows', 'none'))){
+        return false
+    }
+    if (typeof WebAssembly === 'undefined' || typeof Worker === 'undefined'){
+        return false
+    }
+    return !! self.crypto?.subtle
+}
+
+
+// Require a somewhat modern browser
+const browser_supported = detect_browser_support()
+
+// Show the unsupported-browser splash immediately rather than waiting for some later feature to
+// actually fail and trip an error report first (`show_unsupported` is defined further down, but
+// function declarations are hoisted so calling it here is fine)
+if (!browser_supported){
+    show_unsupported()
+}
 
 // Mark start time so know runtime when errors occur
 const start_ms = new Date().getTime()
