@@ -621,7 +621,12 @@ neither side knows about the other's setup process.
     blob workers would be XSS surface bought for nothing
   - `style-src` needs `'unsafe-inline'` twice over: Vuetify's inline `style` attributes, and
     the loading-spinner `<style>` the index.pug plugin inlines into `dist/index.html`
-  - `object-src`/`base-uri`/`form-action`/`frame-ancestors` — the cheap always-on locks
+  - `object-src`/`base-uri`/`form-action` — the cheap always-on locks. `frame-ancestors` is
+    `'self'`, not `'none'` — a `blob:` URL inherits its creator's whole CSP including
+    `frame-ancestors`, and Safari (unlike Chromium/Firefox) enforces that inherited directive
+    against the actual embedding when `DisplayPreview.vue` iframes its own blob preview, so
+    `'none'` broke in-browser previews in Safari only (created-PDF iframes were unaffected —
+    those load a real cross-origin `firebasestorage.googleapis.com` URL, not a blob)
 
   `blob:` in `default-src` is load-bearing for `connect-src`: custom fonts become blob URLs
   that typst.ts then *fetches*. Custom font **previews** don't need it — those go through
