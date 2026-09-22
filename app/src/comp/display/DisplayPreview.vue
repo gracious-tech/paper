@@ -55,6 +55,7 @@ import {get_custom_font_styles} from '@/services/custom_fonts'
 import {resolve_content_for_style} from '@/services/content_images'
 import {render_cover_pdf, prepend_cover_page} from '@/services/cover'
 import {report_error} from '@/services/errors'
+import {stage_text} from '@/services/compile_progress'
 import {truncate_for_preview} from 'paper-bible-typst'
 
 import type {ProgressEvent, PreviewSection} from 'paper-bible-typst'
@@ -68,7 +69,7 @@ const pdf_url = ref<string|null>(null)
 const error_msg = ref<string|null>(null)
 
 // Text for the currently active progress stage, or null between compiles (and for stages the
-// user doesn't need to see — see stage_text() below)
+// user doesn't need to see — see stage_text() in compile_progress.ts)
 const progress_message = ref<string|null>(null)
 
 // Set instead of progress_message when a recompile fails while an old preview is still showing
@@ -124,27 +125,6 @@ const missing_warnings = computed(() => {
 let latest_run = 0
 
 
-// Map a coarse progress event to the (translated) text shown in the overlay. Only a handful of
-// stages are meaningful to a user watching a preview regenerate; the rest (e.g. 'arrange', the
-// booklet/spread imposition step) return null so the overlay just keeps showing whatever it
-// last showed rather than flashing an unrelated message
-function stage_text(event:ProgressEvent):string|null {
-    if (event.stage === 'start'){
-        return t("display.preview.getting_started") + "…"
-    }
-    if (event.stage === 'fetch'){
-        return `${t("display.preview.downloading")} ${event.label} (${event.i}/${event.total})`
-    }
-    if (event.stage === 'compile'){
-        return `${t("display.preview.writing")} ${event.label} (${event.i}/${event.total})`
-    }
-    if (event.stage === 'finalize'){
-        return t("display.preview.final_touches") + "…"
-    }
-    return null
-}
-
-
 // Compile the current blueprint to a PDF and display it
 async function compile(){
 
@@ -170,7 +150,7 @@ async function compile(){
         if (run !== latest_run){
             return
         }
-        const text = stage_text(event)
+        const text = stage_text(event, t)
         if (text !== null){
             progress_message.value = text
         }

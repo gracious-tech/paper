@@ -64,8 +64,9 @@ div.version
         template(v-else-if='status === "pending"')
             h3(class='text-headline-large') {{$t("display.version.preparing") + '...'}}
             AnimatedBook
-            h1(class='my-10 text-display-large') {{ time_since_request }}
-            div(class='mb-10')
+            h1(class='mt-5 text-display-large') {{ time_since_request }}
+            p(v-if='progress_text' class='mt-4 progress_text') {{ progress_text }}
+            div(class='my-10')
                 | {{$t("display.version.typical_time")}}
         template(v-else-if='status === "failed"')
             h3(class='mb-6') {{$t("display.version.error")}}
@@ -100,6 +101,7 @@ import {designs, current_design_id} from '@/services/designs'
 import {state} from '@/services/state'
 import {lulu_pod_package_id} from '@/services/print_cost'
 import {report_error} from '@/services/errors'
+import {version_progress, stage_text} from '@/services/compile_progress'
 import AnimatedBook from '../reuseable/AnimatedBook.vue'
 
 
@@ -116,6 +118,19 @@ const now = ref(Date.now())
 
 const status = computed(() => {
     return selected_version.value?.status
+})
+
+
+// Readout of the current in-browser compile stage (e.g. "Writing Genesis (1/66)"), mirroring
+// DisplayPreview.vue's overlay — null once the compile is handed off to the server, since only
+// the browser path reports progress (see version_progress in compile_progress.ts)
+const progress_text = computed(() => {
+    const version = selected_version.value
+    if (!version){
+        return null
+    }
+    const event = version_progress[version.id]
+    return event ? stage_text(event, t) : null
 })
 
 

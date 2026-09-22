@@ -33,10 +33,12 @@ import {generate_token} from '@/services/utils'
 import {page_count_guess} from '@/services/state'
 import {latest_version} from '@/services/versions'
 import {report_error, error_to_string} from '@/services/errors'
+import {version_progress} from '@/services/compile_progress'
 
 import type {CustomFont} from 'typst-fonts'
 import type {CompiledPdf} from '@/services/typst'
 import type {Blueprint, Version} from '@/services/types'
+import type {ProgressEvent} from 'paper-bible-typst'
 
 
 export async function create_pending_version(design_id:string, blueprint:Blueprint)
@@ -178,6 +180,13 @@ export async function compile_and_upload(id:string, design_id:string, blueprint:
     // same value reaches both the success and failure compile_stats rows (see record_compile_stat)
     const page_estimate = page_count_guess()
 
+    // Forwarded to both the content-fetching and PDF-compiling stages, so DisplayDesignVersion.vue
+    // can show which passage is currently being downloaded/written (mirrors DisplayPreview.vue's
+    // own on_progress). Cleared in the finally block below once this attempt is done
+    const on_progress = (event:ProgressEvent) => {
+        version_progress[id] = event
+    }
+
     try {
         try {
             // Resolve the frozen blueprint to a full request (fetches uncached Bible content)
@@ -190,7 +199,7 @@ export async function compile_and_upload(id:string, design_id:string, blueprint:
                 : get_custom_font_styles()
             interior_start = performance.now()
             const request = await bible_content.resolve(
-                blueprint, font_styles, undefined, share_url, page_estimate, doc_name)
+                blueprint, font_styles, on_progress, share_url, page_estimate, doc_name)
 
             // Compile in the worker (temporarily adding snapshotted fonts when regenerating).
             // The worker counts the pages for the history badge as it goes, so the PDF is never
@@ -201,12 +210,12 @@ export async function compile_and_upload(id:string, design_id:string, blueprint:
                 await generator.set_custom_fonts(
                     [...custom_fonts.filter(f => !families.has(f.family)), ...fonts])
                 try {
-                    compiled = await generator.compile_pdf(request)
+                    compiled = await generator.compile_pdf(request, on_progress)
                 } finally {
                     await generator.set_custom_fonts(custom_fonts)
                 }
             } else {
-                compiled = await generator.compile_pdf(request)
+                compiled = await generator.compile_pdf(request, on_progress)
             }
             const interior_ms = performance.now() - interior_start
             const {bytes, pages} = compiled
@@ -301,6 +310,10 @@ export async function compile_and_upload(id:string, design_id:string, blueprint:
                     report_error('banner', update_error)
                 })
         }
+    } finally {
+        // No more in-browser progress to show once this attempt is over, whether it succeeded,
+        // was handed off to the server, or failed outright
+        delete version_progress[id]
     }
 }
 
