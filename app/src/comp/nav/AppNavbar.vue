@@ -2,14 +2,14 @@
 <template lang='pug'>
 
 nav.navbar
-    v-btn(@click='view_all' variant='text' :active='is_viewing_all' icon color='' class='tab_btn'
-            density='comfortable')
-        app-icon(name='lists')
-    v-btn(v-for='design of recent' :key='design.id' @click='open(design.id)' variant='text'
-            :active='design.id === active_design_id' color=''
-            class='tab_btn design_btn')
-        | {{ design.name || $t("common.unnamed_design") }}
-    v-spacer
+    .tabs_group
+        v-btn(@click='view_all' variant='text' :active='is_viewing_all' icon color=''
+                class='tab_btn' density='comfortable')
+            app-icon(name='lists')
+        v-btn(v-for='design of recent' :key='design.id' @click='open(design.id)' variant='text'
+                :active='design.id === active_design_id' color=''
+                class='tab_btn design_btn')
+            | {{ design.name || $t("common.unnamed_design") }}
     v-btn(@click='create' variant='flat' color='secondary' class='create_btn')
         | {{$t("common.new")}}
 
@@ -67,6 +67,13 @@ const create = () => {
     gap: 6px
     padding: 0 8px
 
+.tabs_group
+    display: flex
+    align-items: flex-end
+    flex: 1 1 auto
+    min-width: 0
+    gap: 6px
+
 .tab_btn
     border-radius: 8px 8px 0 0 !important
     &.v-btn--active
@@ -74,10 +81,13 @@ const create = () => {
         color: rgb(var(--v-theme-on-surface))
 
 .create_btn
+    flex-shrink: 0
     position: relative
     top: -8px
 
 .design_btn
+    flex-shrink: 1
+    min-width: 0
     max-width: 120px
     background-color: rgba(var(--v-theme-on-primary), 0.12)
     :deep(.v-btn__content)
