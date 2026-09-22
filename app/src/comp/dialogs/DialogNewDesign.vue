@@ -48,7 +48,7 @@ v-dialog(:model-value='mode !== null' @update:model-value='cancel' :fullscreen='
             v-btn(v-else-if='step !== "type"' @click='next'
                     :disabled='step === "cover" ? !all_steps_valid : !step_valid'
                     :loading='creating' color='secondary' variant='flat' size='large')
-                | {{ step === 'cover' ? $t("common.create") : $t("common.next") }}
+                | {{ step === 'cover' ? $t("common.confirm") : $t("common.next") }}
 
 </template>
 
@@ -236,7 +236,7 @@ const finish = async () => {
 }
 
 
-// Advance to the next step (create mode's "Next" button), or finish (create mode's "Create" on
+// Advance to the next step (create mode's "Next" button), or finish (create mode's "Confirm" on
 // the last step). In edit mode, the only auto-navigation is the type step's auto-select emit
 // jumping to "books" — every other step's own action is the explicit "Save" button, not a forced
 // march through the rest of the steps
