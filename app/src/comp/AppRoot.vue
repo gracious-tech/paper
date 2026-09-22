@@ -38,7 +38,7 @@ v-app.app(v-else)
                                 AppIcon(name='donate')
                             v-list-item-title {{ $t("app.donate") }}
 
-            AppNavbar(v-if='route.name !== "about"')
+            AppNavbar(v-if='route.name !== "about" && route.name !== "privacy"')
 
         router-view
 

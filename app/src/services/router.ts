@@ -10,6 +10,7 @@ import ViewDesign from '@/comp/views/ViewDesign.vue'
 import ViewDesignInvite from '@/comp/views/ViewDesignInvite.vue'
 import ViewVersionShortlink from '@/comp/views/ViewVersionShortlink.vue'
 import ViewAbout from '@/comp/views/ViewAbout.vue'
+import ViewPrivacy from '@/comp/views/ViewPrivacy.vue'
 
 
 export const router = createRouter({
@@ -22,6 +23,7 @@ export const router = createRouter({
         // Short version-only link (printed on covers/QR codes — see versions.ts share_url)
         {path: '/v/:id', name: 'version-shortlink', component: ViewVersionShortlink},
         {path: '/about', name: 'about', component: ViewAbout},
+        {path: '/privacy', name: 'privacy', component: ViewPrivacy},
         {path: '/:pathMatch(.*)*', redirect: {name: 'designs'}},
     ],
 })

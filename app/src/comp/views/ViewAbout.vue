@@ -24,6 +24,8 @@ div.cont(class='text-body-medium')
                 | {{$t("app.contact")}}
             v-btn(href='https://github.com/gracious-tech/paper' target='_blank' variant='tonal')
                 | {{$t("view.about.source_code")}}
+            v-btn(:to='{name: "privacy"}' variant='tonal')
+                | {{$t("app.privacy")}}
 
     IntroVideo.display
 
