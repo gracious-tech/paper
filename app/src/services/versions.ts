@@ -183,6 +183,16 @@ export function cover_failed(version:Version):boolean{
 }
 
 
+export function version_retryable(version:Version):boolean{
+    // Whether the current user may retry/regenerate this version (compile, expired PDF, or
+    // cover-only). Firestore/Storage rules gate the underlying writes by the version's own
+    // `owner` field, set at creation to whichever editor triggered that particular compile —
+    // not by the parent design's editor_uids — so a co-editor who didn't own the original
+    // compile can't retry it either, even though they can edit the design
+    return version.owner === user.value?.uid
+}
+
+
 // --- Access ---------------------------------------------------------------------------------
 
 
@@ -195,11 +205,14 @@ export async function get_pdf_url(version:Version):Promise<string|null>{
     try {
         return await getDownloadURL(storage_ref(firebase_storage, version.pdf_path))
     } catch (error){
-        // Object already lifecycle-deleted despite pdf_expires (clock skew/manual deletion)
-        if ((error as {code?:string}).code === 'storage/object-not-found'){
-            return null
+        // Object already lifecycle-deleted despite pdf_expires (clock skew/manual deletion) is
+        // expected and silent; anything else (transient network/Storage fault) degrades to "no
+        // preview" too rather than throwing — callers await this unguarded inside a Vue watcher,
+        // where an uncaught rejection would surface as an unhandled critical error report
+        if ((error as {code?:string}).code !== 'storage/object-not-found'){
+            report_error('silent', error, {context: {version_id: version.id, stage: 'get_pdf_url'}})
         }
-        throw error
+        return null
     }
 }
 
@@ -217,10 +230,13 @@ export async function get_cover_pdf_url(version:Version):Promise<string|null>{
         return await getDownloadURL(
             storage_ref(firebase_storage, `versions/${version.id}/cover.pdf`))
     } catch (error){
-        if ((error as {code?:string}).code === 'storage/object-not-found'){
-            return null
+        // Same silent-degrade rule as get_pdf_url above, and for the same reason (an unguarded
+        // await in DisplayDesignVersion.vue's watcher)
+        if ((error as {code?:string}).code !== 'storage/object-not-found'){
+            report_error('silent', error,
+                {context: {version_id: version.id, stage: 'get_cover_pdf_url'}})
         }
-        throw error
+        return null
     }
 }
 

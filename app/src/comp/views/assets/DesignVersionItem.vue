@@ -94,7 +94,8 @@ import {binding_page_issue} from '@/services/binding_advice'
 import {create_design_from_version, restore_version_into_design} from '@/services/designs'
 import {open_version_pdf, delete_version,
     cover_failed as version_cover_failed, version_expired, version_stuck, share_version,
-    selected_version_id, design_needs_editor, version_contact_url} from '@/services/versions'
+    selected_version_id, design_needs_editor, version_contact_url, version_retryable}
+    from '@/services/versions'
 import {regenerate_version, regenerate_cover, retry_version}
     from '@/services/version_compile'
 import {format_relative_time, format_datetime} from '@/services/utils'
@@ -152,13 +153,27 @@ const stuck = computed(() => {
 })
 
 
+// Options for a retry-style alert_dialog, omitting the action unless the current user owns this
+// version — Storage/Firestore rules restrict the regenerate/retry write to that uid specifically
+// (not just any design editor), so anyone else's click would only ever fail (see version_retryable)
+const retryable_action = (action:string, contact_url?:string) => {
+    const opts:{action?:string, contact_url?:string} = {}
+    if (version_retryable(props.version)){
+        opts.action = action
+    }
+    if (contact_url){
+        opts.contact_url = contact_url
+    }
+    return opts
+}
+
 // Show the "taking longer than expected" message in a dialog with a "Retry" action (mirrors the
 // preview pane's stuck screen in DisplayDesignVersion.vue); retry re-drives the pending version
 // back through the compile pipeline when chosen
 const show_stuck_error = async () => {
     const do_retry = await alert_dialog(
         t('display.version.taking_long') + ' ' + t('display.version.interrupted'),
-        {action: t('common.try_again'), contact_url: version_contact_url(props.version)})
+        retryable_action(t('common.try_again'), version_contact_url(props.version)))
     if (do_retry){
         await retry()
     }
@@ -175,7 +190,7 @@ const expired = computed(() => version_expired(props.version))
 const show_expired = async () => {
     const do_regen = await alert_dialog(
         t('display.version.pdf_expired') + ' ' + t('display.version.settings_saved'),
-        {action: t('common.regenerate')})
+        retryable_action(t('common.regenerate')))
     if (do_regen){
         await regen()
     }
@@ -200,7 +215,7 @@ const compile_failed = computed(() => {
 // the frozen blueprint when chosen
 const show_compile_error = async () => {
     const retry = await alert_dialog(t('view.version_list.compile_error'),
-        {action: t('common.try_again'), contact_url: version_contact_url(props.version)})
+        retryable_action(t('common.try_again'), version_contact_url(props.version)))
     if (retry){
         await regen()
     }
@@ -216,7 +231,7 @@ const cover_failed = computed(() => version_cover_failed(props.version))
 // version gets in DesignVersionsList's summary); retry re-renders just the cover
 const show_cover_error = async () => {
     const retry = await alert_dialog(t('view.version_list.cover_failed'),
-        {action: t('common.try_again'), contact_url: version_contact_url(props.version)})
+        retryable_action(t('common.try_again'), version_contact_url(props.version)))
     if (retry){
         await retry_cover()
     }

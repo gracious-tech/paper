@@ -37,8 +37,9 @@ template(v-else)
                 app-icon.compile_error_icon(name='error')
                 span {{ failure_alert.message }}
             div.compile_error_actions
-                v-btn(@click='failure_alert.retry' size='small' variant='flat' color='white'
-                        :loading='failure_alert.loading') {{ $t("common.try_again") }}
+                v-btn(v-if='failure_alert.retry' @click='failure_alert.retry' size='small'
+                        variant='flat' color='white' :loading='failure_alert.loading')
+                    | {{ $t("common.try_again") }}
                 v-btn(:href='contact_url' target='_blank' size='small' variant='tonal'
                         color='white') {{ $t("display.version.contact") }}
         //- Binding page-limit warning. It lives here in the always-visible version summary
@@ -96,7 +97,8 @@ import {useI18n} from '@/services/i18n'
 import {PassageReference} from '@gracious.tech/fetch-client'
 
 import {versions, latest_version, version_expired, download_version_pdf,
-    cover_failed as version_cover_failed, version_contact_url} from '@/services/versions'
+    cover_failed as version_cover_failed, version_contact_url, version_retryable}
+    from '@/services/versions'
 import {regenerate_version, regenerate_cover} from '@/services/version_compile'
 import {report_error} from '@/services/errors'
 import {state} from '@/services/state'
@@ -235,15 +237,19 @@ const retry_compile = async () => {
 // The latest version's failure state, if any — a full compile failure or an interior-compiled
 // / cover-failed one (mutually exclusive: a version is either 'failed' or 'available'). Drives
 // the alert bar's message + which retry it runs. Shown here rather than only in the preview
-// pane so a mobile user, who can't see that pane, still gets the message and a way to act
+// pane so a mobile user, who can't see that pane, still gets the message and a way to act.
+// `retry` is only offered when the current user owns the version — Storage/Firestore rules
+// restrict the write it triggers to that uid specifically (not just any design editor), so
+// anyone else's click would only ever fail (see version_retryable)
 const failure_alert = computed(() => {
+    const retryable = !!latest_version.value && version_retryable(latest_version.value)
     if (latest_version.value?.status === 'failed'){
-        return {message: t("view.version_list.compile_error"), retry: retry_compile,
-            loading: retrying.value}
+        return {message: t("view.version_list.compile_error"),
+            retry: retryable ? retry_compile : null, loading: retrying.value}
     }
     if (cover_failed.value){
-        return {message: t("view.version_list.cover_failed"), retry: retry_cover,
-            loading: retrying_cover.value}
+        return {message: t("view.version_list.cover_failed"),
+            retry: retryable ? retry_cover : null, loading: retrying_cover.value}
     }
     return null
 })
