@@ -91,37 +91,43 @@ Resources:
   # Replicates firebase.json's header rule verbatim (see CLAUDE.md's CSP section for why each
   # value is what it is) — attached to every cache behavior below, including /api/*, since
   # Firebase Hosting's "**" rule applied to API responses too and Referrer-Policy in particular
-  # is called out there as load-bearing, not hygiene. CloudFront's SecurityHeadersConfig doesn't
-  # have named fields for Cross-Origin-Opener-Policy or Permissions-Policy, so every header here
-  # goes through CustomHeadersConfig uniformly rather than splitting across two config blocks
+  # is called out there as load-bearing, not hygiene. CloudFront rejects Content-Security-Policy,
+  # Referrer-Policy, X-Content-Type-Options, X-Frame-Options and Strict-Transport-Security as
+  # custom headers (they're reserved, each with a named field under SecurityHeadersConfig
+  # instead); Cross-Origin-Opener-Policy and Permissions-Policy have no such field, so those two
+  # alone go through CustomHeadersConfig
   SecurityHeadersPolicy:
     Type: AWS::CloudFront::ResponseHeadersPolicy
     Properties:
       ResponseHeadersPolicyConfig:
         Name: !Sub '${AWS::StackName}-security-headers'
+        SecurityHeadersConfig:
+          ContentSecurityPolicy:
+            Override: true
+            ContentSecurityPolicy: >-
+              default-src 'self' blob: data: https://assets.paper.bible
+              https://firebasestorage.googleapis.com https://images.freely.giving
+              https://api.iconify.design https://v1.fetch.bible https://api.lulu.com
+              https://firestore.googleapis.com https://identitytoolkit.googleapis.com
+              https://securetoken.googleapis.com; script-src 'self' 'wasm-unsafe-eval'
+              https://apis.google.com; style-src 'self' 'unsafe-inline'; frame-src 'self' blob:
+              https://cover.paper.bible https://lets.church
+              https://paper-bible.firebaseapp.com; worker-src 'self'; object-src 'none';
+              base-uri 'self'; form-action 'self'; frame-ancestors 'none'
+          ReferrerPolicy:
+            Override: true
+            ReferrerPolicy: strict-origin-when-cross-origin
+          ContentTypeOptions:
+            Override: true
+          FrameOptions:
+            Override: true
+            FrameOption: DENY
+          StrictTransportSecurity:
+            Override: true
+            AccessControlMaxAgeSec: 31536000
+            IncludeSubdomains: true
         CustomHeadersConfig:
           Items:
-            - Header: Content-Security-Policy
-              Override: true
-              Value: >-
-                default-src 'self' blob: data: https://assets.paper.bible
-                https://firebasestorage.googleapis.com https://images.freely.giving
-                https://api.iconify.design https://v1.fetch.bible https://api.lulu.com
-                https://firestore.googleapis.com https://identitytoolkit.googleapis.com
-                https://securetoken.googleapis.com; script-src 'self' 'wasm-unsafe-eval'
-                https://apis.google.com; style-src 'self' 'unsafe-inline'; frame-src 'self' blob:
-                https://cover.paper.bible https://lets.church
-                https://paper-bible.firebaseapp.com; worker-src 'self'; object-src 'none';
-                base-uri 'self'; form-action 'self'; frame-ancestors 'none'
-            - Header: Referrer-Policy
-              Override: true
-              Value: strict-origin-when-cross-origin
-            - Header: X-Content-Type-Options
-              Override: true
-              Value: nosniff
-            - Header: X-Frame-Options
-              Override: true
-              Value: DENY
             - Header: Cross-Origin-Opener-Policy
               Override: true
               Value: same-origin-allow-popups
@@ -132,9 +138,6 @@ Resources:
                 gyroscope=(), magnetometer=(), microphone=(), midi=(), payment=(), serial=(),
                 usb=(), fullscreen=(self "https://lets.church"), autoplay=(self
                 "https://lets.church")
-            - Header: Strict-Transport-Security
-              Override: true
-              Value: 'max-age=31536000; includeSubDomains'
 
   # Two origins (site + api), replicating firebase.json's rewrite order: /api/* is checked first,
   # everything else falls through to the SPA (with a 403->index.html fallback for client routes)
@@ -300,7 +303,6 @@ Resources:
       Timeout: 300
       EphemeralStorage:
         Size: 4096
-      ReservedConcurrentExecutions: 15
       Role: !GetAtt ExecutionRole.Arn
       LoggingConfig:
         LogGroup: !Ref CompileLogGroup
