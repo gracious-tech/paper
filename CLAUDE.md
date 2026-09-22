@@ -606,16 +606,22 @@ neither side knows about the other's setup process.
     (`js_sys::Function::new_no_args`/`new_with_args`), and without it every in-browser compile
     throws an `EvalError` before it renders anything. `apis.google.com` is Firebase Auth's
     popup plumbing
-  - `frame-src` — `paper-bible.firebaseapp.com` is Auth's hidden iframe (the authDomain from
-    `firebase.ts`, so it changes with the project alias); `blob:` is how the in-progress editor
-    preview (`DisplayPreview.vue`) renders; `firebasestorage.googleapis.com` is how a published
-    version's PDF renders (`DisplayDesignVersion.vue` iframes `get_pdf_url()`'s download URL
-    directly, not a blob). Drop any of the three and sign-in or one of the two previews dies.
-    `storage.googleapis.com` is there too, alongside `firebasestorage.googleapis.com` (also
-    in `default-src`, for `download_version_pdf()`'s `fetch()`) — `getDownloadURL()` always
-    returns a `firebasestorage.googleapis.com` URL, but Firebase Storage's serving path
-    sometimes 302s a range-served PDF request to `storage.googleapis.com` instead (observed
-    on Android Chrome), and both directives check the post-redirect URL for navigations/fetches
+  - `frame-src` is currently `* blob:` — **temporarily loosened, see TODO in
+    `infra/cloudformation.yml`**. It was an explicit allowlist (`paper-bible.firebaseapp.com`
+    for Auth's hidden iframe, `blob:` for the in-progress editor preview
+    (`DisplayPreview.vue`), `firebasestorage.googleapis.com` + `storage.googleapis.com` for a
+    published version's PDF (`DisplayDesignVersion.vue` iframes `get_pdf_url()`'s download URL
+    directly — `getDownloadURL()` always returns a `firebasestorage.googleapis.com` URL, but
+    Firebase Storage's serving path sometimes 302s a range-served PDF request to
+    `storage.googleapis.com` instead, observed on Android Chrome), plus `cover.paper.bible` and
+    `lets.church`) until a real report: an Android Brave user (desktop Brave unaffected) hit a
+    `frame-src` violation loading a version's PDF whose `blockedURI` came back an empty string.
+    That's not evidence of a cross-origin redirect specifically — Brave blanks `blockedURI` for
+    `frame-src` unconditionally (a blanket browser privacy behavior, tracked in
+    brave/brave-browser#45624), so the actual blocked host was never named and couldn't be
+    identified from the report alone. Re-tighten once a real host is known — e.g. by logging
+    the in-flight PDF URL (`iframe_src.value` in `DisplayDesignVersion.vue`) alongside the next
+    CSP violation report, since that's the one piece of the puzzle the app itself controls
   - `worker-src 'self'` — deliberately without `blob:`, and explicit so it can't fall back to
     `script-src`. Vite emits both workers as same-origin chunks (check `dist/assets/`), so
     blob workers would be XSS surface bought for nothing

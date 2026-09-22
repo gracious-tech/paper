@@ -109,6 +109,16 @@ Resources:
         SecurityHeadersConfig:
           ContentSecurityPolicy:
             Override: true
+            # TODO: frame-src is wide open (`*`) below because a real Android Brave user hit a
+            # frame-src violation whose blockedURI came back empty — Brave blanks that field for
+            # frame-src unconditionally (browser privacy behavior, not specific to this app), so
+            # the actual blocked host was never named in the report and couldn't be confirmed.
+            # Tighten this back to an explicit allowlist once the real host is known (e.g. by
+            # logging the in-flight PDF URL alongside the next CSP report). The previous list,
+            # to restore alongside whatever new host turns up:
+            #   frame-src 'self' blob: https://cover.paper.bible https://lets.church
+            #   https://paper-bible.firebaseapp.com https://firebasestorage.googleapis.com
+            #   https://storage.googleapis.com
             ContentSecurityPolicy: >-
               default-src 'self' blob: data: https://assets.paper.bible
               https://firebasestorage.googleapis.com https://storage.googleapis.com
@@ -116,10 +126,8 @@ Resources:
               https://api.iconify.design https://v1.fetch.bible https://api.lulu.com
               https://firestore.googleapis.com https://identitytoolkit.googleapis.com
               https://securetoken.googleapis.com; script-src 'self' 'wasm-unsafe-eval'
-              'unsafe-eval' https://apis.google.com; style-src 'self' 'unsafe-inline'; frame-src 'self' blob:
-              https://cover.paper.bible https://lets.church
-              https://paper-bible.firebaseapp.com https://firebasestorage.googleapis.com
-              https://storage.googleapis.com;
+              'unsafe-eval' https://apis.google.com; style-src 'self' 'unsafe-inline';
+              frame-src * blob:;
               worker-src 'self'; object-src 'none';
               base-uri 'self'; form-action 'self'; frame-ancestors 'self'
           ReferrerPolicy:
