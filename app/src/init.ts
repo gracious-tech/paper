@@ -6,6 +6,7 @@ import '@/services/errors'
 // Polyfills
 import 'core-js/actual/array/at'  // Used by Vuetify
 import 'core-js/actual/object/has-own'  // Used by Vuetify?
+import 'core-js/actual/array/to-sorted'  // Used by Vuetify's list filtering (Safari < 16)
 
 // Embed global styles
 import './styles.sss'

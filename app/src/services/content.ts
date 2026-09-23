@@ -91,7 +91,11 @@ function typst_to_plain(markup:string):string {
 function extract_examples(markup:string):{heading:string, verse:string} {
     const heading_match = /^=+\s+(.+)$/m.exec(markup)
     const heading = heading_match ? typst_to_plain(heading_match[1]!) : ''
-    const verse = typst_to_plain(markup).split(/(?<=[.!?])\s/)[0] ?? ''
+    // First sentence, else the whole text
+    // WARN No regex lookbehind — it's a parse-time SyntaxError before Safari 16.4 and would
+    //      take the whole bundle down with it (build targets can't transpile regex syntax)
+    const plain = typst_to_plain(markup)
+    const verse = /^.*?[.!?](?=\s)/.exec(plain)?.[0] ?? plain
     return {heading, verse}
 }
 

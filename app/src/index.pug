@@ -78,20 +78,9 @@ html
                 //- Place in middle with radius 40 (stroke length of 250 surrounds whole circle)
                 circle(cx='50' cy='50' r='40' stroke-width='10' stroke-dasharray='190')
 
-        //- A browser with no ES module support never executes src/init.ts at all (the
-            `type="module"` tag above is simply skipped), so services/errors.ts's own
-            "browser too old" handling never runs either — the loading spinner above would
-            just spin forever. This is the one thing that has to catch that case, so it's a
-            plain classic script (parseable by anything) testing for module support itself,
-            the earliest and most universal signal of "too old". `.fail-splash` is styled by
-            errors.sss, which Vite emits as a real <link rel="stylesheet"> independent of the
-            module script, so it renders correctly even here
-        script.
-            (function(){
-                if ('noModule' in document.createElement('script')) return
-                document.body.insertAdjacentHTML('afterbegin',
-                    '<div class="fail-splash">' +
-                    '<h1>Sorry, your browser is too old</h1>' +
-                    '<p>Please update your browser or use another browser</p>' +
-                    '</div>')
-            })()
+        //- When the bundle never starts (no ES module support, or syntax it can't parse),
+            services/errors.ts never runs either and the spinner above would spin forever —
+            this classic script catches both cases (see the file for why it isn't inline).
+            Kept in body so document.body exists for the no-modules case, and it still runs
+            before the (deferred) module bundle executes
+        script(src='/boot_check.js')

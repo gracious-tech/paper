@@ -255,6 +255,10 @@ export function error_to_string(error:unknown):string{
 
 // LISTENERS
 
+// Tell public/boot_check.js the bundle is running, so it leaves errors from here on to below
+;(self as unknown as {app_errors_ready:boolean}).app_errors_ready = true
+
+
 addEventListener('error', (event:ErrorEvent):void => {
     // Handle uncaught errors
     const error:unknown = event.error ?? event.message ?? 'unknown'
