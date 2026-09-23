@@ -13,13 +13,16 @@ v-app.app(v-else)
                 span.beta beta
                 v-spacer
                 //- Filled and green once signed in; struck-through and flagged while a guest,
-                //- since guest work lives only in this browser and is easily lost
-                //- TODO Show the user's profile picture here instead when they have one
+                //- since guest work lives only in this browser and is easily lost.
+                //- Shows the profile photo instead when there is one (and it actually loads)
                 VBtn.account(@click='state.account = true' icon variant='text'
                         :class='{guest: is_anonymous}'
                         :color='is_anonymous ? "" : "success-light"'
                         v-tooltip:left='is_anonymous ? $t("app.account_guest") : $t("common.account")')
-                    AppIcon(:name='is_anonymous ? "no_accounts" : "account_circle_fill"')
+                    v-avatar(v-if='show_photo' size='32')
+                        img(:src='photo_url ?? undefined' alt='' referrerpolicy='no-referrer'
+                            @error='failed_photo = photo_url')
+                    AppIcon(v-else :name='is_anonymous ? "no_accounts" : "account_circle_fill"')
                 v-menu
                     template(#activator='{props}')
                         VBtn(v-bind='props' color='' icon variant='text')
@@ -71,7 +74,7 @@ v-snackbar(:model-value='!!state.toast' @update:model-value='state.toast = null'
 
 <script lang='ts' setup>
 
-import {computed} from 'vue'
+import {computed, ref} from 'vue'
 import {useRoute} from 'vue-router'
 import {useI18n} from '@/services/i18n'
 
@@ -98,7 +101,7 @@ import BrandIcon from '@/assets/icon.svg?component'
 import DialogLegacy from '@/legacy/DialogLegacy.vue'
 import {probe_legacy_data} from '@/legacy/legacy'
 import {state} from '@/services/state'
-import {is_anonymous} from '@/services/auth'
+import {is_anonymous, photo_url} from '@/services/auth'
 import {design_needs_editor} from '@/services/versions'
 import {init_coloris} from '@/services/coloris'
 
@@ -114,6 +117,17 @@ init_coloris(t("app.used_in_design"))
 // LEGACY Detect data from the previous app, revealing ViewDesigns' "My Old Docs" button.
 // Probed here (once at boot) rather than in ViewDesigns, which remounts on every visit
 void probe_legacy_data()
+
+
+// The profile photo url that failed to load (blocked, expired, offline), so the account button
+// falls back to its icon rather than a broken image — keyed by url so a new photo gets a retry
+const failed_photo = ref<string|null>(null)
+
+
+// Whether the account button should show the profile photo rather than its icon
+const show_photo = computed(() => {
+    return !is_anonymous.value && !!photo_url.value && photo_url.value !== failed_photo.value
+})
 
 
 // Whether the currently open design is showing its editor (vs. a rendered version) — mirrors

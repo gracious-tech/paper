@@ -1,6 +1,6 @@
 
-import {ref, computed} from 'vue'
-import {signInAnonymously, onAuthStateChanged, signOut, GoogleAuthProvider, linkWithPopup,
+import {ref, computed, triggerRef} from 'vue'
+import {signInAnonymously, onIdTokenChanged, signOut, GoogleAuthProvider, linkWithPopup,
     signInWithCredential, sendSignInLinkToEmail, isSignInWithEmailLink,
     signInWithEmailLink} from 'firebase/auth'
 import type {User, AuthError} from 'firebase/auth'
@@ -46,9 +46,22 @@ export const user = ref<User|null>(null)
 export const is_anonymous = computed(() => user.value?.isAnonymous ?? true)
 
 
+// The signed-in user's profile photo (Google accounts), null when they don't have one
+// NOTE Falls back to the provider's own copy, as a linked guest account may leave the top-level
+// field empty
+export const photo_url = computed(() => {
+    return user.value?.photoURL ?? user.value?.providerData.find(p => p.photoURL)?.photoURL
+        ?? null
+})
+
+
 // Keep the reactive user ref in sync with the SDK's auth state
-onAuthStateChanged(firebase_auth, changed => {
+// NOTE Listens for token changes rather than auth state changes, since linking a guest account
+// keeps the same uid (no auth state change) but mutates the user object in place — triggerRef
+// is what makes computeds re-read it, as the SDK writes to the raw object behind Vue's proxy
+onIdTokenChanged(firebase_auth, changed => {
     user.value = changed
+    triggerRef(user)
 })
 
 

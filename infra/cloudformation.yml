@@ -116,13 +116,36 @@ Resources:
             # Tighten this back to an explicit allowlist once the real host is known (e.g. by
             # logging the in-flight PDF URL alongside the next CSP report). The previous list,
             # to restore alongside whatever new host turns up:
-            #   frame-src 'self' blob: https://cover.paper.bible https://lets.church
+            #   frame-src 'self' blob: https://cover-widget.paper.bible https://lets.church
             #   https://paper-bible.firebaseapp.com https://firebasestorage.googleapis.com
             #   https://storage.googleapis.com
+            #
+            # What each source is for (a folded scalar can't hold comments, so they live here):
+            #   default-src — the content allowlist (images, fonts, media, fetch/XHR):
+            #     'self' — the app itself and /api/* (same-origin via CloudFront)
+            #     blob: — custom fonts as blob URLs that typst.ts fetches, and generated images
+            #     data: — inline SVG images (icon fields, advanced style previews)
+            #     assets.paper.bible — fonts, Typst WASM, cover backgrounds/frames (bookcover)
+            #     firebasestorage.googleapis.com — uploads, version PDFs (Firebase Storage)
+            #     storage.googleapis.com — where Firebase Storage sometimes redirects downloads
+            #     images.freely.giving — picture story images (stories.ts)
+            #     *.googleusercontent.com — Google profile photo on the account button
+            #     api.iconify.design — icon SVGs picked in icon fields (IconField.vue)
+            #     v1.fetch.bible — Bible translations and book content
+            #     api.lulu.com — shipping quotes for print cost estimates (print_cost.ts)
+            #     firestore.googleapis.com — Firestore
+            #     identitytoolkit.googleapis.com, securetoken.googleapis.com — Firebase Auth
+            #   script-src — 'wasm-unsafe-eval' + 'unsafe-eval' for the Typst WASM compiler (see
+            #     above); apis.google.com for Firebase Auth's sign-in popup
+            #   style-src 'unsafe-inline' — Vuetify's inline styles and the inlined splash CSS
+            #   frame-src — PDF iframes, blob previews, cover widget, videos (see TODO above)
+            #   worker-src 'self' — the Typst and cover workers (same-origin chunks, no blob:)
+            #   object-src/base-uri/form-action/frame-ancestors — locked down; frame-ancestors
+            #     is 'self' not 'none' as Safari applies it to the preview's own blob iframe
             ContentSecurityPolicy: >-
               default-src 'self' blob: data: https://assets.paper.bible
               https://firebasestorage.googleapis.com https://storage.googleapis.com
-              https://images.freely.giving
+              https://images.freely.giving https://*.googleusercontent.com
               https://api.iconify.design https://v1.fetch.bible https://api.lulu.com
               https://firestore.googleapis.com https://identitytoolkit.googleapis.com
               https://securetoken.googleapis.com; script-src 'self' 'wasm-unsafe-eval'
