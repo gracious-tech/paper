@@ -336,15 +336,20 @@ onUnmounted(() => {
 .toolbar
     flex-shrink: 0
     display: flex
+    flex-wrap: wrap
+    justify-content: center
     align-items: center
-    gap: 12px
+    gap: 8px 12px
     padding: 8px
     background-color: rgba(0, 0, 0, 0.2)
 
     // Centre the download buttons in the toolbar whether or not the mode toggle is present on
-    // the left; "How to print" then trails on the far right
+    // the left; "How to print" then trails on the far right. When the buttons don't fit on one
+    // line they wrap onto further lines, each centred
     .downloads
         display: flex
+        flex-wrap: wrap
+        justify-content: center
         align-items: center
         gap: 8px
         margin-left: auto
