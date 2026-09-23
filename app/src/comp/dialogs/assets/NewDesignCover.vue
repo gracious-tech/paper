@@ -3,13 +3,14 @@
 
 div
     p(class='mb-5 text-body-medium text-medium-emphasis') {{ $t("wizard.cover.question") }}
+    v-alert(type='info' variant='tonal' density='compact' class='mb-5 py-1 px-3 text-body-medium')
+        | {{ $t("wizard.cover.more_later") }}
     v-text-field(v-model='draft.title' :label='$t("common.title")' :placeholder='auto_title'
         persistent-placeholder density='compact' variant='outlined' hide-details class='mb-6')
     div.grid
         NewDesignCard(v-for='item of covers' :key='item.id' :image='item.image' :label='item.label'
             :selected='draft.cover === item.id' :ratio='item.ratio' hide_label square
             @select='draft.cover = item.id')
-
 </template>
 
 
@@ -146,6 +147,9 @@ watch(() => draft.service_id, () => {
     display: grid
     grid-template-columns: 1fr 1fr
     gap: 12px
+    // Cap the cards' size in the wide dialog so a pair of covers fits without much scrolling
+    max-width: 640px
+    margin: 0 auto
 
     // Reserve the border width for both states so selecting a card doesn't shift layout
     :deep(.v-card)
