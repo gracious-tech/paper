@@ -3,7 +3,7 @@
 
 v-btn-group(rounded='pill' divided color='secondary-darken-1' variant='elevated')
     v-btn(@click='generate' :disabled='!blue.content.length || !typst_generator || blocked'
-        :loading='generating') {{$t("common.create")}}
+        :loading='generating') {{$t("view.design.build_it")}}
     v-btn(v-if='latest_version' @click='view_versions' icon
             v-tooltip:top='$t("common.versions")')
         app-icon(name='history_toggle_off')
@@ -31,11 +31,11 @@ import {report_error} from '@/services/errors'
 const router = useRouter()
 
 
-// Whether a PDF is currently being compiled (disables the Create button)
+// Whether a PDF is currently being compiled (disables the Build it button)
 const generating = ref(false)
 
 
-// Whether a selected translation is missing one of the chosen books (disables the Create button;
+// Whether a selected translation is missing one of the chosen books (disables the Build it button;
 // the specifics are shown in place of the preview and under the translations selector)
 const blocked = computed(() => {
     return has_missing_books(collect_passage_books(blue.content), blue.bibles)

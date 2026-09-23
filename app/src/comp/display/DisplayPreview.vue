@@ -12,10 +12,14 @@ div.preview
             v-btn(v-if="section_options.includes('middle')" value='middle' size='small')
                 | {{ $t("common.middle") }}
             v-btn(value='end' size='small') {{ $t("common.end") }}
-        //- Pushed to the right end of the toolbar via margin-left:auto (see style below); the
-        //- mobile floating equivalent lives in ViewDesignEditor.vue since this toolbar is hidden
-        //- on mobile (parent .display has display:none, see AppRoot.vue)
-        BtnGenerate.create
+        //- Hint + build button pushed to the right end of the toolbar via margin-left:auto on the
+        //- hint (see style below); the mobile floating button lives in ViewDesignEditor.vue
+        //- without the hint, since this toolbar is hidden on mobile (parent .display has
+        //- display:none, see AppRoot.vue)
+        //- The arrow is kept out of the translated string so translators never handle it
+        span(class='build_hint') {{ $t("display.preview.build_hint") }}
+            span(class='build_arrow' aria-hidden='true') ➔
+        BtnGenerate
 
     div.status(v-if='missing_warnings.length')
         h3(class='mb-4') {{ $t("display.preview.missing_books") }}
@@ -401,8 +405,21 @@ onUnmounted(() => {
     padding: 8px
     background-color: rgba(0, 0, 0, 0.2)
 
-    .create
+    // Prompt for the button beside it, allowed to wrap rather than squeeze the section toggle
+    // when the preview pane is narrow
+    .build_hint
         margin-left: auto
+        min-width: 0
+        font-size: 15px
+        font-weight: bold
+        color: rgb(var(--v-theme-secondary-lighten-2))
+        text-align: right
+
+        // Slightly larger than the hint so the wave reads clearly beside the button
+        .build_arrow
+            margin-left: 6px
+            font-size: 24px
+            vertical-align: middle
 
     // Active toggle label in brand primary, over its primary-light fill (the toggle
     // sits on the dark preview toolbar)
