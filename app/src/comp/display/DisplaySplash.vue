@@ -10,6 +10,10 @@ div.cont
     h2 {{$t("display.splash.tagline")}}
     h2 {{$t("display.splash.languages")}}
 
+    //- White tonal reads as a soft translucent panel against the plum background
+    v-alert(type='info' color='white' variant='tonal' density='compact' class='beta mb-4')
+        | {{$t("display.splash.beta")}}
+
     v-btn(@click='start' color='secondary' size='large' rounded class='my-4') {{$t("display.splash.get_started")}}
 
     IntroVideo.video
@@ -74,6 +78,13 @@ h1
 h2
     font-size: 24px
     margin-bottom: 24px
+
+.beta
+    flex: 0 0 auto  // Vuetify's alerts flex-grow, which would stretch it down the column
+    max-width: min(600px, calc(100% - 32px))
+    margin-top: 8px
+    text-align: left
+    font-size: 14px
 
 .video
     width: 100%
