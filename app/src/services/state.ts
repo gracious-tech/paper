@@ -218,10 +218,14 @@ export const blue = reactive({} as unknown as Blueprint)
 export const estimated_pages = ref<number|null>(null)
 
 
+// A plausible book size, for when there's nothing better to guess a page count from
+export const DEFAULT_PAGE_GUESS = 300
+
+
 // The current page-count guess, falling back to a plausible book size before the first
 // preview compile has produced an estimate
 export function page_count_guess():number{
-    return estimated_pages.value ?? 300
+    return estimated_pages.value ?? DEFAULT_PAGE_GUESS
 }
 
 

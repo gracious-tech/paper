@@ -198,11 +198,14 @@ export class TypstWorkerClient {
     // with the page count the worker counted off it.
     // preview relaxes print-only padding (trailing blanks dropped, even page counts only) for
     // on-screen display — never use it for a document that will be printed.
+    // fonts, when given, are the only custom fonts this compile sees (instead of the open
+    // design's set from set_custom_fonts) — applied atomically in the worker, see WorkerAction
     async compile_pdf(
-        request:TypstRequest, on_progress?:ProgressFn, preview = false,
+        request:TypstRequest, on_progress?:ProgressFn, preview = false, fonts?:CustomFont[],
     ):Promise<CompiledPdf> {
-        const outcome = await this.send_compile({action: 'compile_pdf', request, preview},
-            on_progress)
+        const action:WorkerAction = {action: 'compile_pdf', request, preview,
+            ...fonts && {fonts: fonts.map(font => toRaw(font))}}
+        const outcome = await this.send_compile(action, on_progress)
         return {bytes: outcome.result as Uint8Array, pages: outcome.pages!}
     }
 

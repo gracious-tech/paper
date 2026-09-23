@@ -12,7 +12,7 @@
 import {version as compiler_version} from '@myriaddreamin/typst-ts-web-compiler/package.json'
 import {version as renderer_version} from '@myriaddreamin/typst-ts-renderer/package.json'
 import {init as init_typst} from 'paper-bible-typst-web'
-import {add_preview_strip} from 'paper-bible-typst'
+import {add_preview_strip, collect_fonts} from 'paper-bible-typst'
 import {PDFDocument, rgb} from 'pdf-lib'
 
 import type {TypstWeb} from 'paper-bible-typst-web'
@@ -31,11 +31,14 @@ export interface CoverPageGeometry {
     fold_x:number[]
 }
 
-// Actions the main thread can request (see TypstWorkerClient in typst.ts)
+// Actions the main thread can request (see TypstWorkerClient in typst.ts). A compile_pdf that
+// carries `fonts` uses exactly those custom fonts for that one compile instead of the open
+// design's set (a version's own fonts, which must not depend on which design is open by the time
+// its compile reaches the front of the queue)
 export type WorkerAction =
     | {action:'init', assets_prefix:string}
     | {action:'set_custom_fonts', fonts:CustomFont[]}
-    | {action:'compile_pdf', request:TypstRequest, preview?:boolean}
+    | {action:'compile_pdf', request:TypstRequest, preview?:boolean, fonts?:CustomFont[]}
     | {action:'compile_pdf_preview', request:TypstRequest}
     | {action:'compile_svg', request:TypstRequest}
     | {action:'page_count', pdf:Uint8Array}
@@ -74,6 +77,10 @@ interface ActionOutcome {
 // The generator instance, created by the 'init' action (null until then)
 let generator:TypstWeb|null = null
 
+// The open design's custom fonts, as last set by 'set_custom_fonts' — restored after a compile
+// that brought its own
+let design_fonts:CustomFont[] = []
+
 // Actions run one at a time since compiles mutate shared compiler state (fonts, shadow files)
 let queue:Promise<void> = Promise.resolve()
 
@@ -110,6 +117,51 @@ async function prepend_cover(
 
     book.insertPage(0, cover_page!)
     return book.save()
+}
+
+
+// Whether compiling `request` with custom fonts `a` would use exactly the same fonts as with `b`:
+// every custom family the request actually uses is in both or neither, with identical bytes.
+// Families the request doesn't use can differ freely, so a version's own (referenced-only) set
+// matches the open design's full set whenever it's that design's version, unchanged
+function fonts_equivalent(request:TypstRequest, a:CustomFont[], b:CustomFont[]):boolean {
+    let used:Set<string>
+    try {
+        used = new Set(collect_fonts(request))
+    } catch {
+        // The font manifest isn't loaded yet — can't tell, so treat them as different
+        return false
+    }
+    const used_by_family = (fonts:CustomFont[]) => {
+        return new Map(fonts.filter(font => used.has(font.family)).map(font => [font.family, font]))
+    }
+    const a_used = used_by_family(a)
+    const b_used = used_by_family(b)
+    if (a_used.size !== b_used.size){
+        return false
+    }
+    for (const [family, font] of a_used){
+        const other = b_used.get(family)
+        if (!other || other.files.length !== font.files.length
+                || font.files.some((file, i) => !same_bytes(file, other.files[i]!))){
+            return false
+        }
+    }
+    return true
+}
+
+
+// Whether two byte arrays hold identical contents
+function same_bytes(a:Uint8Array, b:Uint8Array):boolean {
+    if (a.length !== b.length){
+        return false
+    }
+    for (let i = 0; i < a.length; i++){
+        if (a[i] !== b[i]){
+            return false
+        }
+    }
+    return true
 }
 
 
@@ -154,7 +206,8 @@ async function handle_action(
         throw new Error('Typst worker used before init')
     }
     if (message.action === 'set_custom_fonts'){
-        generator.set_custom_fonts(message.fonts)
+        design_fonts = message.fonts
+        generator.set_custom_fonts(design_fonts)
         return {result: null, pages: null}
     }
     if (message.action === 'compile_svg'){
@@ -164,10 +217,29 @@ async function handle_action(
     // Both PDF compiles report their page count alongside the bytes — every caller wants it and
     // the alternative is shipping pdf-lib to the main thread purely to re-parse what was just
     // compiled here
-    const bytes = message.action === 'compile_pdf'
-        ? await generator.compile_pdf(message.request, on_progress, message.preview ?? false)
-        : await generator.compile_pdf_preview(message.request, on_progress)
-    return {result: bytes, pages: (await PDFDocument.load(bytes)).getPageCount()}
+    if (message.action === 'compile_pdf_preview'){
+        const bytes = await generator.compile_pdf_preview(message.request, on_progress)
+        return {result: bytes, pages: (await PDFDocument.load(bytes)).getPageCount()}
+    }
+
+    // A compile's own fonts are swapped in and back out within this one queued action, so no
+    // other request can ever run against them (or swap them away mid-compile). Skipped when the
+    // open design's set would resolve the same, since each swap forces a compiler rebuild
+    const own_fonts = message.fonts
+    const swap = own_fonts !== undefined
+        && !fonts_equivalent(message.request, own_fonts, design_fonts)
+    if (swap){
+        generator.set_custom_fonts(own_fonts)
+    }
+    try {
+        const bytes = await generator.compile_pdf(message.request, on_progress,
+            message.preview ?? false)
+        return {result: bytes, pages: (await PDFDocument.load(bytes)).getPageCount()}
+    } finally {
+        if (swap){
+            generator.set_custom_fonts(design_fonts)
+        }
+    }
 }
 
 

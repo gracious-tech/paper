@@ -125,6 +125,7 @@
   "dialog.account.popup_blocked": "Your browser blocked the sign-in window. Please allow popups for this site and try again.",
   "dialog.account.send_link": "Email me a sign-in link",
   "dialog.account.sign_out": "Sign out",
+  "dialog.account.sign_out_generating": "A PDF is still being created. Signing out now will stop it. Sign out anyway?",
   "dialog.account.signed_in_as": "Signed in as",
   "dialog.cover.title": "Cover editor",
   "dialog.estimate_cost.books.one": "{n} book",

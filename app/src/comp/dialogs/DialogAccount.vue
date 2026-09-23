@@ -53,7 +53,8 @@ import {ref, computed, watch} from 'vue'
 import {user, is_anonymous, link_google, send_email_link, sign_out} from '@/services/auth'
 import {release_user_data, reload_user_data, delete_account} from '@/services/account'
 import {report_error} from '@/services/errors'
-import {show_toast, prompt_dialog} from '@/services/state'
+import {show_toast, prompt_dialog, confirm_dialog} from '@/services/state'
+import {generating_here} from '@/services/compile_progress'
 import {router} from '@/services/router'
 import {useI18n} from '@/services/i18n'
 
@@ -143,7 +144,18 @@ const send_email = () => run_busy(async () => {
 
 
 // Sign out into a fresh guest session
-const logout = () => run_busy(async () => {
+const logout = async () => {
+    // A generation running in this tab writes as the current account, so signing out would
+    // leave it unable to finish — check first (outside the busy lock, as it's a wait on the user)
+    if (generating_here.value && !await confirm_dialog(t('dialog.account.sign_out_generating'))){
+        return
+    }
+    await sign_out_now()
+}
+
+
+// The sign-out itself, once confirmed
+const sign_out_now = () => run_busy(async () => {
     release_user_data()
     await sign_out()
     // Leave whatever design the old account had open — the new guest uid can't read it — and

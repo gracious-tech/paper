@@ -12,11 +12,15 @@ import type {CoverGenerator, EmbedFormState} from 'bookcover-web'
 import type {CustomFont} from 'typst-fonts'
 
 
-// Actions the main thread can request (see CoverWorkerClient in cover.ts). Fonts are kept in
-// worker state (not sent per generate) so their byte-array identities stay stable, which is
-// what bookcover-web keys its compiler font cache on. `image_builtin`, when set, is the builtin
-// background's id — bookcover then takes the auto colours from its baked table by that id,
-// whichever copy of the image is being rendered, instead of decoding the pixels.
+// Actions the main thread can request (see CoverWorkerClient in cover.ts). Every generate names
+// the custom fonts it renders with by `fonts_key`, but carries their bytes (`fonts`) only when
+// that key differs from the previous generate's — the worker keeps the last set, so their
+// byte-array identities stay stable, which is what bookcover-web keys its compiler font cache
+// on. Naming them on the render itself (rather than via a separate "set fonts" message) means a
+// render can never pick up fonts another render set in between.
+// `image_builtin`, when set, is the builtin background's id — bookcover then takes the auto
+// colours from its baked table by that id, whichever copy of the image is being rendered,
+// instead of decoding the pixels.
 // `image_max_dpi`, when set, has bookcover shrink the image before compiling (previews only).
 // `image.key` is a stable identity for the bytes (builtin id or upload hash, plus which copy):
 // bookcover recognises a repeat image across messages by a File's name + modified time, which
@@ -26,8 +30,7 @@ import type {CustomFont} from 'typst-fonts'
 // default_cover_preset in cover.ts)
 export type CoverWorkerAction =
     | {action:'init', assets_prefix:string}
-    | {action:'set_custom_fonts', fonts:CustomFont[]}
-    | {action:'generate', form:Record<string, unknown>,
+    | {action:'generate', fonts_key:string, fonts?:CustomFont[], form:Record<string, unknown>,
         image:{data:Uint8Array, type:string, key:string}|null, image_builtin?:string,
         image_max_dpi?:number, copyright_block?:string, format?:'pdf'|'svg'}
 
@@ -49,7 +52,7 @@ export type CoverWorkerRequest = CoverWorkerAction & {id:number}
 // action-specific fields) — this distributes it over each union member instead
 export type DistributiveOmit<T, K extends keyof any> = T extends unknown ? Omit<T, K> : never
 
-// Final response to a request: render result for generate, null for init/set_custom_fonts.
+// Final response to a request: render result for generate, null for init.
 // `stack`, when present, is the original throw site inside the worker (see the catch handler
 // below) — without it, the main thread can only construct a fresh Error whose stack points at
 // the postMessage relay, not the real cause
@@ -61,16 +64,23 @@ export type CoverWorkerResponse =
 // The generator instance, created by the 'init' action (null until then)
 let generator:CoverGenerator|null = null
 
-// User-uploaded fonts the current design's cover references (set via 'set_custom_fonts')
+// The user-uploaded fonts the last generate carried, and the key they were sent under
+let fonts_key = ''
 let custom_fonts:CustomFont[] = []
 
 // Actions run one at a time since generates mutate shared compiler state (fonts, shadow files)
 let queue:Promise<void> = Promise.resolve()
 
 
-// Perform a single action, returning a render result for generate actions, null for
-// init/set_custom_fonts
+// Perform a single action, returning a render result for generate actions, null for init
 async function handle_action(message:CoverWorkerRequest):Promise<CoverRenderResult|null> {
+    // Adopt a generate's fonts before anything else can throw, so this worker's idea of the last
+    // set sent always matches the client's (which assumes every posted set arrived)
+    if (message.action === 'generate' && message.fonts){
+        fonts_key = message.fonts_key
+        custom_fonts = message.fonts
+    }
+
     if (message.action === 'init'){
         // Everything comes from the one shared assets tree: the compiler WASM under typst/
         // (keyed by the installed npm version), bookcover's Typst templates/frames under
@@ -91,9 +101,10 @@ async function handle_action(message:CoverWorkerRequest):Promise<CoverRenderResu
     if (!generator){
         throw new Error('Cover worker used before init')
     }
-    if (message.action === 'set_custom_fonts'){
-        custom_fonts = message.fonts
-        return null
+    // Never render with some other set than the one named — it would mean a set was lost between
+    // client and worker, and the cover would silently get substitute fonts
+    if (message.fonts_key !== fonts_key){
+        throw new Error('Cover fonts out of sync with the client')
     }
     // Derive the renderable schema from the (size-overlaid) form, then generate —
     // build_schema needs each custom font's sniffed style to pick correct Noto fallbacks

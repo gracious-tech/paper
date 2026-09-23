@@ -258,8 +258,27 @@ class CoverWorkerClient {
 let generator:CoverWorkerClient|null = null
 let generator_ready:Promise<unknown>|null = null
 
-// Font families last sent to the worker, to skip re-cloning font bytes when unchanged
+// Key of the font set last posted to the worker, to skip re-cloning font bytes when unchanged
 let sent_fonts_key:string|null = null
+
+
+// A stable number for each font file's bytes, so a key can tell apart two fonts that merely
+// share a family name (the same family uploaded to two designs, or a version's snapshot next to
+// the live library's copy). Weak, so bytes nothing else holds any more can still be collected
+const font_file_ids = new WeakMap<Uint8Array, number>()
+let next_font_file_id = 0
+
+function custom_fonts_key(fonts:CustomFont[]):string {
+    // Identify a set of custom fonts by the identity of their bytes, not just their names
+    return fonts.map(font => font.family + ':' + font.files.map(file => {
+        let id = font_file_ids.get(file)
+        if (id === undefined){
+            id = next_font_file_id++
+            font_file_ids.set(file, id)
+        }
+        return id
+    }).join('+')).join(',')
+}
 
 function get_cover_generator():CoverWorkerClient {
     if (!generator){
@@ -378,8 +397,8 @@ export function plan_cover_bg_into_design(path:string, design_id:string)
 // panel (the wizard's cover-selection previews).
 // `page_count` drives the spine width for real printing services — the interior PDF's actual
 // count at version creation, the shared estimate during preview (see state.ts).
-// `fonts` supplies a version's snapshotted custom fonts when regenerating (the live library
-// is used otherwise, mirroring compile_and_upload in versions.ts).
+// `fonts` supplies the exact custom fonts a version renders with (see compile_and_upload in
+// version_compile.ts) — the open design's library is used otherwise, for previews.
 // `opts.quality` picks which copy of the background is rendered (see CoverQuality) — 'final'
 // unless a caller only wants something to look at on screen.
 // `opts.format`/`opts.image_override` exist only for the wizard's live preview cards (SVG
@@ -397,10 +416,10 @@ async function render_cover(blueprint:Blueprint, page_count:number, fonts?:Custo
     }
     const format = opts?.format ?? 'pdf'
     const quality = opts?.quality ?? 'final'
-    const cover_fonts = (fonts ?? toRaw(custom_fonts))
+    const cover_fonts = (fonts ?? custom_fonts)
         .filter(font => cover.font_families.includes(font.family))
-    const fonts_key = (fonts ? 'snapshot:' : 'library:')
-        + cover_fonts.map(font => font.family).join(',')
+        .map(font => toRaw(font))
+    const fonts_key = custom_fonts_key(cover_fonts)
 
     // The default cover blurb carries the AUTO-COPYRIGHT marker (see default_cover_preset) —
     // resolve it to the design's full attribution statement here, where the blueprint and
@@ -422,13 +441,6 @@ async function render_cover(blueprint:Blueprint, page_count:number, fonts?:Custo
     const client = get_cover_generator()
     await generator_ready
 
-    // Send the cover's custom fonts only when the set changed (bytes are expensive to
-    // structured-clone; the worker holds them so identities stay stable for its cache)
-    if (fonts_key !== sent_fonts_key){
-        await client.send({action: 'set_custom_fonts', fonts: cover_fonts})
-        sent_fonts_key = fonts_key
-    }
-
     const image = opts?.image_override ?? await load_cover_bg(cover, quality)
     // A builtin is always named by its id, whichever copy of it is being rendered — bookcover
     // takes its auto text/spine/blurb colours from its baked table by that id, so a preview's
@@ -439,9 +451,17 @@ async function render_cover(blueprint:Blueprint, page_count:number, fonts?:Custo
         + (image_builtin ?? (cover.bg_image?.kind === 'custom' ? cover.bg_image.hash : ''))
     // Deep-clone: `cover.form` is Vue-reactive, and a shallow spread (cover_form_for_render)
     // leaves nested values (e.g. the blurb doc) wrapped in Proxies — postMessage's structured
-    // clone rejects Proxy objects outright, so the worker call must get plain data only
+    // clone rejects Proxy objects outright, so the worker call must get plain data only.
+    // The font bytes ride along only when the set differs from the last one posted (they're
+    // expensive to structured-clone, and the worker keeps them so identities stay stable for its
+    // cache). Checked and recorded with no await before the post, so two concurrent renders can
+    // never both assume the other one sent them
+    const send_fonts = fonts_key !== sent_fonts_key
+    sent_fonts_key = fonts_key
     const result = await client.send({
         action: 'generate',
+        fonts_key,
+        ...send_fonts && {fonts: cover_fonts},
         form: cloneDeep(cover_form_for_render(cover, blueprint, page_count)),
         image: image && {data: image.data, type: image.type, key: image_key},
         ...image_builtin !== undefined && {image_builtin},

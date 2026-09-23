@@ -146,7 +146,7 @@ async function process_styled_passage_image(
 
 // Resolve every passage/picture-story image in a content list to the variant appropriate for the
 // given image_style — used both to build the live preview's compile input and to bake the correct
-// variant into a version's frozen blueprint at "Create" time (so the server-side compile fallback
+// variant into a version's frozen blueprint at "Build it" time (so the server-side compile fallback
 // never needs to know about styling at all — it just fetches whatever url ends up in the frozen
 // blueprint, exactly like it does for any other image today). Each image gets a stable mask
 // rotation/flip variant based on its position among the document's images (not random), so

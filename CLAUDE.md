@@ -44,7 +44,7 @@ Live at [paper.bible](https://paper.bible). MIT No Attribution license.
    currently open Firestore `designs/{id}` doc (`designs.ts` syncs both directions, debounced
    field-level writes so co-editors don't clobber each other)
 3. `DisplayPreview.vue` compiles a truncated preview in the browser as they edit
-4. On "Create" (`ViewDesignEditor.vue`), the design is force-flushed then frozen into an
+4. On "Build it" (`BtnGenerate.vue`), the design is force-flushed then frozen into an
    immutable `versions/{id}` doc (blueprint + custom-font snapshot + the design's current
    `save_token`), then compiled in the browser and uploaded to Storage
    (`versions.ts: compile_and_upload`)

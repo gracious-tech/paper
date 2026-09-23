@@ -11,8 +11,8 @@
 // `latest_version` summary, which is why they belong together rather than beside their callers.
 
 import {cloneDeep} from 'lodash-es'
-import {collection, doc, addDoc, getDoc, setDoc, updateDoc, serverTimestamp, Timestamp}
-    from 'firebase/firestore'
+import {collection, doc, addDoc, getDoc, setDoc, updateDoc, runTransaction, serverTimestamp,
+    Timestamp} from 'firebase/firestore'
 import {ref as storage_ref, uploadBytes, getDownloadURL} from 'firebase/storage'
 import {SCHEMA_VERSION, PDF_LIFETIME_MS, COMPILE_STATS_LIFETIME_MS} from 'paper-bible-typst'
 import {RENDER_VERSION} from 'bookcover-core'
@@ -20,37 +20,71 @@ import {RENDER_VERSION} from 'bookcover-core'
 import {firestore, firebase_storage} from '@/services/firebase'
 import {api, ApiError} from '@/services/api'
 import {user} from '@/services/auth'
-import {design_display_name} from '@/services/designs'
+import {design_display_name, current_design_id} from '@/services/designs'
 import {bible_content} from '@/services/content'
 import {typst_generator} from '@/services/typst'
-import {custom_fonts, get_custom_font_styles, plan_version_fonts,
-    load_font_from_meta} from '@/services/custom_fonts'
+import {plan_version_fonts, fonts_for_blueprint, load_font_from_meta}
+    from '@/services/custom_fonts'
 import {apply_asset_copies} from '@/services/design_assets'
 import {plan_version_cover, render_cover_pdf} from '@/services/cover'
 import {plan_version_images} from '@/services/content_images'
 import {read_wizard_state} from '@/services/new_design'
 import {generate_token} from '@/services/utils'
-import {page_count_guess} from '@/services/state'
-import {latest_version} from '@/services/versions'
+import {page_count_guess, DEFAULT_PAGE_GUESS} from '@/services/state'
 import {report_error, error_to_string} from '@/services/errors'
-import {version_progress} from '@/services/compile_progress'
+import {version_progress, hold_page} from '@/services/compile_progress'
 
 import type {CustomFont} from 'typst-fonts'
-import type {CompiledPdf} from '@/services/typst'
 import type {Blueprint, Version} from '@/services/types'
 import type {CompileProgress} from '@/services/compile_progress'
 
 
+// What compile_and_upload needs to render one version. Everything that could otherwise be read
+// from the open design's live state (its custom fonts, its preview's page estimate) is passed in
+// explicitly, since a compile outlives the page it was started from — the user can open another
+// design, or start a second compile, long before this one is done
+export interface VersionCompileJob {
+    id:string
+    design_id:string
+    // The frozen blueprint
+    blueprint:Blueprint
+    // The version's save_token, which decides whether it may still update the parent design's
+    // denormalized `latest_version` summary (see update_latest_summary)
+    save_token:string
+    // The only custom fonts the compile sees: the live ones the version froze, or its snapshot
+    // when regenerating
+    fonts:CustomFont[]
+    // Page-count guess for the auto binding-gutter (see margin_gutter_auto)
+    page_estimate:number
+    // The version's frozen display name, embedded as PDF metadata
+    title:string
+}
+
+
 export async function create_pending_version(design_id:string, blueprint:Blueprint)
-        :Promise<{id:string, title:string}>{
-    // Freeze a blueprint into a new pending version doc and return its id + frozen display name
-    // (the caller passes that name back into the compile, for PDF metadata). Every uploaded
-    // asset it references is snapshotted into the design's append-only version_assets prefix,
-    // so regeneration never depends on what the live design still happens to reference. Reads
-    // the parent design's save_token directly (rather than trusting the `designs` list's own
-    // listener to have caught up yet) so the freshly-created version's save_token is always the
-    // exact one the caller just flushed
+        :Promise<VersionCompileJob>{
+    // Freeze a blueprint into a new pending version doc and return the job that compiles it
+    // (pass it straight to compile_and_upload). Every uploaded asset it references is
+    // snapshotted into the design's append-only version_assets prefix, so regeneration never
+    // depends on what the live design still happens to reference. Reads the parent design's
+    // save_token directly (rather than trusting the `designs` list's own listener to have caught
+    // up yet) so the freshly-created version's save_token is always the exact one the caller
+    // just flushed
     const version_id = generate_token()
+
+    // Everything read from the open design's live state is captured before the first await, while
+    // it's still certainly this design that's open (see VersionCompileJob)
+    // NOTE These take the *design* id, not the version id — snapshots are shared by every
+    // version of a design, so re-rendering unchanged content moves no bytes at all
+    const fonts = plan_version_fonts(design_id, blueprint)
+    // The cover's bg image is likewise snapshotted into version_assets (the frozen blueprint's
+    // cover points at the snapshot path, not at what the live design references)
+    const cover = plan_version_cover(design_id, blueprint)
+    // Same snapshotting for any uploaded passage images referenced in the content list
+    const images = plan_version_images(design_id, blueprint)
+    const compile_fonts = fonts_for_blueprint(blueprint)
+    const page_estimate = page_count_guess()
+
     const design_snap = await getDoc(doc(firestore, 'designs', design_id))
     const save_token = design_snap.data()?.['save_token'] as string
     // The design's wizard state is frozen alongside the blueprint, from the same doc read and
@@ -62,14 +96,6 @@ export async function create_pending_version(design_id:string, blueprint:Bluepri
     // name_auto comes from the same doc read as save_token above
     const title = design_display_name(
         blueprint, (design_snap.data()?.['name_auto'] ?? '') as string)
-    // NOTE These take the *design* id, not the version id — snapshots are shared by every
-    // version of a design, so re-rendering unchanged content moves no bytes at all
-    const fonts = plan_version_fonts(design_id, blueprint)
-    // The cover's bg image is likewise snapshotted into version_assets (the frozen blueprint's
-    // cover points at the snapshot path, not at what the live design references)
-    const cover = plan_version_cover(design_id, blueprint)
-    // Same snapshotting for any uploaded passage images referenced in the content list
-    const images = plan_version_images(design_id, blueprint)
 
     // Uploads first, doc second. Storage rules authorise version_assets writes against the
     // *design* doc, so nothing here depends on the version existing yet — and failing before
@@ -115,7 +141,32 @@ export async function create_pending_version(design_id:string, blueprint:Bluepri
             report_error('silent', error, {context: {stage: 'latest_version_summary'}})
         })
 
-    return {id: version_id, title}
+    return {id: version_id, design_id, blueprint, save_token, fonts: compile_fonts,
+        page_estimate, title}
+}
+
+
+async function update_latest_summary(design_id:string, save_token:string,
+        fields:Record<string, unknown>):Promise<void>{
+    // Update the parent design's denormalized `latest_version` summary, but only while this
+    // version is still the design's latest — decided when the write happens, not when the compile
+    // started, since a newer version may have been created meanwhile (it overwrites the summary's
+    // save_token with its own). The same test the server applies in handle_compile, inside a
+    // transaction so a newer version landing between the read and the write can't be clobbered.
+    // Best-effort, like the summary write in create_pending_version: the version itself is
+    // already recorded, and a stale summary only costs a wrong chip on /designs
+    const design_ref = doc(firestore, 'designs', design_id)
+    try {
+        await runTransaction(firestore, async transaction => {
+            const summary = (await transaction.get(design_ref)).data()?.['latest_version'] as
+                {save_token?:string}|null|undefined
+            if (summary?.save_token === save_token){
+                transaction.update(design_ref, fields)
+            }
+        })
+    } catch (error){
+        report_error('silent', error, {context: {stage: 'latest_version_summary'}})
+    }
 }
 
 
@@ -148,16 +199,71 @@ async function record_compile_stat(fields:{version_id:string, design_id:string, 
 }
 
 
-export async function compile_and_upload(id:string, design_id:string, blueprint:Blueprint,
-        is_latest:boolean, fonts?:CustomFont[], doc_name?:string):Promise<void>{
+// How long to keep asking for a server compile while the server is busy with another of this
+// user's compiles, and how long to wait between asks
+const SERVER_BUSY_WAIT_MS = 3 * 60 * 1000
+const SERVER_BUSY_RETRY_MS = 10 * 1000
+
+// Statuses meaning a gateway in front of the compile Lambda stopped waiting for it, not that the
+// compile failed: API Gateway's HTTP APIs cap an integration at 30s and CloudFront's origin
+// timeout defaults to the same, while the Lambda itself may run for 5 min
+const GATEWAY_TIMEOUT_STATUSES = [503, 504]
+
+
+async function request_server_compile(id:string, page_estimate:number):Promise<void>{
+    // Hand a pending version over to the server compile, which records the outcome on the version
+    // doc itself (it arrives here via the versions sync). Only throws when the server couldn't be
+    // got to take the job at all
+    const give_up_at = Date.now() + SERVER_BUSY_WAIT_MS
+    while (true){
+        try {
+            await api('/api/compile', {version_id: id, page_count: page_estimate})
+            return
+        } catch (error){
+            if (!(error instanceof ApiError)){
+                throw error
+            }
+
+            // A concurrent compile (another tab, or a retry racing the original) already moved
+            // the version out of 'pending' — not a failure, the winner's status arrives via sync
+            if (error.code === 'not_pending'){
+                return
+            }
+
+            // The gateway gave up waiting but the Lambda carries on and records the result
+            // itself. If it dies instead, nothing advances the doc and the version is offered a
+            // retry once stuck (see STUCK_MS) — either way marking it failed here would be wrong
+            if (GATEWAY_TIMEOUT_STATUSES.includes(error.status)){
+                report_error('silent', error,
+                    {context: {version_id: id, stage: 'server_compile_timeout'}})
+                return
+            }
+
+            // The server is busy with another of this user's compiles (e.g. a second design
+            // falling back at the same time) and hasn't touched this version — wait for a turn
+            // rather than leaving it pending with nothing left to drive it
+            if (error.code === 'compile_in_progress' && Date.now() < give_up_at){
+                await new Promise(resolve => setTimeout(resolve, SERVER_BUSY_RETRY_MS))
+                continue
+            }
+
+            throw error
+        }
+    }
+}
+
+
+export async function compile_and_upload(job:VersionCompileJob):Promise<void>{
     // Compile a version's PDF in-browser and upload it, updating the doc's status. If the
     // in-browser compile fails (e.g. device lacks memory for large docs) fall back to compiling
-    // server-side, which updates the doc itself.
-    // `fonts` supplies a version's snapshotted custom fonts when regenerating (the live library
-    // is used otherwise). `is_latest` gates the parent design's denormalized `latest_version`
-    // summary — regenerating an older version must never clobber it with a stale status/pages
+    // server-side, which updates the doc itself
+    const {id, design_id, blueprint, save_token, fonts, page_estimate} = job
+
+    // Warn before leaving the page until the in-browser part is over (released early on handing
+    // off to the server, which finishes the compile whether or not this tab stays open)
+    const release_page = hold_page()
+
     const doc_ref = doc(firestore, 'versions', id)
-    const design_ref = doc(firestore, 'designs', design_id)
 
     // Production URL for this exact version — woven into any auto-copyright block as a link + QR
     // code when the blueprint opts in (blueprint.design_link). Uses the short /v/:id form (just
@@ -176,10 +282,6 @@ export async function compile_and_upload(id:string, design_id:string, blueprint:
     // Stays null until the compile actually starts so the failure path only logs a real attempt
     let interior_start:number|null = null
 
-    // Page-count guess passed to the resolver for the auto binding-gutter — captured here so the
-    // same value reaches both the success and failure compile_stats rows (see record_compile_stat)
-    const page_estimate = page_count_guess()
-
     // Forwarded to both the content-fetching and PDF-compiling stages, so DisplayDesignVersion.vue
     // can show which passage is currently being downloaded/written (mirrors DisplayPreview.vue's
     // own on_progress). Cleared in the finally block below once this attempt is done
@@ -194,31 +296,16 @@ export async function compile_and_upload(id:string, design_id:string, blueprint:
             if (!generator){
                 throw new Error('Typst compiler not ready')
             }
-            const font_styles = fonts
-                ? Object.fromEntries(fonts.map(f => [f.family, f.style]))
-                : get_custom_font_styles()
+            const font_styles = Object.fromEntries(fonts.map(f => [f.family, f.style]))
             interior_start = performance.now()
             const request = await bible_content.resolve(
-                blueprint, font_styles, on_progress, share_url, page_estimate, doc_name)
+                blueprint, font_styles, on_progress, share_url, page_estimate, job.title)
 
-            // Compile in the worker (temporarily adding snapshotted fonts when regenerating).
-            // The worker counts the pages for the history badge as it goes, so the PDF is never
-            // parsed a second time on this thread
-            let compiled:CompiledPdf
-            if (fonts?.length){
-                const families = new Set(fonts.map(f => f.family))
-                await generator.set_custom_fonts(
-                    [...custom_fonts.filter(f => !families.has(f.family)), ...fonts])
-                try {
-                    compiled = await generator.compile_pdf(request, on_progress)
-                } finally {
-                    await generator.set_custom_fonts(custom_fonts)
-                }
-            } else {
-                compiled = await generator.compile_pdf(request, on_progress)
-            }
+            // Compile in the worker with exactly this version's fonts. The worker counts the
+            // pages for the history badge as it goes, so the PDF is never parsed a second time
+            // on this thread
+            const {bytes, pages} = await generator.compile_pdf(request, on_progress, false, fonts)
             const interior_ms = performance.now() - interior_start
-            const {bytes, pages} = compiled
 
             // Record the successful in-browser compile for offline performance analysis
             void record_compile_stat({
@@ -260,10 +347,8 @@ export async function compile_and_upload(id:string, design_id:string, blueprint:
                 pdf_expires: Timestamp.fromMillis(Date.now() + PDF_LIFETIME_MS),
                 error: null,
             })
-            if (is_latest){
-                await updateDoc(design_ref,
-                    {'latest_version.status': 'available', 'latest_version.pages': pages})
-            }
+            await update_latest_summary(design_id, save_token,
+                {'latest_version.status': 'available', 'latest_version.pages': pages})
         } catch (wasm_error){
             // In-browser path failed — hand over to the server (status updates then arrive
             // via the versions Firestore sync). Not critical yet as the fallback usually works
@@ -277,18 +362,8 @@ export async function compile_and_upload(id:string, design_id:string, blueprint:
                     interior_ms: performance.now() - interior_start, pages: null, ok: false,
                     estimated_pages: page_estimate, gutter_auto: blueprint.margin_gutter_auto})
             }
-            try {
-                await api('/api/compile', {version_id: id, page_count: page_estimate})
-            } catch (server_error){
-                // A concurrent compile (another tab, or a retry racing the original) already
-                // moved the version out of 'pending' — not a failure, the winner's status
-                // arrives via the versions sync
-                if (server_error instanceof ApiError
-                        && ['not_pending', 'compile_in_progress'].includes(server_error.code)){
-                    return
-                }
-                throw server_error
-            }
+            release_page()
+            await request_server_compile(id, page_estimate)
         }
     } catch (error){
         // Even the server fallback failed (it records its own failures — this catch covers
@@ -306,19 +381,34 @@ export async function compile_and_upload(id:string, design_id:string, blueprint:
             .catch((update_error:unknown) => {
                 report_error('banner', update_error)
             })
-        if (is_latest){
-            await updateDoc(design_ref, {'latest_version.status': 'failed'})
-                .catch((update_error:unknown) => {
-                    report_error('banner', update_error)
-                })
-        }
+        await update_latest_summary(design_id, save_token, {'latest_version.status': 'failed'})
     } finally {
         // No more in-browser progress to show once this attempt is over, whether it succeeded,
         // was handed off to the server, or failed outright
         delete version_progress[id]
+        release_page()
     }
 }
 
+
+
+function recompile_job(version:Version, fonts:CustomFont[]):VersionCompileJob {
+    // Describe a recompile of an existing version from its frozen blueprint and font snapshot.
+    // A version that compiled before knows its real page count; one that never did can only
+    // borrow the preview's estimate, and only when the design open now is its own (the estimate
+    // belongs to whichever design was last previewed)
+    const own_design_open = current_design_id.value === version.design_id
+    return {
+        id: version.id,
+        design_id: version.design_id,
+        blueprint: version.blueprint,
+        save_token: version.save_token,
+        fonts,
+        page_estimate: version.pages
+            ?? (own_design_open ? page_count_guess() : DEFAULT_PAGE_GUESS),
+        title: version.title,
+    }
+}
 
 
 export async function regenerate_version(version:Version):Promise<void>{
@@ -328,16 +418,11 @@ export async function regenerate_version(version:Version):Promise<void>{
         return
     }
     const fonts = await Promise.all(version.custom_fonts.map(meta => load_font_from_meta(meta)))
-    // Only the design's actual latest version may update its denormalized summary — regenerating
-    // an older/expired one must never clobber it with a stale status/pages
-    const is_latest = latest_version.value?.id === version.id
+    const job = recompile_job(version, fonts)
     await updateDoc(doc(firestore, 'versions', version.id), {status: 'pending', error: null})
-    if (is_latest){
-        await updateDoc(doc(firestore, 'designs', version.design_id),
-            {'latest_version.status': 'pending'})
-    }
-    await compile_and_upload(version.id, version.design_id, version.blueprint, is_latest, fonts,
-        version.title)
+    await update_latest_summary(version.design_id, version.save_token,
+        {'latest_version.status': 'pending'})
+    await compile_and_upload(job)
 }
 
 
@@ -349,23 +434,27 @@ export async function regenerate_cover(version:Version):Promise<void>{
         return
     }
     const doc_ref = doc(firestore, 'versions', version.id)
+    // Rendered entirely in this tab, so warn before leaving until it's done
+    const release_page = hold_page()
     try {
         const fonts = await Promise.all(
             version.custom_fonts.map(meta => load_font_from_meta(meta)))
         const share_url = `https://paper.bible/v/${version.id}`
         const cover_bytes = await render_cover_pdf(version.blueprint, version.pages ?? 0,
-            'final', fonts.length ? fonts : undefined, share_url)
+            'final', fonts, share_url)
         await uploadBytes(storage_ref(firebase_storage, `versions/${version.id}/cover.pdf`),
             cover_bytes, {contentType: 'application/pdf', contentDisposition: 'inline'})
         await updateDoc(doc_ref, {cover_status: 'available'})
     } catch (error){
         report_error('banner', error, {context: {version_id: version.id, stage: 'cover_regen'}})
         await updateDoc(doc_ref, {cover_status: 'failed'}).catch(() => undefined)
+    } finally {
+        release_page()
     }
 }
 
 
-async function adopt_pending_pdf(version:Version, is_latest:boolean):Promise<boolean>{
+async function adopt_pending_pdf(version:Version):Promise<boolean>{
     // If a prior compile of this pending version already uploaded its PDF but died before
     // recording the result, finish the job from the bytes that are already in Storage rather
     // than recompiling — the client can't overwrite doc.pdf (create-once) anyway, so a re-upload
@@ -412,7 +501,7 @@ async function adopt_pending_pdf(version:Version, is_latest:boolean):Promise<boo
                     version.custom_fonts.map(meta => load_font_from_meta(meta)))
                 const share_url = `https://paper.bible/v/${version.id}`
                 const cover_bytes = await render_cover_pdf(
-                    version.blueprint, pages, 'final', fonts.length ? fonts : undefined, share_url)
+                    version.blueprint, pages, 'final', fonts, share_url)
                 await uploadBytes(
                     storage_ref(firebase_storage, `versions/${version.id}/cover.pdf`),
                     cover_bytes, {contentType: 'application/pdf', contentDisposition: 'inline'})
@@ -431,10 +520,8 @@ async function adopt_pending_pdf(version:Version, is_latest:boolean):Promise<boo
         pdf_expires: Timestamp.fromMillis(Date.now() + PDF_LIFETIME_MS),
         error: null,
     })
-    if (is_latest){
-        await updateDoc(doc(firestore, 'designs', version.design_id),
-            {'latest_version.status': 'available', 'latest_version.pages': pages})
-    }
+    await update_latest_summary(version.design_id, version.save_token,
+        {'latest_version.status': 'available', 'latest_version.pages': pages})
     return true
 }
 
@@ -447,14 +534,18 @@ export async function retry_version(version:Version):Promise<void>{
     if (version.status !== 'pending'){
         return
     }
-    const is_latest = latest_version.value?.id === version.id
     // The PDF may already be sitting in Storage (upload landed but the status write didn't) —
-    // adopt it instead of recompiling
-    if (await adopt_pending_pdf(version, is_latest)){
-        return
+    // adopt it instead of recompiling (which may render + upload a missing cover in this tab, so
+    // leaving is warned about meanwhile — compile_and_upload holds the page on its own below)
+    const release_page = hold_page()
+    try {
+        if (await adopt_pending_pdf(version)){
+            return
+        }
+    } finally {
+        release_page()
     }
     const fonts = await Promise.all(version.custom_fonts.map(meta => load_font_from_meta(meta)))
     await updateDoc(doc(firestore, 'versions', version.id), {error: null})
-    await compile_and_upload(version.id, version.design_id, version.blueprint, is_latest,
-        fonts.length ? fonts : undefined, version.title)
+    await compile_and_upload(recompile_job(version, fonts))
 }
