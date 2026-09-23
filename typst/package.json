@@ -19,7 +19,7 @@
     },
     "dependencies": {
         "@gracious.tech/fetch-client": "^2.4.0",
-        "bookcover-core": "^0.18.0",
+        "bookcover-core": "^0.19.0",
         "pdf-lib": "^1.17.1",
         "pm-to-typst": "^0.1.1",
         "printing-services": "^1.5.1",

@@ -12,7 +12,8 @@ import type {_Object} from '@aws-sdk/client-s3'
 // Populates ASSETS_DIR (/tmp/assets in Lambda) from the bookcover repo's assets bucket, since
 // Lambda has no equivalent of Cloud Run's GCS-FUSE bucket-as-filesystem mount. Only the two
 // prefixes compile.ts/typst-node actually read are synced (fonts/ for Typst's --font-path
-// directory enumeration, backgrounds/ for built-in cover backgrounds) — not the whole bucket
+// directory enumeration, backgrounds/ — its top level only — for built-in cover backgrounds;
+// see wanted_key()) — not the whole bucket
 // (docs/frames/typst/ are for the bookcover widget and browser compile, irrelevant here).
 //
 // Must be triggered lazily on first invocation (see lambda.ts), never at module load: Lambda's
@@ -60,10 +61,23 @@ async function list_prefix(client:S3Client, prefix:string):Promise<_Object[]>{
 }
 
 
+function wanted_key(key:string):boolean{
+    // Whether a listed key is one the compile reads. fonts/ is needed whole (Typst enumerates the
+    // tree), but only the top level of backgrounds/ is: that's the originals render_cover() in
+    // compile.ts reads by id, while its previews_*/, thumbnails/ and originals/ subdirectories
+    // are for the widget and browser previews and would only slow every cold start
+    if (key.startsWith('backgrounds/')){
+        return !key.slice('backgrounds/'.length).includes('/')
+    }
+    return true
+}
+
+
 async function run_sync():Promise<void>{
     const client = new S3Client({region: ASSETS_REGION})
     const lists = await Promise.all(SYNC_PREFIXES.map(prefix => list_prefix(client, prefix)))
-    const keys = lists.flat().map(object => object.Key).filter((key):key is string => !!key)
+    const keys = lists.flat().map(object => object.Key)
+        .filter((key):key is string => !!key && wanted_key(key))
 
     // A small fixed-size worker pool rather than Promise.all on everything at once
     let next = 0

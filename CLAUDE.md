@@ -564,11 +564,25 @@ neither side knows about the other's setup process.
   both `custom_unit` and `margin_unit`). Typst wants `in`, not `inch` — `typst_unit()` in
   `typst/src/trim.ts` is the single place that converts, applied where a length *string* is
   built. Don't reintroduce a second unit vocabulary into the Blueprint
-- **The cover editor's bg bytes round-trip unmodified**, and `handle_finished()` in
+- **A cover background crosses the embed protocol as an id *or* bytes, never both.** A builtin
+  travels as `bg_image_builtin: '<filename>'` with `bg_image: null`, both ways — the app never
+  downloads it to open the editor, and never keys it on bytes or a hash (bookcover re-encodes
+  builtins in place). The id is untrusted, so `handle_finished()` requires
+  `is_known_builtin_background()` (shape + bookcover-core's baked table) and, with no bytes to
+  fall back on, keeps the existing background when it fails. The server re-checks it before
+  joining it onto a path (`render_cover()` in `server/src/compile.ts`); stored blueprints are
+  only shape-checked, so a retired background costs a cover render, not the design's reference.
+  Renders always pass the id as `image_builtin` so colours come from the baked table: previews
+  use `BG_PREVIEW_DIR` (`backgrounds/previews_2700/`) plus `image_max_dpi`, the wizard cards
+  `backgrounds/previews_800/`, final output the original `backgrounds/<id>`
+- **Uploaded bg bytes round-trip unmodified**, and `handle_finished()` in
   `DialogCoverEditor.vue` depends on it: it hashes the returned File to tell an untouched
   background from a new one, so a re-encode on the widget's side would mint a fresh Storage
   object every time the editor was opened and closed. That's a contract of the embed protocol,
   documented on `FormState.bg_image` in bookcover-core — not an accident of the current build
+- **The embedded widget is `cover-widget.paper.bible`, not `cover.paper.bible`** — the latter
+  is a public site that wraps the widget in its own iframe and doesn't relay postMessage, so
+  embedding it would silently leave the widget running standalone
 - **Background suggestions are resolved lazily, and only from what was offered.** InitMessage
   carries `bg_suggestions` (thumbnail urls for backgrounds the user's *other* designs use);
   when one is picked the widget asks for the bytes by echoing back the id, and the app answers
@@ -613,7 +627,7 @@ neither side knows about the other's setup process.
     published version's PDF (`DisplayDesignVersion.vue` iframes `get_pdf_url()`'s download URL
     directly — `getDownloadURL()` always returns a `firebasestorage.googleapis.com` URL, but
     Firebase Storage's serving path sometimes 302s a range-served PDF request to
-    `storage.googleapis.com` instead, observed on Android Chrome), plus `cover.paper.bible` and
+    `storage.googleapis.com` instead, observed on Android Chrome), plus `cover-widget.paper.bible` and
     `lets.church`) until a real report: an Android Brave user (desktop Brave unaffected) hit a
     `frame-src` violation loading a version's PDF whose `blockedURI` came back an empty string.
     That's not evidence of a cross-origin redirect specifically — Brave blanks `blockedURI` for
@@ -637,6 +651,11 @@ neither side knows about the other's setup process.
   `blob:` in `default-src` is load-bearing for `connect-src`: custom fonts become blob URLs
   that typst.ts then *fetches*. Custom font **previews** don't need it — those go through
   `new FontFace(family, bytes)`, which CSP doesn't govern at all.
+  `*.googleusercontent.com` is the account button's Google profile photo (`photo_url` in
+  `auth.ts`; served from `lh3`–`lh6`, hence the wildcard). It's a named host rather than a
+  blanket `img-src https:`, which would need its own copy of the whole allowlist and would let
+  injected markup beacon anywhere; a photo from some other host just falls back to the icon
+  (`failed_photo` in `AppRoot.vue`) rather than breaking.
   Three origins appear in the bundle and are deliberately *not* allowed, because nothing
   reaches them: `packages.typst.org` (no `@preview` imports exist in generated source),
   `cdn.jsdelivr.net` (typst.ts's default font assets, disabled by `{assets: false}` in
@@ -650,8 +669,9 @@ neither side knows about the other's setup process.
   from `/designs/{id}/{version}` hands the whole URL to the destination in `Referer`
 - **Compile assets are synced from S3, not mounted** — Lambda has no equivalent of Cloud
   Run's GCS-FUSE bucket-as-filesystem mount, so `lambda_bootstrap.ts` downloads
-  `fonts/`/`backgrounds/` from the bookcover bucket (same-account IAM) into `ASSETS_DIR`
-  (`/tmp/assets` in production) on the compile function's first invocation per execution
+  `fonts/` and the top level of `backgrounds/` (not its `previews_*/`/`thumbnails/`/`originals/`
+  subdirectories — see `wanted_key()`) from the bookcover bucket (same-account IAM) into
+  `ASSETS_DIR` (`/tmp/assets` in production) on the compile function's first invocation per execution
   environment, memoized after that; new fonts/templates are still published from the
   bookcover repo, not a server redeploy. This sync **must** run lazily inside the handler
   (see `lambda.ts`), never as top-level `await` — Lambda's module-INIT phase has a fixed

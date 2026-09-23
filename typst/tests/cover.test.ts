@@ -2,7 +2,7 @@
 import {describe, it, expect} from 'vitest'
 
 import {cover_render_key, cover_config_schema, cover_form_for_render,
-    is_builtin_background} from '../src/index.js'
+    is_builtin_background, is_known_builtin_background} from '../src/index.js'
 
 import type {Blueprint, CoverConfig} from '../src/types.js'
 
@@ -118,6 +118,33 @@ describe('is_builtin_background', () => {
     it('rejects an over-long id', () => {
         expect(is_builtin_background(`${'a'.repeat(124)}.jpg`)).toBe(true)
         expect(is_builtin_background(`${'a'.repeat(125)}.jpg`)).toBe(false)
+    })
+})
+
+
+describe('is_known_builtin_background', () => {
+
+    // The allowlist for ids fresh from the widget or about to become a server-side path: the
+    // shape check plus membership in bookcover-core's baked table
+
+    it('accepts a background bookcover ships', () => {
+        expect(is_known_builtin_background('lion.jpg')).toBe(true)
+        expect(is_known_builtin_background('rocket.jpg')).toBe(true)
+    })
+
+    it('rejects a well-shaped name bookcover does not ship', () => {
+        expect(is_known_builtin_background('some_other_published_background.jpg')).toBe(false)
+    })
+
+    it('rejects the subdirectories that sit beside the backgrounds', () => {
+        expect(is_known_builtin_background('previews_800/lion.jpg')).toBe(false)
+        expect(is_known_builtin_background('previews_2700/lion.jpg')).toBe(false)
+        expect(is_known_builtin_background('thumbnails/lion.jpg')).toBe(false)
+        expect(is_known_builtin_background('originals/lion.jpg')).toBe(false)
+    })
+
+    it('rejects traversal', () => {
+        expect(is_known_builtin_background('../lion.jpg')).toBe(false)
     })
 })
 

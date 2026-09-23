@@ -310,7 +310,7 @@ export type CoverBgImage =
     {kind:'custom', path:string, hash:string}
 
 
-// Optional book cover, created via the embedded cover.paper.bible editor. `form` is the
+// Optional book cover, created via the embedded bookcover widget. `form` is the
 // widget's pure-JSON EmbedFormState (kept opaque so this package gains no bookcover
 // dependency) — the renderable schema is derived from it at render time via bookcover's
 // build_schema. Binaries (uploaded bg image bytes, font bytes) live in Cloud Storage / the

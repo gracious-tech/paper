@@ -240,7 +240,8 @@ export async function compile_and_upload(id:string, design_id:string, blueprint:
             let cover_status:Version['cover_status'] = null
             if (blueprint.cover){
                 try {
-                    const cover_bytes = await render_cover_pdf(blueprint, pages, fonts, share_url)
+                    const cover_bytes = await render_cover_pdf(blueprint, pages, 'final', fonts,
+                        share_url)
                     await uploadBytes(storage_ref(firebase_storage, `versions/${id}/cover.pdf`),
                         cover_bytes, {contentType: 'application/pdf', contentDisposition: 'inline'})
                     cover_status = 'available'
@@ -352,7 +353,7 @@ export async function regenerate_cover(version:Version):Promise<void>{
             version.custom_fonts.map(meta => load_font_from_meta(meta)))
         const share_url = `https://paper.bible/v/${version.id}`
         const cover_bytes = await render_cover_pdf(version.blueprint, version.pages ?? 0,
-            fonts.length ? fonts : undefined, share_url)
+            'final', fonts.length ? fonts : undefined, share_url)
         await uploadBytes(storage_ref(firebase_storage, `versions/${version.id}/cover.pdf`),
             cover_bytes, {contentType: 'application/pdf', contentDisposition: 'inline'})
         await updateDoc(doc_ref, {cover_status: 'available'})
@@ -410,7 +411,7 @@ async function adopt_pending_pdf(version:Version, is_latest:boolean):Promise<boo
                     version.custom_fonts.map(meta => load_font_from_meta(meta)))
                 const share_url = `https://paper.bible/v/${version.id}`
                 const cover_bytes = await render_cover_pdf(
-                    version.blueprint, pages, fonts.length ? fonts : undefined, share_url)
+                    version.blueprint, pages, 'final', fonts.length ? fonts : undefined, share_url)
                 await uploadBytes(
                     storage_ref(firebase_storage, `versions/${version.id}/cover.pdf`),
                     cover_bytes, {contentType: 'application/pdf', contentDisposition: 'inline'})

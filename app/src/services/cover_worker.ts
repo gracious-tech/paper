@@ -5,29 +5,31 @@
 
 import {version as compiler_version} from '@myriaddreamin/typst-ts-web-compiler/package.json'
 import {version as renderer_version} from '@myriaddreamin/typst-ts-renderer/package.json'
-import {init as init_bookcover, build_schema, analyze_image_regions} from 'bookcover-web'
+import {init as init_bookcover, build_schema} from 'bookcover-web'
 import {replace_copyright_marker} from 'paper-bible-typst'
 
-import type {CoverGenerator, EmbedFormState, ImageRegions} from 'bookcover-web'
+import type {CoverGenerator, EmbedFormState} from 'bookcover-web'
 import type {CustomFont} from 'typst-fonts'
 
 
 // Actions the main thread can request (see CoverWorkerClient in cover.ts). Fonts are kept in
 // worker state (not sent per generate) so their byte-array identities stay stable, which is
-// what bookcover-web keys its compiler font cache on. `image.name`, when set, lets bookcover's
-// own fast builtin-color lookup match a known stock photo by filename+bytes instead of falling
-// back to a live pixel decode; `image_regions`, when set, skips that analysis entirely (used
-// for previews rendering a thumbnail whose bytes can never match the lookup by design — see
-// 'analyze_regions' below and get_bg_regions() in cover.ts). `copyright_block`, when set, is
-// pre-built Typst markup that replaces the AUTO-COPYRIGHT marker in the rendered blurb (the
-// default cover seeds that marker into its rear text — see default_cover_preset in cover.ts)
+// what bookcover-web keys its compiler font cache on. `image_builtin`, when set, is the builtin
+// background's id — bookcover then takes the auto colours from its baked table by that id,
+// whichever copy of the image is being rendered, instead of decoding the pixels.
+// `image_max_dpi`, when set, has bookcover shrink the image before compiling (previews only).
+// `image.key` is a stable identity for the bytes (builtin id or upload hash, plus which copy):
+// bookcover recognises a repeat image across messages by a File's name + modified time, which
+// is what lets a run of preview renders reuse its one downscaled copy instead of redoing it.
+// `copyright_block`, when set, is pre-built Typst markup that replaces the AUTO-COPYRIGHT marker
+// in the rendered blurb (the default cover seeds that marker into its rear text — see
+// default_cover_preset in cover.ts)
 export type CoverWorkerAction =
     | {action:'init', assets_prefix:string}
     | {action:'set_custom_fonts', fonts:CustomFont[]}
     | {action:'generate', form:Record<string, unknown>,
-        image:{data:Uint8Array, type:string, name?:string}|null,
-        image_regions?:ImageRegions|null, copyright_block?:string, format?:'pdf'|'svg'}
-    | {action:'analyze_regions', image:{data:Uint8Array, type:string, name:string}}
+        image:{data:Uint8Array, type:string, key:string}|null, image_builtin?:string,
+        image_max_dpi?:number, copyright_block?:string, format?:'pdf'|'svg'}
 
 // A generate always also asks bookcover to split the full wraparound render into its individual
 // panels (a cheap post-process, not a second compile) — the front/back panels are what the
@@ -47,12 +49,12 @@ export type CoverWorkerRequest = CoverWorkerAction & {id:number}
 // action-specific fields) — this distributes it over each union member instead
 export type DistributiveOmit<T, K extends keyof any> = T extends unknown ? Omit<T, K> : never
 
-// Final response to a request: render result for generate, sampled regions for
-// analyze_regions, null for init/set_custom_fonts. `stack`, when present, is the original
-// throw site inside the worker (see the catch handler below) — without it, the main thread can
-// only construct a fresh Error whose stack points at the postMessage relay, not the real cause
+// Final response to a request: render result for generate, null for init/set_custom_fonts.
+// `stack`, when present, is the original throw site inside the worker (see the catch handler
+// below) — without it, the main thread can only construct a fresh Error whose stack points at
+// the postMessage relay, not the real cause
 export type CoverWorkerResponse =
-    | {id:number, ok:true, result:CoverRenderResult|ImageRegions|null}
+    | {id:number, ok:true, result:CoverRenderResult|null}
     | {id:number, ok:false, error:string, stack?:string}
 
 
@@ -66,17 +68,9 @@ let custom_fonts:CustomFont[] = []
 let queue:Promise<void> = Promise.resolve()
 
 
-// Perform a single action, returning a render result for generate actions, sampled regions
-// for analyze_regions, null for init/set_custom_fonts
-async function handle_action(message:CoverWorkerRequest)
-        :Promise<CoverRenderResult|ImageRegions|null> {
-    if (message.action === 'analyze_regions'){
-        // Named File so a builtin match is attempted; dims:null since this only ever backs
-        // a front-only preview render (see get_bg_regions() in cover.ts)
-        const file = new File([message.image.data as unknown as BlobPart], message.image.name,
-            {type: message.image.type})
-        return analyze_image_regions(file, null)
-    }
+// Perform a single action, returning a render result for generate actions, null for
+// init/set_custom_fonts
+async function handle_action(message:CoverWorkerRequest):Promise<CoverRenderResult|null> {
     if (message.action === 'init'){
         // Everything comes from the one shared assets tree: the compiler WASM under typst/
         // (keyed by the installed npm version), bookcover's Typst templates/frames under
@@ -112,15 +106,16 @@ async function handle_action(message:CoverWorkerRequest)
     if (message.copyright_block !== undefined && typeof blurb === 'string'){
         schema['blurb'] = replace_copyright_marker(blurb, message.copyright_block)
     }
-    // Named File (not a bare Blob) so bookcover's own fast builtin-color lookup can match a
-    // known stock photo by filename+bytes; falls back to its own live decode otherwise
+    // A File named by the stable key with a fixed modified time, so the same bytes posted again
+    // are recognised as the same image (see image.key above)
     const image = message.image
-        ? new File([message.image.data as unknown as BlobPart], message.image.name ?? 'background',
-            {type: message.image.type})
+        ? new File([message.image.data as unknown as BlobPart], message.image.key,
+            {type: message.image.type, lastModified: 0})
         : undefined
     const format = message.format ?? 'pdf'
     const result = await generator.generate({schema, ...image && {image}, format,
-        ...message.image_regions !== undefined && {image_regions: message.image_regions},
+        ...message.image_builtin !== undefined && {image_builtin: message.image_builtin},
+        ...message.image_max_dpi !== undefined && {image_max_dpi: message.image_max_dpi},
         split: true, custom_fonts: custom_fonts.flatMap(font => font.files)})
     const split = result.split as {front:Uint8Array|string, back:Uint8Array|string}
     return {data: result.data, front: split.front, back: split.back}

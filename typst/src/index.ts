@@ -53,7 +53,8 @@ export {make_blueprint_schema, clean_content_items, cover_config_schema} from '.
 
 // Cover render helpers (blueprint size overlay + render cache key) and the shape check that
 // bounds any builtin background reference
-export {cover_form_for_render, cover_render_key, is_builtin_background} from './cover.js'
+export {cover_form_for_render, cover_render_key, is_builtin_background,
+    is_known_builtin_background} from './cover.js'
 
 // Trim-size resolution (service + named size, or custom dimensions) and a mm/in converter —
 // used for the interior margin clamp and, in the app, the cover's create-time back-margin seed

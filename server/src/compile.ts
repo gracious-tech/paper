@@ -6,7 +6,8 @@ import {mkdtemp, writeFile, readFile, rm} from 'node:fs/promises'
 import {Timestamp} from 'firebase-admin/firestore'
 import {PDFDocument} from 'pdf-lib'
 import {PDF_LIFETIME_MS, COMPILE_STATS_LIFETIME_MS,
-    cover_form_for_render, is_builtin_background, is_fetchable_image_url, doc_has_copyright,
+    cover_form_for_render, is_builtin_background, is_known_builtin_background,
+    is_fetchable_image_url, doc_has_copyright,
     replace_copyright_marker, gen_copyright_typst, version_assets_prefix,
     migrate_version_blueprint} from 'paper-bible-typst'
 import {compile_pdf_from_blueprint} from 'paper-bible-typst-node'
@@ -61,17 +62,22 @@ async function render_cover(blueprint:Blueprint, custom_fonts:CustomFont[], page
     const tmp_dir = await mkdtemp(path.join(tmpdir(), 'cover_'))
     try {
         let images:{background:string}|undefined
+        let image_builtin:string|undefined
         if (cover.bg_image?.kind === 'custom'){
             const ext = cover.bg_image.path.slice(cover.bg_image.path.lastIndexOf('.'))
             const [bg_bytes] = await admin_bucket.file(cover.bg_image.path).download()
             await writeFile(path.join(tmp_dir, `background${ext}`), bg_bytes)
         } else if (cover.bg_image?.kind === 'builtin'){
-            // id is already shape-checked by is_builtin_background() in handle_compile() before
-            // this ever runs — required, since it's client-controlled and used to build a
-            // filesystem path against the assets mount (a plain filename can't escape it).
-            // A background bookcover has since retired fails the read here, which fails only
-            // the cover render — the interior is already compiled and published by then
+            // The id is client-controlled and about to become a filesystem path against the
+            // assets dir, so it must name a background bookcover actually ships (which also
+            // keeps out backgrounds/'s previews_*/thumbnails/originals subdirectories).
+            // handle_compile() only shape-checks it, so a row naming a background bookcover has
+            // since retired fails here, which fails only the cover render — the interior is
+            // already compiled and published by then
             const id = cover.bg_image.id
+            if (!is_known_builtin_background(id)){
+                throw new Error(`Unknown builtin cover background: ${id}`)
+            }
             const bg_bytes = await readFile(path.join(config.assets_dir, 'backgrounds', id))
             // Written under its real filename (not a generic one) — load-bearing: this is
             // exactly the name that must match schema.images.background below, and
@@ -79,10 +85,14 @@ async function render_cover(blueprint:Blueprint, custom_fonts:CustomFont[], page
             // is given
             await writeFile(path.join(tmp_dir, id), bg_bytes)
             images = {background: id}
+            // Named by id so the auto colours come from bookcover's baked table — the same ones
+            // the browser's preview and version renders use
+            image_builtin = id
         }
         const output_path = path.join(tmp_dir, 'cover.pdf')
         await generate_cover({
             schema: {...schema, ...images && {images}},
+            ...image_builtin !== undefined && {image_builtin},
             input_path: tmp_dir,
             output_path,
             format: 'pdf',
@@ -174,8 +184,9 @@ export async function handle_compile(uid:string, version_id:string, client_ip:st
     // The cover's bg image reference lives inside the client-written blueprint, so it gets
     // the same distrust as font paths (including its type, since nothing validates the doc's
     // shape server-side): a 'custom' snapshot must sit under the design's version prefix, a
-    // 'builtin' id must be one of the known assets-bucket filenames — required since it's
-    // used to build a filesystem path against the assets mount (render_cover() above)
+    // 'builtin' id must at least be a plain image filename. Only the shape is checked here —
+    // failing it 400s the whole compile, interior included, so whether bookcover still ships
+    // that background is left to render_cover() above, where it can only cost the cover
     // Brought up to the current schema for this render only — migrate_version_blueprint() always
     // clones, so the version's stored blueprint stays exactly as it was published (see
     // migrate.ts). Everything below, validation included, works on the migrated shape

@@ -6,6 +6,8 @@
 // compiled interior, so callers pass the actual count (version creation, where the cover is
 // rendered after the interior) or an estimate (live preview).
 
+import {get_builtin_bg} from 'bookcover-core'
+
 import {resolve_reading_trim} from './trim.js'
 
 import type {Blueprint, CoverConfig} from './types.js'
@@ -22,13 +24,24 @@ const BG_EXTENSIONS = ['.jpg', '.jpeg', '.png', '.webp']
 // only has to bound it to a single plain filename — no separators, no traversal, real image
 // extension. Existence is left to the fetch/read that follows, which fails the cover render
 // (never the book compile) if bookcover has retired that background.
-// Deliberately a shape check rather than an allowlist: the widget offers the user every
-// background bookcover publishes, and an allowlist here would have to be kept in sync with that
-// catalogue across two repos — the exact duplicated-table problem the 0.11 contract removed
+// A shape check only, so it's what stored blueprints are validated with: a background bookcover
+// later retires should fail its own fetch, not be silently dropped from every design naming it.
+// Anything about to become a path or URL fresh from an untrusted source uses
+// is_known_builtin_background() below instead
 export function is_builtin_background(id:string):boolean{
     return id.length > 0 && id.length <= 128
         && !id.includes('/') && !id.includes('\\') && !id.includes('..')
         && BG_EXTENSIONS.some(ext => id.toLowerCase().endsWith(ext))
+}
+
+
+// Whether an id names a builtin background bookcover actually ships — the shape check above plus
+// membership in bookcover-core's baked table (its keys are exactly the published IDs), so the
+// allowlist comes from the installed package rather than a second copy kept here. The bucket's
+// backgrounds/ also holds previews_*/, thumbnails/ and originals/ subdirectories, which the
+// no-slash rule keeps out regardless of what the table contains
+export function is_known_builtin_background(id:string):boolean{
+    return is_builtin_background(id) && get_builtin_bg(id) !== null
 }
 
 

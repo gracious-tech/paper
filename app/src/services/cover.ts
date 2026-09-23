@@ -1,5 +1,5 @@
 
-// Book-cover support: constants for the embedded cover editor (cover.paper.bible), a worker
+// Book-cover support: constants for the embedded cover editor (the bookcover widget), a worker
 // client that renders covers via the bookcover-web WASM package, a single-entry render cache
 // (book-only edits reuse the previous cover render), bg-image Storage handling, and the
 // freeze-time snapshot planning for versions.
@@ -10,7 +10,7 @@ import {ref as storage_ref, uploadBytes, getBytes} from 'firebase/storage'
 // bookcover-core ships `sideEffects: false` and only exposes its barrel (plus `/patterns-svg`)
 // via package.json `exports`, so Rollup tree-shakes the unused vector-background data,
 // bwip-js and chroma-js out of this main-thread bundle — the cover worker owns all of that
-import {make_blank_form_values, asset_path, BACKGROUNDS_DIR, resolve_dimensions,
+import {make_blank_form_values, asset_path, BACKGROUNDS_DIR, BG_PREVIEW_DIR, resolve_dimensions,
     font_families_in_form} from 'bookcover-core'
 import {cover_form_for_render, cover_render_key, doc_has_copyright, gen_copyright_typst,
     COPYRIGHT_MARKER, resolve_reading_trim, convert_unit, COVER_TITLE_KEY, design_assets_prefix,
@@ -26,7 +26,6 @@ import {book_icon} from '@/services/icons'
 import {get_passages, default_title} from '@/services/blueprints'
 
 import type {DimensionInputs, EmbedFormState} from 'bookcover-core'
-import type {ImageRegions} from 'bookcover-web'
 import type {CustomFont} from 'typst-fonts'
 import type {PmDoc} from 'paper-bible-typst'
 import type {AssetCopy} from '@/services/design_assets'
@@ -41,9 +40,11 @@ import type {CoverWorkerRequest, CoverWorkerResponse, CoverRenderResult, Distrib
 export type CoverPreset = 'photo'|'pattern'|'icon'
 
 
-// The embedded cover editor (the bookcover widget) — a separate deployment/origin
+// The embedded cover editor (the bookcover widget) — a separate deployment/origin. Not
+// cover.paper.bible: that's the public site, which wraps this same widget in its own iframe and
+// doesn't relay postMessage, so the embed protocol would never reach the widget through it
 export const COVER_EDITOR_URL = import.meta.env.PROD
-    ? 'https://cover.paper.bible/'
+    ? 'https://cover-widget.paper.bible/'
     : 'http://localhost:5301/'
 export const COVER_EDITOR_ORIGIN = new URL(COVER_EDITOR_URL).origin
 
@@ -56,6 +57,22 @@ const BG_MIME_EXT:Record<string, string> = {
 }
 const BG_EXT_MIME = Object.fromEntries(
     Object.entries(BG_MIME_EXT).map(([mime, ext]) => [ext, mime]))
+
+
+// Which copy of a background a render uses: the full image for a version's printable cover.pdf,
+// or a smaller one for on-screen previews (bookcover's preview-sized copy for a builtin, and a
+// capped image resolution for any background)
+export type CoverQuality = 'final'|'preview'
+
+// The resolution cap for preview renders — the same value the widget uses for its own preview
+// (its PREVIEW_DPI), so a cover previews identically in both apps. It only ever shrinks, so
+// bookcover's preview-sized copies (~200dpi on a 6x9 cover) pass nearly untouched; it mostly
+// matters for large uploads
+const PREVIEW_MAX_DPI = 192
+
+// Bookcover's 800px copies of the builtin backgrounds — plenty for the wizard's small
+// front-panel cards (bookcover exports no constant for this one, only BG_PREVIEW_DIR)
+const BG_PREVIEW_800_DIR = 'previews_800'
 
 
 function bg_mime_for(name:string):string {
@@ -176,7 +193,7 @@ class CoverWorkerClient {
     // user to describe their editing session
     private created_ms = Date.now()
     private pending = new Map<number,
-        {action:string, resolve:(result:CoverRenderResult|ImageRegions|null)=>void,
+        {action:string, resolve:(result:CoverRenderResult|null)=>void,
             reject:(error:Error)=>void}>()
 
     constructor(){
@@ -226,7 +243,7 @@ class CoverWorkerClient {
     }
 
     // Post one request to the worker and await its matching result
-    send(action:DistributiveOmit<CoverWorkerRequest, 'id'>):Promise<CoverRenderResult|ImageRegions|null> {
+    send(action:DistributiveOmit<CoverWorkerRequest, 'id'>):Promise<CoverRenderResult|null> {
         const id = this.next_id++
         return new Promise((resolve, reject) => {
             this.pending.set(id, {action: action.action, resolve, reject})
@@ -268,11 +285,23 @@ export function cover_font_families(form:Record<string, unknown>):string[] {
 
 
 // Download a cover's bg image bytes — from the public assets bucket for a builtin (keyed by
-// filename), from the user's Storage library for a custom upload (keyed by content hash).
-// Both share one memoisation map: filenames and 64-char hex hashes can't realistically collide
+// quality + filename: the original for final output, bookcover's preview-sized copy otherwise),
+// from the user's Storage library for a custom upload (keyed by content hash, one copy for
+// both). All share one memoisation map: the builtin keys carry a prefix and 64-char hex hashes
+// can't realistically collide with them
 const bg_cache = new Map<string, Promise<Uint8Array>>()
 
-export async function load_cover_bg(cover:CoverConfig)
+// Fetch a public url's bytes, failing on an error status rather than handing a 403/404 body on
+// as if it were the image
+async function fetch_bytes_from(url:string):Promise<Uint8Array> {
+    const res = await fetch(url)
+    if (!res.ok){
+        throw new Error(`Failed to fetch ${url}: ${res.status}`)
+    }
+    return new Uint8Array(await res.arrayBuffer())
+}
+
+export async function load_cover_bg(cover:CoverConfig, quality:CoverQuality)
         :Promise<{data:Uint8Array, type:string}|null> {
     const bg = cover.bg_image
     if (!bg){
@@ -280,9 +309,10 @@ export async function load_cover_bg(cover:CoverConfig)
     }
     const [key, name, fetch_bytes]:[string, string, () => Promise<Uint8Array>] =
         bg.kind === 'builtin'
-            ? [bg.id, bg.id,
-                () => fetch(asset_path(ASSETS_PREFIX, BACKGROUNDS_DIR, bg.id))
-                    .then(res => res.arrayBuffer()).then(buf => new Uint8Array(buf))]
+            ? [`${quality}:${bg.id}`, bg.id,
+                () => fetch_bytes_from(quality === 'preview'
+                    ? asset_path(ASSETS_PREFIX, BG_PREVIEW_DIR + bg.id)
+                    : asset_path(ASSETS_PREFIX, BACKGROUNDS_DIR, bg.id))]
             : [bg.hash, bg.path,
                 () => getBytes(storage_ref(firebase_storage, bg.path))
                     .then(buf => new Uint8Array(buf))]
@@ -350,23 +380,23 @@ export function plan_cover_bg_into_design(path:string, design_id:string)
 // count at version creation, the shared estimate during preview (see state.ts).
 // `fonts` supplies a version's snapshotted custom fonts when regenerating (the live library
 // is used otherwise, mirroring compile_and_upload in versions.ts).
-// `opts.format`/`opts.image_override`/`opts.image_regions` exist only for the wizard's live
-// preview cards (SVG output, a thumbnail image instead of an uploaded one, and precomputed
-// regions since the thumbnail's bytes can never match bookcover's own builtin lookup by
-// design — see get_bg_regions()) — real callers never pass them, so their output is
-// byte-for-byte what it always was
+// `opts.quality` picks which copy of the background is rendered (see CoverQuality) — 'final'
+// unless a caller only wants something to look at on screen.
+// `opts.format`/`opts.image_override` exist only for the wizard's live preview cards (SVG
+// output, and bookcover's 800px copy of a builtin, which is smaller still than the preview one)
 const RENDER_CACHE_SIZE = 6
 const render_cache:{key:string, result:CoverRenderResult}[] = []
 
 async function render_cover(blueprint:Blueprint, page_count:number, fonts?:CustomFont[],
-        opts?:{format?:'pdf'|'svg', image_override?:{data:Uint8Array, type:string, name?:string},
-            image_regions?:ImageRegions|null, share_url?:string})
+        opts?:{format?:'pdf'|'svg', quality?:CoverQuality,
+            image_override?:{data:Uint8Array, type:string}, share_url?:string})
         :Promise<CoverRenderResult> {
     const cover = blueprint.cover
     if (!cover){
         throw new Error('render_cover called without a cover configured')
     }
     const format = opts?.format ?? 'pdf'
+    const quality = opts?.quality ?? 'final'
     const cover_fonts = (fonts ?? toRaw(custom_fonts))
         .filter(font => cover.font_families.includes(font.family))
     const fonts_key = (fonts ? 'snapshot:' : 'library:')
@@ -382,7 +412,7 @@ async function render_cover(blueprint:Blueprint, page_count:number, fonts?:Custo
         : undefined
 
     const key = cover_render_key(cover, blueprint, page_count) + '|' + fonts_key + '|' + format
-        + (opts?.image_override ? '|preview:' + (opts.image_override.name ?? '') : '')
+        + '|' + quality + (opts?.image_override ? '|override' : '')
         + (copyright_block ? '|copyright:' + copyright_block : '')
     const cached = render_cache.find(entry => entry.key === key)
     if (cached){
@@ -399,19 +429,23 @@ async function render_cover(blueprint:Blueprint, page_count:number, fonts?:Custo
         sent_fonts_key = fonts_key
     }
 
-    const image = opts?.image_override ?? await load_cover_bg(cover)
-    // Real (non-preview) images are named after the builtin id when applicable, so bookcover's
-    // own fast color lookup can match filename+bytes instead of falling back to a live decode
-    const name = opts?.image_override?.name
-        ?? (cover.bg_image?.kind === 'builtin' ? cover.bg_image.id : undefined)
+    const image = opts?.image_override ?? await load_cover_bg(cover, quality)
+    // A builtin is always named by its id, whichever copy of it is being rendered — bookcover
+    // takes its auto text/spine/blurb colours from its baked table by that id, so a preview's
+    // colours match the final output's (and no live pixel decode is needed)
+    const image_builtin = cover.bg_image?.kind === 'builtin' ? cover.bg_image.id : undefined
+    // A stable identity for exactly these bytes (see image.key in cover_worker.ts)
+    const image_key = (opts?.image_override ? 'override' : quality) + ':'
+        + (image_builtin ?? (cover.bg_image?.kind === 'custom' ? cover.bg_image.hash : ''))
     // Deep-clone: `cover.form` is Vue-reactive, and a shallow spread (cover_form_for_render)
     // leaves nested values (e.g. the blurb doc) wrapped in Proxies — postMessage's structured
     // clone rejects Proxy objects outright, so the worker call must get plain data only
     const result = await client.send({
         action: 'generate',
         form: cloneDeep(cover_form_for_render(cover, blueprint, page_count)),
-        image: image && {data: image.data, type: image.type, ...name !== undefined && {name}},
-        ...opts?.image_regions !== undefined && {image_regions: opts.image_regions},
+        image: image && {data: image.data, type: image.type, key: image_key},
+        ...image_builtin !== undefined && {image_builtin},
+        ...quality === 'preview' && {image_max_dpi: PREVIEW_MAX_DPI},
         ...copyright_block !== undefined && {copyright_block},
         format,
     }) as CoverRenderResult
@@ -423,12 +457,12 @@ async function render_cover(blueprint:Blueprint, page_count:number, fonts?:Custo
 }
 
 
-// The full wraparound cover PDF (front + spine + back as one page) — used for the preview and
-// as the stored version's cover.pdf
+// The full wraparound cover PDF (front + spine + back as one page) — 'preview' quality for the
+// on-screen preview, 'final' for the stored version's printable cover.pdf
 export async function render_cover_pdf(blueprint:Blueprint, page_count:number,
-        fonts?:CustomFont[], share_url?:string):Promise<Uint8Array> {
+        quality:CoverQuality, fonts?:CustomFont[], share_url?:string):Promise<Uint8Array> {
     return (await render_cover(blueprint, page_count, fonts,
-        share_url !== undefined ? {share_url} : undefined)).data as Uint8Array
+        {quality, ...share_url !== undefined && {share_url}})).data as Uint8Array
 }
 
 
@@ -489,7 +523,7 @@ export function default_cover_preset(blueprint:Blueprint):Record<string, unknown
 // Build the form for the new-design wizard's Photo / Pattern / Icon presets, plus the builtin
 // background id for the photo preset — shared by seed_cover_preset() and
 // render_wizard_cover_preview(). No I/O: the photo preset only picks a filename here, bytes
-// (thumbnail for preview, full-res on demand for a real render) are fetched by the caller.
+// (a small copy for preview, the original for a real render) are fetched by the caller.
 // The wizard's fourth style, Minimal ink, has no cover at all — it's a title page instead
 // (see minimal_cover.ts)
 function build_cover_preset_form(kind:CoverPreset, blueprint:Blueprint)
@@ -559,56 +593,25 @@ export function apply_name_to_cover(blueprint:Blueprint):void{
 }
 
 
-// Sample a builtin background's dominant colors once (full-resolution original, so it can hit
-// bookcover's own fast lookup table), cached forever per filename — the known builtin set is
-// small (~35 filenames) so no bound/eviction is needed. Only ever consumed by the wizard
-// preview below: it's sampled with dims:null, so front_top_full/back/spine come back null —
-// fine for a front-only preview, not safe to reuse for a full wraparound render
-const bg_regions_cache = new Map<string, Promise<ImageRegions>>()
-
-async function get_bg_regions(id:string):Promise<ImageRegions> {
-    let cached = bg_regions_cache.get(id)
-    if (!cached){
-        cached = (async () => {
-            const url = asset_path(ASSETS_PREFIX, BACKGROUNDS_DIR, id)
-            const data = new Uint8Array(await (await fetch(url)).arrayBuffer())
-            const client = get_cover_generator()
-            await generator_ready
-            return await client.send({action: 'analyze_regions',
-                image: {data, type: bg_mime_for(id), name: id}}) as ImageRegions
-        })()
-        bg_regions_cache.set(id, cached)
-        // Don't cache failures — a later call should retry
-        cached.catch(() => bg_regions_cache.delete(id))
-    }
-    return cached
-}
-
-
 // Render one of the wizard's Photo / Pattern / Icon presets straight to an SVG string (front
 // panel only, no Storage upload — this is a disposable preview, not a saved cover) for the
 // wizard's cover-selection cards. Goes through the exact same build_cover_preset_form() +
-// render_cover() as real creation/compiling; only the image variant (thumbnail) and output
-// format (svg) differ
+// render_cover() as real creation/compiling; only the image copy (bookcover's 800px one) and
+// output format (svg) differ. Its colours still come from bookcover's baked table by the
+// builtin's id (render_cover passes it), so they match what the real cover will get
 export async function render_wizard_cover_preview(kind:CoverPreset, blueprint:Blueprint)
         :Promise<string> {
     const {form, bg_image_id} = build_cover_preset_form(kind, blueprint)
     const cover:CoverConfig = {form,
         bg_image: bg_image_id ? {kind: 'builtin', id: bg_image_id} : null, font_families: [],
         title_custom: false}
-    let image_override:{data:Uint8Array, type:string, name:string}|undefined
-    let image_regions:ImageRegions|undefined
+    let image_override:{data:Uint8Array, type:string}|undefined
     if (bg_image_id){
-        const thumb_url = asset_path(ASSETS_PREFIX, BACKGROUNDS_DIR, 'previews', bg_image_id)
-        const [thumb_bytes, regions] = await Promise.all([
-            fetch(thumb_url).then(res => res.arrayBuffer()).then(buf => new Uint8Array(buf)),
-            get_bg_regions(bg_image_id),
-        ])
-        image_override = {data: thumb_bytes, type: bg_mime_for(bg_image_id), name: bg_image_id}
-        image_regions = regions
+        const url = asset_path(ASSETS_PREFIX, BACKGROUNDS_DIR, BG_PREVIEW_800_DIR, bg_image_id)
+        image_override = {data: await fetch_bytes_from(url), type: bg_mime_for(bg_image_id)}
     }
     const result = await render_cover({...blueprint, cover}, page_count_guess(), undefined,
-        {format: 'svg', ...image_override && {image_override}, ...image_regions && {image_regions}})
+        {format: 'svg', quality: 'preview', ...image_override && {image_override}})
     return result.front as string
 }
 

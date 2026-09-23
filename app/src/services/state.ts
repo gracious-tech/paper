@@ -38,7 +38,7 @@ export const state = reactive({
     // component to show) and AppRoot.vue (which sidebar preview to show), reset whenever the
     // open design changes
     forced_editor: false,
-    // Whether the embedded cover editor (cover.paper.bible iframe) is open as a full-window
+    // Whether the embedded cover editor (bookcover widget iframe) is open as a full-window
     // overlay — set by OptionsCover, rendered by DialogCoverEditor (mounted in AppRoot)
     cover_editor: false,
     // Whether the new-design wizard dialog is open — set by AppNavbar's "New" button (and the

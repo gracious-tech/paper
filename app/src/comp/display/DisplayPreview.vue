@@ -227,7 +227,7 @@ async function compile(){
         if (show_front_cover){
             try {
                 bytes = await prepend_cover_page(
-                    await render_cover_pdf(blue, page_estimate, undefined, share_url),
+                    await render_cover_pdf(blue, page_estimate, 'preview', undefined, share_url),
                     bytes, blue, page_estimate)
             } catch (error){
                 if (run !== latest_run){
