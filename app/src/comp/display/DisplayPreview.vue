@@ -58,7 +58,8 @@ import {report_error} from '@/services/errors'
 import {stage_text} from '@/services/compile_progress'
 import {truncate_for_preview} from 'paper-bible-typst'
 
-import type {ProgressEvent, PreviewSection} from 'paper-bible-typst'
+import type {PreviewSection} from 'paper-bible-typst'
+import type {CompileProgress} from '@/services/compile_progress'
 
 
 const {t} = useI18n()
@@ -146,7 +147,7 @@ async function compile(){
 
     // Forwarded to both the content-fetching and PDF-compiling stages, so the overlay reflects
     // whichever one is currently running
-    const on_progress = (event:ProgressEvent) => {
+    const on_progress = (event:CompileProgress) => {
         if (run !== latest_run){
             return
         }
@@ -225,6 +226,7 @@ async function compile(){
         // file. A cover failure is surfaced the same way a book compile failure is, rather than
         // silently showing a preview that's missing its cover
         if (show_front_cover){
+            on_progress({stage: 'cover'})
             try {
                 bytes = await prepend_cover_page(
                     await render_cover_pdf(blue, page_estimate, 'preview', undefined, share_url),

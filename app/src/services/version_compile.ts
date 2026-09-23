@@ -38,7 +38,7 @@ import {version_progress} from '@/services/compile_progress'
 import type {CustomFont} from 'typst-fonts'
 import type {CompiledPdf} from '@/services/typst'
 import type {Blueprint, Version} from '@/services/types'
-import type {ProgressEvent} from 'paper-bible-typst'
+import type {CompileProgress} from '@/services/compile_progress'
 
 
 export async function create_pending_version(design_id:string, blueprint:Blueprint)
@@ -183,7 +183,7 @@ export async function compile_and_upload(id:string, design_id:string, blueprint:
     // Forwarded to both the content-fetching and PDF-compiling stages, so DisplayDesignVersion.vue
     // can show which passage is currently being downloaded/written (mirrors DisplayPreview.vue's
     // own on_progress). Cleared in the finally block below once this attempt is done
-    const on_progress = (event:ProgressEvent) => {
+    const on_progress = (event:CompileProgress) => {
         version_progress[id] = event
     }
 
@@ -239,6 +239,7 @@ export async function compile_and_upload(id:string, design_id:string, blueprint:
             // disables just the cover's view/download, and offers a cover-only regen)
             let cover_status:Version['cover_status'] = null
             if (blueprint.cover){
+                on_progress({stage: 'cover'})
                 try {
                     const cover_bytes = await render_cover_pdf(blueprint, pages, 'final', fonts,
                         share_url)
