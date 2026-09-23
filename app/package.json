@@ -21,6 +21,7 @@
         "vue-tsc": "^3.3.7"
     },
     "dependencies": {
+        "@fontsource-variable/roboto": "^5.3.0",
         "@gracious.tech/bible-references": "^1.2.1",
         "@gracious.tech/fetch-client": "^2.4.0",
         "@myriaddreamin/typst-ts-renderer": "0.7.0",

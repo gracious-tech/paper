@@ -42,6 +42,13 @@
         margin: 0
 
 
+// Vuetify's font stack assumes Roboto is installed, which iOS/macOS/Windows don't have — their
+// fallback sans (Helvetica/Arial) has no 500 weight, so every medium-weight heading/label rendered
+// as regular text. An installed Roboto wins (web fonts only download when actually used), else
+// the bundled variable Roboto (init.ts) covers the full weight range
+:root
+    --v-font-body: 'Roboto', 'Roboto Variable', sans-serif
+
 html
     font-size: 12pt
     height: 100%

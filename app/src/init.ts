@@ -9,6 +9,7 @@ import 'core-js/actual/object/has-own'  // Used by Vuetify?
 import 'core-js/actual/array/to-sorted'  // Used by Vuetify's list filtering (Safari < 16)
 
 // Embed global styles
+import '@fontsource-variable/roboto'  // Vuetify's UI font (see --v-font-body in styles.sss)
 import './styles.sss'
 import 'vuetify/styles'
 
