@@ -199,6 +199,12 @@ const showing_editor = computed(() => {
                 align-self: flex-start
                 user-select: none
 
+            // Fit the profile photo to the avatar, since Google serves it larger than 32px
+            .account img
+                width: 100%
+                height: 100%
+                object-fit: cover
+
             // Flag the guest state with a dot, pulsing a few times on load to catch the eye
             // without nagging for the rest of the session
             // WARN Must be ::before — Vuetify styles .v-btn::after as its focus ring, and its
