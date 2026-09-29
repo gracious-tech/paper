@@ -606,9 +606,12 @@ neither side knows about the other's setup process.
   (`ANY /api/{proxy+}`) to `paper-bible-light` (role `light`); dev defaults to both roles on
   one port. This is asserted directly in `tests/server/routes.test.ts`, not just implied by
   the CloudFormation routes matching the deployed roles
-- **The CSP in `infra/cloudformation.yml`'s `SecurityHeadersPolicy` is enforced, and CFN's
-  YAML can't hold multi-line reasoning inline either** — so it lives here. It fails in
-  production only, since CloudFront headers never reach the Vite dev server. It's split two
+- **The CSP in `infra/cloudformation.yml`'s `SecurityHeadersPolicy` is currently commented out
+  (disabled) — TODO: re-enable when there's time to perfect it** (see the TODO beside it; trial
+  it as `Content-Security-Policy-Report-Only` first). The reasoning below describes the policy
+  as written there, for when it's restored. CFN's YAML can't hold multi-line reasoning inline
+  either, so it lives here. It fails in production only, since CloudFront headers never reach
+  the Vite dev server. It's split two
   ways on purpose: **`default-src` is the content allowlist** (every origin the app loads
   images, fonts, video or fetch responses from — one list, rather than repeating the same
   hosts across `img-src`/`font-src`/`connect-src`), while every directive that can execute or
