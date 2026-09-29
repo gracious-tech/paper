@@ -79,8 +79,9 @@ function print_list(issues:IssueView[]):void{
         const severity = issue.critical ? 'CRIT ' : 'error'
         const latest = issue.latest.slice(0, 10)
         const count = String(issue.records.length).padStart(4)
+        const ips = String(issue.ips).padStart(3)
         console.log(`${String(index + 1).padStart(3)}  ${status}  ${severity}  ${count}x`
-            + `  ${latest}  ${issue.summary.slice(0, 90)}`)
+            + `  ${ips} ip  ${latest}  ${issue.summary.slice(0, 90)}`)
     }
     console.log('')
     console.log('Commands: <number> open issue, r refresh from bucket, q quit')
@@ -102,7 +103,7 @@ function print_detail(issue:IssueView):void{
         console.log(`Note: ${issue.note}`)
     }
     console.log(`Status: ${issue.status}   Occurrences: ${issue.records.length}`
-        + `   Fingerprints: ${issue.fingerprints.join(', ')}`)
+        + `   IPs: ${issue.ips}   Fingerprints: ${issue.fingerprints.join(', ')}`)
     console.log('')
     console.log('Latest report:')
     console.log(JSON.stringify(issue.records[0], undefined, 4))

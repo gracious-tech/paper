@@ -41,6 +41,7 @@ export interface IssueView {
     files:string[]
     fingerprints:string[]
     records:ErrorRecord[]  // Newest first
+    ips:number  // Distinct reporting IPs (records without one aren't counted)
     latest:string
     critical:boolean
     status:'new'|'deferred'
@@ -141,6 +142,12 @@ export function save_triage(triage:Record<string, IssueTriage>):void{
 }
 
 
+function count_ips(records:ErrorRecord[]):number{
+    // How many distinct IPs reported these records, as a proxy for how many users are affected
+    return new Set(records.map(record => record.ip).filter(ip => ip !== null)).size
+}
+
+
 export function assemble_issues(records:Map<string, ErrorRecord[]>,
         issues:Record<string, Issue>, triage:Record<string, IssueTriage>):IssueView[]{
     // Merge AI issues + downloaded records + triage into display rows. Fingerprints claude
@@ -163,6 +170,7 @@ export function assemble_issues(records:Map<string, ErrorRecord[]>,
             files: issue.files,
             fingerprints: issue.fingerprints,
             records: issue_records,
+            ips: count_ips(issue_records),
             latest: issue_records[0]!.timestamp,
             critical: issue_records.some(record => record.severity === 'critical'),
             status: triage[id]?.status ?? 'new',
@@ -183,6 +191,7 @@ export function assemble_issues(records:Map<string, ErrorRecord[]>,
             files: [],
             fingerprints: [fp],
             records: items,
+            ips: count_ips(items),
             latest: items[0]!.timestamp,
             critical: items.some(record => record.severity === 'critical'),
             status: triage[id]?.status ?? 'new',
@@ -190,10 +199,14 @@ export function assemble_issues(records:Map<string, ErrorRecord[]>,
         })
     }
 
-    // Deferred last, then most occurrences first, then most recent first
+    // Deferred last, then most IPs affected first (so one user retrying doesn't outrank a
+    // widespread issue), then most occurrences, then most recent first
     views.sort((a, b) => {
         if (a.status !== b.status){
             return a.status === 'deferred' ? 1 : -1
+        }
+        if (a.ips !== b.ips){
+            return b.ips - a.ips
         }
         if (a.records.length !== b.records.length){
             return b.records.length - a.records.length
@@ -220,7 +233,8 @@ export function write_prompt(issue:IssueView):string{
     if (issue.note){
         lines.push(`Triage note: ${issue.note}`)
     }
-    lines.push(`Occurrences: ${issue.records.length} (latest ${issue.latest})`, '', '## Reports')
+    lines.push(`Occurrences: ${issue.records.length} from ${issue.ips} IP(s)`
+        + ` (latest ${issue.latest})`, '', '## Reports')
 
     // One report per fingerprint (the newest), capped — enough signal without flooding context
     const seen = new Set<string>()
