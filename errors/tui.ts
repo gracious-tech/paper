@@ -1,6 +1,6 @@
 
 import {createInterface} from 'node:readline'
-import {execFileSync} from 'node:child_process'
+import {spawn} from 'node:child_process'
 import {readFileSync} from 'node:fs'
 
 import {delete_object} from './bucket.ts'
@@ -16,7 +16,13 @@ import type {IssueView} from './store.ts'
 // drops them, which breaks scripted/piped input (e.g. `printf '1\nf\nq\n' | .bin/errors ...`)
 type Ask = (prompt:string) => Promise<string>
 
-function make_ask():{ask:Ask, close:() => void}{
+// Hands the terminal to a child process and back again (see run_claude())
+interface TerminalHandoff {
+    suspend:() => void
+    resume:() => void
+}
+
+function make_ask():{ask:Ask, close:() => void, handoff:TerminalHandoff}{
     const rl = createInterface({input: process.stdin, output: process.stdout})
     const lines:string[] = []
     const waiters:((line:string) => void)[] = []
@@ -49,22 +55,47 @@ function make_ask():{ask:Ask, close:() => void}{
             waiters.push(resolve)
         })
     }
-    return {ask, close: () => {rl.close()}}
+    // Stop reading stdin (and leave raw mode) while a child owns the terminal, then restore
+    // readline's raw mode afterwards since the child resets the TTY on its way out
+    const handoff:TerminalHandoff = {
+        suspend: () => {
+            rl.pause()
+            if (process.stdin.isTTY){
+                process.stdin.setRawMode(false)
+            }
+        },
+        resume: () => {
+            if (process.stdin.isTTY){
+                process.stdin.setRawMode(true)
+            }
+            rl.resume()
+        },
+    }
+    return {ask, close: () => {rl.close()}, handoff}
 }
 
 
-function copy_to_clipboard(text:string):boolean{
-    // Best-effort copy (Wayland then X11); the prompt file path is always printed regardless
-    for (const cmd of [['wl-copy'], ['xclip', '-selection', 'clipboard']]){
-        try {
-            execFileSync(cmd[0]!, cmd.slice(1),
-                {input: text, stdio: ['pipe', 'ignore', 'ignore']})
-            return true
-        } catch {
-            // Try the next tool
-        }
+async function run_claude(handoff:TerminalHandoff, prompt:string):Promise<void>{
+    // Start an interactive claude session seeded with the prompt, returning once it exits
+    handoff.suspend()
+    // Ctrl+C reaches the whole process group, so ignore it here and let claude handle it
+    const ignore_sigint = () => {}
+    process.on('SIGINT', ignore_sigint)
+    try {
+        await new Promise<void>(resolve => {
+            const child = spawn('claude', [prompt], {stdio: 'inherit'})
+            child.on('error', error => {
+                console.error(`Could not start claude: ${error.message}`)
+                resolve()
+            })
+            child.on('exit', () => {
+                resolve()
+            })
+        })
+    } finally {
+        process.off('SIGINT', ignore_sigint)
+        handoff.resume()
     }
-    return false
 }
 
 
@@ -108,11 +139,12 @@ function print_detail(issue:IssueView):void{
     console.log('Latest report:')
     console.log(JSON.stringify(issue.records[0], undefined, 4))
     console.log('')
-    console.log('Commands: f fix prompt, d delete, l later, n note, b back')
+    console.log('Commands: f fix with claude, d delete, l later, n note, b back')
 }
 
 
-async function detail_loop(ask:Ask, bucket:string, issue:IssueView):Promise<void>{
+async function detail_loop(ask:Ask, handoff:TerminalHandoff, bucket:string,
+        issue:IssueView):Promise<void>{
     // Handle actions on a single issue until the user goes back (or deletes it)
     print_detail(issue)
     while (true){
@@ -122,10 +154,11 @@ async function detail_loop(ask:Ask, bucket:string, issue:IssueView):Promise<void
             return
 
         } else if (answer === 'f'){
-            // Write the fix prompt for pasting into a Claude session
+            // Fix it in an interactive claude session, then return to the list once it exits
             const path = write_prompt(issue)
-            const copied = copy_to_clipboard(readFileSync(path, 'utf8'))
-            console.log(`Fix prompt written to ${path}${copied ? ' (and copied to clipboard)' : ''}`)
+            console.log(`Starting claude with the fix prompt (${path})...`)
+            await run_claude(handoff, readFileSync(path, 'utf8'))
+            return
 
         } else if (answer === 'd'){
             // Delete all the issue's reports from the bucket and locally
@@ -168,7 +201,7 @@ async function detail_loop(ask:Ask, bucket:string, issue:IssueView):Promise<void
 export async function run_tui(bucket:string,
         refresh:(download:boolean) => Promise<IssueView[]>):Promise<void>{
     // Main loop: list issues, open one, act on it
-    const {ask, close} = make_ask()
+    const {ask, close, handoff} = make_ask()
     let issues = await refresh(false)
     try {
         while (true){
@@ -181,7 +214,7 @@ export async function run_tui(bucket:string,
             } else {
                 const index = Number(answer)
                 if (Number.isInteger(index) && index >= 1 && index <= issues.length){
-                    await detail_loop(ask, bucket, issues[index - 1]!)
+                    await detail_loop(ask, handoff, bucket, issues[index - 1]!)
                     // Reassemble from local state (an issue may have been deleted/deferred)
                     issues = await refresh(false)
                 }
