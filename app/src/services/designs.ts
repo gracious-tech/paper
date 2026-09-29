@@ -89,6 +89,9 @@ let synced_schema = SCHEMA_VERSION
 let unsub_doc:Unsubscribe|null = null
 let unsub_list:Unsubscribe|null = null
 let unsub_viewed:Unsubscribe|null = null
+// The uid the listeners above are scoped to, null while none are running (before boot and
+// between stop_design_sync() and the next init_designs())
+let listening_uid:string|null = null
 
 // The design currently being deleted by this client, if any. The deletion can reach the
 // snapshot listener before /api/delete_design returns, and delete_design() does its own
@@ -421,7 +424,7 @@ export async function open_design(id:string):Promise<void>{
                 apply_remote(doc_to_blueprint(data))
             }
         }, error => {
-            report_error('banner', error)
+            report_error('banner', error, {context: {listener: 'design_doc'}})
             reject(error as Error)
         })
     })
@@ -741,6 +744,7 @@ export async function init_designs(open_id:string|null = null, welcome = true):P
     // `welcome` allows the caller to rule out the welcome splash regardless of design count —
     // signing out lands on an empty account, but the user plainly doesn't need introducing
     const uid = user.value!.uid
+    listening_uid = uid
     const designs_query = query(collection(firestore, 'designs'),
         where('editor_uids', 'array-contains', uid), orderBy('modified', 'desc'))
 
@@ -763,7 +767,7 @@ export async function init_designs(open_id:string|null = null, welcome = true):P
         resolve_designs_loaded()
         resolve_first(snap)
     }, error => {
-        report_error('banner', error)
+        report_error('banner', error, {context: {listener: 'design_list'}})
         // Surface to the awaiting boot too — otherwise it would wait on a first snapshot that
         // is never coming (resolve/reject after settling is a no-op, so this is safe to pair
         // with the resolve above)
@@ -808,11 +812,19 @@ export function stop_design_sync():void{
     unsub_list = null
     unsub_viewed?.()
     unsub_viewed = null
+    listening_uid = null
     // Leaves flush_changes() unable to write even if the blue watcher fires before the reload
     current_design_id.value = null
     synced = null
     designs.splice(0, designs.length)
     viewed_designs.splice(0, viewed_designs.length)
+}
+
+
+export function design_sync_uid():string|null{
+    // The uid the live design listeners belong to, or null if none are running — a signed-in
+    // uid that differs from it means the account changed without them being released first
+    return listening_uid
 }
 
 
@@ -834,6 +846,6 @@ export function start_viewed_sync():void{
             }))
         },
         error => {
-            report_error('banner', error)
+            report_error('banner', error, {context: {listener: 'viewed_list'}})
         })
 }

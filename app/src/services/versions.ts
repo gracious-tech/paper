@@ -137,7 +137,7 @@ export function start_versions_sync(design_id:string):void{
             }))
         },
         error => {
-            report_error('banner', error)
+            report_error('banner', error, {context: {listener: 'version_list'}})
         })
 }
 
