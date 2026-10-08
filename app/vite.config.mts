@@ -9,9 +9,18 @@ import {defineConfig} from 'vite'
 import plugin_index from './vite_plugin_index.mts'
 
 
-export default defineConfig(() => {
+export default defineConfig(({command}) => {
+
+    // Whether to use the production fetch.bible, shared assets, cover widget and story images
+    // rather than their local dev servers — always for a build, and for dev only when
+    // USE_PROD_SERVICES=true (see .bin/serve_simple). Firebase is unaffected (always emulated)
+    const use_prod_services = command === 'build' || process.env['USE_PROD_SERVICES'] === 'true'
+
     return {
         clearScreen: false,
+        define: {
+            'import.meta.env.USE_PROD_SERVICES': JSON.stringify(use_prod_services),
+        },
         plugins: [
             plugin_index(path.join(import.meta.dirname, 'src/index.pug')),
             plugin_vue(),

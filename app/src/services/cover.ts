@@ -43,7 +43,7 @@ export type CoverPreset = 'photo'|'pattern'|'icon'
 // The embedded cover editor (the bookcover widget) — a separate deployment/origin. Not
 // cover.paper.bible: that's the public site, which wraps this same widget in its own iframe and
 // doesn't relay postMessage, so the embed protocol would never reach the widget through it
-export const COVER_EDITOR_URL = import.meta.env.PROD
+export const COVER_EDITOR_URL = import.meta.env.USE_PROD_SERVICES
     ? 'https://cover-widget.paper.bible/'
     : 'http://localhost:5301/'
 export const COVER_EDITOR_ORIGIN = new URL(COVER_EDITOR_URL).origin

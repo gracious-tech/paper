@@ -13,7 +13,7 @@ const WILDBIBLE = 'wildbible'
 
 
 // Where the predefined story list + images are served from
-export const image_endpoint = import.meta.env.PROD
+export const image_endpoint = import.meta.env.USE_PROD_SERVICES
     ? 'https://images.freely.giving/' : 'http://localhost:3009/'
 
 

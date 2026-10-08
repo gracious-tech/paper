@@ -9,9 +9,9 @@ import type {CoverPageGeometry, WorkerAction, WorkerResponse} from './typst_work
 // The shared static assets tree (fonts/, typst/ WASM, and bookcover's docs/frames/backgrounds)
 // — published to assets.paper.bible by the bookcover repo, whose dev server serves the same
 // tree at /generator_assets/ during development
-export const ASSETS_PREFIX = import.meta.env.DEV
-    ? 'http://localhost:5301/generator_assets/'
-    : 'https://assets.paper.bible/'
+export const ASSETS_PREFIX = import.meta.env.USE_PROD_SERVICES
+    ? 'https://assets.paper.bible/'
+    : 'http://localhost:5301/generator_assets/'
 
 
 // What the worker answers a request with: the action's own value, plus the page count of the

@@ -11,7 +11,8 @@ import type {BundledFont} from 'typst-fonts'
 import type {ContentPassage} from './types'
 
 
-export const endpoint = import.meta.env.PROD ? 'https://v1.fetch.bible/' : 'http://localhost:8430/'
+export const endpoint = import.meta.env.USE_PROD_SERVICES
+    ? 'https://v1.fetch.bible/' : 'http://localhost:8430/'
 
 
 // Single shared Bible-content layer: owns the fetch-client, collection, and Typst book cache,

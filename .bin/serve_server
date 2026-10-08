@@ -15,6 +15,11 @@ export TYPST_PATH="$PWD/.bin/typst"
 # The shared assets tree (fonts/, docs/, frames/, ...) — a local copy/symlink of the bookcover
 # repo's assets/ dir, the same tree it publishes to assets.paper.bible
 export ASSETS_DIR="$PWD/assets"
-export FETCH_ENDPOINT="${FETCH_ENDPOINT:-http://localhost:8430/}"
+# USE_PROD_SERVICES=true swaps the local fetch.bible dev server for production (see serve_simple)
+if [[ "${USE_PROD_SERVICES:-}" == 'true' ]]; then
+    export FETCH_ENDPOINT="${FETCH_ENDPOINT:-https://v1.fetch.bible/}"
+else
+    export FETCH_ENDPOINT="${FETCH_ENDPOINT:-http://localhost:8430/}"
+fi
 
 node --watch server/src/dev_server.ts

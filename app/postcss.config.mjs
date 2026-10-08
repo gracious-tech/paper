@@ -4,9 +4,10 @@ import postcss_nested from 'postcss-nested'
 
 // Shared-assets base URL for stylesheets (fonts etc) — same dev/prod switch as ASSETS_PREFIX
 // in services/typst.ts, but CSS can't read import.meta.env so it's substituted here instead
-const ASSETS_PREFIX = process.env['NODE_ENV'] === 'development'
-    ? 'http://localhost:5301/generator_assets'
-    : 'https://assets.paper.bible'
+const ASSETS_PREFIX = process.env['NODE_ENV'] !== 'development'
+        || process.env['USE_PROD_SERVICES'] === 'true'
+    ? 'https://assets.paper.bible'
+    : 'http://localhost:5301/generator_assets'
 
 
 // Replace `$assets_prefix` in any declaration value with the environment's assets base URL

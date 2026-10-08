@@ -1,0 +1,18 @@
+#!/usr/bin/env bash
+
+# A lightweight dev stack for quick fixes: one command, nothing else to start.
+# - The app talks to production fetch.bible, shared assets, cover widget and story images
+#   (USE_PROD_SERVICES=true) instead of their local dev servers
+# - Firebase emulators run with no import/export, so all data is in-memory and gone on exit
+# - No API server, so /api routes (sharing, server compile fallback, deletes, account merge)
+#   fail — run `USE_PROD_SERVICES=true .bin/serve_server` alongside if you need them
+# Uses the same emulator ports as .bin/serve_emulators, so don't run both at once.
+
+set -euo pipefail
+cd "$(dirname "$0")/.."
+
+export USE_PROD_SERVICES=true
+export FIREBASE_EMULATORS_PATH="$PWD/.emulator_cache"
+
+# emulators:exec starts the app only once the emulators are ready, and stops them when it exits
+npx firebase emulators:exec --only auth,firestore,storage --ui .bin/serve_app

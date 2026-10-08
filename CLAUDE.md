@@ -138,6 +138,9 @@ paper_bible/
     serve_emulators        # Firebase emulator suite (auth 9099, firestore 8080, storage 9199)
     serve_emulators_test   # The *test* emulators (auth 9098, firestore 8081, storage 9198) —
                             #   optional, keeps audit_unit warm between runs
+    serve_simple           # One-command dev stack for quick fixes: in-memory emulators + app,
+                            #   production fetch.bible/assets/cover widget (USE_PROD_SERVICES),
+                            #   no API server
     serve_server           # Local API server against the emulators (port 8788; runs
                             #   server/src/dev_server.ts, not the Lambda entry point)
     deploy_app             # Pure content shipping, no CloudFormation: vite build, two-tier
@@ -361,6 +364,11 @@ browser's guess and is denied.
 .bin/serve_app          # terminal 3: app on :5300 (auth/firestore/storage → emulators)
 ```
 
+- **Quick fixes:** `.bin/serve_simple` alone replaces all of the above. It sets
+  `USE_PROD_SERVICES=true`, which `vite.config.mts` injects as `import.meta.env.USE_PROD_SERVICES`
+  (always true in a build) — the one switch for fetch.bible, `ASSETS_PREFIX`, the cover widget
+  and story images (plus `postcss.config.mjs` and `serve_server`'s `FETCH_ENDPOINT`). Firebase
+  stays emulated, just without persistence; `/api` routes fail unless `serve_server` runs too
 - The app connects to emulators automatically when `import.meta.env.DEV`
 - Static assets (fonts, WASM, bookcover) are fetched from the bookcover repo's dev server at
   `http://localhost:5301/generator_assets/` — run it alongside the stack above; the embedded
