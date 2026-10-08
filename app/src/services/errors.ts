@@ -25,6 +25,13 @@ const ignore_errors = [
 ]
 
 
+// Crawler user agents, whose failures are never actionable (e.g. Googlebot's renderer doesn't
+// complete the anonymous sign-in request, so boot fails every time it indexes a page). Matched on
+// a versioned `bot/` token (Googlebot/2.1, bingbot/2.0, AhrefsBot/7.0...) or the `+http` info
+// link most crawlers carry — not a bare "bot", which also matches phone brands like Cubot
+const crawler_ua = /bot\/|crawler|spider|\+https?:\/\//i
+
+
 // STATE
 
 
@@ -54,6 +61,9 @@ const browser_supported = detect_browser_support()
 if (!browser_supported){
     show_unsupported()
 }
+
+// Whether this visitor is a crawler rather than a person
+const is_crawler = crawler_ua.test(navigator.userAgent)
 
 // Mark start time so know runtime when errors occur
 const start_ms = new Date().getTime()
@@ -181,6 +191,12 @@ export function report_error(type:'silent'|'banner'|'splash', error:unknown,
     // Don't report if browser not supported, as not actionable
     if (!browser_supported){
         show_unsupported()
+        return ''
+    }
+
+    // Don't report crawlers' errors, nor show them a failure message that would then be indexed
+    // as the page's content
+    if (is_crawler && !options.force){
         return ''
     }
 
