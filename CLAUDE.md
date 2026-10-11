@@ -555,7 +555,22 @@ neither side knows about the other's setup process.
   expressed as a *binding*, like the `#let footnote(..args) = none` shadow that disables notes,
   which resolves where the content calls it rather than where the page lays the entry out.
   Preamble rules do stack: a `show footnote.entry: set text(...)` and a
-  `show footnote.entry: it => box(...)` recipe compose fine
+  `show footnote.entry: it => box(...)` recipe compose fine. Entries also ignore the styles where
+  the note was *called*: a footnote from an LTR scope, or one whose body opens with
+  `set text(dir: ltr)`, still lays its entry out in the page's direction. That's why study notes
+  carry a `<pb-studynote>` label, which a preamble rule picks out to give them their own
+  language and direction (`gen_notes_locale()` in `preamble.ts`)
+- **Text direction is always set explicitly, never inferred from `lang`.** Typst works direction
+  out from `lang`, but only for a handful of ISO 639-1 codes: `hbo` (Ancient Hebrew), `arb`,
+  `ckb`, `uig` etc. silently lay out LTR, and `pa` is assumed RTL though fetch.bible's Punjabi is
+  Gurmukhi. The document takes fetch.bible's declared `direction` for the primary translation
+  (`TypographyConfig.dir`/`dir2`); user-written text (custom pages, story text slides, titles)
+  takes the direction of its own first letter instead (`detect_dir()` in `lang.ts`), since an
+  RTL Bible often has English introductions. Two consequences: a paragraph's direction comes from
+  the styles *all* its content shares, so a direction scope has to enclose the whole paragraph
+  (`#[#set text(dir: rtl)\n...]`), not just the text inside it; and anything laid out by physical
+  side has to account for RTL itself. `pad()` only takes physical sides (hence `pad_start`), and
+  `grid` columns run in text direction (hence `gen_physical_row()` for the page furniture)
 - **Verify Typst output against a real compile, not a minimal `.typ`.** A hand-written repro puts
   the rule under test at the top of an otherwise empty document, which is exactly the position
   where the gotcha above *doesn't* bite — so the bug renders correctly in isolation and wrongly

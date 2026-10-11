@@ -2,6 +2,7 @@
 import {describe, it, expect} from 'vitest'
 
 import {gen_picture_story} from '../src/content_picture_story.js'
+import {gen_locale_args} from '../src/lang.js'
 
 import {TEST_PAGE, make_slide, make_story} from './fixtures.js'
 
@@ -13,7 +14,7 @@ function gen(story:Parameters<typeof gen_picture_story>[0],
         layout:'single'|'grid' = 'single', alternate = false,
         image_style:Parameters<typeof gen_picture_story>[2] = 'padded'):string {
     return gen_picture_story(story, TEST_PAGE, image_style, layout, alternate, 1.5, '10pt',
-        'Noto Serif', '10pt', ['serif'], null)
+        'Noto Serif', '10pt', ['serif'], '')
 }
 
 
@@ -235,11 +236,11 @@ describe('body fitting', () => {
         const story = make_story({slides: [image_slide('a.jpg', 'First')]})
         story.slides[0]!.body2 = 'Second'
         const out = gen_picture_story(story, TEST_PAGE, 'padded', 'single', false, 1.5, '10pt',
-            'Noto Serif', '12pt', ['serif'], 'es')
+            'Noto Serif', '12pt', ['serif'], gen_locale_args('es', 'rtl'))
         expect(out).toContain('First')
         expect(out).toContain('Second')
         expect(out).toContain('size: size * 1.2')
-        expect(out).toContain('lang: "es"')
+        expect(out).toContain('lang: "es", dir: rtl')
     })
 
     it('omits the second-translation scope when the slide has only one body', () => {

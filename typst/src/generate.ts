@@ -2,17 +2,18 @@
 import {escape_typst_str} from 'typst-utils'
 
 import {gen_preamble, gen_furniture_cell, gen_furniture_slots, gen_furniture_heading,
-    gen_running_states, gen_title_page_gate, INERT_RUNNING_SEED, FURNITURE_RULES}
-    from './preamble.js'
+    gen_running_states, gen_title_page_gate, gen_physical_row, INERT_RUNNING_SEED,
+    FURNITURE_RULES} from './preamble.js'
 import {gen_passage, gen_passage_facing, passage_columns} from './content_passage.js'
 import {gen_title} from './content_title.js'
 import {gen_custom} from './content_custom.js'
 import {gen_lines} from './content_lines.js'
 import {gen_picture_story} from './content_picture_story.js'
 import {parse_unit, to_pt} from './helpers.js'
+import {gen_locale_args} from './lang.js'
 
 import type {PreambleOverrides, RunningSeed} from './preamble.js'
-import type {PageConfig, TypstRequest, TypstContentItem, TypstPassage} from './types.js'
+import type {PageConfig, TextDir, TypstRequest, TypstContentItem, TypstPassage} from './types.js'
 
 
 // How a compile's margins relate to the physical page — either Typst's own inside/outside swap
@@ -297,7 +298,8 @@ export function generate_typst_facing(
     parts.push(gen_passage_facing(passage, page, request.image_style,
         typography.font_size, typography.font_text2,
         typography.font_headings2, typography.font_size2, typography.font_fallbacks2,
-        typography.lang2, typography.line_height, typography.line_height2,
+        gen_locale_args(typography.lang2, typography.dir2), typography.line_height,
+        typography.line_height2,
         `2 * ${page.margin_left}`,
         typography.poetry_outdent))
     return parts.join('\n\n')
@@ -307,12 +309,13 @@ export function generate_typst_facing(
 // One half's 3-cell left/center/right row (mirrors the general-case layout in preamble.ts's
 // gen_page_furniture_row, but with a statically known side — a facing document's two halves
 // are always verso-left/recto-right, never determined dynamically)
-function furniture_half_row(is_recto:boolean, outer:string, center:string):string {
+function furniture_half_row(dir:TextDir, is_recto:boolean, outer:string, center:string):string {
     const outer_cell = `align(${is_recto ? 'right' : 'left'}, ${outer})`
     const center_cell = `align(center, ${center})`
-    return is_recto
-        ? `grid(columns: (1fr, 1fr, 1fr), align: horizon, none, ${center_cell}, ${outer_cell})`
-        : `grid(columns: (1fr, 1fr, 1fr), align: horizon, ${outer_cell}, ${center_cell}, none)`
+    const cells = is_recto
+        ? ['none', center_cell, outer_cell]
+        : [outer_cell, center_cell, 'none']
+    return gen_physical_row(dir, ['1fr', '1fr', '1fr'], cells, 'align: horizon')
 }
 
 
@@ -340,10 +343,11 @@ function gen_facing_furniture(
 
     // A facing document renders exactly one passage, so its own title (if any) is what decides
     // whether the double page it opens on carries furniture at all — see gen_title_page_gate
-    const row = `grid(columns: (1fr, 1fr), column-gutter: ${gutter},
-            ${furniture_half_row(false, left.outer, left.center)},
-            ${furniture_half_row(true, right.outer, right.center)},
-        )`
+    const dir = request.typography.dir
+    const row = gen_physical_row(dir, ['1fr', '1fr'], [
+        furniture_half_row(dir, false, left.outer, left.center),
+        furniture_half_row(dir, true, right.outer, right.center),
+    ], `column-gutter: ${gutter}`)
 
     return `{
         ${FURNITURE_RULES}
@@ -390,8 +394,8 @@ function gen_content_item(item:TypstContentItem, request:TypstRequest):string {
                 request.typography.font_size,
                 request.typography.font_text2, request.typography.font_headings2,
                 request.typography.font_size2, request.typography.font_fallbacks2,
-                request.typography.lang2, request.typography.line_height,
-                request.typography.line_height2,
+                gen_locale_args(request.typography.lang2, request.typography.dir2),
+                request.typography.line_height, request.typography.line_height2,
                 request.features.show_chapters ? request.features.show_chapters_style : 'none',
                 request.typography.poetry_outdent)
         case 'title':
@@ -408,6 +412,6 @@ function gen_content_item(item:TypstContentItem, request:TypstRequest):string {
                 request.story_layout, request.story_alternate, request.typography.line_height,
                 request.typography.font_size, request.typography.font_text2,
                 request.typography.font_size2, request.typography.font_fallbacks2,
-                request.typography.lang2)
+                gen_locale_args(request.typography.lang2, request.typography.dir2))
     }
 }

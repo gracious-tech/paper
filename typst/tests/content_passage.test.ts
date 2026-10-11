@@ -3,6 +3,7 @@ import {describe, it, expect} from 'vitest'
 
 import {gen_passage, passage_columns, max_chapter_in_content} from '../src/content_passage.js'
 import {CHAPTER_HEADING_LEVEL, SECTION_HEADING_LEVELS} from '../src/helpers.js'
+import {gen_locale_args} from '../src/lang.js'
 import {make_passage, make_title, TEST_PAGE} from './fixtures.js'
 
 import type {ChapterStyle} from '../src/content_passage.js'
@@ -22,11 +23,11 @@ const LINE_HEIGHT2 = 1
 function call(
     passage:TypstPassage, font_text2 = FONT_TEXT2, font_headings2 = FONT_HEADINGS2,
     font_fallbacks = FONT_FALLBACKS, font_size2 = FONT_SIZE2, line_height = LINE_HEIGHT,
-    chapter_style:ChapterStyle = 'none', poetry_outdent = true, lang2:string|null = null,
+    chapter_style:ChapterStyle = 'none', poetry_outdent = true, locale2 = '',
     line_height2 = LINE_HEIGHT2,
 ):string {
     return gen_passage(passage, TEST_PAGE, 'padded', FONT_SIZE, font_text2, font_headings2,
-        font_size2, font_fallbacks, lang2, line_height, line_height2, chapter_style,
+        font_size2, font_fallbacks, locale2, line_height, line_height2, chapter_style,
         poetry_outdent)
 }
 
@@ -391,7 +392,7 @@ describe('gen_passage', () => {
                 ],
                 multi_layout: 'columns',
             }), TEST_PAGE, 'padded', FONT_SIZE, 'Second Font', 'Second Heading Font', FONT_SIZE2,
-                ['Fallback Font'], null, LINE_HEIGHT, 'none')
+                ['Fallback Font'], '', LINE_HEIGHT, 'none')
 
             // First cell carries no font override — the override sits ahead of the second only
             const second_cell_start = result.indexOf('#set text(font: ("Second Font"')
@@ -404,7 +405,7 @@ describe('gen_passage', () => {
             expect(second_cell).toContain('Bible 2 content')
         })
 
-        it('gives the second cell its own language, only when it differs', () => {
+        it('gives the second cell its own language and direction, only when they differ', () => {
             const passage = make_passage({
                 bibles: [{content: '#vn(1)Bible 1 content'}, {content: '#vn(1)Bible 2 content'}],
                 multi_layout: 'columns',
@@ -415,8 +416,8 @@ describe('gen_passage', () => {
             expect(same).not.toContain('lang:')
 
             const differs = call(passage, FONT_TEXT2, FONT_HEADINGS2, FONT_FALLBACKS, FONT_SIZE2,
-                LINE_HEIGHT, 'none', true, 'vi')
-            const cells = differs.split(`size: ${FONT_SIZE2}, lang: "vi"`)
+                LINE_HEIGHT, 'none', true, gen_locale_args('he', 'rtl'))
+            const cells = differs.split(`size: ${FONT_SIZE2}, lang: "he", dir: rtl`)
             expect(cells).toHaveLength(2)
             // Only the second translation's own scope carries it
             expect(cells[0]).toContain('Bible 1 content')
@@ -475,7 +476,7 @@ describe('gen_passage', () => {
             expect(result).toContain('The Creation')
             // An explicit gap (line boxes have no height of their own) and a subordinate size
             expect(result).toContain('v(3em)')
-            expect(result).toContain('size: 1.2em, [The Creation]')
+            expect(result).toContain('size: 1.2em, dir: ltr, [The Creation]')
             expect(result.indexOf('Genesis 1:1-31')).toBeLessThan(result.indexOf('The Creation'))
         })
 

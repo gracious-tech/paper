@@ -26,7 +26,7 @@ import type {BibleCollection, BibleBookTypst, BibleBookTxt, GetResourcesItem,
 import type {Blueprint, ContentPassage, ContentCustom, ContentPictureStory, PictureStorySlide,
     TypstRequest, TypstContentItem, TypstPassage, TypstTitlePage, TypstCustomPage,
     TypstPictureStory, TypstPictureStorySlide, BiblePassageData, PageConfig, TypstNotesFile,
-    ProgressFn, TitlepageConfig} from './types.js'
+    ProgressFn, TitlepageConfig, TextDir} from './types.js'
 
 
 // Default Bible content API endpoint (production fetch.bible)
@@ -92,6 +92,13 @@ export function resolve_declared_cjk_variant(
 }
 
 
+// The document's text direction: the primary translation's, as fetch.bible declares it (see
+// TypographyConfig.dir)
+function primary_dir(blue:Blueprint, resources:Record<string, GetResourcesItem>):TextDir {
+    return resources[blue.bibles[0]]?.direction ?? 'ltr'
+}
+
+
 // Resolves user Blueprints into TypstRequests, fetching + caching Bible content as needed
 export class BibleContent {
 
@@ -111,6 +118,9 @@ export class BibleContent {
     private books_txt:LruCache<BibleBookTxt>
     // Cache of fetched study notes files, keyed `${resource}_${book}` (null = none available)
     private notes_cache:LruCache<TypstNotesFile|null>
+    // Study-notes resources' metadata (language, direction), fetched with the collection — empty
+    // when the collection was injected, leaving resolve_notes_locale to fall back on the id
+    private notes_resources:Record<string, GetResourcesItem> = {}
 
     constructor(opts:BibleContentOptions = {}) {
         this._collection = opts.collection ?? null
@@ -142,7 +152,9 @@ export class BibleContent {
         const stale = this.manifest_ttl_ms !== null
             && Date.now() - this.manifest_fetched > this.manifest_ttl_ms
         if (!this._collection || stale) {
-            this._collection = (await this.client.fetch_collection()).bibles
+            const fetched = await this.client.fetch_collection()
+            this._collection = fetched.bibles
+            this.notes_resources = fetched.notes.get_resources({object: true})
             this.manifest_fetched = Date.now()
         }
     }
@@ -331,7 +343,8 @@ export class BibleContent {
                             title_icon: item.title_icon},
                         titlepage_color_icon))
                 }
-                items.push(await this.gen_picture_story_item(blue, item, report_fetch))
+                items.push(await this.gen_picture_story_item(
+                    blue, item, primary_dir(blue, resources), report_fetch))
             }
         }
 
@@ -349,6 +362,12 @@ export class BibleContent {
             ? resolve_lang(resources[blue.bibles[1]]?.language)
             : null
         const lang2 = second_lang === lang ? null : second_lang
+        // Direction likewise, but taken from what fetch.bible declares rather than derived from
+        // the language code (see TypographyConfig.dir)
+        const dir = primary_dir(blue, resources)
+        const second_dir = blue.bibles[1] ? resources[blue.bibles[1]]?.direction ?? 'ltr' : null
+        const dir2 = second_dir === dir ? null : second_dir
+        const notes = blue.notes ? this.resolve_notes_locale(blue.notes) : null
 
         // Collect every resolved passage image's bytes into one asset map, keyed by the virtual
         // filename generated Typst source references (see gen_passage_image in content_passage.ts)
@@ -389,6 +408,10 @@ export class BibleContent {
                 footnote_size: `${footnote_size}pt`,
                 lang,
                 lang2,
+                dir,
+                dir2,
+                notes_lang: notes && notes.lang !== lang ? notes.lang : null,
+                notes_dir: notes && notes.dir !== dir ? notes.dir : null,
                 line_height: blue.line_height,
                 line_height2: blue.line_height2,
                 justify: blue.justify,
@@ -596,7 +619,8 @@ export class BibleContent {
     // image-side alternation are decided at generate time,
     // not here — see gen_picture_story in content_picture_story.ts
     private async gen_picture_story_item(
-        blue:Blueprint, story:ContentPictureStory, report_fetch?:(label:string) => void,
+        blue:Blueprint, story:ContentPictureStory, doc_dir:TextDir,
+        report_fetch?:(label:string) => void,
     ):Promise<TypstPictureStory> {
         const slides:TypstPictureStorySlide[] = []
         // Carried across slides (one array per translation, mutated in place by
@@ -637,7 +661,7 @@ export class BibleContent {
                         : escape_typst(text2)
                 }
             } else if (slide.mode === 'text') {
-                body = prose_to_typst(slide.doc)
+                body = prose_to_typst(slide.doc, false, doc_dir)
             }
 
             slides.push({image, body, body2})
@@ -685,13 +709,24 @@ export class BibleContent {
         }
     }
 
+    // A study-notes resource's Typst language and direction, from its fetch.bible metadata. An
+    // unlisted resource (an injected collection, or one since withdrawn) falls back on the
+    // language its id is prefixed with (`eng_tyndale`), read as LTR
+    private resolve_notes_locale(notes:string):{lang:string, dir:TextDir} {
+        const resource = this.notes_resources[notes]
+        return {
+            lang: resolve_lang(resource?.language ?? notes.split('_')[0]),
+            dir: resource?.direction ?? 'ltr',
+        }
+    }
+
     // Convert a custom (rich text) content item to its Typst equivalent
     private gen_custom_item(
         blue:Blueprint, custom:ContentCustom, resources:Record<string, GetResourcesItem>,
         share_url?:string,
     ):TypstCustomPage {
         // Blank lines are kept here (unlike a story slide) — a custom page lays out as written
-        let markup = prose_to_typst(custom.doc, true)
+        let markup = prose_to_typst(custom.doc, true, primary_dir(blue, resources))
 
         // Replace the AUTO-COPYRIGHT marker with the generated copyright block
         markup = replace_copyright_marker(markup, gen_copyright_typst(blue, resources, share_url))

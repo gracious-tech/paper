@@ -2,8 +2,9 @@
 import {escape_typst_str} from 'typst-utils'
 
 import {CHAPTER_HEADING_LEVEL, TITLE_ON_PAGE, parse_unit, to_pt} from './helpers.js'
+import {gen_locale_args} from './lang.js'
 
-import type {TypstRequest} from './types.js'
+import type {TextDir, TypstRequest, TypographyConfig} from './types.js'
 
 
 // Size of the running page number / heading, relative to the body text. An em (not a fixed
@@ -121,6 +122,20 @@ export interface PreambleOverrides {
 }
 
 
+// A grid row whose cells sit left to right on the page whatever the text direction. Typst lays
+// grid columns out in the text direction, which would mirror page furniture whose sides are
+// physical (a recto's number on the right edge, a facing document's verso half on the left), so
+// RTL text gets the cells pre-reversed. The page slots always carry the document's own direction
+export function gen_physical_row(
+    dir:TextDir, columns:string[], cells:string[], options:string,
+):string {
+    const order = (list:string[]) => dir === 'rtl' ? [...list].reverse() : list
+    return `grid(columns: (${order(columns).join(', ')}), ${options},
+            ${order(cells).join(',\n            ')},
+        )`
+}
+
+
 // Build the combined page-number + running-heading row (a 3-cell left/center/right grid, the
 // standard running-head layout) shown in whichever page slot (header/footer) the blueprint
 // chose. Returns 'none' when neither feature is on. The returned expression must be evaluated
@@ -157,11 +172,11 @@ function gen_page_furniture_row(request:TypstRequest, seed:RunningSeed):string {
             else { calc.odd(counter(page).at(here()).first()) }
         let outer_cell = align(if recto { right } else { left }, ${outer})
         let center_cell = align(center, ${center})
-        let row = grid(columns: (1fr, 1fr, 1fr), align: horizon,
-            if recto { none } else { outer_cell },
-            center_cell,
-            if recto { outer_cell } else { none },
-        )
+        let row = ${gen_physical_row(request.typography.dir, ['1fr', '1fr', '1fr'], [
+            'if recto { none } else { outer_cell }',
+            'center_cell',
+            'if recto { outer_cell } else { none }',
+        ], 'align: horizon')}
         ${gen_title_page_gate(has_title, 'row')}
     }`
 }
@@ -277,12 +292,40 @@ const FOOTNOTE_SEPARATOR_SHARE = '30%'
 // The rule drawn above the footnote area. A bare percentage resolves against the whole footnote
 // area, which on a facing document is the full double-width page — so the rule would come out
 // twice as long as intended, running most of the way to the centre cut. Resolve it against one
-// half's measure there instead, so it reads the same on the finished page as anywhere else
-function gen_footnote_separator(width:string|undefined):string {
+// half's measure there instead, so it reads the same on the finished page as anywhere else.
+// The rule starts from the document's side unless study notes run the other way — they replace
+// translator footnotes whenever they're on, so then every entry under the rule is one of theirs
+function gen_footnote_separator(width:string|undefined, notes_dir:TextDir|null):string {
     const length = width === undefined
         ? FOOTNOTE_SEPARATOR_SHARE
         : `${FOOTNOTE_SEPARATOR_SHARE} * (${width})`
-    return `#set footnote.entry(separator: line(length: ${length}, stroke: 0.2mm + rgb("#000")))`
+    const rule = `line(length: ${length}, stroke: 0.2mm + rgb("#000"))`
+    const separator = notes_dir ? `align(${notes_dir === 'rtl' ? 'right' : 'left'}, ${rule})` : rule
+    return `#set footnote.entry(separator: ${separator})`
+}
+
+
+// Label #studynote attaches to its footnote, so the footnote area can tell study notes apart
+const STUDYNOTE_LABEL = 'pb-studynote'
+
+
+// Give study notes their own language and direction where they differ from the document's (see
+// TypographyConfig.notes_lang). It has to be a footnote.entry rule in the preamble: an entry is
+// laid out with the page's styles, so a set rule where the note is called, or inside its body,
+// would leave the entry's paragraph running the document's way. Translator footnotes are in the
+// translation's own language, so they're left alone
+function gen_notes_locale(typography:TypographyConfig):string {
+    const args = gen_locale_args(typography.notes_lang, typography.notes_dir)
+    if (!args) {
+        return ''
+    }
+    const is_studynote = `it.note.at("label", default: none) == <${STUDYNOTE_LABEL}>`
+    return `#show footnote.entry: it => if ${is_studynote} {
+    set text(${args.slice(2)})
+    it
+} else {
+    it
+}`
 }
 
 
@@ -295,6 +338,20 @@ function gen_footnote_entry_width(width:string|undefined):string {
         return ''
     }
     return `#show footnote.entry: it => box(width: ${width}, it)`
+}
+
+
+// Indent from the start edge of the text: the left in LTR text, the right in RTL. pad() only
+// takes physical sides, so the side is fixed here when every translation shares one direction,
+// and read from context only when a second translation's differs (its text scopes set their own
+// dir, so the same poetry/list binding has to serve both)
+function gen_pad_start(typography:TypographyConfig):string {
+    if (typography.dir2 === null) {
+        const side = typography.dir === 'rtl' ? 'right' : 'left'
+        return `#let pad_start(amount, c) = pad(${side}: amount, c)`
+    }
+    return '#let pad_start(amount, c) = context pad('
+        + '..if text.dir == rtl { (right: amount) } else { (left: amount) }, c)'
 }
 
 
@@ -379,10 +436,11 @@ export function gen_preamble(request:TypstRequest, overrides:PreambleOverrides =
     } else if (features.show_chapters_style === 'divider') {
         chapter = `${gen_ch_divider(leading)}\n${gen_ch_divider_binding('ch', running.chapter)}`
     } else if (features.show_chapters_style === 'float') {
-        // Large numeral placed in the page's left margin, right-edge-aligned to the text (not
-        // wrapped by it — Typst has no CSS-style float/text-wrap-around-a-shape, so reserving
-        // exact line-space beside the numeral would need measuring the paragraph itself, which
-        // #ch(n) doesn't have access to; it's just a marker inline in already-fetched markup).
+        // Large numeral placed in the margin at the start of the line (the left margin, or the
+        // right in RTL text), its inner edge aligned to the text (not wrapped by it — Typst has
+        // no CSS-style float/text-wrap-around-a-shape, so reserving exact line-space beside the
+        // numeral would need measuring the paragraph itself, which #ch(n) doesn't have access
+        // to; it's just a marker inline in already-fetched markup).
         // The size is one value for the whole document, fitted to the margin and the longest
         // chapter number the document reaches (see float_chapter_size).
         //
@@ -410,8 +468,12 @@ export function gen_preamble(request:TypstRequest, overrides:PreambleOverrides =
     context {
         let num = text(size: ${num_size}em, weight: "bold",
             top-edge: "bounds", bottom-edge: "bounds", str(n))
-        block(below: 0pt, height: 0pt, sticky: true,
-            place(top + left, dx: -(measure(num).width + ${FLOAT_CHAPTER_GAP}em), num))
+        let offset = measure(num).width + ${FLOAT_CHAPTER_GAP}em
+        block(below: 0pt, height: 0pt, sticky: true, if text.dir == rtl {
+            place(top + right, dx: offset, num)
+        } else {
+            place(top + left, dx: -offset, num)
+        })
     }
     state("ch-float-open", false).update(true)
 }`
@@ -505,8 +567,8 @@ export function gen_preamble(request:TypstRequest, overrides:PreambleOverrides =
     header-ascent: 40%,
     footer-descent: 40%,
 )
-#set text(font: (${fonts}), size: ${typography.font_size}, lang: "${typography.lang}", hyphenate: ${
-        typography.hyphenate}${
+#set text(font: (${fonts}), size: ${typography.font_size}, lang: "${typography.lang}", dir: ${
+        typography.dir}, hyphenate: ${typography.hyphenate}${
         typography.text_color ? `, fill: rgb("${typography.text_color}")` : ''})
 // Widow/orphan/runt/hyphenation break penalties pinned to Typst's current defaults so a
 // version bump can't silently repaginate every document. Deliberately not raised: print-Bible
@@ -562,7 +624,8 @@ export function gen_preamble(request:TypstRequest, overrides:PreambleOverrides =
 // the first piece of content on the page is accepted and then silently ignored.
 // Both translator footnotes and study notes land here (study notes are footnotes with a blank
 // mark — see studynote below), so one size covers Blueprint.footnote_size for both
-${gen_footnote_separator(overrides.footnote_entry_width)}
+${gen_footnote_separator(overrides.footnote_entry_width, typography.notes_dir)}
+${gen_notes_locale(typography)}
 #show footnote.entry: set text(size: ${typography.footnote_size})
 ${gen_footnote_entry_width(overrides.footnote_entry_width)}
 
@@ -577,33 +640,34 @@ ${wj}
 // q_base/qm_base take a base offset that drops every level by that many steps; a
 // mainly-poetry book re-binds q/qm to pass base: 1 (see gen_passage_inner) so a
 // first-level line sits flush at the margin instead of always indented
-#let q_base(n, c, base: 0) = pad(
-    left: 1em * calc.max(n - base, 0),
+${gen_pad_start(typography)}
+#let q_base(n, c, base: 0) = pad_start(
+    1em * calc.max(n - base, 0),
     par(hanging-indent: 2em, c),
 )
 // Embedded poetry — one step deeper than the equivalent q level so it stays distinct
-#let qm_base(n, c, base: 0) = pad(
-    left: 1em * calc.max(n + 1 - base, 0),
+#let qm_base(n, c, base: 0) = pad_start(
+    1em * calc.max(n + 1 - base, 0),
     par(hanging-indent: 2em, c),
 )
 #let q(n, c, ..rest) = q_base(n, c)
 #let qm(n, c, ..rest) = qm_base(n, c)
 // List entry (USFM \li) — same 1em grid as poetry: one step per level, and a wrapped
 // line hangs two steps so it can't be mistaken for a deeper-level item
-#let li(n, c, ..rest) = pad(
-    left: 1em * n,
+#let li(n, c, ..rest) = pad_start(
+    1em * n,
     par(hanging-indent: 2em, c),
 )
 // Embedded list entry — one step deeper than the equivalent li level
-#let lim(n, c, ..rest) = pad(
-    left: 1em * (n + 1),
+#let lim(n, c, ..rest) = pad_start(
+    1em * (n + 1),
     par(hanging-indent: 2em, c),
 )
 // Stanza break (USFM \b) — a deliberate blank line between poetry stanzas
 #let b(..rest) = v(1em)
 // Non-leveled wrapped paragraphs
 #let qc(c, ..rest) = align(center, c)
-#let qr(c, ..rest) = align(right, c)
+#let qr(c, ..rest) = align(end, c)
 // Poetic descriptor (USFM \qd) — a rare Hebrew musical postscript; just italicise it
 // like the other paratextual notes (\qs etc.), no bespoke indent for now
 #let qd(c, ..rest) = emph(c)
@@ -628,6 +692,7 @@ ${wj}
 // Study note footnote — hidden in-text marker and entry mark (verse numbers are the reference).
 // Defined here (global scope) so it keeps working even when a passage scope later shadows
 // #footnote to disable regular translator footnotes — closures capture this binding, not that one.
-#let studynote(body) = footnote(numbering: n => [], body)
+// Labelled so the footnote area can give study notes a language of their own (gen_notes_locale)
+#let studynote(body) = [#footnote(numbering: n => [], body)<${STUDYNOTE_LABEL}>]
 
 `.trim()}

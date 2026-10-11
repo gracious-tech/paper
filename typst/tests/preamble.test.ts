@@ -92,6 +92,51 @@ describe('gen_preamble', () => {
         expect(result).toContain('lang: "vi"')
     })
 
+    it('sets the text direction explicitly rather than leaving Typst to infer it from lang', () => {
+        // Typst only infers RTL for a few ISO 639-1 codes, so e.g. Ancient Hebrew (hbo) would
+        // otherwise be laid out LTR with its verse numbers on the wrong side
+        const rtl = gen_preamble(make_request({
+            typography: {...TEST_TYPOGRAPHY, lang: 'hbo', dir: 'rtl'},
+        }))
+        expect(rtl).toContain('lang: "hbo", dir: rtl')
+        expect(gen_preamble(make_request())).toContain('lang: "en", dir: ltr')
+    })
+
+    it('gives study notes their own locale only where it differs from the document', () => {
+        expect(gen_preamble(make_request())).not.toContain('pb-studynote> {')
+        const result = gen_preamble(make_request({
+            typography: {...TEST_TYPOGRAPHY, lang: 'he', dir: 'rtl', notes_lang: 'en',
+                notes_dir: 'ltr'},
+        }))
+        // Picked out by the label #studynote attaches, so translator footnotes are untouched
+        expect(result).toContain('#let studynote(body) = [#footnote(numbering: n => [], body)'
+            + '<pb-studynote>]')
+        expect(result).toContain('== <pb-studynote> {\n    set text(lang: "en", dir: ltr)')
+        // The rule above the notes starts from their side, not the document's
+        expect(result).toContain('separator: align(left, line(')
+    })
+
+    it('indents poetry and lists from the start edge of the text', () => {
+        // Fixed side when every translation shares one direction
+        expect(gen_preamble(make_request()))
+            .toContain('#let pad_start(amount, c) = pad(left: amount, c)')
+        expect(gen_preamble(make_request({typography: {...TEST_TYPOGRAPHY, dir: 'rtl'}})))
+            .toContain('#let pad_start(amount, c) = pad(right: amount, c)')
+
+        // Read from context when a second translation runs the other way
+        const mixed = gen_preamble(make_request({
+            typography: {...TEST_TYPOGRAPHY, dir: 'rtl', dir2: 'ltr'},
+        }))
+        expect(mixed).toContain('context pad(..if text.dir == rtl')
+
+        // Every indenting binding goes through it, and right-aligned lines follow the end edge
+        const result = gen_preamble(make_request())
+        for (const binding of ['q_base', 'qm_base', 'li', 'lim']) {
+            expect(result).toMatch(new RegExp(`#let ${binding}\\([^)]*\\) = pad_start\\(`))
+        }
+        expect(result).toContain('#let qr(c, ..rest) = align(end, c)')
+    })
+
     it('includes first-line-indent', () => {
         const result = gen_preamble(make_request())
         expect(result).toContain('first-line-indent')
@@ -113,6 +158,18 @@ describe('gen_preamble', () => {
     it('includes page footer when running_pages is true', () => {
         const result = gen_preamble(make_request({running_pages: true}))
         expect(result).toContain('counter(page).display()')
+    })
+
+    it('keeps the page number on the outer edge in RTL text', () => {
+        // Typst lays grid columns out in the text direction, so RTL text needs the cells
+        // reversed for the outer cell to still land on the page's physical outer edge
+        const cell_order = (dir:'ltr'|'rtl') => {
+            const result = gen_preamble(make_request({running_pages: true,
+                typography: {...TEST_TYPOGRAPHY, dir}}))
+            return result.indexOf('if recto { none }') < result.indexOf('if recto { outer_cell }')
+        }
+        expect(cell_order('ltr')).toBe(true)
+        expect(cell_order('rtl')).toBe(false)
     })
 
     it('sets footer to none when running_pages and running_headings are both false', () => {
@@ -201,6 +258,9 @@ describe('gen_preamble', () => {
             // The zero-height block sticks to the text it opens, so a break right after it can't
             // strand the numeral at the foot of the previous page
             expect(result).toContain('block(below: 0pt, height: 0pt, sticky: true,')
+            // Hangs in whichever margin the line starts from
+            expect(result).toContain('place(top + left, dx: -offset, num)')
+            expect(result).toContain('place(top + right, dx: offset, num)')
         })
 
         it('steps the float numeral down as the chapter number gets longer', () => {

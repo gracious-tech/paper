@@ -10,7 +10,7 @@ import {report_error} from '@/services/errors'
 import {ApiOfflineError, ApiSessionError} from '@/services/api'
 
 import type {PmDoc} from 'paper-bible-typst'
-import type {Blueprint, Version} from '@/services/types'
+import type {Blueprint, TextDir, Version} from '@/services/types'
 import type {WizardStep} from '@/services/new_design'
 
 
@@ -254,6 +254,13 @@ export const requires_copyright = computed(() => {
     return collect_passage_books(blue.content).length > 0
         && blue.bibles.some(item =>
             !content.translations[item]?.licenses.find(l => !l.restrictions.forbid_attributionless))
+})
+
+
+// The open design's text direction: its primary translation's, as fetch.bible declares it — what
+// custom text inherits when it has no letters of its own to go by (see resolve_prose_dir)
+export const doc_dir = computed(():TextDir => {
+    return content.translations[blue.bibles[0] ?? '']?.direction ?? 'ltr'
 })
 
 

@@ -2,6 +2,7 @@
 import {escape_typst_str} from 'typst-utils'
 
 import {escape_typst, escape_svg_for_typst, parse_unit, to_mm} from './helpers.js'
+import {gen_detected_dir_arg} from './lang.js'
 
 import type {PageConfig, TypstTitlePage} from './types.js'
 
@@ -64,13 +65,14 @@ export function gen_title(
     // line, so the title and (smaller) subtitle each get the same 1.4x spacing
     const title_leading = '1.4em'
 
-    // A styled text run — title and subtitle differ only in size
+    // A styled text run — title and subtitle differ only in size. Each reads in the direction of
+    // its own text, so a Hebrew title over an English subtitle lays out right in both
     const text_run = (size:string, body:string):string[] => [
         `#text(`,
         `    font: "${font_escaped}",`,
         `    weight: 700,`,
         `    size: ${size}pt,`,
-        `    fill: rgb("${color_text}"),`,
+        `    fill: rgb("${color_text}")${gen_detected_dir_arg(body)},`,
         `)[${escape_typst(body)}]`,
     ]
 

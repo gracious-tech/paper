@@ -71,7 +71,7 @@ export {is_fetchable_image_url, MAX_IMAGE_BYTES} from './image_cache.js'
 
 // Custom-page prose helpers (ProseMirror → Typst + the auto-copyright marker)
 export {prose_to_typst, prose_to_text, doc_has_copyright, replace_copyright_marker,
-    COPYRIGHT_MARKER} from './prose.js'
+    resolve_prose_dir, COPYRIGHT_MARKER} from './prose.js'
 export type {PmDoc} from 'pm-to-typst'
 
 // Copyright/attribution statement builder — shared by the interior compile (bible_content) and
@@ -111,4 +111,5 @@ export type {
     PictureStorySlide,
     ImageStyle,
     MeasureUnit,
+    TextDir,
 } from './types.js'

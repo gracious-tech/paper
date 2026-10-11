@@ -16,6 +16,11 @@ export type ImageStyle = 'borderless'|'padded'|'painted'|'torn'
 export type MeasureUnit = 'mm'|'inch'
 
 
+// Text direction, as fetch.bible declares it per translation. Always set explicitly rather than
+// left to Typst, which infers it from `lang` — see TypographyConfig.dir
+export type TextDir = 'ltr'|'rtl'
+
+
 // Top-level request for generating a Typst document / PDF
 export interface TypstRequest {
     title:string
@@ -118,7 +123,20 @@ export interface TypographyConfig {
     // The second translation's own language, when it differs from `lang` (null = same, or no
     // second translation) — applied to just that translation's own text scopes
     lang2:string|null
-    line_height:number      // Literal multiplier of font_size (2 = double line height) — see
+    // Text direction of the primary translation. Never left to Typst's own inference from
+    // `lang`, which only knows a handful of ISO 639-1 codes: an unmapped code (e.g. `hbo`,
+    // Ancient Hebrew) silently lays out LTR, and `pa` is assumed RTL though fetch.bible's Punjabi
+    // is Gurmukhi
+    dir:TextDir
+    // The second translation's own direction, when it differs from `dir` (null = same, or no
+    // second translation) — applied alongside lang2 to that translation's own text scopes
+    dir2:TextDir|null
+    // Study notes' own language and direction, when they differ from the document's (null = same,
+    // or no study notes). Typst lays a footnote entry out with the page's styles rather than the
+    // styles where it was called, so these can only be applied by a preamble footnote.entry rule
+    notes_lang:string|null
+    notes_dir:TextDir|null
+    line_height:number     // Literal multiplier of font_size (2 = double line height) — see
                              // preamble.ts's leading calc for how this maps to Typst's `leading`
     // 2nd translation's own leading, as a multiplier of line_height (1 = match) — see
     // gen_multi_bible_grids in content_passage.ts for where this actually applies. Only

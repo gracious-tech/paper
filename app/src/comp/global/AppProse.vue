@@ -15,8 +15,8 @@ div(class='prose d-flex flex-column')
                     @click='btn.run')
                     component(:is='btn.icon' class='btn-icon')
 
-    //- The editable content area
-    editor-content(v-if='editor' :editor='editor' class='content flex-grow-1'
+    //- The editable content area, in the direction the text will print in (see dir below)
+    editor-content(v-if='editor' :editor='editor' :dir='dir' class='content flex-grow-1'
         @click='focus_empty_space')
 
 </template>
@@ -24,7 +24,7 @@ div(class='prose d-flex flex-column')
 
 <script lang='ts' setup>
 
-import {onBeforeUnmount, watch} from 'vue'
+import {computed, onBeforeUnmount, watch} from 'vue'
 import {useEditor, EditorContent} from '@tiptap/vue-3'
 import StarterKit from '@tiptap/starter-kit'
 import Subscript from '@tiptap/extension-subscript'
@@ -45,6 +45,10 @@ import format_align_right from '@material-symbols/svg-400/outlined/format_align_
 import horizontal_rule from '@material-symbols/svg-400/outlined/horizontal_rule.svg?component'
 import undo_icon from '@material-symbols/svg-400/outlined/undo.svg?component'
 import redo_icon from '@material-symbols/svg-400/outlined/redo.svg?component'
+
+import {resolve_prose_dir} from 'paper-bible-typst'
+
+import {doc_dir} from '@/services/state'
 
 import type {PmDoc} from 'paper-bible-typst'
 
@@ -70,6 +74,11 @@ const editor = useEditor({
         emit('update:modelValue', editor.value!.getJSON() as PmDoc)
     },
 })
+
+
+// The direction the text is laid out in as a whole, resolved the same way the PDF resolves it,
+// so a paragraph with no letters to go by sits on the same side here as it will in print
+const dir = computed(() => resolve_prose_dir(props.modelValue, doc_dir.value))
 
 
 // Sync external doc changes back into the editor (e.g. when cancel restores the original)
@@ -211,6 +220,13 @@ onBeforeUnmount(() => {
         //- The CSS reset strips list padding, which leaves the markers flush against the
         //- margin; the PDF indents the item body to about the paragraph indent
         ul, ol
-            padding-left: 1.5em
+            padding-inline-start: 1.5em
+
+    //- Each block takes the direction of its own first letter, like the PDF does (see
+    //- prose_to_typst) — plaintext is CSS's per-paragraph dir="auto", and start alignment then
+    //- follows it. An alignment the user picked is an inline style, so still wins
+    :deep(.ProseMirror) :is(p, h1, h2)
+        unicode-bidi: plaintext
+        text-align: start
 
 </style>

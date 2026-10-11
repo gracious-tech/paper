@@ -20,7 +20,8 @@ function make_resource(overrides:Partial<GetResourcesItem> = {}):GetResourcesIte
 
 // Track fetch_collection calls without any network (hoisted so the module mock can use it)
 const {fetch_collection} = vi.hoisted(() => {
-    return {fetch_collection: vi.fn(() => Promise.resolve({bibles: {fake: true}}))}
+    return {fetch_collection: vi.fn(() => Promise.resolve(
+        {bibles: {fake: true}, notes: {get_resources: () => ({})}}))}
 })
 
 // Replace FetchClient with a stub that returns a fake collection; keep everything else real

@@ -1,7 +1,7 @@
 
 import {describe, it, expect} from 'vitest'
 
-import {prose_to_typst, prose_to_text} from '../src/prose.js'
+import {prose_to_typst, prose_to_text, resolve_prose_dir} from '../src/prose.js'
 
 import type {PmDoc} from 'pm-to-typst'
 
@@ -50,6 +50,49 @@ describe('prose_to_typst', () => {
 
     it('returns empty markup for a missing doc', () => {
         expect(prose_to_typst(undefined, true)).toBe('')
+    })
+
+    it('leaves text running the document\'s way unscoped', () => {
+        expect(prose_to_typst(make_doc('English'), false, 'ltr')).toBe('English')
+        expect(prose_to_typst(make_doc('עברית'), false, 'rtl')).toBe('עברית')
+    })
+
+    it('gives a page in the other direction its own scope', () => {
+        // The digits-only paragraph has no letter to go by, so it follows the page
+        const result = prose_to_typst(make_doc('Introduction', '2026'), false, 'rtl')
+        expect(result).toBe('#[#set text(dir: ltr)\nIntroduction\n\n2026\n]')
+    })
+
+    it('scopes a single paragraph running against the page', () => {
+        const result = prose_to_typst(make_doc('Dedication', 'مقدمة', 'More'), false, 'ltr')
+        expect(result).toBe('Dedication\n\n#[#set text(dir: rtl)\nمقدمة\n]\n\nMore')
+    })
+
+    it('keeps a heading\'s marker at the start of its line', () => {
+        const doc:PmDoc = {type: 'doc', content: [
+            {type: 'paragraph', content: [{type: 'text', text: 'Text'}]},
+            {type: 'heading', attrs: {level: 1}, content: [{type: 'text', text: 'כותרת'}]},
+        ]}
+        expect(prose_to_typst(doc, false, 'ltr')).toContain('#set text(dir: rtl)\n= כותרת\n]')
+    })
+
+    it('spells out a left alignment the user chose for RTL text', () => {
+        // pm-to-typst drops 'left' as the default, which only holds in LTR text
+        const doc = (text:string):PmDoc => ({type: 'doc', content: [{type: 'paragraph',
+            attrs: {textAlign: 'left'}, content: [{type: 'text', text}]}]})
+        expect(prose_to_typst(doc('עברית'), false, 'rtl')).toBe('#align(left)[עברית]')
+        expect(prose_to_typst(doc('English'), false, 'ltr')).toBe('English')
+    })
+})
+
+
+describe('resolve_prose_dir', () => {
+
+    it('takes the first letter\'s direction, else the inherited one', () => {
+        expect(resolve_prose_dir(make_doc('English'), 'rtl')).toBe('ltr')
+        expect(resolve_prose_dir(make_doc('1.', 'עברית'), 'ltr')).toBe('rtl')
+        expect(resolve_prose_dir(make_doc('123'), 'rtl')).toBe('rtl')
+        expect(resolve_prose_dir(undefined, 'ltr')).toBe('ltr')
     })
 })
 

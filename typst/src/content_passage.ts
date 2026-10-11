@@ -4,6 +4,7 @@ import {escape_typst_str} from 'typst-utils'
 import {CHAPTER_HEADING_LEVEL, LARGE_POETRY, LOTS_OF_POETRY, SECTION_HEADING_LEVELS, TITLE_MARKER,
     escape_typst, escape_svg_for_typst, parse_unit} from './helpers.js'
 import {build_aligned_rows} from './bilingual.js'
+import {gen_detected_dir_arg} from './lang.js'
 
 import type {ImageStyle, PageConfig, TypstContentItem, TypstPassage, TypstPassageImage}
     from './types.js'
@@ -103,16 +104,18 @@ const PASSAGE_TITLE_BELOW = '2.8em'
 function gen_passage_title(
     title:string, subtitle:string|null, icon:string|null, page:PageConfig,
 ):string {
+    // Title and subtitle each read in the direction of their own text (a user-typed title needn't
+    // be in the translation's language)
     const lines = [
         'set par(leading: 1.4em, spacing: 0pt, justify: false)',
         'set text(hyphenate: false)',
-        `align(center, text(weight: "bold", size: ${PASSAGE_TITLE_SIZE},`
-            + ` [${escape_typst(title)}]))`,
+        `align(center, text(weight: "bold", size: ${PASSAGE_TITLE_SIZE}`
+            + `${gen_detected_dir_arg(title)}, [${escape_typst(title)}]))`,
     ]
     if (subtitle) {
         lines.push(`v(${PASSAGE_SUBTITLE_GAP})`)
-        lines.push(`align(center, text(size: ${PASSAGE_SUBTITLE_SIZE},`
-            + ` [${escape_typst(subtitle)}]))`)
+        lines.push(`align(center, text(size: ${PASSAGE_SUBTITLE_SIZE}`
+            + `${gen_detected_dir_arg(subtitle)}, [${escape_typst(subtitle)}]))`)
     }
     // Decorative icon under the heading, embedded as a recolored SVG. Assumed square, so it's
     // sized to the smaller of 80% of the trim width and 40% of its height (page.width/height
@@ -133,11 +136,12 @@ function gen_passage_title(
 // Generate Typst markup for a Bible passage content item. font_size is the document text size
 // (used to anchor heading sizes). font_text2/font_headings2/font_size2/font_fallbacks2 are only
 // used when a second translation is actually rendered side-by-side (grid layout with 2 bibles)
-// — see gen_multi_bible_grids
+// — see gen_multi_bible_grids. locale2 is the extra `text()` args giving that translation its
+// own language/direction ('' = inherit; see gen_locale_args)
 export function gen_passage(
     passage:TypstPassage, page:PageConfig, image_style:ImageStyle,
     font_size:string, font_text2:string, font_headings2:string, font_size2:string,
-    font_fallbacks2:string[], lang2:string|null, line_height:number, line_height2:number,
+    font_fallbacks2:string[], locale2:string, line_height:number, line_height2:number,
     chapter_style:ChapterStyle,
     poetry_outdent:boolean,
 ):string {
@@ -176,7 +180,7 @@ export function gen_passage(
 
     // Build the scoped block with passage-specific function definitions and show rules
     const inner = gen_passage_inner(passage, use_grid, font_size, font_text2, font_headings2,
-        font_size2, font_fallbacks2, lang2, line_height, line_height2, passage.column_gap,
+        font_size2, font_fallbacks2, locale2, line_height, line_height2, passage.column_gap,
         chapter_style, poetry_outdent)
 
     // Wrap in a scoped block so settings don't leak to other content
@@ -196,7 +200,7 @@ ${inner}
 export function gen_passage_facing(
     passage:TypstPassage, page:PageConfig, image_style:ImageStyle,
     font_size:string, font_text2:string, font_headings2:string, font_size2:string,
-    font_fallbacks2:string[], lang2:string|null, line_height:number, line_height2:number,
+    font_fallbacks2:string[], locale2:string, line_height:number, line_height2:number,
     gutter:string, poetry_outdent:boolean,
 ):string {
     const parts:string[] = []
@@ -229,7 +233,7 @@ export function gen_passage_facing(
     // so a full-width divider would be cut in two and the second half's margin numeral lands in
     // a real inside margin — both already correct without the columns-layout adjustment.
     const inner = gen_passage_inner(passage, true, font_size, font_text2, font_headings2,
-        font_size2, font_fallbacks2, lang2, line_height, line_height2, gutter,
+        font_size2, font_fallbacks2, locale2, line_height, line_height2, gutter,
         'none', poetry_outdent)
     parts.push(`#[
 ${inner}
@@ -264,7 +268,7 @@ export function passage_columns(passage:TypstPassage):1|2 {
 function gen_passage_inner(
     passage:TypstPassage, use_grid:boolean,
     font_size:string, font_text2:string, font_headings2:string, font_size2:string,
-    font_fallbacks2:string[], lang2:string|null, line_height:number, line_height2:number,
+    font_fallbacks2:string[], locale2:string, line_height:number, line_height2:number,
     gutter:string,
     chapter_style:ChapterStyle, poetry_outdent:boolean,
 ):string {
@@ -333,7 +337,7 @@ function gen_passage_inner(
 
     if (content === null) {
         lines.push(gen_multi_bible_grids(
-            passage, gutter, font_text2, font_headings2, font_size2, font_fallbacks2, lang2,
+            passage, gutter, font_text2, font_headings2, font_size2, font_fallbacks2, locale2,
             line_height, line_height2,
             chapter_style))
     } else {
@@ -506,7 +510,7 @@ function gen_footnote_rules(passage:TypstPassage):string {
 function gen_multi_bible_grids(
     passage:TypstPassage, gutter:string,
     font_text2:string, font_headings2:string, font_size2:string, font_fallbacks2:string[],
-    lang2:string|null, line_height:number, line_height2:number, chapter_style:ChapterStyle,
+    locale2:string, line_height:number, line_height2:number, chapter_style:ChapterStyle,
 ):string {
     const fonts2 = [font_text2, ...font_fallbacks2].map(f => `"${escape_typst_str(f)}"`).join(', ')
 
@@ -539,7 +543,7 @@ function gen_multi_bible_grids(
     // prelude (shadowing #footnote in an outer scope wouldn't reach markup evaluated here)
     const prelude2 = (opens_with_heading:boolean) => `${cell_open(opens_with_heading)}
 #let footnote(..args) = none
-#set text(font: (${fonts2}), size: ${font_size2}${lang2 ? `, lang: "${lang2}"` : ''})
+#set text(font: (${fonts2}), size: ${font_size2}${locale2})
 #set par(leading: ${leading2}, spacing: ${leading2})
 #show heading: set text(font: "${escape_typst_str(font_headings2)}")`
 
