@@ -88,8 +88,8 @@ import {useRouter} from 'vue-router'
 
 import DialogShareVersion from '@/comp/dialogs/DialogShareVersion.vue'
 import {use_is_mobile} from '@/services/display'
-import {state, show_toast, confirm_dialog, alert_dialog, run_with_retry} from '@/services/state'
-import {report_error} from '@/services/errors'
+import {state, show_toast, confirm_dialog, alert_dialog, run_with_retry, report_failure}
+    from '@/services/state'
 import {binding_page_issue} from '@/services/binding_advice'
 import {create_design_from_version, restore_version_into_design} from '@/services/designs'
 import {open_version_pdf, delete_version,
@@ -243,7 +243,7 @@ const retry_cover = async () => {
     try {
         await regenerate_cover(props.version)
     } catch (error){
-        report_error('banner', error)
+        report_failure(error, t("common.action_failed"))
     }
 }
 
@@ -306,7 +306,7 @@ const retry = async () => {
     try {
         await retry_version(props.version)
     } catch (error){
-        report_error('banner', error)
+        report_failure(error, t("common.action_failed"))
     }
 }
 

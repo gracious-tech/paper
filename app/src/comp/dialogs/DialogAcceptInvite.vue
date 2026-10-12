@@ -33,10 +33,9 @@ import {ref, watch} from 'vue'
 import {useRouter} from 'vue-router'
 import {useI18n} from '@/services/i18n'
 
-import {state, show_toast} from '@/services/state'
+import {state, report_failure} from '@/services/state'
 import {ApiError} from '@/services/api'
 import {fetch_design_invite_preview, redeem_design_share} from '@/services/designs'
-import {report_error} from '@/services/errors'
 
 
 const router = useRouter()
@@ -82,8 +81,7 @@ const accept = async () => {
         if (error instanceof ApiError && error.code === 'unknown_share'){
             failed.value = true
         } else {
-            show_toast(t("dialog.accept.failed"))
-            report_error('banner', error)
+            report_failure(error, t("dialog.accept.failed"))
         }
     } finally {
         accepting.value = false

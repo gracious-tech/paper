@@ -71,8 +71,8 @@ const start_ms = new Date().getTime()
 // Preserve time of last error report so can throttle them
 let last_error_report = 0  // i.e. 1970
 
-// Track whether showing error, to avoid showing multiple
-let fail_displayed:null|'banner'|'splash' = null
+// Track whether the failure splash is showing, to avoid showing it twice
+let splash_displayed = false
 
 // Getter for the current user's ID token, set via `set_error_auth()` once firebase is ready
 // (this module must stay import-first and dependency-free, so it can't import auth itself)
@@ -139,13 +139,13 @@ function make_element<K extends keyof HTMLElementTagNameMap>(tag:K, text = '')
 }
 
 
-function show_error_msg(type:'banner'|'splash', debug=''):void{
-    // Insert an error banner or splash into the DOM. Built element by element rather than from
-    // an HTML string: `debug` carries the error message, which can quote a shared design's
-    // content, and URL-encoding alone leaves quotes that could break out of an attribute
-    fail_displayed = type
+function show_error_splash(debug=''):void{
+    // Insert the failure splash into the DOM. Built element by element rather than from an HTML
+    // string: `debug` carries the error message, which can quote a shared design's content, and
+    // URL-encoding alone leaves quotes that could break out of an attribute
+    splash_displayed = true
     const container = make_element('div')
-    container.className = `fail-${type}`
+    container.className = 'fail-splash'
     const link = make_element('a', "Let us know")
     link.href = `https://gracious.tech/contact?desc=${encodeURIComponent(debug)}`
     link.target = '_blank'
@@ -162,7 +162,7 @@ function show_error_msg(type:'banner'|'splash', debug=''):void{
 function show_unsupported():void{
     // Show unsupported browser splash msg
     // NOTE This is only intended to work for modern-ish old browsers (ancient ones just ignore)
-    fail_displayed = 'splash'
+    splash_displayed = true
     document.body.insertAdjacentHTML('afterbegin', `
         <div class="fail-splash">
             <h1>Sorry, your browser is too old</h1>
@@ -181,10 +181,13 @@ export function set_error_auth(getter:() => Promise<string|null>):void{
 }
 
 
-export function report_error(type:'silent'|'banner'|'splash', error:unknown,
+export function report_error(type:'silent'|'splash', error:unknown,
         options:{force?:boolean, critical?:boolean, context?:Record<string, string|number>} = {})
         :string{
-    // Report an error, returning the report's id ('' if not reported)
+    // Report an error, returning the report's id ('' if not reported). Only 'splash' shows
+    // anything, for when the app can't run at all (it failed to boot). Every other failure is
+    // either told to the user where they acted (see report_failure() in state.ts) or reported
+    // silently, since an error on its own says nothing about whether the user was affected
 
     // Convert to a string if not already
     const error_str = error_to_string(error)
@@ -212,8 +215,9 @@ export function report_error(type:'silent'|'banner'|'splash', error:unknown,
         return ''
     }
 
-    // Visible failures mean the app is broken for the user, so they (and anything explicitly
-    // flagged, like a document that couldn't be generated) are critical
+    // Critical means the user saw a failure: the splash, or anything the caller flags (a failure
+    // message for something they did, the not-saving banner, a document that couldn't be
+    // generated)
     const severity = type !== 'silent' || options.critical ? 'critical' : 'error'
 
     // Send report (throttled)
@@ -224,12 +228,9 @@ export function report_error(type:'silent'|'banner'|'splash', error:unknown,
         last_error_report = now
     }
 
-    // Optionally show visual warning (debug string ends up in the support contact link)
-    const debug = `${self.location.hostname} error:${error_id}\n${error_str.slice(0, 300)}`
-    if (type === 'banner' && !fail_displayed){
-        show_error_msg('banner', debug)
-    } else if (type === 'splash' && fail_displayed !== 'splash'){
-        show_error_msg('splash', debug)
+    // Optionally show the failure splash (debug string ends up in the support contact link)
+    if (type === 'splash' && !splash_displayed){
+        show_error_splash(`${self.location.hostname} error:${error_id}\n${error_str.slice(0, 300)}`)
     }
 
     return error_id
@@ -237,13 +238,11 @@ export function report_error(type:'silent'|'banner'|'splash', error:unknown,
 
 
 export function vue_error_handler(error:unknown, instance:unknown, info:string){
-    // Vue will by default just log component errors, but many can actually be critical to UI
+    // Vue will by default just log component errors, so report them (silently, like any uncaught
+    // error — most leave the app working, and the ones that don't are found by triage)
     // NOTE Vue's warnHandler doesn't function during production so ignore it
     // NOTE Vue's info arg says what part of Vue the error occured in (e.g. render/hook/etc)
-    const details = `${error_to_string(error)}\n\n(Error in Vue ${info})`
-
-    // Show banner (also logs to console)
-    report_error('banner', details)
+    report_error('silent', `${error_to_string(error)}\n\n(Error in Vue ${info})`)
 }
 
 
@@ -288,7 +287,9 @@ export function error_to_string(error:unknown):string{
 
 
 addEventListener('error', (event:ErrorEvent):void => {
-    // Handle uncaught errors
+    // Report uncaught errors, silently: nothing was waiting on the code that threw, so whether
+    // the user was affected can't be known from here (and is usually not — a large share come
+    // from extensions, injected scripts and aborted requests)
 
     // Ignore the ResizeObserver loop notice (Vuetify's layout observers trigger it). It isn't an
     // exception, just the browser saying it deferred some resize notifications to the next frame
@@ -298,13 +299,13 @@ addEventListener('error', (event:ErrorEvent):void => {
     }
 
     const error:unknown = event.error ?? event.message ?? 'unknown'
-    report_error('banner', error)
+    report_error('silent', error)
 })
 
 
 addEventListener('unhandledrejection', event => {
-    // Report uncaught errors in promises
-    report_error('banner', event.reason)
+    // Report uncaught errors in promises (silently, as above)
+    report_error('silent', event.reason)
 })
 
 

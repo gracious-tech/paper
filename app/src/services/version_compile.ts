@@ -377,9 +377,12 @@ export async function compile_and_upload(job:VersionCompileJob):Promise<void>{
         if (current !== undefined && current !== 'pending'){
             return
         }
+        // Can't record the failure — the version stays pending until it reads as stuck, which
+        // offers the user a retry anyway (see version_stuck)
         await updateDoc(doc_ref, {status: 'failed', error: error_to_string(error), error_id})
             .catch((update_error:unknown) => {
-                report_error('banner', update_error)
+                report_error('silent', update_error,
+                    {context: {version_id: id, stage: 'compile_fallback_status'}})
             })
         await update_latest_summary(design_id, save_token, {'latest_version.status': 'failed'})
     } finally {
@@ -446,7 +449,9 @@ export async function regenerate_cover(version:Version):Promise<void>{
             cover_bytes, {contentType: 'application/pdf', contentDisposition: 'inline'})
         await updateDoc(doc_ref, {cover_status: 'available'})
     } catch (error){
-        report_error('banner', error, {context: {version_id: version.id, stage: 'cover_regen'}})
+        // The failed cover status is what tells the user (with its own retry)
+        report_error('silent', error,
+            {critical: true, context: {version_id: version.id, stage: 'cover_regen'}})
         await updateDoc(doc_ref, {cover_status: 'failed'}).catch(() => undefined)
     } finally {
         release_page()

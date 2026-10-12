@@ -100,8 +100,7 @@ import {versions, latest_version, version_expired, download_version_pdf,
     cover_failed as version_cover_failed, version_contact_url, version_retryable}
     from '@/services/versions'
 import {regenerate_version, regenerate_cover} from '@/services/version_compile'
-import {report_error} from '@/services/errors'
-import {state} from '@/services/state'
+import {state, report_failure} from '@/services/state'
 import {format_paper_size, format_service_label, format_pages_label, get_passages}
     from '@/services/blueprints'
 import {binding_page_issue} from '@/services/binding_advice'
@@ -209,7 +208,7 @@ const retry_cover = async () => {
     try {
         await regenerate_cover(latest_version.value)
     } catch (error){
-        report_error('banner', error)
+        report_failure(error, t("common.action_failed"))
     } finally {
         retrying_cover.value = false
     }

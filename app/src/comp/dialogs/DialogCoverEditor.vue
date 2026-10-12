@@ -21,7 +21,7 @@ import {ref, toRaw, watch} from 'vue'
 import {useI18n} from '@/services/i18n'
 
 import AppIcon from '@/comp/global/AppIcon.vue'
-import {blue, state, page_count_guess} from '@/services/state'
+import {blue, state, page_count_guess, report_failure} from '@/services/state'
 import {COVER_EDITOR_URL, COVER_EDITOR_ORIGIN, default_cover_preset, load_cover_bg,
     load_bg_suggestion, upload_cover_bg, hash_bytes, cover_font_families} from '@/services/cover'
 import {custom_fonts, add_design_fonts} from '@/services/custom_fonts'
@@ -39,7 +39,7 @@ import type {CoverBgSuggestion} from '@/services/asset_suggestions'
 import type {CoverConfig} from '@/services/types'
 
 
-const {locale} = useI18n()
+const {t, locale} = useI18n()
 
 
 // The widget iframe (only rendered while the overlay is open)
@@ -211,7 +211,7 @@ const handle_finished = async (
             request_reconcile(current_design_id.value)
         }
     } catch (error){
-        report_error('banner', error)
+        report_failure(error, t("dialog.cover.save_failed"))
     }
     state.cover_editor = false
 }

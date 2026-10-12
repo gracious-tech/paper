@@ -137,7 +137,8 @@ export function start_versions_sync(design_id:string):void{
             }))
         },
         error => {
-            report_error('banner', error, {context: {listener: 'version_list'}})
+            // Silent, as a stale list costs nothing until the next load
+            report_error('silent', error, {context: {listener: 'version_list'}})
         })
 }
 

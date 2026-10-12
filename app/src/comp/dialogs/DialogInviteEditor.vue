@@ -60,8 +60,8 @@ import {computed, ref, watch} from 'vue'
 import {designs, reset_design_share_token, remove_design_editor, fetch_design_editors_info}
     from '@/services/designs'
 import {user, is_anonymous} from '@/services/auth'
-import {state} from '@/services/state'
-import {report_error} from '@/services/errors'
+import {useI18n} from '@/services/i18n'
+import {state, report_failure} from '@/services/state'
 import {use_is_mobile} from '@/services/display'
 
 import type {DesignEditorInfo} from '@/services/types'
@@ -72,6 +72,7 @@ const emit = defineEmits<{(event:'update:modelValue', value:boolean):void}>()
 
 
 // Fullscreen on mobile (link controls + a growing access list)
+const {t} = useI18n()
 const is_mobile = use_is_mobile()
 
 
@@ -120,7 +121,7 @@ watch(() => props.modelValue, async open => {
     try {
         editors.value = await fetch_design_editors_info(props.id)
     } catch (error){
-        report_error('banner', error)
+        report_failure(error, t("dialog.invite.editors_failed"))
     } finally {
         loading_editors.value = false
     }
@@ -132,13 +133,16 @@ const reset_link = () => {
     void reset_design_share_token(props.id)
 }
 
-// Remove a single editor from a shared design (optimistic, since the list isn't live-synced)
+// Remove a single editor from a shared design (optimistic, since the list isn't live-synced,
+// so put back if the removal fails — they still have access)
 const kick_editor = async (uid:string) => {
+    const previous = editors.value
     editors.value = editors.value.filter(item => item.uid !== uid)
     try {
         await remove_design_editor(props.id, uid)
     } catch (error){
-        report_error('banner', error)
+        editors.value = previous
+        report_failure(error, t("dialog.invite.remove_failed"))
     }
 }
 

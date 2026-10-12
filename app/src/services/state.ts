@@ -93,9 +93,35 @@ export const state = reactive({
 })
 
 
+// Problems that stop the app doing its core job until they're fixed, shown as a persistent
+// banner in AppRoot. Errors are otherwise never shown as such: one the user caused is told to
+// them where they acted (report_failure()), and the rest are only reported, since whether an
+// error affected anyone can't be told from the error itself
+export const health = reactive({
+    // Edits to the open design aren't reaching Firestore: 'offline' while a write has gone
+    // unacknowledged for a while (Firestore keeps it queued and lands it on reconnect, but only
+    // while this tab stays open), 'failed' once a write was refused or the design's listener
+    // died (see designs.ts)
+    saving: null as null|'offline'|'failed',
+    // The in-browser Typst engine couldn't start, so nothing can be previewed or generated
+    engine_failed: false,
+})
+
+
 // Show a brief snackbar toast with the given message (auto-dismissed by AppRoot's v-snackbar)
 export function show_toast(message:string):void{
     state.toast = message
+}
+
+
+// Tell the user something they just did didn't happen, and report why. Reported as critical,
+// since unlike an uncaught error this one is known to have reached the user. Losing the
+// connection gets its own message (and isn't critical), as that's the one cause the user can do
+// something about
+export function report_failure(error:unknown, message:string):void{
+    const offline = error instanceof ApiOfflineError
+    report_error('silent', error, {critical: !offline})
+    show_toast(offline ? translate('common.offline') : message)
 }
 
 

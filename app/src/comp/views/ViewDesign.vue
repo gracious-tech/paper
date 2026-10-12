@@ -33,13 +33,12 @@ import TabEditor from './TabEditor.vue'
 import ViewDesignEditor from './ViewDesignEditor.vue'
 import ViewDesignSimple from './ViewDesignSimple.vue'
 import DesignVersionsList from './assets/DesignVersionsList.vue'
-import {state, show_toast} from '@/services/state'
+import {state, show_toast, report_failure} from '@/services/state'
 import {ApiError} from '@/services/api'
 import {designs, designs_loaded, current_design_id, open_design, design_wizard}
     from '@/services/designs'
 import {start_versions_sync, selected_version_id, latest_version, design_needs_editor,
     fetch_latest_version_id, copy_version_to_new_design} from '@/services/versions'
-import {report_error} from '@/services/errors'
 
 
 const route = useRoute()
@@ -163,7 +162,7 @@ const keep_copy = async () => {
         } else if (error instanceof ApiError && error.code === 'quota_exceeded'){
             show_toast(t("view.design.copy_limit"))
         } else {
-            report_error('banner', error)
+            report_failure(error, t("common.action_failed"))
         }
     } finally {
         keeping.value = false

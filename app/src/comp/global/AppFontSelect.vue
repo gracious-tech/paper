@@ -32,7 +32,7 @@ import {content} from '@/services/content'
 import {font_items, font_items_with_auto, DEFAULT_FONT_EXAMPLE} from '@/services/fonts'
 import {font_suggestions, adopt_font} from '@/services/asset_suggestions'
 import {current_design_id} from '@/services/designs'
-import {report_error} from '@/services/errors'
+import {report_failure} from '@/services/state'
 
 import AppIcon from '@/comp/global/AppIcon.vue'
 import DialogFontUpload from '@/comp/dialogs/DialogFontUpload.vue'
@@ -73,7 +73,7 @@ const on_select = async (value:string|null) => {
         await adopt_font(suggestion, current_design_id.value)
     } catch (error){
         model.value = previous
-        report_error('banner', error)
+        report_failure(error, t("common.font_add_failed"))
     } finally {
         copying.value = false
     }

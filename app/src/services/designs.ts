@@ -11,7 +11,7 @@ import {split_blueprint_doc, join_blueprint_doc, resolve_design_name, get_cover_
 import {firestore} from '@/services/firebase'
 import {api} from '@/services/api'
 import {user} from '@/services/auth'
-import {blue, state, estimated_pages, welcome_seen} from '@/services/state'
+import {blue, state, health, estimated_pages, welcome_seen} from '@/services/state'
 import {clean_blueprint, gen_content_name, content_preview, get_default_blueprint}
     from '@/services/blueprints'
 import {generate_token} from '@/services/utils'
@@ -30,6 +30,11 @@ import type {StoredFontMeta} from 'paper-bible-typst'
 
 // Debounce delay for saving design edits (long enough to batch bursts of typing/slider drags)
 const SAVE_DEBOUNCE_MS = 1500
+
+// How long a design write can go unacknowledged before the user is told they seem to be offline.
+// Firestore normally acknowledges within a second, and while disconnected it keeps the write
+// queued rather than failing it, so a long wait is the only sign that anything is wrong
+const SAVE_STALL_MS = 10000
 
 
 // Metadata for every design the user can access (own + shared with them), most recent first
@@ -299,13 +304,31 @@ export async function flush_changes():Promise<void>{
     // The doc now carries the current shape, so later flushes go back to field-level diffs
     const pre_flush_schema = synced_schema
     synced_schema = SCHEMA_VERSION
+
+    // Flag the write if it's taking long enough that the user is probably offline (a failure
+    // already flagged outranks it)
+    const stalled = setTimeout(() => {
+        if (!health.saving){
+            health.saving = 'offline'
+        }
+    }, SAVE_STALL_MS)
     try {
         const [first, ...rest] = updates as [[string|FieldPath, unknown], ...[string|FieldPath, unknown][]]
         await updateDoc(doc(firestore, 'designs', id), first[0], first[1], ...rest.flat())
+        // Writes are acknowledged in order, so this one landing means every earlier one has too
+        health.saving = null
     } catch (error){
         synced = pre_flush
         synced_schema = pre_flush_schema
-        report_error('banner', error)
+        // A refused write is usually lost access or an oversized doc, which retrying won't fix,
+        // so the user is told their edits aren't being kept. Unless the design has been closed
+        // meanwhile (e.g. a co-editor deleted it), in which case there's nothing left to save
+        if (current_design_id.value === id){
+            health.saving = 'failed'
+        }
+        report_error('silent', error, {critical: true, context: {stage: 'design_flush'}})
+    } finally {
+        clearTimeout(stalled)
     }
 }
 
@@ -379,6 +402,8 @@ export async function open_design(id:string):Promise<void>{
     // read while the other is null
     synced_schema = SCHEMA_VERSION
     current_design_id.value = id
+    // A save problem belonged to the design being left
+    health.saving = null
     design_wizard.simple_mode = false
     design_wizard.wizard_draft = null
     // Uploaded fonts belong to the design, so the previous one's go before this one's arrive
@@ -406,7 +431,7 @@ export async function open_design(id:string):Promise<void>{
             // that have gone, so a co-editor adding a font arrives here like any other change
             void load_design_fonts((data['fonts'] ?? {}) as Record<string, StoredFontMeta>)
                 .catch((error:unknown) => {
-                    report_error('banner', error)
+                    report_error('silent', error, {context: {stage: 'design_fonts'}})
                 })
 
             // First snapshot populates the whole blueprint; later ones merge field-by-field
@@ -424,7 +449,13 @@ export async function open_design(id:string):Promise<void>{
                 apply_remote(doc_to_blueprint(data))
             }
         }, error => {
-            report_error('banner', error, {context: {listener: 'design_doc'}})
+            // Once the design is open, a dead listener means co-editors' changes stop arriving,
+            // and since the cause is almost always lost access, this client's writes will be
+            // refused too. Before then, open_design() itself rejects and its caller handles it
+            if (synced && current_design_id.value === id){
+                health.saving = 'failed'
+            }
+            report_error('silent', error, {critical: true, context: {listener: 'design_doc'}})
             reject(error as Error)
         })
     })
@@ -445,6 +476,7 @@ function close_design():void{
     unsub_doc = null
     current_design_id.value = null
     synced = null
+    health.saving = null
     // Populated locally so watchers that dereference it stay safe. With no design open,
     // flush_changes() has nowhere to write it
     Object.assign(blue, get_default_blueprint())
@@ -767,7 +799,9 @@ export async function init_designs(open_id:string|null = null, welcome = true):P
         resolve_designs_loaded()
         resolve_first(snap)
     }, error => {
-        report_error('banner', error, {context: {listener: 'design_list'}})
+        // Silent, as the list going stale costs nothing until the next load. At boot, though,
+        // the rejection below fails the boot and shows the failure splash
+        report_error('silent', error, {context: {listener: 'design_list'}})
         // Surface to the awaiting boot too — otherwise it would wait on a first snapshot that
         // is never coming (resolve/reject after settling is a no-op, so this is safe to pair
         // with the resolve above)
@@ -816,6 +850,7 @@ export function stop_design_sync():void{
     // Leaves flush_changes() unable to write even if the blue watcher fires before the reload
     current_design_id.value = null
     synced = null
+    health.saving = null
     designs.splice(0, designs.length)
     viewed_designs.splice(0, viewed_designs.length)
 }
@@ -846,6 +881,6 @@ export function start_viewed_sync():void{
             }))
         },
         error => {
-            report_error('banner', error, {context: {listener: 'viewed_list'}})
+            report_error('silent', error, {context: {listener: 'viewed_list'}})
         })
 }

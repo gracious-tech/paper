@@ -27,10 +27,9 @@ import {computed, reactive, ref} from 'vue'
 import {cloneDeep} from 'lodash-es'
 import {useI18n} from '@/services/i18n'
 
-import {state} from '@/services/state'
+import {state, report_failure} from '@/services/state'
 import {design_wizard, current_design_id, apply_wizard_edit} from '@/services/designs'
 import {get_default_draft, is_wizard_step_valid} from '@/services/new_design'
-import {report_error} from '@/services/errors'
 import NewDesignBooks from '@/comp/dialogs/assets/NewDesignBooks.vue'
 import NewDesignStories from '@/comp/dialogs/assets/NewDesignStories.vue'
 import NewDesignBibles from '@/comp/dialogs/assets/NewDesignBibles.vue'
@@ -91,7 +90,7 @@ const done = async () => {
         await apply_wizard_edit(current_design_id.value!, draft)
         state.editor = null
     } catch (error){
-        report_error('banner', error)
+        report_failure(error, t("common.save_failed"))
     } finally {
         saving.value = false
     }

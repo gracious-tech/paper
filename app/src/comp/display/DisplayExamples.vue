@@ -27,8 +27,7 @@ import {useI18n} from '@/services/i18n'
 import {useRouter} from 'vue-router'
 
 import {EXAMPLE_DESIGNS, example_label, create_example_design} from '@/services/examples'
-import {report_error} from '@/services/errors'
-import {state} from '@/services/state'
+import {state, report_failure} from '@/services/state'
 
 
 // Example designs the empty preview pane offers — clicking one creates and opens a real design
@@ -67,7 +66,7 @@ const create = async (id:string) => {
         const design_id = await create_example_design(id, t)
         await router.push({name: 'design', params: {id: design_id}})
     } catch (error){
-        report_error('banner', error)
+        report_failure(error, t("common.create_design_failed"))
     } finally {
         creating.value = null
     }

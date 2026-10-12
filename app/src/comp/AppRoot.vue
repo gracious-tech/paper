@@ -43,6 +43,14 @@ v-app.app(v-else)
 
             AppNavbar(v-if='route.name !== "about" && route.name !== "privacy"')
 
+        //- Whatever is stopping the app doing its job until fixed (see `health` in state.ts).
+        //- flex-0-0 since v-alert grows by default, sharing v-main's height with the view
+        v-alert(v-if='health_problem' :type='health_problem.type' variant='tonal'
+                density='compact' rounded='0' class='health flex-0-0 text-body-medium')
+            | {{ health_problem.message }}
+            template(v-if='health_problem.reload' #append)
+                VBtn(@click='reload' variant='tonal' size='small') {{ $t("common.reload") }}
+
         router-view
 
 //- Not mounted at all on mobile (no room for it), rather than merely hidden, so nothing in it
@@ -102,7 +110,7 @@ import BrandIcon from '@/assets/icon.svg?component'
 // LEGACY Remove with app/src/legacy/ once old data no longer needs recovering
 import DialogLegacy from '@/legacy/DialogLegacy.vue'
 import {probe_legacy_data} from '@/legacy/legacy'
-import {state} from '@/services/state'
+import {state, health} from '@/services/state'
 import {is_anonymous, photo_url} from '@/services/auth'
 import {design_needs_editor} from '@/services/versions'
 import {init_coloris} from '@/services/coloris'
@@ -134,6 +142,29 @@ const show_photo = computed(() => {
 })
 
 
+// The problem to show in the health banner, if any. Edits not being saved outranks a missing
+// engine, since only the former loses the user's work. Going offline resolves itself on
+// reconnect, so only the others offer a reload
+const health_problem = computed(() => {
+    if (health.saving === 'failed'){
+        return {type: 'error' as const, message: t("app.save_failed"), reload: true}
+    }
+    if (health.saving === 'offline'){
+        return {type: 'warning' as const, message: t("app.save_offline"), reload: false}
+    }
+    if (health.engine_failed){
+        return {type: 'error' as const, message: t("app.engine_failed"), reload: true}
+    }
+    return null
+})
+
+
+// Reload the page, the fix for a problem the health banner reports
+const reload = () => {
+    self.location.reload()
+}
+
+
 // Whether the currently open design is showing its editor (vs. a rendered version) — mirrors
 // ViewDesign.vue's own show_editor condition so the sidebar preview matches the main panel
 const showing_editor = computed(() => {
@@ -160,6 +191,14 @@ const showing_editor = computed(() => {
         display: flex
         flex-direction: column
         height: 100%
+
+    // Centre the health banner's icon and Reload button on its text. Vuetify top-aligns them, and
+    // its grid gives the text a second row they don't span, so the grid is collapsed to one row
+    .health
+        grid-template-areas: "prepend content append close"
+
+        :deep(.v-alert__prepend), :deep(.v-alert__append)
+            align-self: center
 
     header
         background-color: rgb(var(--v-theme-primary))

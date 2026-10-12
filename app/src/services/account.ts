@@ -6,14 +6,13 @@
 
 import {onIdTokenChanged} from 'firebase/auth'
 
-import {prompt_dialog, show_toast} from '@/services/state'
+import {prompt_dialog, show_toast, report_failure} from '@/services/state'
 import {complete_email_link, sign_out} from '@/services/auth'
 import {firebase_auth} from '@/services/firebase'
 import {api} from '@/services/api'
 import {init_designs, start_viewed_sync, stop_design_sync, design_sync_uid}
     from '@/services/designs'
 import {stop_versions_sync} from '@/services/versions'
-import {report_error} from '@/services/errors'
 import {translate} from '@/services/i18n'
 
 
@@ -109,6 +108,6 @@ export async function finish_email_link(link:string):Promise<void>{
         // Either outcome needs this: the account resolved, or the guest's listeners are gone
         await reload_user_data(false)
     } catch (error){
-        report_error('banner', error)
+        report_failure(error, translate('app.sign_in_failed'))
     }
 }

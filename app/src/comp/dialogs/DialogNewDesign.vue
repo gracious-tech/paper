@@ -57,12 +57,11 @@ import {cloneDeep} from 'lodash-es'
 import {useI18n} from '@/services/i18n'
 import {useRouter} from 'vue-router'
 
-import {state, confirm_dialog} from '@/services/state'
+import {state, confirm_dialog, report_failure} from '@/services/state'
 import {create_design, design_wizard, apply_wizard_edit, current_design_id}
     from '@/services/designs'
 import {get_default_draft, build_new_blueprint, WIZARD_STEPS, is_wizard_step_valid,
     all_wizard_steps_valid} from '@/services/new_design'
-import {report_error} from '@/services/errors'
 import {use_is_mobile} from '@/services/display'
 import NewDesignType from '@/comp/dialogs/assets/NewDesignType.vue'
 import NewDesignBooks from '@/comp/dialogs/assets/NewDesignBooks.vue'
@@ -226,7 +225,8 @@ const finish = async () => {
             await router.push({name: 'design', params: {id}})
         }
     } catch (error){
-        report_error('banner', error)
+        report_failure(error, mode.value === 'edit' ? t("common.save_failed")
+            : t("common.create_design_failed"))
     } finally {
         creating.value = false
     }

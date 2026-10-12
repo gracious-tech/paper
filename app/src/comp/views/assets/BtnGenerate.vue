@@ -16,7 +16,8 @@ v-btn-group(rounded='pill' divided color='secondary-darken-1' variant='elevated'
 import {ref, computed, nextTick} from 'vue'
 import {useRouter} from 'vue-router'
 
-import {blue, print_service_warning_dialog} from '@/services/state'
+import {useI18n} from '@/services/i18n'
+import {blue, print_service_warning_dialog, report_failure} from '@/services/state'
 import {current_design_id, flush_changes} from '@/services/designs'
 import {selected_version_id, latest_version} from '@/services/versions'
 import {create_pending_version, compile_and_upload} from '@/services/version_compile'
@@ -27,10 +28,10 @@ import {typst_generator} from '@/services/typst'
 import {collect_passage_books, has_missing_books} from '@/services/blueprints'
 import {resolve_content_for_style} from '@/services/content_images'
 import {ensure_page_estimate} from '@/services/page_estimate'
-import {report_error} from '@/services/errors'
 
 
 const router = useRouter()
+const {t} = useI18n()
 
 
 // Whether a PDF is currently being compiled (disables the Build it button)
@@ -112,7 +113,7 @@ const generate = async () => {
         // compile_and_upload handles its own failures; this covers the steps before it (freeze,
         // asset snapshotting, navigation) so a throw there surfaces to the user instead of
         // silently leaving them on the editor with a half-created version
-        report_error('banner', error)
+        report_failure(error, t("view.design.build_failed"))
     } finally {
         release_page?.()
         generating.value = false

@@ -630,7 +630,15 @@ neither side knows about the other's setup process.
   **The bucket is only an inbox:** `audit_errors` deletes each report once its local copy in
   gitignored `errors/records/` is written and parses, so that directory (triage state
   included) is the *only* copy — back it up, and run the tool from one machine.
-  Critical failures show the report id in a gracious.tech/contact link
+  The boot splash and a failed version show the report id in a gracious.tech/contact link
+- **Errors are reported, not shown.** An error can't say whether it affected the user, so
+  uncaught errors (window, promise, Vue) are reported silently, and the user is told only
+  about things known to matter: a failed boot (`report_error('splash')`, the one thing
+  `errors.ts` still draws), something they just did failing (`report_failure()` in `state.ts`,
+  a toast naming what didn't happen), or the app being unable to do its job until fixed
+  (`health` in `state.ts`, a banner in `AppRoot.vue`: the open design's writes stalled or
+  refused — tracked in `flush_changes()` — or the Typst engine failing to start). Severity
+  `critical` means the user saw one of these, which is what triage weighs it by
 - **Every report carries the `build` it came from** (short commit hash, `-dirty` if the tree
   was; `BUILD_COMMIT` from `vite.config.mts` for the browser, baked into the Lambda image by
   `.bin/build_server_lambda` for the server). An issue marked fixed/diagnosing is pinned to a

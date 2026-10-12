@@ -98,9 +98,8 @@ import {selected_version, get_pdf_url, get_cover_pdf_url, download_version_pdf,
     from '@/services/versions'
 import {regenerate_version, retry_version} from '@/services/version_compile'
 import {designs, current_design_id} from '@/services/designs'
-import {state} from '@/services/state'
+import {state, report_failure} from '@/services/state'
 import {lulu_pod_package_id} from '@/services/print_cost'
-import {report_error} from '@/services/errors'
 import {version_progress, stage_text} from '@/services/compile_progress'
 import AnimatedBook from '../reuseable/AnimatedBook.vue'
 
@@ -266,7 +265,7 @@ const retry = async () => {
     try {
         await retry_version(selected_version.value)
     } catch (error){
-        report_error('banner', error)
+        report_failure(error, t("common.action_failed"))
     } finally {
         retrying.value = false
     }

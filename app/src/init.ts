@@ -34,7 +34,7 @@ import AppOptionToggle from './comp/global/AppOptionToggle.vue'
 import AppRoot from './comp/AppRoot.vue'
 import locales_meta from './locales.json'
 import {i18n, load_locale, translate} from '@/services/i18n'
-import {show_toast} from '@/services/state'
+import {show_toast, report_failure, health} from '@/services/state'
 import {detect_locale} from '@/services/locale'
 import {router} from '@/services/router'
 import {ensure_signed_in, is_email_link, stored_email_for_link, complete_email_link}
@@ -135,7 +135,8 @@ app.use(createVuetify({
 }))
 
 
-// Wait for critical services before mounting
+// Wait for critical services before mounting. Anything that fails here leaves the app unable to
+// start, so it shows the failure splash (nothing else would replace the loading spinner)
 void (async () => {
 
     // Sign in (anonymously if no persisted user) and init the Bible-content layer in parallel
@@ -162,7 +163,7 @@ void (async () => {
     const link_email = sign_in_link ? stored_email_for_link() : null
     const email_link = sign_in_link && link_email
         ? await complete_email_link(sign_in_link, link_email).catch((error:unknown) => {
-            report_error('banner', error)
+            report_failure(error, translate('app.sign_in_failed'))
             return null
         })
         : null
@@ -187,13 +188,19 @@ void (async () => {
         // upload, and this covers any uploads that happened before the worker was ready
         await typst_client.set_custom_fonts(custom_fonts)
     }).catch((error:unknown) => {
-        report_error('banner', error)
+        // Without the engine nothing can be previewed or generated, so it's flagged to the user
+        // (unless it started and only re-sending the uploaded fonts failed)
+        if (!typst_generator.value){
+            health.engine_failed = true
+        }
+        report_error('silent', error, {critical: true, context: {stage: 'typst_init'}})
     })
 
-    // Load the curated font manifest for the style picker (see OptionsStyle.vue)
+    // Load the curated font manifest for the style picker (see OptionsStyle.vue). Failing only
+    // leaves the picker short of fonts, so it's reported but not shown
     void load_fonts(`${ASSETS_PREFIX}fonts/`)
         .catch((error:unknown) => {
-            report_error('banner', error)
+            report_error('silent', error, {context: {stage: 'load_fonts'}})
         })
 
     // Load the user's designs and open whichever one the boot URL names (if any and if
@@ -232,4 +239,6 @@ void (async () => {
     } else {
         setTimeout(prefetch, 3000)
     }
-})()
+})().catch((error:unknown) => {
+    report_error('splash', error)
+})

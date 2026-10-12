@@ -52,8 +52,7 @@ import {ref, computed, watch} from 'vue'
 
 import {user, is_anonymous, link_google, send_email_link, sign_out} from '@/services/auth'
 import {release_user_data, reload_user_data, delete_account} from '@/services/account'
-import {report_error} from '@/services/errors'
-import {show_toast, prompt_dialog, confirm_dialog} from '@/services/state'
+import {show_toast, report_failure, prompt_dialog, confirm_dialog} from '@/services/state'
 import {generating_here} from '@/services/compile_progress'
 import {router} from '@/services/router'
 import {useI18n} from '@/services/i18n'
@@ -93,7 +92,7 @@ const run_busy = async (action:() => Promise<void>) => {
     try {
         await action()
     } catch (error){
-        report_error('banner', error)
+        report_failure(error, t("common.action_failed"))
     } finally {
         busy.value = false
     }
@@ -129,7 +128,7 @@ const google = async () => {
         }
         close()
     } catch (error){
-        report_error('banner', error)
+        report_failure(error, t("app.sign_in_failed"))
     } finally {
         busy.value = false
     }
