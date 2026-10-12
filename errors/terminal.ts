@@ -24,6 +24,34 @@ export interface Terminal {
 }
 
 
+// Widest an output line gets before wrapping (less if the terminal itself is narrower)
+const MAX_WIDTH = 100
+
+
+export function print_wrapped(text:string, indent:number):void{
+    // Print text word-wrapped to the output width, with every line after the first indented by
+    // `indent` so a wrapped entry reads as one item. A word longer than a line is left whole
+    const width = Math.min(MAX_WIDTH, process.stdout.columns || MAX_WIDTH)
+    const pad = ' '.repeat(indent)
+    const lines:string[] = []
+    for (const paragraph of text.split('\n')){
+        // The first line keeps its own leading space (part of the caller's layout)
+        let line = lines.length ? pad
+            : paragraph.slice(0, paragraph.length - paragraph.trimStart().length)
+        // Each word carries its trailing spaces, so column padding within a line survives
+        for (const word of paragraph.trimStart().match(/\S+ */g) ?? []){
+            if (line.trim() && line.length + word.trimEnd().length > width){
+                lines.push(line.trimEnd())
+                line = pad
+            }
+            line += word
+        }
+        lines.push(line.trimEnd())
+    }
+    console.log(lines.join('\n'))
+}
+
+
 export function make_terminal():Terminal{
     // Set up the buffered prompt over stdin/stdout
     const rl = createInterface({input: process.stdin, output: process.stdout})

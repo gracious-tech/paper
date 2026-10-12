@@ -5,7 +5,7 @@ import {isAbsolute, relative} from 'node:path'
 
 import {head_commit, tracked_changes, untracked_files, diff_stat} from './git.ts'
 import {issue_prompt, write_prompt, update_triage} from './store.ts'
-import {run_attached, with_terminal_handed_off} from './terminal.ts'
+import {print_wrapped, run_attached, with_terminal_handed_off} from './terminal.ts'
 
 import type {IssueView} from './store.ts'
 import type {Terminal} from './terminal.ts'
@@ -149,7 +149,7 @@ async function run_fixer(term:Terminal, prompt:string):Promise<FixResult>{
                     if (block.type === 'tool_use' && block.name !== 'StructuredOutput'){
                         console.log(`  · ${describe_tool(block.name ?? '?', block.input ?? {})}`)
                     } else if (block.type === 'text' && block.text?.trim()){
-                        console.log(`  ${block.text.trim().split('\n')[0]!.slice(0, 120)}`)
+                        print_wrapped(`  ${block.text.trim().split('\n')[0]!}`, 4)
                     }
                 }
             }
@@ -174,9 +174,9 @@ function print_review(result:FixResult, new_files:string[]):void{
     // Show the fixer's verdict and what it changed
     console.log('')
     console.log(`Verdict: ${result.verdict.toUpperCase()}`)
-    console.log(result.summary)
+    print_wrapped(result.summary, 0)
     if (result.verification){
-        console.log(`Verification: ${result.verification}`)
+        print_wrapped(`Verification: ${result.verification}`, 4)
     }
     const cost = result.cost_usd === null ? '' : `$${result.cost_usd.toFixed(2)}`
     const denied = result.denials ? `, ${result.denials} tool call(s) denied` : ''
@@ -187,11 +187,11 @@ function print_review(result:FixResult, new_files:string[]):void{
     const stat = diff_stat()
     console.log(stat || 'No changes to tracked files')
     if (new_files.length){
-        console.log(`New files: ${new_files.join(', ')}`)
+        print_wrapped(`New files: ${new_files.join(', ')}`, 4)
     }
     console.log('')
-    console.log('Commands: v view diff, c discuss with claude, a accept (after you commit),'
-        + ' r reject, i ignore issue, b back (leave changes)')
+    print_wrapped('Commands: v view diff, c discuss with claude, a accept (after you commit),'
+        + ' r reject, i ignore issue, b back (leave changes)', 4)
 }
 
 

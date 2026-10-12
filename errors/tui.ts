@@ -3,7 +3,7 @@ import {auto_fix} from './fix.ts'
 import {resolve_commit} from './git.ts'
 import {issue_prompt, write_prompt, update_triage, is_returned, needs_attention}
     from './store.ts'
-import {make_terminal, run_attached} from './terminal.ts'
+import {make_terminal, print_wrapped, run_attached} from './terminal.ts'
 
 import type {IssueStatus, IssueView, Priorities} from './store.ts'
 import type {Terminal} from './terminal.ts'
@@ -51,8 +51,10 @@ function print_list(snapshot:Snapshot, show_all:boolean):IssueView[]{
         const severity = issue.critical ? 'CRIT ' : 'error'
         const count = String((issue.active.length || issue.records.length)).padStart(4)
         const ips = String(issue.ips).padStart(3)
-        console.log(`${String(index + 1).padStart(3)}  ${status_label(issue)}  ${severity}`
-            + `  ${count}x  ${ips} ip  ${issue.latest.slice(0, 10)}  ${issue.summary.slice(0, 90)}`)
+        const columns = `${String(index + 1).padStart(3)}  ${status_label(issue)}  ${severity}`
+            + `  ${count}x  ${ips} ip  ${issue.latest.slice(0, 10)}  `
+        // A wrapped summary continues under itself, leaving the number column clear
+        print_wrapped(columns + issue.summary, columns.length)
     }
     const hidden = snapshot.issues.length - shown.length
     if (hidden){
@@ -67,13 +69,14 @@ function print_list(snapshot:Snapshot, show_all:boolean):IssueView[]{
         for (const [index, item] of priorities.shortlist.entries()){
             const issue = snapshot.issues.find(view => view.id === item.id)
             const number = issue && shown.includes(issue) ? `#${shown.indexOf(issue) + 1} ` : ''
-            console.log(`  ${SHORTLIST_KEYS[index]}  ${number}${issue?.summary ?? item.id}`)
-            console.log(`       ${item.reason} (${item.impact}; fixability ${item.fixability})`)
+            print_wrapped(`  ${SHORTLIST_KEYS[index]}  ${number}${issue?.summary ?? item.id}`, 5)
+            print_wrapped(`       ${item.reason} (${item.impact}; fixability ${item.fixability})`,
+                7)
         }
     }
     if (priorities?.noise.length){
         console.log('')
-        console.log(`Likely noise: ${priorities.noise.map(item => item.id).join(', ')}`)
+        print_wrapped(`Likely noise: ${priorities.noise.map(item => item.id).join(', ')}`, 4)
     }
 
     console.log('')
@@ -81,8 +84,8 @@ function print_list(snapshot:Snapshot, show_all:boolean):IssueView[]{
         ? `${SHORTLIST_KEYS.slice(0, priorities.shortlist.length).join('/')} auto-fix suggestion, `
         : ''
     const noise = priorities?.noise.length ? 'i ignore noise, ' : ''
-    console.log(`Commands: ${keys}<number> open issue, ${noise}h show/hide fixed,`
-        + ' r refresh from bucket, q quit')
+    print_wrapped(`Commands: ${keys}<number> open issue, ${noise}h show/hide fixed,`
+        + ' r refresh from bucket, q quit', 4)
     return shown
 }
 
@@ -90,22 +93,22 @@ function print_list(snapshot:Snapshot, show_all:boolean):IssueView[]{
 function print_detail(issue:IssueView):void{
     // Render an issue's detail view (analysis, history and newest relevant report in full)
     console.log('')
-    console.log(`# ${issue.summary}`)
+    print_wrapped(`# ${issue.summary}`, 2)
     console.log('')
     if (issue.cause){
-        console.log(`Likely cause: ${issue.cause}`)
+        print_wrapped(`Likely cause: ${issue.cause}`, 4)
     }
     if (issue.files.length){
-        console.log(`Suspected files: ${issue.files.join(', ')}`)
+        print_wrapped(`Suspected files: ${issue.files.join(', ')}`, 4)
     }
     if (issue.note){
-        console.log(`Note: ${issue.note}`)
+        print_wrapped(`Note: ${issue.note}`, 4)
     }
     const commit = issue.commit ? ` at ${issue.commit.slice(0, 10)}` : ''
-    console.log(`Status: ${status_label(issue).trim()}${commit}   IPs: ${issue.ips}`
-        + `   Fingerprints: ${issue.fingerprints.join(', ')}`)
+    print_wrapped(`Status: ${status_label(issue).trim()}${commit}   IPs: ${issue.ips}`
+        + `   Fingerprints: ${issue.fingerprints.join(', ')}`, 4)
     if (issue.resolution){
-        console.log(`Resolution: ${issue.resolution}`)
+        print_wrapped(`Resolution: ${issue.resolution}`, 4)
     }
     const filed = issue.records.length - issue.active.length
     console.log(`Reports: ${issue.active.length} need attention`
@@ -117,15 +120,15 @@ function print_detail(issue:IssueView):void{
         const build = record.build ?? 'unstamped'
         builds.set(build, (builds.get(build) ?? 0) + 1)
     }
-    console.log(`Builds: ${[...builds].sort((a, b) => b[1] - a[1]).slice(0, 6)
-        .map(([build, count]) => `${build} (${count})`).join(', ')}`)
+    print_wrapped(`Builds: ${[...builds].sort((a, b) => b[1] - a[1]).slice(0, 6)
+        .map(([build, count]) => `${build} (${count})`).join(', ')}`, 4)
 
     console.log('')
     console.log('Latest report:')
     console.log(JSON.stringify(issue.active[0] ?? issue.records[0], undefined, 4))
     console.log('')
-    console.log('Commands: f auto-fix, c fix interactively with claude, x mark fixed, i ignore,'
-        + ' l later, u reopen, n note, b back')
+    print_wrapped('Commands: f auto-fix, c fix interactively with claude, x mark fixed, i ignore,'
+        + ' l later, u reopen, n note, b back', 4)
 }
 
 
@@ -199,7 +202,7 @@ async function ignore_noise(term:Terminal, snapshot:Snapshot):Promise<void>{
     // Ignore everything claude classed as noise in one go, keeping its reason as the note
     const noise = snapshot.priorities?.noise ?? []
     for (const item of noise){
-        console.log(`  ${item.id}: ${item.reason}`)
+        print_wrapped(`  ${item.id}: ${item.reason}`, 4)
     }
     const confirm = (await term.ask(`Ignore these ${noise.length} issue(s)? (y/N) `)).trim()
     if (confirm.toLowerCase() !== 'y'){
