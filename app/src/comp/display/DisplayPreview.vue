@@ -14,8 +14,7 @@ div.preview
             v-btn(value='end' size='small') {{ $t("common.end") }}
         //- Hint + build button pushed to the right end of the toolbar via margin-left:auto on the
         //- hint (see style below); the mobile floating button lives in ViewDesignEditor.vue
-        //- without the hint, since this toolbar is hidden on mobile (parent .display has
-        //- display:none, see AppRoot.vue)
+        //- without the hint, since the preview isn't mounted at all on mobile (see AppRoot.vue)
         //- The arrow is kept out of the translated string so translators never handle it
         span(class='build_hint') {{ $t("display.preview.build_hint") }}
             span(class='build_arrow' aria-hidden='true') ➔
@@ -50,17 +49,15 @@ import {debounce} from 'lodash-es'
 import {useI18n} from '@/services/i18n'
 
 import BtnGenerate from '@/comp/views/assets/BtnGenerate.vue'
-import {blue, estimated_pages, page_count_guess} from '@/services/state'
-import {content, bible_content} from '@/services/content'
+import {blue} from '@/services/state'
+import {content} from '@/services/content'
 import {collect_passage_books, missing_book_warnings} from '@/services/blueprints'
-import {current_design_id} from '@/services/designs'
 import {typst_generator} from '@/services/typst'
-import {get_custom_font_styles} from '@/services/custom_fonts'
-import {resolve_content_for_style} from '@/services/content_images'
 import {render_cover_pdf, prepend_cover_page} from '@/services/cover'
 import {report_error} from '@/services/errors'
 import {stage_text} from '@/services/compile_progress'
-import {truncate_for_preview} from 'paper-bible-typst'
+import {compile_preview_window, set_page_estimate, render_signature}
+    from '@/services/page_estimate'
 
 import type {PreviewSection} from 'paper-bible-typst'
 import type {CompileProgress} from '@/services/compile_progress'
@@ -162,50 +159,13 @@ async function compile(){
     }
 
     try {
-        // Swap in painted/torn variants of any images before resolving (a no-op for the plain
-        // styles) — see content_images.ts for why this can't just happen inside resolve() itself
-        // Styled variants are cached under the design, so this only applies once one is open
-        // (the very first boot preview can run before that, and needs no masking anyway)
-        const styled_content = current_design_id.value
-            ? await resolve_content_for_style(current_design_id.value, blue.content,
-                blue.image_style)
-            : blue.content
-
-        // The design's production URL, for the "customise this design" link + QR code in any
-        // auto-copyright block (a created version uses its own version URL instead — see
-        // versions.ts). Hardcoded to the real domain (not location.origin) so a dev/preview
-        // compile still bakes a working link/QR into the document — mirrors version_compile.ts.
-        // Omitted if no design is open yet
-        const share_url = current_design_id.value
-            ? `https://paper.bible/designs/${current_design_id.value}`
-            : undefined
-
-        // The preview lays the pages out as facing-page book spreads, as if the book were opened
-        const request = await bible_content.resolve(
-            {...blue, content: styled_content}, get_custom_font_styles(), on_progress, share_url,
-            page_count_guess())
-
-        // Large documents are trimmed to a fast-compiling ~50 page window (positioned by the
-        // Start|Middle|End toggle) — whole books are dropped and only the last kept book's tail
-        // is ever cut, never a book's start, so kept pages lay out exactly as in the real
-        // document. The dropped_before/dropped_after flags drive the start/end strips added
-        // around the compiled preview below.
-        const truncation = truncate_for_preview(request, effective_section.value)
-
-        // The front cover is only shown when the preview window reaches the start of the
-        // document — a Middle or End window drops it
-        const show_front_cover = !!blue.cover && !truncation.dropped_before
-
-        // Label the "inside of front cover" gray slot on the first spread so it's clear it's
-        // not a missing/blank page — only when a front cover actually precedes it
-        if (show_front_cover){
-            truncation.request.preview_cover_label = t("display.preview.inside_cover")
-        }
-
-        // The worker returns the spread count alongside the bytes, so a multi-megabyte PDF is
-        // never re-parsed on this thread just to be measured
-        let {bytes, pages: pdf_pages} = await generator.compile_pdf_preview(
-            truncation.request, on_progress)
+        // Compile the window chosen by the Start|Middle|End toggle, labelling the "inside of
+        // front cover" gray slot on the first spread so it's clear it's not a missing/blank page.
+        // The dropped_before/dropped_after flags drive the start/end strips added below
+        const preview = await compile_preview_window(generator, effective_section.value,
+            on_progress, t("display.preview.inside_cover"))
+        const {truncation, show_front_cover, share_url, page_estimate} = preview
+        let bytes = preview.bytes
 
         // Ignore if a newer compile has started since
         if (run !== latest_run){
@@ -213,17 +173,9 @@ async function compile(){
         }
         truncated.value = truncation.truncated
 
-        // Refresh the shared page-count estimate: the preview's own page count scaled by how
-        // much of the document the preview window covered (exact when nothing was truncated).
-        // Reading spreads hold two book pages per PDF page. The start/end strips aren't in these
-        // bytes yet, so nothing to exclude. Rounded to an even number since bound pages always
-        // come in twos
-        const window_pages = Math.max(1, pdf_pages * 2)
-        const scale = truncation.window_chars > 0
-            ? truncation.total_chars / truncation.window_chars
-            : 1
-        const page_estimate = Math.max(2, Math.round(window_pages * scale / 2) * 2)
-        estimated_pages.value = page_estimate
+        // Refresh the shared page-count estimate (the start/end strips aren't in these bytes
+        // yet, so it counts only real pages)
+        set_page_estimate(page_estimate, preview.signature)
 
         // Merge the rendered cover into the preview (cached in cover.ts — book-only edits reuse
         // the previous render): the full wraparound cover as page 1, matching the actual print
@@ -308,16 +260,9 @@ async function compile(){
 const compile_debounced = debounce(compile, 500)
 
 
-// Everything in the blueprint the preview actually renders from. `name` is deliberately left
-// out: it reaches the PDF as metadata only, so renaming the design must never cost a recompile.
-// The cover's own title *is* visible, and stays watched as part of blue.cover
-function render_signature():string {
-    const {name: _name, ...rest} = blue
-    return JSON.stringify(rest)
-}
-
-// Recompile whenever the blueprint changes. Keyed on the signature rather than deep-watching
-// `blue` directly, so a change that doesn't alter what gets rendered doesn't queue a compile
+// Recompile whenever the blueprint changes. Keyed on render_signature() rather than
+// deep-watching `blue` directly, so a change that doesn't alter what gets rendered (such as a
+// rename) doesn't queue a compile
 watch(render_signature, () => compile_debounced(), {immediate: true})
 
 // ...and whenever the fetched Typst content or compiler availability changes

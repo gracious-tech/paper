@@ -45,7 +45,9 @@ v-app.app(v-else)
 
         router-view
 
-div.display(v-if='!state.splash')
+//- Not mounted at all on mobile (no room for it), rather than merely hidden, so nothing in it
+//- keeps compiling previews or loading PDFs nobody can see
+div.display(v-if='!state.splash && !is_mobile')
     DisplayPreview(v-if='showing_editor')
     DisplayDesignVersion(v-else-if='route.name === "design"')
     IntroVideo(v-else-if='route.name === "about"')
@@ -104,10 +106,12 @@ import {state} from '@/services/state'
 import {is_anonymous, photo_url} from '@/services/auth'
 import {design_needs_editor} from '@/services/versions'
 import {init_coloris} from '@/services/coloris'
+import {use_is_mobile} from '@/services/display'
 
 
 const route = useRoute()
 const {t} = useI18n()
+const is_mobile = use_is_mobile()
 
 
 // Bind the Coloris color picker to every [data-coloris] input (AppColor), once, app-wide
@@ -245,8 +249,5 @@ const showing_editor = computed(() => {
     > *
         width: 100%
         height: 100%
-
-    @media (max-width: 900px)
-        display: none
 
 </style>

@@ -99,12 +99,18 @@ import type {ServicePublic, SizeId, BindingTypeId, InkTypeId} from 'printing-ser
 import {blue, state, estimated_pages} from '@/services/state'
 import {format_dims} from '@/services/blueprints'
 import {binding_page_issue} from '@/services/binding_advice'
+import {use_page_estimate_while_mounted} from '@/services/page_estimate'
 import {service_select_items} from '@/services/printing_services'
 
 import type {MeasureUnit} from '@/services/types'
 
 
 const {t, locale} = useI18n()
+
+
+// The binding warning below reads the page-count estimate, so keep it current while this panel
+// is open (on mobile, where there's no live preview doing so)
+use_page_estimate_while_mounted()
 
 
 // A4 / US Letter choice for home printing

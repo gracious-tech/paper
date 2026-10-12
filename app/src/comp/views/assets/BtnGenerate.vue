@@ -13,7 +13,7 @@ v-btn-group(rounded='pill' divided color='secondary-darken-1' variant='elevated'
 
 <script lang='ts' setup>
 
-import {ref, computed} from 'vue'
+import {ref, computed, nextTick} from 'vue'
 import {useRouter} from 'vue-router'
 
 import {blue, print_service_warning_dialog} from '@/services/state'
@@ -26,6 +26,7 @@ import {has_seen_print_service_warning, record_seen_print_service_warning}
 import {typst_generator} from '@/services/typst'
 import {collect_passage_books, has_missing_books} from '@/services/blueprints'
 import {resolve_content_for_style} from '@/services/content_images'
+import {ensure_page_estimate} from '@/services/page_estimate'
 import {report_error} from '@/services/errors'
 
 
@@ -64,6 +65,12 @@ const generate = async () => {
     // Set once the freeze starts (after any print-service warning, which is only a wait on the user)
     let release_page:(() => void)|null = null
     try {
+        // Bring the page-count estimate up to date first (mobile has no live preview keeping it
+        // current), and let its watchers settle — simple mode derives the binding from it, which
+        // has to land in the design before it's flushed and frozen
+        await ensure_page_estimate()
+        await nextTick()
+
         // Force-flush any pending autosave so the design's persisted save_token always matches
         // what gets frozen below (the debounced autosave alone can't guarantee this at
         // click-time)

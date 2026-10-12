@@ -205,6 +205,9 @@ paper_bible/
         stories.ts         # Predefined picture stories (fetch + slide assembly)
         content.ts         # Bible data service (fetch-client via paper-bible-typst)
         blueprints.ts      # Default blueprint + clean_blueprint() validation + display helpers
+        page_estimate.ts   # The page-count estimate from a preview-window compile: kept current
+                            #   by the live preview on desktop; mobile mounts no preview, so
+                            #   build/cover editor/Paper options ask for it (ensure_page_estimate)
         binding_advice.ts  # auto_binding / binding_page_issue / page_reduction_suggestions —
                             #   advice over a blueprint, never mutating one
         printing_services.ts  # Service picker items over printing-services

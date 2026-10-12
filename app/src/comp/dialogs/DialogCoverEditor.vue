@@ -29,6 +29,7 @@ import {current_design_id} from '@/services/designs'
 import {request_reconcile} from '@/services/design_assets'
 import {cover_bg_suggestions} from '@/services/asset_suggestions'
 import {report_error} from '@/services/errors'
+import {ensure_page_estimate} from '@/services/page_estimate'
 import {cover_form_for_render, get_cover_title, get_cover_title_from_form,
     is_known_builtin_background} from 'paper-bible-typst'
 
@@ -59,6 +60,10 @@ let sent_bg_hash:string|null = null
 // list that changes while the editor is open can't retarget a request already in flight
 let sent_bg_suggestions = new Map<string, CoverBgSuggestion>()
 
+// The page-count estimate the spine width is sized from, started as the overlay opens so it
+// compiles while the widget loads (on mobile, where no live preview keeps it current)
+let estimate_ready:Promise<void> = Promise.resolve()
+
 
 // Answer the widget's 'ready' with the full init message: a complete form preset (stored
 // cover, or first-open defaults), the bg image / custom fonts binaries beside it, and the
@@ -72,6 +77,7 @@ const send_init = async () => {
     // Preset from the stored cover form (with the blueprint's current size fields and the
     // estimated page count overlaid) or the defaults for a brand new cover (book title, book
     // icon, credit blurb)
+    await estimate_ready
     const cover = blue.cover
     const preset = cover
         ? cover_form_for_render(cover, blue, page_count_guess())
@@ -237,6 +243,7 @@ const on_message = (event:MessageEvent) => {
 watch(() => state.cover_editor, open => {
     if (open){
         loaded.value = false
+        estimate_ready = ensure_page_estimate()
         window.addEventListener('message', on_message)
     } else {
         window.removeEventListener('message', on_message)
