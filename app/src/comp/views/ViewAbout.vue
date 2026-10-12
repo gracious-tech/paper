@@ -29,6 +29,9 @@ div.cont(class='text-body-medium')
 
     IntroVideo.display
 
+    //- The build's commit, so a user reporting a problem can say which release they're on
+    p(class='text-body-small text-medium-emphasis ma-6') {{$t("view.about.version", {build})}}
+
 </template>
 
 
@@ -39,6 +42,9 @@ import IntroVideo from '@/comp/reuseable/IntroVideo.vue'
 
 //- Inline link to the creator, substituted into the {org} placeholder of the body text
 const org_link = '<a href="https://gracious.tech" target="_blank" rel="noopener">Gracious Tech</a>'
+
+//- Short commit hash the app was built from (see vite.config.mts)
+const build = import.meta.env.BUILD_COMMIT
 
 </script>
 

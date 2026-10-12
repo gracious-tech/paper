@@ -158,7 +158,8 @@ paper_bible/
                             #   server) — starts its own emulators; see the Testing section
     audit_e2e              # Playwright e2e tests (needs the dev stack running; see e2e/)
     audit_stress           # Compile stress ladder, browser (WASM) + server (see e2e/tiers.ts)
-    audit_errors           # Download + triage error reports (TUI; claude groups them)
+    audit_errors           # Move error reports out of the bucket + triage them (TUI; claude
+                            #   groups, shortlists and auto-fixes them for review)
     gen_lulu_prices        # Refresh Lulu's print prices (run by deploy_app)
   app/                     # The Vue SPA (workspace)
     src/
@@ -260,7 +261,8 @@ paper_bible/
     helpers/          #   emulator.ts (rules test env) + server.ts (Admin SDK fixtures)
     rules/            #   firestore.rules + firebase_storage.rules, asserted from a client
     server/           #   server/src handlers direct, plus routes.test.ts over real HTTP
-  errors/             # .bin/audit_errors internals: bucket sync, claude clustering, triage TUI
+  errors/             # .bin/audit_errors internals: bucket sync, claude clustering + ranking,
+                      #   background fixer, triage TUI
   branding/           # Source icon/social/splash artwork
   typst/                   # paper-bible-typst: core (Blueprint→TypstRequest, typst gen,
                             #   split_blueprint_doc/join_blueprint_doc for Firestore doc shape)
@@ -621,9 +623,20 @@ neither side knows about the other's setup process.
   (unauthenticated OK, uid attached when known, IP recorded server-side) and everything
   lands in the bucket as `errors/{fingerprint}/{id}.json` (90-day lifecycle). The
   fingerprint only dedupes identical messages — semantic grouping happens in
-  `.bin/audit_errors` (claude clusters fingerprints into issues; triage state in gitignored
-  `errors/records/`).
+  `.bin/audit_errors` (claude clusters fingerprints into issues and shortlists the open ones).
+  **The bucket is only an inbox:** `audit_errors` deletes each report once its local copy in
+  gitignored `errors/records/` is written and parses, so that directory (triage state
+  included) is the *only* copy — back it up, and run the tool from one machine.
   Critical failures show the report id in a gracious.tech/contact link
+- **Every report carries the `build` it came from** (short commit hash, `-dirty` if the tree
+  was; `BUILD_COMMIT` from `vite.config.mts` for the browser, baked into the Lambda image by
+  `.bin/build_server_lambda` for the server). An issue marked fixed/diagnosing is pinned to a
+  commit, and `git merge-base --is-ancestor` decides each later report: from a build without the
+  commit → filed quietly (stale caches); with it → the issue reopens as a regression. That
+  relies on the fix commit surviving into the deployed history — a squash or rebase before
+  deploying breaks the ancestry, and the issue's later reports then all read as stale.
+  The background fixer (`errors/fix.ts`) refuses to start on uncommitted tracked changes, so
+  each review is exactly one fix, and never touches git itself: accepting waits for your commit
 - **SERVER_ROLES gates routes, API Gateway gates traffic** — both must agree: `POST
   /api/compile` routes to the `paper-bible-compile` Lambda (role `compile`), everything else
   (`ANY /api/{proxy+}`) to `paper-bible-light` (role `light`); dev defaults to both roles on

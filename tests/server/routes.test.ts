@@ -13,7 +13,8 @@ import {fileURLToPath} from 'node:url'
 
 import {describe, it, expect, beforeAll, afterAll} from 'vitest'
 
-import {reset_firestore, reset_auth, make_anon_user} from '../helpers/server.ts'
+import {reset_firestore, reset_auth, make_anon_user, admin_bucket, list_paths}
+    from '../helpers/server.ts'
 
 import type {ChildProcess} from 'node:child_process'
 
@@ -296,6 +297,19 @@ describe('error reporting', () => {
     it('replaces a malformed client-supplied id', async () => {
         const result = await post(light, '/api/report_error', {message: 'x', id: 'short'})
         expect((result.body as {id:string}).id).not.toBe('short')
+    })
+
+    it('stores the build a report came from, dropping a malformed one', async () => {
+        // .bin/audit_errors relies on it to tell a regression from a report by a stale build
+        const stored_build = async (id:string, build:unknown):Promise<unknown> => {
+            await post(light, '/api/report_error', {message: `build ${id}`, id, build})
+            const path = (await list_paths('errors/')).find(name => name.endsWith(`/${id}.json`))
+            expect(path).toBeDefined()
+            const [contents] = await admin_bucket.file(path ?? '').download()
+            return (JSON.parse(contents.toString()) as {build:unknown}).build
+        }
+        expect(await stored_build('B'.repeat(20), 'abc1234-dirty')).toBe('abc1234-dirty')
+        expect(await stored_build('C'.repeat(20), '../../etc')).toBeNull()
     })
 
     it('throttles a flood from one caller', async () => {

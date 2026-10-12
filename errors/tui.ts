@@ -1,126 +1,94 @@
 
-import {createInterface} from 'node:readline'
-import {spawn} from 'node:child_process'
-import {readFileSync} from 'node:fs'
+import {auto_fix} from './fix.ts'
+import {resolve_commit} from './git.ts'
+import {issue_prompt, write_prompt, update_triage, is_returned, needs_attention}
+    from './store.ts'
+import {make_terminal, run_attached} from './terminal.ts'
 
-import {delete_object} from './bucket.ts'
-import {write_prompt, remove_issue_local, load_triage, save_triage} from './store.ts'
-
-import type {IssueView} from './store.ts'
+import type {IssueStatus, IssueView, Priorities} from './store.ts'
+import type {Terminal} from './terminal.ts'
 
 
 // Interactive terminal triage of grouped errors
 
 
-// Question prompt that buffers lines arriving between questions — plain readline.question()
-// drops them, which breaks scripted/piped input (e.g. `printf '1\nf\nq\n' | .bin/errors ...`)
-type Ask = (prompt:string) => Promise<string>
-
-// Hands the terminal to a child process and back again (see run_claude())
-interface TerminalHandoff {
-    suspend:() => void
-    resume:() => void
+// What the list view is drawn from
+export interface Snapshot {
+    issues:IssueView[]
+    priorities:Priorities|null
 }
 
-function make_ask():{ask:Ask, close:() => void, handoff:TerminalHandoff}{
-    const rl = createInterface({input: process.stdin, output: process.stdout})
-    const lines:string[] = []
-    const waiters:((line:string) => void)[] = []
-    let closed = false
-    rl.on('line', line => {
-        const waiter = waiters.shift()
-        if (waiter){
-            waiter(line)
-        } else {
-            lines.push(line)
-        }
-    })
-    rl.on('close', () => {
-        // EOF — answer any outstanding/future questions with 'q' so loops exit gracefully
-        closed = true
-        while (waiters.length){
-            waiters.shift()!('q')
-        }
-    })
-    const ask:Ask = prompt => {
-        process.stdout.write(prompt)
-        const line = lines.shift()
-        if (line !== undefined){
-            return Promise.resolve(line)
-        }
-        if (closed){
-            return Promise.resolve('q')
-        }
-        return new Promise(resolve => {
-            waiters.push(resolve)
-        })
-    }
-    // Stop reading stdin (and leave raw mode) while a child owns the terminal, then restore
-    // readline's raw mode afterwards since the child resets the TTY on its way out
-    const handoff:TerminalHandoff = {
-        suspend: () => {
-            rl.pause()
-            if (process.stdin.isTTY){
-                process.stdin.setRawMode(false)
-            }
-        },
-        resume: () => {
-            if (process.stdin.isTTY){
-                process.stdin.setRawMode(true)
-            }
-            rl.resume()
-        },
-    }
-    return {ask, close: () => {rl.close()}, handoff}
+// Keys for picking a shortlisted issue straight into the automatic fixer
+const SHORTLIST_KEYS = ['a', 'b', 'c']
+
+// Fixed-width labels for each status
+const STATUS_LABELS:Record<IssueStatus, string> = {
+    new: 'NEW  ',
+    deferred: 'LATER',
+    fixed: 'FIXED',
+    diagnosing: 'DIAG ',
+    ignored: 'IGNOR',
 }
 
 
-async function run_claude(handoff:TerminalHandoff, prompt:string):Promise<void>{
-    // Start an interactive claude session seeded with the prompt, returning once it exits
-    handoff.suspend()
-    // Ctrl+C reaches the whole process group, so ignore it here and let claude handle it
-    const ignore_sigint = () => {}
-    process.on('SIGINT', ignore_sigint)
-    try {
-        await new Promise<void>(resolve => {
-            const child = spawn('claude', [prompt], {stdio: 'inherit'})
-            child.on('error', error => {
-                console.error(`Could not start claude: ${error.message}`)
-                resolve()
-            })
-            child.on('exit', () => {
-                resolve()
-            })
-        })
-    } finally {
-        process.off('SIGINT', ignore_sigint)
-        handoff.resume()
+function status_label(issue:IssueView):string{
+    // A returned issue is labelled by why it's back rather than by its stored status
+    if (is_returned(issue)){
+        return issue.status === 'fixed' ? 'REGR ' : 'INFO '
     }
+    return STATUS_LABELS[issue.status]
 }
 
 
-function print_list(issues:IssueView[]):void{
-    // Render the issue list view
+function print_list(snapshot:Snapshot, show_all:boolean):IssueView[]{
+    // Render the list view, returning the rows in the order their numbers refer to
+    const shown = show_all ? snapshot.issues : snapshot.issues.filter(needs_attention)
     console.log('')
-    if (!issues.length){
-        console.log('No error reports \\o/')
+    if (!shown.length){
+        console.log('No error reports need attention \\o/')
     }
-    for (const [index, issue] of issues.entries()){
-        const status = issue.status === 'deferred' ? 'LATER' : 'NEW  '
+    for (const [index, issue] of shown.entries()){
         const severity = issue.critical ? 'CRIT ' : 'error'
-        const latest = issue.latest.slice(0, 10)
-        const count = String(issue.records.length).padStart(4)
+        const count = String((issue.active.length || issue.records.length)).padStart(4)
         const ips = String(issue.ips).padStart(3)
-        console.log(`${String(index + 1).padStart(3)}  ${status}  ${severity}  ${count}x`
-            + `  ${ips} ip  ${latest}  ${issue.summary.slice(0, 90)}`)
+        console.log(`${String(index + 1).padStart(3)}  ${status_label(issue)}  ${severity}`
+            + `  ${count}x  ${ips} ip  ${issue.latest.slice(0, 10)}  ${issue.summary.slice(0, 90)}`)
     }
+    const hidden = snapshot.issues.length - shown.length
+    if (hidden){
+        console.log(`     (${hidden} fixed/ignored issue(s) hidden, h to show)`)
+    }
+
+    // Claude's picks, keyed for the automatic fixer
+    const priorities = snapshot.priorities
+    if (priorities?.shortlist.length){
+        console.log('')
+        console.log('Suggested next:')
+        for (const [index, item] of priorities.shortlist.entries()){
+            const issue = snapshot.issues.find(view => view.id === item.id)
+            const number = issue && shown.includes(issue) ? `#${shown.indexOf(issue) + 1} ` : ''
+            console.log(`  ${SHORTLIST_KEYS[index]}  ${number}${issue?.summary ?? item.id}`)
+            console.log(`       ${item.reason} (${item.impact}; fixability ${item.fixability})`)
+        }
+    }
+    if (priorities?.noise.length){
+        console.log('')
+        console.log(`Likely noise: ${priorities.noise.map(item => item.id).join(', ')}`)
+    }
+
     console.log('')
-    console.log('Commands: <number> open issue, r refresh from bucket, q quit')
+    const keys = priorities?.shortlist.length
+        ? `${SHORTLIST_KEYS.slice(0, priorities.shortlist.length).join('/')} auto-fix suggestion, `
+        : ''
+    const noise = priorities?.noise.length ? 'i ignore noise, ' : ''
+    console.log(`Commands: ${keys}<number> open issue, ${noise}h show/hide fixed,`
+        + ' r refresh from bucket, q quit')
+    return shown
 }
 
 
 function print_detail(issue:IssueView):void{
-    // Render an issue's detail view (analysis + newest report in full)
+    // Render an issue's detail view (analysis, history and newest relevant report in full)
     console.log('')
     console.log(`# ${issue.summary}`)
     console.log('')
@@ -133,61 +101,90 @@ function print_detail(issue:IssueView):void{
     if (issue.note){
         console.log(`Note: ${issue.note}`)
     }
-    console.log(`Status: ${issue.status}   Occurrences: ${issue.records.length}`
-        + `   IPs: ${issue.ips}   Fingerprints: ${issue.fingerprints.join(', ')}`)
+    const commit = issue.commit ? ` at ${issue.commit.slice(0, 10)}` : ''
+    console.log(`Status: ${status_label(issue).trim()}${commit}   IPs: ${issue.ips}`
+        + `   Fingerprints: ${issue.fingerprints.join(', ')}`)
+    if (issue.resolution){
+        console.log(`Resolution: ${issue.resolution}`)
+    }
+    const filed = issue.records.length - issue.active.length
+    console.log(`Reports: ${issue.active.length} need attention`
+        + (filed ? `, ${filed} filed (older builds or ignored)` : ''))
+
+    // Which builds reported it, most frequent first
+    const builds = new Map<string, number>()
+    for (const record of issue.records){
+        const build = record.build ?? 'unstamped'
+        builds.set(build, (builds.get(build) ?? 0) + 1)
+    }
+    console.log(`Builds: ${[...builds].sort((a, b) => b[1] - a[1]).slice(0, 6)
+        .map(([build, count]) => `${build} (${count})`).join(', ')}`)
+
     console.log('')
     console.log('Latest report:')
-    console.log(JSON.stringify(issue.records[0], undefined, 4))
+    console.log(JSON.stringify(issue.active[0] ?? issue.records[0], undefined, 4))
     console.log('')
-    console.log('Commands: f fix with claude, d delete, l later, n note, b back')
+    console.log('Commands: f auto-fix, c fix interactively with claude, x mark fixed, i ignore,'
+        + ' l later, u reopen, n note, b back')
 }
 
 
-async function detail_loop(ask:Ask, handoff:TerminalHandoff, bucket:string,
-        issue:IssueView):Promise<void>{
-    // Handle actions on a single issue until the user goes back (or deletes it)
+async function detail_loop(term:Terminal, issue:IssueView):Promise<void>{
+    // Handle actions on a single issue until the user goes back (or resolves it)
     print_detail(issue)
     while (true){
-        const answer = (await ask('issue> ')).trim().toLowerCase()
+        const answer = (await term.ask('issue> ')).trim().toLowerCase()
 
         if (answer === 'b' || answer === 'q'){
             return
 
         } else if (answer === 'f'){
-            // Fix it in an interactive claude session, then return to the list once it exits
-            const path = write_prompt(issue)
-            console.log(`Starting claude with the fix prompt (${path})...`)
-            await run_claude(handoff, readFileSync(path, 'utf8'))
+            await auto_fix(term, issue)
             return
 
-        } else if (answer === 'd'){
-            // Delete all the issue's reports from the bucket and locally
-            const confirm = (await ask(
-                `Delete ${issue.records.length} report(s) from the bucket? (y/N) `)).trim()
-            if (confirm.toLowerCase() !== 'y'){
+        } else if (answer === 'c'){
+            // Fix it in an interactive claude session, then return to the list once it exits
+            const prompt = 'Please investigate and fix the following error reported by users of'
+                + ` this app.\n\n${issue_prompt(issue)}`
+            console.log(`Starting claude with the fix prompt (${write_prompt(issue, prompt)})...`)
+            await run_attached(term.handoff, 'claude', [prompt])
+            return
+
+        } else if (answer === 'x'){
+            // Pin to a fix made outside this tool
+            const ref = (await term.ask('Fixed by which commit? [HEAD] ')).trim() || 'HEAD'
+            const commit = resolve_commit(ref)
+            if (!commit){
+                console.log(`${ref} isn't a commit in this repository`)
                 continue
             }
-            for (const record of issue.records){
-                await delete_object(bucket, `errors/${record.fingerprint}/${record.id}.json`)
-            }
-            remove_issue_local(issue)
-            console.log('Deleted')
+            update_triage(issue.id, {status: 'fixed', commit,
+                resolved: new Date().toISOString()})
+            console.log(`Marked fixed at ${commit.slice(0, 10)}`)
+            return
+
+        } else if (answer === 'i'){
+            // Hidden for good; any further reports are filed under it silently
+            update_triage(issue.id, {status: 'ignored'})
+            console.log('Ignored')
             return
 
         } else if (answer === 'l'){
-            // Defer — drops to the bottom of the list until new reports arrive
-            const triage = load_triage()
-            triage[issue.id] = {...triage[issue.id], status: 'deferred'}
-            save_triage(triage)
-            issue.status = 'deferred'
+            // Defer — drops below new issues and out of claude's shortlist
+            update_triage(issue.id, {status: 'deferred'})
             console.log('Marked for later')
+            return
+
+        } else if (answer === 'u'){
+            // Back to new, forgetting any fix commit (so every report counts again)
+            update_triage(issue.id, {status: 'new'})
+            console.log('Reopened')
+            return
 
         } else if (answer === 'n'){
-            // Attach a free-text note
-            const note = (await ask('note> ')).trim()
-            const triage = load_triage()
-            triage[issue.id] = {status: triage[issue.id]?.status ?? 'new', note}
-            save_triage(triage)
+            // Attach a free-text note (also given to claude when fixing/ranking)
+            const note = (await term.ask('note> ')).trim()
+            update_triage(issue.id, {note})
             issue.note = note
             console.log('Noted')
 
@@ -198,29 +195,59 @@ async function detail_loop(ask:Ask, handoff:TerminalHandoff, bucket:string,
 }
 
 
-export async function run_tui(bucket:string,
-        refresh:(download:boolean) => Promise<IssueView[]>):Promise<void>{
-    // Main loop: list issues, open one, act on it
-    const {ask, close, handoff} = make_ask()
-    let issues = await refresh(false)
+async function ignore_noise(term:Terminal, snapshot:Snapshot):Promise<void>{
+    // Ignore everything claude classed as noise in one go, keeping its reason as the note
+    const noise = snapshot.priorities?.noise ?? []
+    for (const item of noise){
+        console.log(`  ${item.id}: ${item.reason}`)
+    }
+    const confirm = (await term.ask(`Ignore these ${noise.length} issue(s)? (y/N) `)).trim()
+    if (confirm.toLowerCase() !== 'y'){
+        return
+    }
+    for (const item of noise){
+        const issue = snapshot.issues.find(view => view.id === item.id)
+        update_triage(item.id, {status: 'ignored', note: issue?.note || `Noise: ${item.reason}`})
+    }
+    console.log('Ignored')
+}
+
+
+export async function run_tui(refresh:(download:boolean) => Promise<Snapshot>):Promise<void>{
+    // Main loop: list issues, fix a suggestion or open an issue, act on it
+    const term = make_terminal()
+    let snapshot = await refresh(false)
+    let show_all = false
     try {
         while (true){
-            print_list(issues)
-            const answer = (await ask('> ')).trim().toLowerCase()
+            const shown = print_list(snapshot, show_all)
+            const answer = (await term.ask('> ')).trim().toLowerCase()
+            const shortlisted = snapshot.priorities?.shortlist[SHORTLIST_KEYS.indexOf(answer)]
+            const index = Number(answer)
+
             if (answer === 'q'){
                 return
             } else if (answer === 'r'){
-                issues = await refresh(true)
-            } else {
-                const index = Number(answer)
-                if (Number.isInteger(index) && index >= 1 && index <= issues.length){
-                    await detail_loop(ask, handoff, bucket, issues[index - 1]!)
-                    // Reassemble from local state (an issue may have been deleted/deferred)
-                    issues = await refresh(false)
+                snapshot = await refresh(true)
+            } else if (answer === 'h'){
+                show_all = !show_all
+            } else if (answer === 'i' && snapshot.priorities?.noise.length){
+                await ignore_noise(term, snapshot)
+                snapshot = await refresh(false)
+            } else if (shortlisted){
+                const issue = snapshot.issues.find(view => view.id === shortlisted.id)
+                if (issue){
+                    await auto_fix(term, issue)
+                    snapshot = await refresh(false)
                 }
+            } else if (answer && Number.isInteger(index) && index >= 1 && index <= shown.length){
+                await detail_loop(term, shown[index - 1]!)
+                // Reassemble from local state (the issue may have been resolved/deferred)
+                snapshot = await refresh(false)
             }
         }
     } finally {
-        close()
+        term.close()
     }
 }
+

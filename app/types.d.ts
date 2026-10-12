@@ -1,7 +1,10 @@
 
-// Injected by vite.config.mts — whether to use production services instead of local dev servers
+// Injected by vite.config.mts
 interface ImportMetaEnv {
+    // Whether to use production services instead of local dev servers
     readonly USE_PROD_SERVICES:boolean
+    // Commit the build was made from ('dev' under the dev server), sent with error reports
+    readonly BUILD_COMMIT:string
 }
 
 

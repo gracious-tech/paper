@@ -45,6 +45,11 @@ COPY server/tsconfig.json server/tsconfig.build.json server/
 COPY server/src/ server/src/
 RUN npx tsc -p server/tsconfig.build.json
 
+# The commit this image was built from, stamped onto server-side error reports (see
+# server/src/config.ts) — declared last so a new commit doesn't bust the cached layers above
+ARG BUILD_COMMIT
+ENV BUILD_COMMIT=$BUILD_COMMIT
+
 ENV NODE_ENV=production
 ENV TYPST_PATH=/usr/local/bin/typst
 

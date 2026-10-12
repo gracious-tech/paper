@@ -120,6 +120,7 @@ function save_error(message:string, severity:'critical'|'error',
                 url: safe_url(location.href),
                 language: navigator.language,
                 runtime_ms: new Date().getTime() - start_ms,
+                build: import.meta.env.BUILD_COMMIT,
                 context,
             }),
         })

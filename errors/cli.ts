@@ -2,17 +2,19 @@
 import {readFileSync} from 'node:fs'
 import {fileURLToPath} from 'node:url'
 
-import {list_error_objects, download_object} from './bucket.ts'
-import {ensure_dirs, local_object_names, save_record, load_records, load_issues, load_triage,
+import {list_error_objects, download_object, delete_object} from './bucket.ts'
+import {ensure_dirs, save_record, has_valid_record, load_records, load_issues, load_triage,
     assemble_issues} from './store.ts'
-import {classify_new_fingerprints} from './analyse.ts'
+import {classify_new_fingerprints, rank_issues} from './analyse.ts'
+import {build_includes} from './git.ts'
 import {run_tui} from './tui.ts'
 
-import type {IssueView} from './store.ts'
+import type {Snapshot} from './tui.ts'
 
 
-// Entry point (run via .bin/errors): download new error reports from the bucket, have claude
-// cluster new fingerprints into issues, then triage them in the TUI
+// Entry point (run via .bin/audit_errors): move new error reports from the bucket to local
+// storage, have claude cluster new fingerprints into issues and rank the open ones, then triage
+// and fix them in the TUI
 
 
 // Fall back to .firebaserc's default project so it doesn't need to be typed every time
@@ -37,29 +39,47 @@ const bucket = process.env['STORAGE_BUCKET'] ?? `${project}.firebasestorage.app`
 
 
 async function sync_records():Promise<void>{
-    // Download records not yet mirrored locally (bucket-deleted ones are left in place —
-    // deleting via the TUI removes both sides)
-    const local = local_object_names()
+    // Move reports from the bucket into the local store. The bucket is only an inbox: each
+    // report is deleted there once its local copy is written and parses, never before, so a
+    // failed download just leaves it for next time
     const remote = (await list_error_objects(bucket)).filter(name => name.endsWith('.json'))
-    const missing = remote.filter(name => !local.has(name))
-    console.log(`${remote.length} report(s) in bucket, downloading ${missing.length} new`)
-    for (const name of missing){
-        save_record(name, await download_object(bucket, name))
+    console.log(`${remote.length} new report(s) in the bucket`)
+    let kept = 0
+    for (const name of remote){
+        if (!has_valid_record(name)){
+            save_record(name, await download_object(bucket, name))
+        }
+        if (has_valid_record(name)){
+            await delete_object(bucket, name)
+        } else {
+            kept += 1
+        }
+    }
+    if (kept){
+        console.warn(`${kept} report(s) didn't parse, so were left in the bucket`)
     }
 }
 
 
-async function refresh(download:boolean):Promise<IssueView[]>{
-    // Rebuild the TUI's issue views, optionally pulling from the bucket + classifying first
+function snapshot():Snapshot{
+    // Assemble the issue rows from local state, plus claude's ranking of the open ones
+    const issues = assemble_issues(load_records(), load_issues(), load_triage(), build_includes)
+    return {issues, priorities: rank_issues(issues)}
+}
+
+
+async function refresh(download:boolean):Promise<Snapshot>{
+    // Rebuild the TUI's view, optionally pulling from the bucket + classifying first
     if (download){
         await sync_records()
         classify_new_fingerprints(load_records())
     }
-    return assemble_issues(load_records(), load_issues(), load_triage())
+    return snapshot()
 }
 
 
 ensure_dirs()
 await sync_records()
 classify_new_fingerprints(load_records())
-await run_tui(bucket, refresh)
+await run_tui(refresh)
+

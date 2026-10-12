@@ -23,4 +23,7 @@ export const config = {
     // Public origin of the web app — used to build the "customise this design" link + QR code
     // baked into a document's attribution block (see compile.ts)
     app_url: 'https://paper.bible',
+    // Commit the image was built from (baked in by .bin/build_server_lambda), stamped onto
+    // server-side error reports — null when running from source
+    build: process.env['BUILD_COMMIT'] ?? null,
 }

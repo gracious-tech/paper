@@ -29,6 +29,6 @@ TAG="$(git rev-parse --short HEAD)$(git diff --quiet || echo -dirty)"
 # pushed image into an OCI index that Lambda rejects ("image manifest, config or layer media
 # type ... is not supported")
 docker build --provenance=false --sbom=false -f "$CONTEXT/Dockerfile.lambda" \
-    -t "paper-bible-lambda:$TAG" "$CONTEXT"
+    --build-arg BUILD_COMMIT="$TAG" -t "paper-bible-lambda:$TAG" "$CONTEXT"
 
 echo "Built paper-bible-lambda:$TAG"

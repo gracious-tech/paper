@@ -2,6 +2,7 @@
 import {createHash, randomBytes} from 'node:crypto'
 
 import {admin_bucket} from './firebase.ts'
+import {config} from './config.ts'
 
 import type {Context} from 'hono'
 import type {HandlerResult} from './types.ts'
@@ -23,6 +24,9 @@ export interface ErrorRecord {
     user_agent:string|null
     language:string|null  // navigator.language (browser only)
     runtime_ms:number|null  // Time since app load (browser only)
+    // Commit the reporting code was built from (short hash, maybe '-dirty'); null when unknown,
+    // and absent from reports that predate build stamping
+    build?:string|null
     context:Record<string, string|number>|null  // e.g. {version_id: '...'}
 }
 
@@ -83,12 +87,14 @@ function fingerprint_message(message:string):string{
 
 export async function save_error(record:Omit<ErrorRecord, 'fingerprint'|'timestamp'>)
         :Promise<string>{
-    // Store an error report in the bucket, returning its id
+    // Store an error report in the bucket, returning its id. A record without a `build` is the
+    // server's own, so it gets this image's build (browser reports always pass theirs, even null)
     // WARN Must never throw — reporting an error must not itself cause one
     try {
         const message = record.message.slice(0, MAX_MESSAGE_CHARS)
         const full:ErrorRecord = {
             ...record,
+            build: record.build === undefined ? config.build : record.build,
             message,
             fingerprint: fingerprint_message(message),
             timestamp: new Date().toISOString(),
@@ -152,6 +158,8 @@ export async function handle_report_error(raw:string, ip:string|null, uid:string
         language: typeof body?.['language'] === 'string' ? (body['language'] as string).slice(0, 50)
             : null,
         runtime_ms: typeof body?.['runtime_ms'] === 'number' ? body['runtime_ms'] as number : null,
+        build: typeof body?.['build'] === 'string' && /^[A-Za-z0-9-]{1,50}$/.test(body['build'])
+            ? body['build'] : null,
         context: Object.keys(extra).length ? extra : null,
     })
     return {status: 200, body: {id: returned_id}}

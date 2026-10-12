@@ -526,6 +526,7 @@
   "view.about.intro": "Paper Bible is a free app for printing Scripture in whatever format and language you need.",
   "view.about.license": "The app is open source and you are free to use, copy, and modify it however you wish.",
   "view.about.source_code": "Source code",
+  "view.about.version": "Version: {build}",
   "view.design.build_it": "Build it",
   "view.design.copy_limit": "You've made a lot of copies today — please try again tomorrow",
   "view.design.keep_copy": "Keep my own copy",
