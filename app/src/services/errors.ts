@@ -289,6 +289,14 @@ export function error_to_string(error:unknown):string{
 
 addEventListener('error', (event:ErrorEvent):void => {
     // Handle uncaught errors
+
+    // Ignore the ResizeObserver loop notice (Vuetify's layout observers trigger it). It isn't an
+    // exception, just the browser saying it deferred some resize notifications to the next frame
+    // (where they're still delivered), so it carries no error object and nothing failed
+    if (!event.error && event.message.includes('ResizeObserver loop')){
+        return
+    }
+
     const error:unknown = event.error ?? event.message ?? 'unknown'
     report_error('banner', error)
 })
