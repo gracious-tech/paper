@@ -107,52 +107,73 @@ Resources:
       ResponseHeadersPolicyConfig:
         Name: !Sub '${AWS::StackName}-security-headers'
         SecurityHeadersConfig:
-          # TODO: the CSP is disabled for now — it kept breaking real users in production (e.g. an
-          # Android Brave frame-src violation whose blockedURI came back empty, since Brave blanks
-          # that field for frame-src unconditionally, so the blocked host was never identified).
-          # Re-enable it when there's time to perfect it: uncomment the block below, tighten
-          # frame-src back to an explicit allowlist once the real host is known (e.g. by logging
-          # the in-flight PDF URL alongside the next CSP report), and ideally trial it as
-          # Content-Security-Policy-Report-Only first. The previous frame-src allowlist:
-          #   frame-src 'self' blob: https://cover-widget.paper.bible https://lets.church
-          #   https://paper-bible.firebaseapp.com https://firebasestorage.googleapis.com
-          #   https://storage.googleapis.com
-          #
-          # What each source is for (a folded scalar can't hold comments, so they live here):
-          #   default-src — the content allowlist (images, fonts, media, fetch/XHR):
-          #     'self' — the app itself and /api/* (same-origin via CloudFront)
-          #     blob: — custom fonts as blob URLs that typst.ts fetches, and generated images
-          #     data: — inline SVG images (icon fields, advanced style previews)
-          #     assets.paper.bible — fonts, Typst WASM, cover backgrounds/frames (bookcover)
-          #     firebasestorage.googleapis.com — uploads, version PDFs (Firebase Storage)
-          #     storage.googleapis.com — where Firebase Storage sometimes redirects downloads
-          #     images.freely.giving — picture story images (stories.ts)
-          #     *.googleusercontent.com — Google profile photo on the account button
-          #     api.iconify.design — icon SVGs picked in icon fields (IconField.vue)
-          #     v1.fetch.bible — Bible translations and book content
-          #     api.lulu.com — shipping quotes for print cost estimates (print_cost.ts)
-          #     firestore.googleapis.com — Firestore
-          #     identitytoolkit.googleapis.com, securetoken.googleapis.com — Firebase Auth
-          #   script-src — 'wasm-unsafe-eval' + 'unsafe-eval' for the Typst WASM compiler (see
-          #     above); apis.google.com for Firebase Auth's sign-in popup
-          #   style-src 'unsafe-inline' — Vuetify's inline styles and the inlined splash CSS
-          #   frame-src — PDF iframes, blob previews, cover widget, videos (see TODO above)
-          #   worker-src 'self' — the Typst and cover workers (same-origin chunks, no blob:)
-          #   object-src/base-uri/form-action/frame-ancestors — locked down; frame-ancestors
-          #     is 'self' not 'none' as Safari applies it to the preview's own blob iframe
-          # ContentSecurityPolicy:
-          #   Override: true
-          #   ContentSecurityPolicy: >-
-          #     default-src 'self' blob: data: https://assets.paper.bible
-          #     https://firebasestorage.googleapis.com https://storage.googleapis.com
-          #     https://images.freely.giving https://*.googleusercontent.com
-          #     https://api.iconify.design https://v1.fetch.bible https://api.lulu.com
-          #     https://firestore.googleapis.com https://identitytoolkit.googleapis.com
-          #     https://securetoken.googleapis.com; script-src 'self' 'wasm-unsafe-eval'
-          #     'unsafe-eval' https://apis.google.com; style-src 'self' 'unsafe-inline';
-          #     frame-src * blob:;
-          #     worker-src 'self'; object-src 'none';
-          #     base-uri 'self'; form-action 'self'; frame-ancestors 'self'
+          # Guards two things (see CLAUDE.md's CSP section for the reasoning): script injected via
+          # a shared design can't run, and nothing the page loads, fetches or frames can reach a
+          # host we don't own (so a design can't make its viewers' browsers call an outside
+          # server). default-src is the one allowlist every resource type falls back to — images,
+          # fetch/XHR, fonts, media and frames alike — and only directives that need something
+          # different are pinned separately. The value is a !Join of a list rather than one
+          # folded string so each source can carry its own comment and the groups can be spaced
+          # apart (a blank line inside a folded string would become a newline in the header).
+          # Quoting: CSP keywords like 'self' must be double-quoted to keep their single quotes,
+          # and anything ending in a colon (blob:, data:) quoted so YAML doesn't read a map key
+          ContentSecurityPolicy:
+            Override: true
+            ContentSecurityPolicy: !Join
+              - ' '
+              - - default-src
+                - "'self'"  # Bundled images, the walkthrough videos, /api/* (same-origin)
+                - 'blob:'  # Preview PDF frame, generated images, custom fonts typst.ts fetches
+                # The placeholder page a browser frames instead of a PDF it can't show inline
+                # (Android, or Chrome set to download PDFs) — without it that frame is blocked
+                # and reported with an empty URL. Also inline SVG images (pattern previews)
+                - 'data:'
+
+                # Our own
+                - https://assets.paper.bible  # Typst WASM, fonts, cover backgrounds
+                - https://cover-widget.paper.bible  # The cover editor (DialogCoverEditor.vue)
+                - https://v1.fetch.bible  # Bible translations and book content
+                - https://images.freely.giving  # Picture story images + stories.json
+
+                # Third-party
+                - https://api.iconify.design  # Icon thumbnails + SVGs fetched for compiles
+                - https://api.lulu.com  # Shipping quotes for print cost estimates
+                - https://lets.church  # The intro video (IntroVideo.vue)
+
+                # Firebase and Google. Storage is this project's bucket only, by path, so other
+                # Firebase projects' files are refused (must match storageBucket in
+                # app/src/services/firebase.ts). storage.googleapis.com is where a published
+                # PDF frame's range requests sometimes get redirected; CSP ignores the path
+                # after a redirect, so its bucket path only constrains direct requests
+                - https://firebasestorage.googleapis.com/v0/b/paper-bible.firebasestorage.app/
+                - https://storage.googleapis.com/paper-bible.firebasestorage.app/
+                - https://firestore.googleapis.com  # Firestore
+                - https://identitytoolkit.googleapis.com  # Firebase Auth sign-in
+                - https://securetoken.googleapis.com  # Firebase Auth token refresh
+                - https://paper-bible.firebaseapp.com  # Firebase Auth's hidden iframe
+                - https://apis.google.com  # The sign-in popup's gapi pings (gen_204)
+
+                # Google profile photos on the account button — not the rest of the host, which
+                # serves anyone's public images; a photo elsewhere falls back to the icon
+                - https://*.googleusercontent.com/a/
+                - https://*.googleusercontent.com/a-/;
+
+                # 'wasm-unsafe-eval' + 'unsafe-eval' for the Typst WASM compiler (see above);
+                # apis.google.com for Firebase Auth's sign-in popup; 'report-sample' allows
+                # nothing, it only puts the start of a blocked inline script in the violation
+                # event, so triage can tell an extension's code from an injection attempt
+                - "script-src 'self' 'wasm-unsafe-eval' 'unsafe-eval' 'report-sample'
+                  https://apis.google.com;"
+
+                # Vuetify's inline styles and the inlined splash CSS
+                - "style-src 'self' 'unsafe-inline';"
+
+                # The Typst and cover workers (same-origin chunks, no blob:)
+                - "worker-src 'self';"
+
+                # Locked down; frame-ancestors is 'self' not 'none' as Safari applies it to the
+                # preview's own blob iframe
+                - "object-src 'none'; base-uri 'self'; form-action 'self'; frame-ancestors 'self'"
           ReferrerPolicy:
             Override: true
             ReferrerPolicy: strict-origin-when-cross-origin

@@ -645,67 +645,59 @@ neither side knows about the other's setup process.
   (`ANY /api/{proxy+}`) to `paper-bible-light` (role `light`); dev defaults to both roles on
   one port. This is asserted directly in `tests/server/routes.test.ts`, not just implied by
   the CloudFormation routes matching the deployed roles
-- **The CSP in `infra/cloudformation.yml`'s `SecurityHeadersPolicy` is currently commented out
-  (disabled) — TODO: re-enable when there's time to perfect it** (see the TODO beside it; trial
-  it as `Content-Security-Policy-Report-Only` first). The reasoning below describes the policy
-  as written there, for when it's restored. CFN's YAML can't hold multi-line reasoning inline
-  either, so it lives here. It fails in production only, since CloudFront headers never reach
-  the Vite dev server. It's split two
-  ways on purpose: **`default-src` is the content allowlist** (every origin the app loads
-  images, fonts, video or fetch responses from — one list, rather than repeating the same
-  hosts across `img-src`/`font-src`/`connect-src`), while every directive that can execute or
-  be navigated to is **pinned separately and never inherits it**:
-  - `script-src` — `'wasm-unsafe-eval'` is the Typst WASM compiler, i.e. the browser's whole
-    render path; it's needed for `WebAssembly.compile`/`instantiate` but doesn't cover
-    JS-string eval, so `'unsafe-eval'` is also required — `@myriaddreamin/typst-ts-web-compiler`'s
-    wasm-bindgen glue calls `new Function(...)` during `compiler.init()`
-    (`js_sys::Function::new_no_args`/`new_with_args`), and without it every in-browser compile
-    throws an `EvalError` before it renders anything. `apis.google.com` is Firebase Auth's
-    popup plumbing
-  - `frame-src` is currently `* blob:` — **temporarily loosened, see TODO in
-    `infra/cloudformation.yml`**. It was an explicit allowlist (`paper-bible.firebaseapp.com`
-    for Auth's hidden iframe, `blob:` for the in-progress editor preview
-    (`DisplayPreview.vue`), `firebasestorage.googleapis.com` + `storage.googleapis.com` for a
-    published version's PDF (`DisplayDesignVersion.vue` iframes `get_pdf_url()`'s download URL
-    directly — `getDownloadURL()` always returns a `firebasestorage.googleapis.com` URL, but
-    Firebase Storage's serving path sometimes 302s a range-served PDF request to
-    `storage.googleapis.com` instead, observed on Android Chrome), plus `cover-widget.paper.bible` and
-    `lets.church`) until a real report: an Android Brave user (desktop Brave unaffected) hit a
-    `frame-src` violation loading a version's PDF whose `blockedURI` came back an empty string.
-    That's not evidence of a cross-origin redirect specifically — Brave blanks `blockedURI` for
-    `frame-src` unconditionally (a blanket browser privacy behavior, tracked in
-    brave/brave-browser#45624), so the actual blocked host was never named and couldn't be
-    identified from the report alone. Re-tighten once a real host is known — e.g. by logging
-    the in-flight PDF URL (`iframe_src.value` in `DisplayDesignVersion.vue`) alongside the next
-    CSP violation report, since that's the one piece of the puzzle the app itself controls
-  - `worker-src 'self'` — deliberately without `blob:`, and explicit so it can't fall back to
-    `script-src`. Vite emits both workers as same-origin chunks (check `dist/assets/`), so
-    blob workers would be XSS surface bought for nothing
-  - `style-src` needs `'unsafe-inline'` twice over: Vuetify's inline `style` attributes, and
-    the loading-spinner `<style>` the index.pug plugin inlines into `dist/index.html`
-  - `object-src`/`base-uri`/`form-action` — the cheap always-on locks. `frame-ancestors` is
-    `'self'`, not `'none'` — a `blob:` URL inherits its creator's whole CSP including
-    `frame-ancestors`, and Safari (unlike Chromium/Firefox) enforces that inherited directive
-    against the actual embedding when `DisplayPreview.vue` iframes its own blob preview, so
-    `'none'` broke in-browser previews in Safari only (created-PDF iframes were unaffected —
-    those load a real cross-origin `firebasestorage.googleapis.com` URL, not a blob)
-
-  `blob:` in `default-src` is load-bearing for `connect-src`: custom fonts become blob URLs
-  that typst.ts then *fetches*. Custom font **previews** don't need it — those go through
-  `new FontFace(family, bytes)`, which CSP doesn't govern at all.
-  `*.googleusercontent.com` is the account button's Google profile photo (`photo_url` in
-  `auth.ts`; served from `lh3`–`lh6`, hence the wildcard). It's a named host rather than a
-  blanket `img-src https:`, which would need its own copy of the whole allowlist and would let
-  injected markup beacon anywhere; a photo from some other host just falls back to the icon
-  (`failed_photo` in `AppRoot.vue`) rather than breaking.
-  Three origins appear in the bundle and are deliberately *not* allowed, because nothing
-  reaches them: `packages.typst.org` (no `@preview` imports exist in generated source),
-  `cdn.jsdelivr.net` (typst.ts's default font assets, disabled by `{assets: false}` in
-  `typst-web`), and `www.google.com/recaptcha` (Firebase Auth loads it only under reCAPTCHA
-  Enterprise, which this project doesn't use). **Enabling reCAPTCHA Enterprise or SMS
-  protections in the Firebase console would silently require adding `https://www.google.com`
-  to `script-src` and `frame-src`** — a console change that breaks sign-in via a file nobody
-  would think to edit
+- **The CSP (`SecurityHeadersPolicy` in `infra/cloudformation.yml`) guards two things only:**
+  injected script can't run (the threat is a shared design smuggling markup into a viewer's
+  page — nothing renders user content as HTML today, so this is the backstop), and nothing the
+  page loads, fetches or frames can reach a host we don't own (so a design can't make its
+  viewers' browsers call an outside server). **`default-src` is the one allowlist** every
+  resource type falls back to — images, fetch/XHR, fonts, media and frames alike — so nothing
+  is unrestricted, and only directives that need something different (`script-src`,
+  `style-src`, `worker-src`) are pinned separately. The cost: any origin the app (or the
+  browser, or Google's sign-in code) starts using must be added there, and until it is it's
+  blocked in production only. The per-source reasoning is in the comment beside the policy.
+  Things that aren't obvious from it:
+  - **It only changes with a stack deploy** (`.bin/deploy_aws`), never `.bin/deploy_app` —
+    CloudFront adds the header, and it never reaches the Vite dev server, so a CSP mistake
+    only ever shows in production. An edit left undeployed silently keeps the old policy live
+  - **Frames need `data:`** (it's in `default-src`, which frames fall back to; any future
+    `frame-src` must keep it). A browser that can't show a PDF inline
+    (Android Chrome-based browsers always, desktop Chrome set to download PDFs) frames its own
+    placeholder page — a `data:` URL that `*` doesn't match — and reports it with an *empty*
+    `blockedURI`. That was the long-running "frame-src violation with no URL" report, wrongly
+    blamed on Brave at the time
+  - `'unsafe-eval'` is required beside `'wasm-unsafe-eval'`: the latter only covers
+    `WebAssembly.compile`/`instantiate`, and `@myriaddreamin/typst-ts-web-compiler`'s
+    wasm-bindgen glue calls `new Function(...)` during `compiler.init()`, so without it every
+    in-browser compile throws an `EvalError`. `'report-sample'` allows nothing; it only puts the
+    start of a blocked inline script in the violation event
+  - `worker-src 'self'` is explicit (it would otherwise fall back to `script-src`) and has no
+    `blob:` — Vite emits both workers as same-origin chunks, so blob workers would be XSS
+    surface bought for nothing
+  - `blob:` in `default-src` is load-bearing for fetches: custom fonts become blob URLs that
+    typst.ts *fetches*. Custom font previews don't need it (`new FontFace(family, bytes)` isn't
+    governed by CSP)
+  - Storage is allowed **by bucket path**, not host — `firebasestorage.googleapis.com` alone
+    would let in any Firebase project's files. It must match `storageBucket` in
+    `app/src/services/firebase.ts`. `storage.googleapis.com` is there for a published PDF's
+    iframe, whose range requests Firebase Storage sometimes 302s to it (seen on Android
+    Chrome); CSP ignores the path after a redirect, so its bucket path only constrains direct
+    requests
+  - Profile photos are allowed as `*.googleusercontent.com/a/` and `/a-/` only, since the rest
+    of that host serves anyone's public images; a photo elsewhere falls back to the icon
+    (`failed_photo` in `AppRoot.vue`)
+  - `frame-ancestors` is `'self'`, not `'none'` — a `blob:` URL inherits its creator's CSP, and
+    Safari enforces the inherited directive against `DisplayPreview.vue`'s own blob iframe
+  - Three origins appear in the bundle and are deliberately *not* allowed, because nothing
+    reaches them: `packages.typst.org` (no `@preview` imports in generated source),
+    `cdn.jsdelivr.net` (typst.ts's default font assets, disabled by `{assets: false}` in
+    `typst-web`), and `www.google.com/recaptcha` (Firebase Auth loads it only under reCAPTCHA
+    Enterprise). **Enabling reCAPTCHA Enterprise or SMS protections in the Firebase console
+    would silently require adding `https://www.google.com` to `script-src` and `default-src`**
+  - Violations are reported by the listener at the bottom of `app/src/services/errors.ts`,
+    which drops what the browser attributes to an extension (an extension-scheme `blockedURI`
+    or `sourceFile`) and reports each distinct violation once per page load. Extensions that
+    inject inline script into the page aren't attributed by any browser, so those still arrive,
+    with the blocked code's opening in `context.sample` to judge them by
 - **`Referrer-Policy` is load-bearing, not hygiene** — a version id *is* the capability to
   read that PDF (rules allow public read by id alone), so without it every outbound click
   from `/designs/{id}/{version}` hands the whole URL to the destination in `Referer`

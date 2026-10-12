@@ -130,21 +130,32 @@ function save_error(message:string, severity:'critical'|'error',
 }
 
 
+function make_element<K extends keyof HTMLElementTagNameMap>(tag:K, text = '')
+        :HTMLElementTagNameMap[K]{
+    // Create an element holding plain text (never parsed as HTML)
+    const element = document.createElement(tag)
+    element.textContent = text
+    return element
+}
+
+
 function show_error_msg(type:'banner'|'splash', debug=''):void{
-    // Insert an error banner or splash into the DOM
+    // Insert an error banner or splash into the DOM. Built element by element rather than from
+    // an HTML string: `debug` carries the error message, which can quote a shared design's
+    // content, and URL-encoding alone leaves quotes that could break out of an attribute
     fail_displayed = type
-    document.body.insertAdjacentHTML('afterbegin', `
-        <div class="fail-${type}">
-            <h1>Something went wrong</h1>
-            <p>
-                <a href='https://gracious.tech/contact?desc=${encodeURIComponent(debug)}'
-                    target='_blank'>Let us know</a>
-            </p>
-            <button>RELOAD</button>
-        </div>
-    `)
-    ;(document.querySelector(`.fail-${type} button`) as HTMLButtonElement)
-        .addEventListener('click', () => {location.reload()})
+    const container = make_element('div')
+    container.className = `fail-${type}`
+    const link = make_element('a', "Let us know")
+    link.href = `https://gracious.tech/contact?desc=${encodeURIComponent(debug)}`
+    link.target = '_blank'
+    link.rel = 'noopener'
+    const paragraph = make_element('p')
+    paragraph.append(link)
+    const button = make_element('button', "RELOAD")
+    button.addEventListener('click', () => {location.reload()})
+    container.append(make_element('h1', "Something went wrong"), paragraph, button)
+    document.body.prepend(container)
 }
 
 
@@ -289,15 +300,47 @@ addEventListener('unhandledrejection', event => {
 })
 
 
+// URLs belonging to a browser extension: blockedURI reports a non-network URL as its bare scheme
+// (e.g. "chrome-extension"), and Safari masks extension script locations as webkit-masked-url
+const extension_schemes = ['chrome-extension', 'moz-extension', 'safari-extension',
+    'safari-web-extension', 'ms-browser-extension', 'webkit-masked-url']
+const extension_url = new RegExp(`^(${extension_schemes.join('|')})(:|$)`)
+
+// Violations already reported this page load (directive + blocked URL + source), so a blocked
+// resource that keeps retrying, or an extension re-injecting on every render, reports once
+const reported_violations = new Set<string>()
+
+
 addEventListener('securitypolicyviolation', event => {
     // Ignore Firebase Auth's cleardot.gif tracking pixel, a known benign img-src violation from
     // Google's own gapi plumbing that isn't worth allowlisting
     if (event.blockedURI.includes('google.com/images/cleardot.gif')) {
         return
     }
-    // Report CSP issues
+
+    // Ignore what an extension caused, when the browser attributes it: the blocked resource or
+    // the script that triggered the violation lives in an extension. Extensions that inject
+    // inline script into the page itself aren't attributed, so those still arrive, with
+    // `sample` showing what the script was
+    if (extension_url.test(event.blockedURI) || extension_url.test(event.sourceFile)){
+        return
+    }
+
+    // Once per distinct violation per page load
+    const key = `${event.effectiveDirective} ${event.blockedURI} ${event.sourceFile}`
+    if (reported_violations.has(key)){
+        return
+    }
+    reported_violations.add(key)
+
+    // Report, keeping the message itself stable so repeats share a fingerprint; the detail goes
+    // in context (`sample` is the blocked inline code's opening, sent due to 'report-sample')
     const msg = `CSP error: ${event.blockedURI} violated ${event.violatedDirective}`
-    report_error('silent', msg)
+    report_error('silent', msg, {context: {
+        source_file: event.sourceFile.slice(0, 300),
+        line: event.lineNumber,
+        sample: event.sample.slice(0, 100),
+    }})
 })
 
 
