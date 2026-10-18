@@ -20,6 +20,9 @@ export const config = {
     // Running against the local emulator suite rather than real Firebase (see .bin/serve_server).
     // Relaxes checks that would otherwise reject the emulator's own plain-http localhost URLs
     dev: !!process.env['FIRESTORE_EMULATOR_HOST'],
+    // Name of the Lambda function the light role hands accepted compiles to (see dispatch_compile
+    // in compile.ts). Unset when running from source, where the compile runs in-process instead
+    compile_function: process.env['COMPILE_FUNCTION'] ?? null,
     // Public origin of the web app — used to build the "customise this design" link + QR code
     // baked into a document's attribution block (see compile.ts)
     app_url: 'https://paper.bible',

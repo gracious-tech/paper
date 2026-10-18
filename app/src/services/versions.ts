@@ -58,9 +58,11 @@ export function design_needs_version(design:DesignMeta):boolean{
 // That's beyond any compile that can still finish: the server fallback stamps a fresh attempt
 // when it starts and is capped at 5 min by the compile Lambda's configured timeout
 // (infra/cloudformation.yml), so this must stay above that — below it, a slow server compile
-// still running would be offered a retry and compiled twice. Crossing it means the compile's
-// driver went away — the tab that clicked "Build it" reloaded/closed/crashed, or the invocation
-// was killed.
+// still running would be offered a retry and compiled twice. The server's per-user compile lock
+// (COMPILE_LOCK_MS in server/src/quota.ts) lapses no later than this, so a retry offered here is
+// never refused by the lock a dead compile left behind. Crossing it means the compile's driver
+// went away — the tab that clicked "Build it" reloaded/closed/crashed, or the invocation was
+// killed.
 // `compile_and_upload` (version_compile.ts) runs only in that one tab and nothing else ever
 // advances a pending doc, so past this the UI offers a retry instead of an unbounded progress
 // screen

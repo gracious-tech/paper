@@ -283,6 +283,18 @@ Resources:
               - Effect: Allow
                 Action: secretsmanager:GetSecretValue
                 Resource: !Ref GcpCredentialsSecret
+        # The light function's /api/compile hands accepted compiles to the compile function (see
+        # dispatch_compile in server/src/compile.ts). Named rather than !GetAtt, which would make
+        # this role and the function that uses it each depend on the other
+        - PolicyName: invoke-compile
+          PolicyDocument:
+            Version: '2012-10-17'
+            Statement:
+              - Effect: Allow
+                Action: lambda:InvokeFunction
+                Resource: !Sub
+                  - 'arn:aws:lambda:${AWS::Region}:${AWS::AccountId}:function:${Name}'
+                  - {Name: !Sub '${AWS::StackName}-compile'}
         # Only the compile function actually calls these (see lambda_bootstrap.ts), but one
         # shared role is simpler than two near-identical ones for a permission this narrow
         - PolicyName: assets-bucket
@@ -325,8 +337,8 @@ Resources:
       LogGroupName: !Sub '/aws/lambda/${AWS::StackName}-compile'
       RetentionInDays: 30
 
-  # The share/redeem/copy/merge routes — high call volume, low memory/duration (see
-  # server/src/index.ts's 'light' role)
+  # Every /api route — high call volume, low memory/duration (see server/src/index.ts's 'light'
+  # role), including /api/compile, which only checks a compile and hands it to CompileFunction
   LightFunction:
     Type: AWS::Lambda::Function
     Properties:
@@ -344,12 +356,14 @@ Resources:
       Environment:
         Variables:
           SERVER_ROLES: light
+          COMPILE_FUNCTION: !Sub '${AWS::StackName}-compile'
           GCLOUD_PROJECT: !Ref GcpProjectId
           GCP_CREDENTIALS_SECRET_ARN: !Ref GcpCredentialsSecret
 
-  # /api/compile only — the in-browser (WASM) compile fallback + expired-PDF regeneration, not
-  # the hot path (most compiles happen client-side). Low traffic, so ReservedConcurrentExecutions
-  # caps it as a cost/load guard rather than letting it scale wide
+  # The compiles /api/compile accepts — the in-browser (WASM) compile fallback + expired-PDF
+  # regeneration, not the hot path (most compiles happen client-side). Not behind API Gateway:
+  # LightFunction invokes it asynchronously, since a compile can outlast the 30s an HTTP API
+  # integration is allowed, and the outcome is recorded on the version doc rather than returned
   CompileFunction:
     Type: AWS::Lambda::Function
     Properties:
@@ -376,21 +390,25 @@ Resources:
           GCLOUD_PROJECT: !Ref GcpProjectId
           GCP_CREDENTIALS_SECRET_ARN: !Ref GcpCredentialsSecret
 
-  # One HTTP API for both functions — API Gateway's own literal-vs-{proxy+} route precedence
-  # gives /api/compile priority over the catch-all, mirroring firebase.json's rewrite order
+  # Lambda's async invocations: no retries, since the compile records its own failure on the
+  # version doc and a retry would only compile it again. Events still queued (the function at
+  # its concurrency limit) are dropped after 5 min, so none starts after its version could read as
+  # stuck in the app (STUCK_MS) and be retried there — or after the compile lock it was dispatched
+  # under has lapsed (COMPILE_LOCK_MS, server/src/quota.ts)
+  CompileInvokeConfig:
+    Type: AWS::Lambda::EventInvokeConfig
+    Properties:
+      FunctionName: !Ref CompileFunction
+      Qualifier: $LATEST
+      MaximumRetryAttempts: 0
+      MaximumEventAgeInSeconds: 300
+
+  # The HTTP API, which sends every /api route to the light function
   HttpApi:
     Type: AWS::ApiGatewayV2::Api
     Properties:
       Name: !Sub '${AWS::StackName}-api'
       ProtocolType: HTTP
-
-  CompileIntegration:
-    Type: AWS::ApiGatewayV2::Integration
-    Properties:
-      ApiId: !Ref HttpApi
-      IntegrationType: AWS_PROXY
-      IntegrationUri: !GetAtt CompileFunction.Arn
-      PayloadFormatVersion: '2.0'
 
   LightIntegration:
     Type: AWS::ApiGatewayV2::Integration
@@ -399,13 +417,6 @@ Resources:
       IntegrationType: AWS_PROXY
       IntegrationUri: !GetAtt LightFunction.Arn
       PayloadFormatVersion: '2.0'
-
-  CompileRoute:
-    Type: AWS::ApiGatewayV2::Route
-    Properties:
-      ApiId: !Ref HttpApi
-      RouteKey: POST /api/compile
-      Target: !Sub 'integrations/${CompileIntegration}'
 
   LightRoute:
     Type: AWS::ApiGatewayV2::Route
@@ -420,14 +431,6 @@ Resources:
       ApiId: !Ref HttpApi
       StageName: '$default'
       AutoDeploy: true
-
-  CompileInvokePermission:
-    Type: AWS::Lambda::Permission
-    Properties:
-      Action: lambda:InvokeFunction
-      FunctionName: !Ref CompileFunction
-      Principal: apigateway.amazonaws.com
-      SourceArn: !Sub 'arn:aws:execute-api:${AWS::Region}:${AWS::AccountId}:${HttpApi}/*'
 
   LightInvokePermission:
     Type: AWS::Lambda::Permission

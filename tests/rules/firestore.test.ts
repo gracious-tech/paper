@@ -470,7 +470,7 @@ describe('quota collections', () => {
     // These match no rule at all, which is what stops a caller reading or resetting their own
     // count — worth asserting, since adding a rule for them would silently undo that
 
-    for (const collection_id of ['compile_quota', 'copy_quota']){
+    for (const collection_id of ['compile_quota', 'copy_quota', 'compile_lock']){
         it(`denies the owning user reading or writing their ${collection_id} row`, async () => {
             await seed(env, [{path: `${collection_id}/${OWNER}`,
                 data: {day: '2026-01-01', count: 5}}])

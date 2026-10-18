@@ -5,9 +5,10 @@
 
 import {describe, it, expect, beforeEach} from 'vitest'
 
-import {quota_allows, QUOTA_COMPILE, QUOTA_COPY, QUOTA_COLLECTIONS, DAILY_COMPILE_LIMIT,
-    DAILY_COPY_LIMIT} from '../../server/src/quota.ts'
-import {admin_db, reset_firestore, OWNER, STRANGER} from '../helpers/server.ts'
+import {quota_allows, claim_compile_lock, extend_compile_lock, release_compile_lock,
+    QUOTA_COMPILE, QUOTA_COPY, COMPILE_LOCK, QUOTA_COLLECTIONS, COMPILE_LOCK_MS,
+    DAILY_COMPILE_LIMIT, DAILY_COPY_LIMIT} from '../../server/src/quota.ts'
+import {admin_db, reset_firestore, at_later_time, OWNER, STRANGER} from '../helpers/server.ts'
 
 import {readFileSync} from 'node:fs'
 import {fileURLToPath} from 'node:url'
@@ -96,6 +97,67 @@ describe('quota_allows', () => {
 })
 
 
+describe('compile lock', () => {
+
+    // One server compile at a time per user. It lives in Firestore because the route that claims
+    // it and the compile that releases it run in different Lambda functions
+
+    it('is claimed when free', async () => {
+        expect(await claim_compile_lock(OWNER, 'v1')).toBe('claimed')
+    })
+
+    it('refuses another version while held', async () => {
+        await claim_compile_lock(OWNER, 'v1')
+        expect(await claim_compile_lock(OWNER, 'v2')).toBe('other_version')
+    })
+
+    it('reports the same version as already compiling, rather than claiming it twice', async () => {
+        await claim_compile_lock(OWNER, 'v1')
+        expect(await claim_compile_lock(OWNER, 'v1')).toBe('same_version')
+    })
+
+    it('is held per user', async () => {
+        await claim_compile_lock(OWNER, 'v1')
+        expect(await claim_compile_lock(STRANGER, 'v2')).toBe('claimed')
+    })
+
+    it('is free again once released', async () => {
+        await claim_compile_lock(OWNER, 'v1')
+        await release_compile_lock(OWNER, 'v1')
+        expect(await claim_compile_lock(OWNER, 'v2')).toBe('claimed')
+    })
+
+    it('lapses on its own, so a compile that died cannot block the user forever', async () => {
+        await claim_compile_lock(OWNER, 'v1')
+        const claim = await at_later_time(COMPILE_LOCK_MS + 1000,
+            () => claim_compile_lock(OWNER, 'v2'))
+        expect(claim).toBe('claimed')
+    })
+
+    it('is not released by a compile whose claim lapsed and passed on', async () => {
+        await claim_compile_lock(OWNER, 'v1')
+        await at_later_time(COMPILE_LOCK_MS + 1000, () => claim_compile_lock(OWNER, 'v2'))
+        await release_compile_lock(OWNER, 'v1')
+        expect(await claim_compile_lock(OWNER, 'v3')).toBe('other_version')
+    })
+
+    it('restarts its lifetime when extended by the compile holding it', async () => {
+        // A compile can wait in Lambda's async queue before it starts
+        await claim_compile_lock(OWNER, 'v1')
+        await at_later_time(COMPILE_LOCK_MS - 1000, () => extend_compile_lock(OWNER, 'v1'))
+        const claim = await at_later_time(COMPILE_LOCK_MS + 1000,
+            () => claim_compile_lock(OWNER, 'v2'))
+        expect(claim).toBe('other_version')
+    })
+
+    it('holds concurrent claims to one winner', async () => {
+        const results = await Promise.all(
+            ['v1', 'v2', 'v3', 'v4'].map(version_id => claim_compile_lock(OWNER, version_id)))
+        expect(results.filter(result => result === 'claimed')).toHaveLength(1)
+    })
+})
+
+
 describe('quota collection registry', () => {
 
     // A new quota collection leaks unless three things line up: an entry in QUOTA_COLLECTIONS so
@@ -105,6 +167,7 @@ describe('quota collection registry', () => {
     it('lists every collection the module defines', () => {
         expect(QUOTA_COLLECTIONS).toContain(QUOTA_COMPILE)
         expect(QUOTA_COLLECTIONS).toContain(QUOTA_COPY)
+        expect(QUOTA_COLLECTIONS).toContain(COMPILE_LOCK)
     })
 
     it('has a TTL policy line in deploy_firebase_initial for each', () => {

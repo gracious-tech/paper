@@ -4,6 +4,7 @@ import {tmpdir} from 'node:os'
 import {mkdtemp, writeFile, readFile, rm} from 'node:fs/promises'
 
 import {Timestamp} from 'firebase-admin/firestore'
+import {LambdaClient, InvokeCommand} from '@aws-sdk/client-lambda'
 import {PDFDocument} from 'pdf-lib'
 import {PDF_LIFETIME_MS, COMPILE_STATS_LIFETIME_MS,
     cover_form_for_render, is_builtin_background, is_known_builtin_background,
@@ -15,19 +16,45 @@ import {generate as generate_cover, build_schema} from 'bookcover-node'
 
 import {admin_db, admin_bucket} from './firebase.ts'
 import {config} from './config.ts'
-import {quota_allows, QUOTA_COMPILE, DAILY_COMPILE_LIMIT} from './quota.ts'
+import {quota_allows, claim_compile_lock, extend_compile_lock, release_compile_lock,
+    QUOTA_COMPILE, DAILY_COMPILE_LIMIT} from './quota.ts'
 import {collect_image_urls} from './assets.ts'
 import {shared_content} from './content.ts'
 import {save_error, generate_error_id} from './errors.ts'
 
+import type {DocumentData, DocumentReference} from 'firebase-admin/firestore'
 import type {EmbedFormState} from 'bookcover-node'
 import type {PmDoc} from 'paper-bible-typst'
 import type {Blueprint, CustomFont} from 'paper-bible-typst-node'
 import type {HandlerResult} from './types.ts'
 
 
-// One compile at a time per user (heavy CPU/memory work; anonymous users can trigger this)
-const active_uids = new Set<string>()
+// A server compile, as the light function's /api/compile route hands it to the compile function
+// (see dispatch_compile). Plain JSON, since in production it crosses as an async Lambda
+// invocation's payload. Only the light function may invoke the compile function (IAM), so the
+// uid here was verified from the caller's ID token
+export interface CompileJob {
+    uid:string
+    version_id:string
+    client_ip:string|null
+    user_agent:string|null
+    // Advisory page-count estimate for the auto binding-gutter (see margin_gutter_auto)
+    page_count?:number
+}
+
+
+// A version that passed check_version(), with what the compile goes on to need from it
+interface CheckedVersion {
+    doc_ref:DocumentReference
+    data:DocumentData
+    design_id:string
+    blueprint:Blueprint
+    fonts_meta:{family:string, style:'serif'|'sans', files:string[]}[]
+}
+
+
+// Invokes the compile function from the light one (created on first dispatch)
+let lambda_client:LambdaClient|null = null
 
 
 async function render_cover(blueprint:Blueprint, custom_fonts:CustomFont[], page_count:number,
@@ -131,54 +158,38 @@ async function record_compile_stat(fields:{version_id:string, design_id:string, 
 }
 
 
-export async function handle_compile(uid:string, version_id:string, client_ip:string|null,
-        user_agent:string|null, page_count?:number)
-        :Promise<HandlerResult>{
-    // Compile a pending version's PDF server-side (fallback for devices whose in-browser
-    // compile failed, and regeneration of expired PDFs)
+async function check_version(uid:string, version_id:string)
+        :Promise<{ok:true, version:CheckedVersion}|{ok:false, refusal:HandlerResult}>{
+    // Validate a version for a server compile and the caller's right to it. Run twice: by the
+    // route before it accepts the job, so a refusal reaches the client, and again by the compile
+    // itself, since the job carries only ids and the doc is the one thing it can trust
+    // A refusal, in the shape the route responds with
+    const refuse = (status:number, error:string) => {
+        return {ok: false as const, refusal: {status, body: {error}}}
+    }
 
-    // Validate the version and the caller's right to it
     const doc_ref = admin_db.doc(`versions/${version_id}`)
     const snap = await doc_ref.get()
     const data = snap.data()
     if (!snap.exists || data === undefined){
-        return {status: 404, body: {error: 'unknown_version'}}
+        return refuse(404, 'unknown_version')
     }
     if (data['owner'] !== uid){
-        return {status: 403, body: {error: 'not_owner'}}
+        return refuse(403, 'not_owner')
     }
     if (data['status'] !== 'pending'){
-        return {status: 409, body: {error: 'not_pending'}}
+        return refuse(409, 'not_pending')
     }
 
-    // Whether this version is still its design's actual latest one — regenerating an older
-    // version must never clobber the design's denormalized `latest_version` summary (used by the
-    // /designs list) with a stale status/pages. A newer version created since would have
-    // overwritten the design's latest_version.save_token with its own, so comparing this
-    // version's own save_token against it tells them apart
-    const design_id = data['design_id'] as string
-    const design_ref = admin_db.doc(`designs/${design_id}`)
-    const design_data = (await design_ref.get()).data()
-    const is_latest = (design_data?.['latest_version'] as {save_token?:string}|undefined)
-        ?.save_token === data['save_token']
-
-    // Production URL for this exact version — woven into the attribution block (link + QR code)
-    // when the blueprint opts in (see gen_copyright_typst). Short /v/:id form (just the version
-    // id) rather than /designs/:design_id/:version so the printed link/QR stays short
-    const share_url = `${config.app_url}/v/${version_id}`
-
-    // Storage paths are always derived from the version id, never read from the doc — doc
-    // fields are client-written, and trusting them would let a crafted doc make the Admin SDK
-    // read/overwrite arbitrary bucket objects
-    const pdf_path = `versions/${version_id}/doc.pdf`
     // Snapshots live under the parent *design*, shared by all its versions — design_id is
     // pinned at create by the rules and immutable thereafter, so it can only name a design the
     // writer could already edit
-    const assets_prefix = version_assets_prefix(data['design_id'] as string)
+    const design_id = data['design_id'] as string
+    const assets_prefix = version_assets_prefix(design_id)
     const fonts_meta = (data['custom_fonts'] ?? []) as
         {family:string, style:'serif'|'sans', files:string[]}[]
     if (fonts_meta.some(meta => meta.files.some(path => !path.startsWith(assets_prefix)))){
-        return {status: 400, body: {error: 'bad_font_path'}}
+        return refuse(400, 'bad_font_path')
     }
 
     // The cover's bg image reference lives inside the client-written blueprint, so it gets
@@ -194,21 +205,21 @@ export async function handle_compile(uid:string, version_id:string, client_ip:st
     const bg_image = (blueprint.cover?.bg_image ?? null) as unknown
     if (bg_image !== null){
         if (typeof bg_image !== 'object'){
-            return {status: 400, body: {error: 'bad_cover_image'}}
+            return refuse(400, 'bad_cover_image')
         }
         const rec = bg_image as Record<string, unknown>
         if (rec['kind'] === 'custom'){
             const p = rec['path']
             if (typeof p !== 'string' || !p.startsWith(assets_prefix)){
-                return {status: 400, body: {error: 'bad_cover_path'}}
+                return refuse(400, 'bad_cover_path')
             }
         } else if (rec['kind'] === 'builtin'){
             const id = rec['id']
             if (typeof id !== 'string' || !is_builtin_background(id)){
-                return {status: 400, body: {error: 'bad_cover_image'}}
+                return refuse(400, 'bad_cover_image')
             }
         } else {
-            return {status: 400, body: {error: 'bad_cover_image'}}
+            return refuse(400, 'bad_cover_image')
         }
     }
 
@@ -219,28 +230,144 @@ export async function handle_compile(uid:string, version_id:string, client_ip:st
     // equivalent: there the fetch happens under the page's own origin policy
     for (const url of collect_image_urls(blueprint)){
         if (!is_fetchable_image_url(url, config.dev)){
-            return {status: 400, body: {error: 'bad_image_url'}}
+            return refuse(400, 'bad_image_url')
         }
     }
 
-    // Throttle
-    if (active_uids.has(uid)){
+    return {ok: true, version: {doc_ref, data, design_id, blueprint, fonts_meta}}
+}
+
+
+async function dispatch_compile(job:CompileJob):Promise<void>{
+    // Start an accepted compile without waiting for it. In production that's an async ('Event')
+    // invocation of the compile function, which Lambda queues and runs to the function's own
+    // timeout with no HTTP request attached. Running from source there's no function to invoke,
+    // so the compile runs in this process instead — only where this process serves the compile
+    // role too (dev's default): a light-only Lambda is frozen the moment its response goes out
+    if (config.compile_function !== null){
+        lambda_client ??= new LambdaClient({})
+        await lambda_client.send(new InvokeCommand({
+            FunctionName: config.compile_function,
+            InvocationType: 'Event',
+            Payload: new TextEncoder().encode(JSON.stringify(job)),
+        }))
+        return
+    }
+    if (!config.roles.includes('compile')){
+        throw new Error('No compile function to dispatch to (COMPILE_FUNCTION is unset)')
+    }
+    // The compile records its own outcome on the version doc; this only keeps anything it
+    // couldn't record from going unhandled and taking the dev server down with it
+    void run_compile(job).catch(error => console.error(error))
+}
+
+
+export async function handle_compile(job:CompileJob):Promise<HandlerResult>{
+    // Accept a pending version for a server compile (fallback for devices whose in-browser
+    // compile failed, and regeneration of expired PDFs): run every check that can refuse it, then
+    // hand it to the compile function and answer 202 straight away. A compile can outlast any
+    // request API Gateway will hold open (30s), so its outcome is only ever recorded on the
+    // version doc, which the client already syncs
+    const {uid, version_id} = job
+    const checked = await check_version(uid, version_id)
+    if (!checked.ok){
+        return checked.refusal
+    }
+
+    // One server compile at a time per user (heavy CPU/memory work; anonymous users can trigger
+    // this). A live compile of this same version (another tab, a retry racing the original) is
+    // as good as this request succeeding — its outcome reaches the client the same way
+    const claim = await claim_compile_lock(uid, version_id)
+    if (claim === 'same_version'){
+        return {status: 409, body: {error: 'not_pending'}}
+    }
+    if (claim === 'other_version'){
         return {status: 429, body: {error: 'compile_in_progress'}}
     }
     if (!await quota_allows(QUOTA_COMPILE, uid, DAILY_COMPILE_LIMIT)){
+        await release_compile_lock(uid, version_id)
         return {status: 429, body: {error: 'quota_exceeded'}}
     }
-    active_uids.add(uid)
+
+    // Stamp the attempt start, so a job that never runs (dropped from Lambda's queue) reads as
+    // stuck on the client rather than forever-pending — see version_stuck() in the app
+    await checked.version.doc_ref.update({compile_started: Timestamp.now()})
+        .catch(() => undefined)
+
+    try {
+        await dispatch_compile(job)
+    } catch (error){
+        console.error(error)
+        await release_compile_lock(uid, version_id)
+        return {status: 500, body: {error: 'dispatch_failed'}}
+    }
+    return {status: 202, body: {ok: true}}
+}
+
+
+export async function run_compile(job:CompileJob, prepare?:() => Promise<void>):Promise<void>{
+    // Compile a version the light function accepted (see handle_compile) and record the outcome
+    // on its doc — nothing waits on this but the client's sync of that doc. `prepare` is the
+    // compile function's cold-start asset sync (see lambda.ts), run inside the failure handling
+    // below so a sync that fails marks the version failed rather than leaving it pending
+    const {uid, version_id} = job
+    try {
+        // A concurrent compile may have finished the version while this job was queued
+        const checked = await check_version(uid, version_id)
+        if (!checked.ok){
+            console.warn(`Compile of ${version_id} skipped:`, checked.refusal.body)
+            return
+        }
+        // Best-effort: failing it only risks the lock lapsing mid-compile, which beats leaving a
+        // compile that's ready to run with nothing to record its outcome
+        await extend_compile_lock(uid, version_id).catch(error => console.error(error))
+        await compile_version(job, checked.version, prepare)
+    } finally {
+        // Best-effort: a lock left behind lapses on its own (see COMPILE_LOCK_MS)
+        await release_compile_lock(uid, version_id).catch(error => console.error(error))
+    }
+}
+
+
+async function compile_version(job:CompileJob, version:CheckedVersion,
+        prepare?:() => Promise<void>):Promise<void>{
+    // The compile itself: render the interior (and cover) to PDF, publish them to Storage, and
+    // mark the version available — or, on any failure, failed with an error report's id
+    const {uid, version_id, client_ip, user_agent, page_count} = job
+    const {doc_ref, data, design_id, blueprint, fonts_meta} = version
+
+    // Whether this version is still its design's actual latest one — regenerating an older
+    // version must never clobber the design's denormalized `latest_version` summary (used by the
+    // /designs list) with a stale status/pages. A newer version created since would have
+    // overwritten the design's latest_version.save_token with its own, so comparing this
+    // version's own save_token against it tells them apart
+    const design_ref = admin_db.doc(`designs/${design_id}`)
+    const design_data = (await design_ref.get()).data()
+    const is_latest = (design_data?.['latest_version'] as {save_token?:string}|undefined)
+        ?.save_token === data['save_token']
+
+    // Production URL for this exact version — woven into the attribution block (link + QR code)
+    // when the blueprint opts in (see gen_copyright_typst). Short /v/:id form (just the version
+    // id) rather than /designs/:design_id/:version so the printed link/QR stays short
+    const share_url = `${config.app_url}/v/${version_id}`
+
+    // Storage paths are always derived from the version id, never read from the doc — doc
+    // fields are client-written, and trusting them would let a crafted doc make the Admin SDK
+    // read/overwrite arbitrary bucket objects
+    const pdf_path = `versions/${version_id}/doc.pdf`
 
     // Wall-clock of the interior compile, for the compile_stats telemetry (set right before the
     // compile so the failure path only logs a real attempt)
     let interior_start:number|null = null
 
     try {
-        // Re-stamp the attempt start so a compile killed here (instance termination, OOM on the
-        // largest docs, request timeout) reads as stuck rather than forever-pending on the
-        // client — see version_stuck() in the app
+        // Re-stamp the attempt start so a compile killed here (timeout, OOM on the largest docs)
+        // reads as stuck rather than forever-pending on the client — see version_stuck() in the
+        // app. Restarts the count the route began, which may have been spent in Lambda's queue
         await doc_ref.update({compile_started: Timestamp.now()}).catch(() => undefined)
+
+        // Make sure the fonts/backgrounds the compile reads are in place
+        await prepare?.()
 
         // Download the version's snapshotted custom fonts (usually none)
         const custom_fonts:CustomFont[] = await Promise.all(
@@ -327,7 +454,6 @@ export async function handle_compile(uid:string, version_id:string, client_ip:st
             await design_ref.update(
                 {'latest_version.status': 'available', 'latest_version.pages': pages})
         }
-        return {status: 200, body: {ok: true, pages}}
 
     } catch (error){
         console.error(error)
@@ -362,9 +488,5 @@ export async function handle_compile(uid:string, version_id:string, client_ip:st
         if (is_latest){
             await design_ref.update({'latest_version.status': 'failed'}).catch(() => undefined)
         }
-        return {status: 500, body: {error: 'compile_failed'}}
-
-    } finally {
-        active_uids.delete(uid)
     }
 }

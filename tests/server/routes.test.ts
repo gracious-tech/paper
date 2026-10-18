@@ -5,8 +5,8 @@
 // that can only be seen from outside: authed_post(), the wrapper every authenticated route goes
 // through. It does the token check and the body-field checks so a route can't be added without
 // them, and forgetting either is a security hole rather than a visible bug. The other property
-// checked here is role gating — SERVER_ROLES decides which routes exist at all, and CloudFront
-// routes /api/compile to a different Lambda function, so the two have to agree.
+// checked here is role gating — SERVER_ROLES decides which routes exist at all, and API Gateway
+// sends every route to the light function, so the compile role must serve none of them.
 
 import {spawn} from 'node:child_process'
 import {fileURLToPath} from 'node:url'
@@ -41,8 +41,8 @@ async function start_server(roles:string, port:number):Promise<Server>{
             ...process.env,
             SERVER_ROLES: roles,
             PORT: String(port),
-            // The compile role loads its assets tree lazily, so an unused path is fine here —
-            // no test in this file reaches a real compile
+            // The compile runs in-process here, but no test in this file gets as far as one, so
+            // an unused assets path is fine
             ASSETS_DIR: `${REPO_ROOT}assets`,
         },
         stdio: ['ignore', 'pipe', 'pipe'],
@@ -113,6 +113,7 @@ async function post(server:Server, path:string, body:unknown,
 
 // Every authenticated light route, with a body that would satisfy its field checks
 const LIGHT_ROUTES:{path:string, body:Record<string, unknown>}[] = [
+    {path: '/api/compile', body: {version_id: 'v1'}},
     {path: '/api/design_invite_preview', body: {design_id: 'd1', token: 't'}},
     {path: '/api/redeem_design_invite', body: {design_id: 'd1', token: 't'}},
     {path: '/api/design_editors', body: {design_id: 'd1'}},
@@ -148,11 +149,6 @@ describe('authentication', () => {
             expect(result.body).toEqual({error: 'unauthenticated'})
         })
     }
-
-    it('refuses /api/compile with no token', async () => {
-        const result = await post(compile, '/api/compile', {version_id: 'v1'})
-        expect(result.status).toBe(401)
-    })
 
     it('refuses a token that is not a bearer token', async () => {
         const result = await post(light, '/api/design_editors', {design_id: 'd1'}, token)
@@ -247,26 +243,22 @@ describe('body validation', () => {
 
 describe('role gating', () => {
 
-    // SERVER_ROLES decides which routes exist; CloudFront/API Gateway decide which Lambda
-    // function gets the traffic. Both must agree or a route is reachable on the wrong function
-    // size (or not at all)
+    // SERVER_ROLES decides which routes exist; API Gateway sends every one of them to the light
+    // function. The compile function is only ever invoked by the light one, never over HTTP
 
-    it('does not serve /api/compile on the light role', async () => {
-        const result = await post(light, '/api/compile', {version_id: 'v1'}, `Bearer ${token}`)
-        expect(result.status).toBe(404)
-    })
-
-    it('does not serve the light routes on the compile role', async () => {
+    it('does not serve any route on the compile role', async () => {
         for (const route of LIGHT_ROUTES){
             const result = await post(compile, route.path, route.body, `Bearer ${token}`)
             expect(result.status).toBe(404)
         }
     })
 
-    it('serves /api/compile on the compile role', async () => {
+    it('serves /api/compile on the light role', async () => {
         // Reaching the handler at all is the point; a missing version is its own 404
-        const result = await post(compile, '/api/compile', {}, `Bearer ${token}`)
-        expect(result.status).toBe(400)
+        const result = await post(light, '/api/compile', {version_id: 'no_such_version'},
+            `Bearer ${token}`)
+        expect(result.status).toBe(404)
+        expect(result.body).toEqual({error: 'unknown_version'})
     })
 })
 

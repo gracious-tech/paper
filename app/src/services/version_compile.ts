@@ -204,16 +204,11 @@ async function record_compile_stat(fields:{version_id:string, design_id:string, 
 const SERVER_BUSY_WAIT_MS = 3 * 60 * 1000
 const SERVER_BUSY_RETRY_MS = 10 * 1000
 
-// Statuses meaning a gateway in front of the compile Lambda stopped waiting for it, not that the
-// compile failed: API Gateway's HTTP APIs cap an integration at 30s and CloudFront's origin
-// timeout defaults to the same, while the Lambda itself may run for 5 min
-const GATEWAY_TIMEOUT_STATUSES = [503, 504]
-
 
 async function request_server_compile(id:string, page_estimate:number):Promise<void>{
-    // Hand a pending version over to the server compile, which records the outcome on the version
-    // doc itself (it arrives here via the versions sync). Only throws when the server couldn't be
-    // got to take the job at all
+    // Hand a pending version over to the server compile. The server answers as soon as it has
+    // accepted the job, and the compile records its outcome on the version doc itself (it arrives
+    // here via the versions sync). Only throws when the server couldn't be got to take the job
     const give_up_at = Date.now() + SERVER_BUSY_WAIT_MS
     while (true){
         try {
@@ -225,17 +220,9 @@ async function request_server_compile(id:string, page_estimate:number):Promise<v
             }
 
             // A concurrent compile (another tab, or a retry racing the original) already moved
-            // the version out of 'pending' — not a failure, the winner's status arrives via sync
+            // the version out of 'pending' or is compiling it now — not a failure, the winner's
+            // status arrives via sync
             if (error.code === 'not_pending'){
-                return
-            }
-
-            // The gateway gave up waiting but the Lambda carries on and records the result
-            // itself. If it dies instead, nothing advances the doc and the version is offered a
-            // retry once stuck (see STUCK_MS) — either way marking it failed here would be wrong
-            if (GATEWAY_TIMEOUT_STATUSES.includes(error.status)){
-                report_error('silent', error,
-                    {context: {version_id: id, stage: 'server_compile_timeout'}})
                 return
             }
 

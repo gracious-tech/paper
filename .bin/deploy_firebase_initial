@@ -52,5 +52,7 @@ gcloud firestore fields ttls update expires \
     --collection-group=compile_quota --enable-ttl --project "$PROJECT" --quiet
 gcloud firestore fields ttls update expires \
     --collection-group=copy_quota --enable-ttl --project "$PROJECT" --quiet
+gcloud firestore fields ttls update expires \
+    --collection-group=compile_lock --enable-ttl --project "$PROJECT" --quiet
 
 echo "Done. Now run .bin/deploy_aws"

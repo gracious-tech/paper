@@ -20,10 +20,11 @@ Live at [paper.bible](https://paper.bible). MIT No Attribution license.
 **PDF engine:** Typst — in the browser via a WASM worker, and on a Lambda function (Typst CLI)
   as fallback/regeneration path
 **API:** one server codebase deployed as two Lambda functions sharing one container image
-  (`SERVER_ROLES` env picks routes): `paper-bible-light` (share/redeem/copy/merge, 512MB) and
-  `paper-bible-compile` (`/api/compile` only, 3GB/4GB ephemeral storage, fonts synced from S3
-  into `/tmp` on cold start — see `server/src/lambda_bootstrap.ts`), behind one API Gateway
-  HTTP API that CloudFront routes `/api/*` to
+  (`SERVER_ROLES` env picks the handler): `paper-bible-light` (every `/api` route, 512MB),
+  behind one API Gateway HTTP API that CloudFront routes `/api/*` to, and `paper-bible-compile`
+  (3GB/4GB ephemeral storage, fonts synced from S3 into `/tmp` on cold start — see
+  `server/src/lambda_bootstrap.ts`), which has no HTTP route at all: light's `/api/compile`
+  checks a compile and invokes it asynchronously
 **Shared assets:** the public assets bucket (`https://assets.paper.bible/`, S3 + CloudFront,
   same AWS account) is owned and published by the separate
   [bookcover repo](https://github.com/gracious-tech/bookcover) — top-level dirs: `fonts/`
@@ -48,8 +49,10 @@ Live at [paper.bible](https://paper.bible). MIT No Attribution license.
    immutable `versions/{id}` doc (blueprint + custom-font snapshot + the design's current
    `save_token`), then compiled in the browser and uploaded to Storage
    (`versions.ts: compile_and_upload`)
-5. If the in-browser (WASM) compile fails, the client calls `POST /api/compile` and the
-   compile Lambda compiles the same frozen blueprint with the Typst CLI
+5. If the in-browser (WASM) compile fails, the client calls `POST /api/compile`, which answers
+   `202` once it has accepted the job; the compile Lambda then compiles the same frozen
+   blueprint with the Typst CLI and records the outcome on the version doc (see the
+   async-compile gotcha)
 6. PDFs live in Storage for 1 year (GCS lifecycle rule); *only the PDFs expire* — the
    metadata and the design's frozen `version_assets/` snapshots stay, so the PDF can be
    regenerated (same hybrid path) afterwards
@@ -86,12 +89,12 @@ Live at [paper.bible](https://paper.bible). MIT No Attribution license.
   the id itself is the whole capability — Firestore/Storage rules allow public read directly,
   no server hop or token needed to view metadata or download the PDF
 - **Same-origin API:** CloudFront routes `/api/*` to one API Gateway HTTP API, which routes
-  `POST /api/compile` to the compile Lambda and everything else (`ANY /api/{proxy+}`) to the
-  light Lambda (Vite proxies everything to `localhost:8788` in dev) — no CORS anywhere.
-  Light routes: `design_invite_preview`, `redeem_design_invite`, `design_editors`,
-  `copy_version`, `duplicate_design`, `delete_design`, `delete_version`,
+  everything (`ANY /api/{proxy+}`) to the light Lambda (Vite proxies everything to
+  `localhost:8788` in dev) — no CORS anywhere.
+  Light routes: `compile` (accepts and dispatches only), `design_invite_preview`,
+  `redeem_design_invite`, `design_editors`, `copy_version`, `duplicate_design`, `delete_design`, `delete_version`,
   `reconcile_design_assets`, `touch_assets`, `merge_account`, `report_error`
-  (unauthenticated), plus `health` on both
+  (unauthenticated), plus `health` on both roles
 - **Static-content skew:** Bible translations (1000+ in prod) and Noto fallback fonts (192
   families) are barely-changing content with heavily skewed popularity — the compile Lambda
   fetches both on demand (fonts via an S3 sync into `/tmp` on cold start, books via
@@ -234,20 +237,22 @@ paper_bible/
     tsconfig.build.json    # noEmit:false / outDir:dist override of tsconfig.json, used only by
                             #   Dockerfile.lambda's build step
     deploy/                # Staged build context (gitignored; written by .bin/build_server_lambda)
-    src/index.ts           # Builds and exports the bare Hono `app` — routes gated by
-                            #   SERVER_ROLES: compile | light (share/merge). Authed routes go
+    src/index.ts           # Builds and exports the bare Hono `app` — every route belongs to
+                            #   the light role (compile serves none). Authed routes go
                             #   through authed_post(), which does the token + body-field checks
                             #   so a route can't be added without them
     src/dev_server.ts      # Entry point for local dev/tests: serve()s `app` over a real
                             #   listener (see .bin/serve_server, tests/server/routes.test.ts)
-    src/lambda.ts           # Production entry point: wraps `app` with hono/aws-lambda's
-                            #   handle(), and — compile role only — syncs fonts/backgrounds from
-                            #   S3 before the first real request in a cold execution environment
+    src/lambda.ts           # Production entry point: light wraps `app` with hono/aws-lambda's
+                            #   handle(); compile takes a CompileJob (async invocation from
+                            #   light) and syncs fonts/backgrounds from S3 before compiling
     src/lambda_bootstrap.ts # The S3 sync itself (fonts/, backgrounds/ into ASSETS_DIR/tmp),
                             #   memoized per execution environment, retried on failure
     src/types.ts           # HandlerResult — what every handle_* returns
-    src/compile.ts         # compile_pdf_from_blueprint + upload + doc update
+    src/compile.ts         # handle_compile (checks, lock, dispatch, 202) + run_compile
+                            #   (compile_pdf_from_blueprint + upload + doc update)
     src/quota.ts           # per-uid daily caps on the expensive routes (compile, copy_version)
+                            #   + the per-uid server compile lock
     src/content.ts         # Shared BibleContent: collection TTL + LRU book cache
     src/share.ts           # Share-token redemption, shared views, keep-own-copy
     src/assets.ts          # Asset path collection, copying, sweeping + reconcile/touch
@@ -313,6 +318,9 @@ copy_quota/{uid}     # ditto for "keep own copy" (/api/copy_version)
                      #   Both are {day, count, expires}, Admin SDK only and matching no client
                      #   rule, so a caller can neither read nor reset their own count.
                      #   One helper: quota_allows() in server/src/quota.ts
+compile_lock/{uid}   # {version_id, expires}: the one server compile a user may have running,
+                     #   claimed by /api/compile, released by the compile (claim_compile_lock()
+                     #   etc. in quota.ts). Listed in QUOTA_COLLECTIONS like the rows above
 ```
 
 Every `compile_stats` and `*_quota` row carries an `expires` field with a Firestore native
@@ -403,7 +411,7 @@ neither side knows about the other's setup process.
    content — the compile Lambda reads it directly via same-account IAM, the app fetches from
    its CloudFront domain)
 3. `.bin/deploy_firebase_initial <project-id>` — Storage lifecycle rules, Firestore TTL policies
-   (`compile_stats`, `compile_quota`, `copy_quota`)
+   (`compile_stats`, `compile_quota`, `copy_quota`, `compile_lock`)
 4. Create a GCP service account for the Lambda functions' Admin SDK credential (least
    privilege: `roles/datastore.user`, `roles/storage.objectAdmin` scoped to the Storage
    bucket, `roles/firebaseauth.admin`), download its key — `.bin/deploy_aws` prints where to
@@ -648,11 +656,26 @@ neither side knows about the other's setup process.
   deploying breaks the ancestry, and the issue's later reports then all read as stale.
   The background fixer (`errors/fix.ts`) refuses to start on uncommitted tracked changes, so
   each review is exactly one fix, and never touches git itself: accepting waits for your commit
-- **SERVER_ROLES gates routes, API Gateway gates traffic** — both must agree: `POST
-  /api/compile` routes to the `paper-bible-compile` Lambda (role `compile`), everything else
-  (`ANY /api/{proxy+}`) to `paper-bible-light` (role `light`); dev defaults to both roles on
-  one port. This is asserted directly in `tests/server/routes.test.ts`, not just implied by
-  the CloudFormation routes matching the deployed roles
+- **SERVER_ROLES gates routes, API Gateway gates traffic** — both must agree: every route
+  (`ANY /api/{proxy+}`) goes to `paper-bible-light` (role `light`), and the `compile` role
+  serves no HTTP route at all; dev defaults to both roles on one port. This is asserted
+  directly in `tests/server/routes.test.ts`, not just implied by the CloudFormation routes
+  matching the deployed roles
+- **Server compiles are async, because API Gateway can't wait for them.** An HTTP API caps an
+  integration at 30s (a hard limit) and CloudFront's origin timeout is 60s at most without a
+  quota request, while a large compile plus a cold-start asset sync can take minutes. So
+  `/api/compile` (light) only runs the checks that can refuse a compile — ownership, `pending`,
+  asset paths, the per-user lock, the daily quota — then invokes `paper-bible-compile` with
+  `InvocationType: 'Event'` and answers `202`; the outcome only ever reaches the client through
+  the version doc. Three timings must nest: the async event's max age (5 min, in
+  `CompileInvokeConfig`) ≤ `COMPILE_LOCK_MS` (6 min, restarted when the compile begins) ≤
+  `STUCK_MS` in the app (6 min), the last two above the function's 5-min timeout — so a queued event never
+  starts after its lock lapsed, and a retry offered for a stuck version is never refused by
+  the lock a dead compile left. Async retries are off (a retry would only compile again). From
+  source there's no function to invoke (`COMPILE_FUNCTION` unset), so `dispatch_compile()`
+  runs the compile in the same process — but only where that process serves the `compile`
+  role too (dev's default). A light-only server without `COMPILE_FUNCTION` throws instead,
+  since a Lambda is frozen the moment its response goes out
 - **The CSP (`SecurityHeadersPolicy` in `infra/cloudformation.yml`) guards two things only:**
   injected script can't run (the threat is a shared design smuggling markup into a viewer's
   page — nothing renders user content as HTML today, so this is the backstop), and nothing the
@@ -713,8 +736,8 @@ neither side knows about the other's setup process.
   Run's GCS-FUSE bucket-as-filesystem mount, so `lambda_bootstrap.ts` downloads
   `fonts/` and the top level of `backgrounds/` (not its `previews_*/`/`thumbnails/`/`originals/`
   subdirectories — see `wanted_key()`) from the bookcover bucket (same-account IAM) into
-  `ASSETS_DIR` (`/tmp/assets` in production) on the compile function's first invocation per execution
-  environment, memoized after that; new fonts/templates are still published from the
+  `ASSETS_DIR` (`/tmp/assets` in production) on the compile function's first invocation per
+  execution environment, memoized after that; new fonts/templates are still published from the
   bookcover repo, not a server redeploy. This sync **must** run lazily inside the handler
   (see `lambda.ts`), never as top-level `await` — Lambda's module-INIT phase has a fixed
   ~10s budget the sync can easily exceed, unlike the single Secrets Manager call in
@@ -722,14 +745,11 @@ neither side knows about the other's setup process.
   untracked `assets/` dir (a copy/symlink of the bookcover repo's assets tree) directly, no
   sync involved
 - **Hono middleware registered after a route is composed after it, not before — even if
-  the middleware is meant to gate that route.** `lambda.ts` originally tried registering the
-  asset-sync as `app.use('/api/compile', ...)`, added after `index.ts` already registered the
-  `POST /api/compile` handler; since `authed_post()` never calls `next()`, that middleware was
-  unreachable. Fixed by wrapping the whole exported Lambda handler instead of using Hono
-  middleware — anything that must run before a specific route, added from a module that
-  imports (and therefore runs after) the module defining that route, needs the same treatment
-- **Server caches are per-execution-environment best-effort** (like the per-uid compile
-  throttle): `server/src/content.ts` keeps the fetch.bible collection (1h TTL) and an LRU of
+  the middleware is meant to gate that route.** `authed_post()` never calls `next()`, so an
+  `app.use('/api/x', ...)` added from a module that imports (and therefore runs after)
+  `index.ts` is unreachable for that route. Anything that must run before a specific route
+  belongs inside its handler, or wrapping the exported Lambda handler
+- **Server caches are per-execution-environment best-effort**: `server/src/content.ts` keeps the fetch.bible collection (1h TTL) and an LRU of
   fetched books warm across compiles, but a fresh Lambda environment starts cold — and unlike
   a Cloud-Run-style min-instances pool, concurrent invocations don't share this cache at all,
   so cold fills happen more often. Acceptable since `/api/compile` is a low-traffic fallback

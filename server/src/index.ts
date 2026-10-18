@@ -21,9 +21,10 @@ import type {HandlerResult} from './types.ts'
 // The API server — reached via CloudFront's /api/** cache behavior in production and Vite's
 // dev proxy locally, so all routes are same-origin for the app (no CORS needed)
 // In production this codebase is deployed as two Lambda functions sharing one image (see
-// infra/cloudformation.yml): API Gateway routes /api/compile to the 'compile' function and
-// everything else to 'light'. This module only builds the app — server/src/dev_server.ts
-// serves it locally via a real listener, server/src/lambda.ts wraps it for Lambda
+// infra/cloudformation.yml): API Gateway routes every request to 'light', which invokes the
+// 'compile' function asynchronously for the compiles it accepts. This module only builds the
+// app — server/src/dev_server.ts serves it locally via a real listener, server/src/lambda.ts
+// wraps it for Lambda
 export const app = new Hono()
 
 
@@ -73,23 +74,23 @@ app.get('/api/health', context => {
 })
 
 
-// Compile a pending version server-side (in-browser compile fallback + regeneration)
-// Only served by the 'compile' role — the one route needing typst, fonts, and Bible fetching
-if (config.roles.includes('compile')){
+// The routes all need only the Admin SDK and are served by the 'light' role. The 'compile' role
+// serves none: the compile function is invoked by this role's /api/compile, not over HTTP
+if (config.roles.includes('light')){
+
+    // Accept a pending version for a server compile (in-browser compile fallback + regeneration)
+    // and hand it to the compile function, answering before the compile itself runs (see
+    // handle_compile)
     authed_post('/api/compile', ['version_id'], async (uid, {version_id}, {context, body}) => {
         // page_count is an advisory estimate for the auto binding-gutter only (see
         // margin_gutter_auto) — ignored unless it's a sane positive number
         const page_count = typeof body['page_count'] === 'number' && body['page_count'] > 0
             ? body['page_count']
             : undefined
-        return await handle_compile(uid, version_id, get_client_ip(context),
-            context.req.header('User-Agent') ?? null, page_count)
+        return await handle_compile({uid, version_id, client_ip: get_client_ip(context),
+            user_agent: context.req.header('User-Agent') ?? null,
+            ...page_count !== undefined && {page_count}})
     })
-}
-
-
-// The remaining routes need only the Admin SDK and are served by the 'light' role
-if (config.roles.includes('light')){
 
     // Receive an error report from the browser and store it in the bucket — no auth required
     // (errors can occur before/without sign-in) but the uid is recorded when a token is present.
