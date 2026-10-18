@@ -25,7 +25,9 @@ div.cont(class='text-body-medium')
                         :to='link.to' :target='link.href ? "_blank" : undefined' variant='tonal')
                     | {{ link.label }}
 
-    IntroVideo.display
+    //- Only mounted on mobile, where AppRoot's display area isn't (rather than hidden by CSS):
+    //- a second copy of the embed would load and autoplay unseen once the visible one is clicked
+    IntroVideo.video(v-if='is_mobile')
 
     //- The build's commit, so a user reporting a problem can say which release they're on
     p(class='text-body-small text-medium-emphasis ma-6') {{$t("view.about.version", {build})}}
@@ -38,7 +40,8 @@ div.cont(class='text-body-medium')
 import {computed} from 'vue'
 
 import {useI18n} from '@/services/i18n'
-//- The video panel is shared with the display area; on narrow screens it renders inline here
+import {use_is_mobile} from '@/services/display'
+// The video panel is shared with the display area; on narrow screens it renders inline here
 import IntroVideo from '@/comp/reuseable/IntroVideo.vue'
 
 import type {RouteLocationRaw} from 'vue-router'
@@ -52,6 +55,9 @@ interface AboutLink {
 }
 
 const {t} = useI18n()
+
+// Same breakpoint AppRoot uses to decide whether its display area (and its video) is mounted
+const is_mobile = use_is_mobile()
 
 // The page's link groups, computed so the labels follow a change of locale
 const sections = computed(():{title:string, links:AboutLink[]}[] => [
@@ -85,11 +91,8 @@ const build = import.meta.env.BUILD_COMMIT
     overflow: auto
 
 
-.display
-    display: none
+.video
     width: 100%
     aspect-ratio: 16 / 9
-    @media (max-width: 900px)
-        display: block
 
 </style>
