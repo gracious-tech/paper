@@ -42,7 +42,7 @@ v-card-text(class='overflow-y-auto')
                 v-list-item-subtitle(v-if='trans.name_english !== trans.name') {{ trans.name_english }}
 
     div(class='cant_find text-center')
-        v-btn(variant='text' size='small' color='primary')
+        v-btn(variant='text' color='primary')
             | {{ $t("dialog.missing_translation.title") }}
             DialogMissingTranslation
 

@@ -16,8 +16,9 @@ import type {WizardStep} from '@/services/new_design'
 
 // General state
 export const state = reactive({
-    // Shows the welcome splash instead of the app — set true by init_designs() for a brand new
-    // visitor (no designs and never welcomed), cleared by DisplaySplash.vue's "Get Started" button
+    // Whether to welcome the visitor with the splash — set by init_designs() for a brand new
+    // visitor (no designs and never welcomed), cleared by DisplaySplash.vue's "Get Started" button.
+    // AppRoot.vue only shows it on the designs list, so a linked page is read first
     splash: false,
     advanced: false,
     editor: null as null|{component:string, props:Record<string, unknown>},

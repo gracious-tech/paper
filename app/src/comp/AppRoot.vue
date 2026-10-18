@@ -1,7 +1,7 @@
 
 <template lang='pug'>
 
-DisplaySplash(v-if='state.splash')
+DisplaySplash(v-if='show_splash')
 v-app.app(v-else)
     v-main
 
@@ -41,7 +41,7 @@ v-app.app(v-else)
                                 AppIcon(name='donate')
                             v-list-item-title {{ $t("app.donate") }}
 
-            AppNavbar(v-if='route.name !== "about" && route.name !== "privacy"')
+            AppNavbar(v-if='!on_info_page')
 
         //- Whatever is stopping the app doing its job until fixed (see `health` in state.ts).
         //- flex-0-0 since v-alert grows by default, sharing v-main's height with the view
@@ -55,7 +55,7 @@ v-app.app(v-else)
 
 //- Not mounted at all on mobile (no room for it), rather than merely hidden, so nothing in it
 //- keeps compiling previews or loading PDFs nobody can see
-div.display(v-if='!state.splash && !is_mobile')
+div.display(v-if='!show_splash && !is_mobile')
     DisplayPreview(v-if='showing_editor')
     DisplayDesignVersion(v-else-if='route.name === "design"')
     IntroVideo(v-else-if='route.name === "about"')
@@ -111,6 +111,7 @@ import BrandIcon from '@/assets/icon.svg?component'
 import DialogLegacy from '@/legacy/DialogLegacy.vue'
 import {probe_legacy_data} from '@/legacy/legacy'
 import {state, health} from '@/services/state'
+import {designs} from '@/services/designs'
 import {is_anonymous, photo_url} from '@/services/auth'
 import {design_needs_editor} from '@/services/versions'
 import {init_coloris} from '@/services/coloris'
@@ -120,6 +121,22 @@ import {use_is_mobile} from '@/services/display'
 const route = useRoute()
 const {t} = useI18n()
 const is_mobile = use_is_mobile()
+
+
+// Standalone pages people get linked to, which hide the designs navbar
+const INFO_PAGES = ['about', 'privacy', 'publishers']
+const on_info_page = computed(() => {
+    return typeof route.name === 'string' && INFO_PAGES.includes(route.name)
+})
+
+
+// Whether to show the welcome splash in place of the app. Only the designs list greets a new
+// visitor: one linked to a page or a shared design reads that first, and is welcomed if they
+// later go on to the list. Rechecking for designs covers one made since boot (e.g. by keeping
+// a copy of a shared version), as the splash introduces an empty app
+const show_splash = computed(() => {
+    return state.splash && route.name === 'designs' && !designs.length
+})
 
 
 // Bind the Coloris color picker to every [data-coloris] input (AppColor), once, app-wide

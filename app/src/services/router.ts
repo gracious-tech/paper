@@ -11,6 +11,7 @@ import ViewDesignInvite from '@/comp/views/ViewDesignInvite.vue'
 import ViewVersionShortlink from '@/comp/views/ViewVersionShortlink.vue'
 import ViewAbout from '@/comp/views/ViewAbout.vue'
 import ViewPrivacy from '@/comp/views/ViewPrivacy.vue'
+import ViewPublishers from '@/comp/views/ViewPublishers.vue'
 
 
 export const router = createRouter({
@@ -24,6 +25,8 @@ export const router = createRouter({
         {path: '/v/:id', name: 'version-shortlink', component: ViewVersionShortlink},
         {path: '/about', name: 'about', component: ViewAbout},
         {path: '/privacy', name: 'privacy', component: ViewPrivacy},
+        // The owners' replies to our requests to include their translations, for sharing
+        {path: '/publishers', name: 'publishers', component: ViewPublishers},
         {path: '/:pathMatch(.*)*', redirect: {name: 'designs'}},
     ],
 })

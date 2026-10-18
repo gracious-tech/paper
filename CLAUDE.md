@@ -170,8 +170,9 @@ paper_bible/
       comp/                # Components: View*/Editor*/Options*/Display*/Dialog*/App*
         nav/               # AppNavbar (last 3 designs, "View all", "New")
         views/             # Route components (ViewDesigns, ViewDesign, ViewAbout,
-                            #   ViewDesignInvite, ViewVersionShortlink) + the two editor
-                            #   modes ViewDesignSimple / ViewDesignEditor
+                            #   ViewPrivacy, ViewPublishers, ViewDesignInvite,
+                            #   ViewVersionShortlink) + the two editor modes
+                            #   ViewDesignSimple / ViewDesignEditor
           assets/          # DesignListItem, DesignVersionsList, DesignVersionItem
         dialogs/           # All mounted once in AppRoot (DialogConfirm/Prompt/Alert,
                             #   DialogAccount, DialogNewDesign, DialogCoverEditor, ...)
@@ -184,7 +185,9 @@ paper_bible/
         account.ts         # Account switching: release/reload user data, deferred email-link
         api.ts             # fetch wrapper for /api/* with ID token
         router.ts          # vue-router: /designs, /designs/:id[/:version],
-                            #   /designs/:id/invite/:token, /v/:id, /about
+                            #   /designs/:id/invite/:token, /v/:id, /about, /privacy,
+                            #   /publishers. The welcome splash shows on /designs only
+                            #   (see show_splash in AppRoot.vue), so linked pages read first
         state.ts           # Reactive `blue` (open design), `state` (splash/editor/dialogs/toasts)
         designs.ts         # Multi-design sync: converters, debounced diff writes, sharing,
                             #   wizard state, viewed-designs ("Read access") sync

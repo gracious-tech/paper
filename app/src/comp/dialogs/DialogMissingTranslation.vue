@@ -10,7 +10,7 @@ v-dialog(v-model='dialog' activator='parent' max-width='800')
         template(#actions)
             v-spacer
             v-btn(@click='dialog = false') {{ $t("common.close") }}
-            v-btn(href='https://sellingjesus.org/articles/bible-publishers' target='_blank'
+            v-btn(href='https://copy.church/watch' target='_blank' rel='noopener'
                 color='secondary') {{ $t("dialog.missing_translation.learn_more") }}
 
 </template>

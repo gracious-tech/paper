@@ -10,8 +10,8 @@ v-dialog(v-model='dialog' activator='parent' max-width='800')
         template(#actions)
             v-spacer
             v-btn(@click='dialog = false') {{ $t("common.close") }}
-            v-btn(href='https://sellingjesus.org/articles/bible-publishers' target='_blank'
-                color='secondary') {{ $t("dialog.peddlers.learn_more") }}
+            v-btn(color='secondary') {{ $t("dialog.peddlers.learn_more") }}
+                DialogPublisherReplies
 
 </template>
 
@@ -19,6 +19,8 @@ v-dialog(v-model='dialog' activator='parent' max-width='800')
 <script lang='ts' setup>
 
 import {ref} from 'vue'
+
+import DialogPublisherReplies from '@/comp/dialogs/DialogPublisherReplies.vue'
 
 
 // Shown from the Bible picker when a user wants a commercial translation we can't include

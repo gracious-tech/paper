@@ -217,8 +217,11 @@ void (async () => {
     // Start watchers (don't start earlier or will trigger during initially loading some things)
     start_watchers()
 
-    // Start the router (resolves the current location automatically), then mount
+    // Start the router (resolves the current location automatically), then mount once it has.
+    // AppRoot.vue picks the splash or the app by route, so mounting on the unresolved start
+    // location would mount (and side-effect) the app only to swap it straight out for the splash
     app.use(router)
+    await router.isReady()
     app.mount('#app')
 
     // Deferred from above: a sign-in link opened on a device that never requested it. Now the

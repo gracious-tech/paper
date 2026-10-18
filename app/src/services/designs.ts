@@ -814,16 +814,18 @@ export async function init_designs(open_id:string|null = null, welcome = true):P
     // first (rather than attempting to open and catching the permission error) avoids
     // provoking a Firestore permission-denied error for what's actually a normal, expected case
     const existing = await first_snapshot
+
+    // Greet only a genuinely new visitor, rather than silently creating a design they never
+    // chose. Anyone who has been welcomed before (or just signed out) gets ViewDesigns'
+    // ordinary "No designs yet" state instead — an empty account isn't a new person
+    // NOTE Assigned rather than only ever set, as a visitor who arrived on a page other than the
+    // designs list may never have seen (and so dismissed) the splash this flags — see AppRoot.vue
+    state.splash = existing.empty && welcome && !welcome_seen()
+
     if (existing.empty){
         // No designs yet — populate `blue` locally (never persisted; flush_changes can't write
         // while no design is open) so boot-time watchers that dereference it stay safe
         Object.assign(blue, get_default_blueprint())
-        // Greet only a genuinely new visitor, rather than silently creating a design they never
-        // chose. Anyone who has been welcomed before (or just signed out) gets ViewDesigns'
-        // ordinary "No designs yet" state instead — an empty account isn't a new person
-        if (welcome && !welcome_seen()){
-            state.splash = true
-        }
     } else if (open_id && existing.docs.some(item => item.id === open_id)){
         await open_design(open_id)
     } else {

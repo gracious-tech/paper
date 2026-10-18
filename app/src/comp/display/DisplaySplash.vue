@@ -28,8 +28,7 @@ import IntroVideo from '@/comp/reuseable/IntroVideo.vue'
 import {state, set_welcome_seen} from '@/services/state'
 
 
-// Dismiss the splash, revealing whatever route the app already booted into (e.g. a shared
-// design/invite link the user arrived with) rather than redirecting away from it
+// Dismiss the splash, revealing the designs list beneath it (the only route it's shown on)
 // NOTE Remembered per-browser, so it doesn't greet them again on the next load (or every load,
 // for anyone who dismisses it without going on to create a design)
 const start = () => {

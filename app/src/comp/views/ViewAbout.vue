@@ -17,15 +17,13 @@ div.cont(class='text-body-medium')
 
         p(class='text-body-large mb-4') {{$t("view.about.license")}}
 
-        div(class='d-flex flex-wrap ga-3')
-            v-btn(href='https://gracious.tech' target='_blank' variant='tonal')
-                | {{$t("view.about.creator")}}
-            v-btn(href='https://gracious.tech/contact' target='_blank' variant='tonal')
-                | {{$t("app.contact")}}
-            v-btn(href='https://github.com/gracious-tech/paper' target='_blank' variant='tonal')
-                | {{$t("view.about.source_code")}}
-            v-btn(:to='{name: "privacy"}' variant='tonal')
-                | {{$t("app.privacy")}}
+        //- Each group of links under its own subheading, the buttons side by side
+        template(v-for='section of sections' :key='section.title')
+            h2(class='text-title-large mb-2') {{ section.title }}
+            div(class='d-flex flex-wrap ga-3 mb-6')
+                v-btn(v-for='link of section.links' :key='link.label' :href='link.href'
+                        :to='link.to' :target='link.href ? "_blank" : undefined' variant='tonal')
+                    | {{ link.label }}
 
     IntroVideo.display
 
@@ -37,8 +35,39 @@ div.cont(class='text-body-medium')
 
 <script lang='ts' setup>
 
+import {computed} from 'vue'
+
+import {useI18n} from '@/services/i18n'
 //- The video panel is shared with the display area; on narrow screens it renders inline here
 import IntroVideo from '@/comp/reuseable/IntroVideo.vue'
+
+import type {RouteLocationRaw} from 'vue-router'
+
+
+// A button in a link group: an outside page (opened in a new tab) or a route within the app
+interface AboutLink {
+    label:string
+    href?:string
+    to?:RouteLocationRaw
+}
+
+const {t} = useI18n()
+
+// The page's link groups, computed so the labels follow a change of locale
+const sections = computed(():{title:string, links:AboutLink[]}[] => [
+    {title: t('view.about.about_us'), links: [
+        {label: t('view.about.creator'), href: 'https://gracious.tech'},
+        {label: t('view.about.funding'), href: 'https://gracious.tech/donate'},
+        {label: t('app.contact'), href: 'https://gracious.tech/contact'},
+    ]},
+    {title: t('view.about.about_app'), links: [
+        {label: t('view.about.publishers'), to: {name: 'publishers'}},
+        {label: t('view.about.source_code'), href: 'https://github.com/gracious-tech/paper'},
+    ]},
+    {title: t('view.about.legal'), links: [
+        {label: t('app.privacy'), to: {name: 'privacy'}},
+    ]},
+])
 
 //- Inline link to the creator, substituted into the {org} placeholder of the body text
 const org_link = '<a href="https://gracious.tech" target="_blank" rel="noopener">Gracious Tech</a>'
