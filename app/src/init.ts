@@ -243,5 +243,22 @@ void (async () => {
         setTimeout(prefetch, 3000)
     }
 })().catch((error:unknown) => {
-    report_error('splash', error)
+    report_error('splash', error, {context: boot_failure_context(error)})
 })
+
+
+function boot_failure_context(error:unknown):Record<string, string|number>{
+    // What a failed boot's message can't say on its own: whether the browser believes it's online
+    // or is automated, and for a Firebase network failure the underlying fetch() error it wraps
+    // (the SDK keeps that in customData, not its message) — which tells a Google endpoint blocked
+    // or unreachable from the user's network apart from a fault of ours
+    const context:Record<string, string|number> = {
+        online: String(navigator.onLine),
+        webdriver: String(navigator.webdriver),
+    }
+    const custom_data = (error as {customData?:{message?:unknown}}|null)?.customData
+    if (typeof custom_data?.message === 'string'){
+        context['cause'] = custom_data.message.slice(0, 300)
+    }
+    return context
+}
