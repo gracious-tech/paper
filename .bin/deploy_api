@@ -1,10 +1,9 @@
 #!/usr/bin/env bash
 
 # Build, push, and deploy new server code to the (already-provisioned — see .bin/deploy_aws)
-# paper-bible stack. Only the Lambda functions' ImageUri actually changes: `aws cloudformation
-# deploy` re-supplies every parameter not explicitly overridden with its current stack value, so
-# passing just ImageUri here is a fast, scoped update rather than a full redeploy.
-# Requires .bin/typst (setup_typst) to exist locally.
+# paper-bible stack. Only the ImageUri parameter is overridden: `aws cloudformation deploy`
+# re-supplies every other parameter with its current stack value. The template itself is the
+# local infra/cloudformation.yml though, so any template changes are deployed along with it.
 
 # Runs from inside the dev container, which has no docker daemon access (deliberately — no
 # socket mount). The build/push step needs docker, so this script pauses and asks for it to be

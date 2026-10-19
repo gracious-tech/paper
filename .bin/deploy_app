@@ -17,6 +17,9 @@ REGION="${REGION:-${AWS_REGION:-us-west-2}}"
 # ones (see app/tools/gen_lulu_prices.ts). Committed output, so this is usually a no-op diff
 .bin/gen_lulu_prices
 
+# The app imports the local Typst packages from their dist/ output, which vite won't rebuild
+.bin/build_typst
+
 (cd app && npx vite build)
 
 # Archive this build's sourcemaps locally for .bin/audit_errors to symbolicate stack traces

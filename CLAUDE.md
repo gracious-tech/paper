@@ -146,16 +146,18 @@ paper_bible/
                             #   no API server
     serve_server           # Local API server against the emulators (port 8788; runs
                             #   server/src/dev_server.ts, not the Lambda entry point)
-    deploy_app             # Pure content shipping, no CloudFormation: vite build, two-tier
+    deploy_app             # Pure content shipping, no CloudFormation: build_typst + vite build, two-tier
                             #   `aws s3 sync` (immutable for hashed assets/, no-cache for
                             #   index.html etc), then a small CloudFront invalidation
     deploy_firebase        # firebase deploy --only firestore,storage — rules/indexes only,
                             #   run on every deploy (not one-time, unlike deploy_firebase_initial)
     build_server_lambda     # Stage server/deploy/ (allowlisted context for Dockerfile.lambda),
-                            #   docker build tagged with the current commit hash
+                            #   docker build tagged with the current commit hash (runs
+                            #   setup_typst first if .bin/typst isn't the pinned version)
     push_server_lambda      # docker push the built image to ECR
-    deploy_api              # build_server_lambda + push_server_lambda, then a scoped
-                            #   `cloudformation deploy` passing just the new ImageUri
+    deploy_api              # build_server_lambda + push_server_lambda, then `cloudformation
+                            #   deploy` overriding just ImageUri — the local template is
+                            #   deployed too, so infra changes ship with it
     i18n_status/_sync/_check/_extract  # Translation tooling (logic in app/i18n/); see i18n section
     audit_unit             # Every unit/integration suite (typst, typst-node, app, rules,
                             #   server) — starts its own emulators; see the Testing section

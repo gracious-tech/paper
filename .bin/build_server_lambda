@@ -6,10 +6,14 @@
 # Builds and tags the image with the current commit hash (CloudFormation needs a *changing*
 # ImageUri value to know a Lambda function actually needs updating — reusing a fixed tag like
 # :latest wouldn't trigger one). Used by .bin/deploy_api; also runnable standalone.
-# Requires .bin/typst (setup_typst) to exist locally.
 
 set -euo pipefail
 cd "$(dirname "$0")/.."
+
+# The image bakes in .bin/typst, so fetch the pinned version if it's missing or out of date
+if [ "$(.bin/typst --version 2>/dev/null | awk '{print $2}')" != "$(cat .typst-version)" ]; then
+    .bin/setup_typst
+fi
 
 CONTEXT="server/deploy"
 rm -rf "$CONTEXT"
