@@ -172,6 +172,38 @@ export function font_default_for_bibles(bibles:readonly string[]):string{
 }
 
 
+// The stand-in for a translation fetch.bible no longer offers: the preferred one still offered in
+// the same language (ids are prefixed with their ISO 639-3 code), or null if none is
+function replacement_bible(id:string):string|null{
+    const lang = id.slice(0, 3)
+    const preferred = content.collection.get_preferred_resource([lang])?.id
+    if (preferred && content.translations[preferred]?.language === lang){
+        return preferred
+    }
+    return Object.values(content.translations).find(trans => trans.language === lang)?.id ?? null
+}
+
+
+// Swap each translation fetch.bible no longer offers for another in its language, dropping it if
+// the language is gone too. A stand-in is skipped if the list already has it, but the list is
+// otherwise kept as given. Shared by clean_blueprint() and clean_wizard_draft(), so a wizard draft
+// and the blueprint rebuilt from it always agree on what replaced a withdrawn translation
+export function replace_missing_bibles(bibles:readonly string[]):string[]{
+    const result:string[] = []
+    for (const id of bibles){
+        if (id in content.translations){
+            result.push(id)
+            continue
+        }
+        const replacement = replacement_bible(id)
+        if (replacement && !result.includes(replacement) && !bibles.includes(replacement)){
+            result.push(replacement)
+        }
+    }
+    return result
+}
+
+
 // Take untrusted input (e.g. Firestore doc data written by co-editors) and ensure a valid
 // blueprint is returned — invalid/missing fields fall back to defaults, invalid content items
 // are dropped (see the shared schema in paper-bible-typst). Cloned so the result never shares
@@ -180,7 +212,7 @@ export function clean_blueprint(blueprint:unknown):Blueprint{
     const valid = cloneDeep(make_blueprint_schema(get_default_blueprint()).parse(blueprint))
 
     // Ensure bibles still exist
-    valid.bibles = valid.bibles.filter(b => b in content.translations) as [string, ...string[]]
+    valid.bibles = replace_missing_bibles(valid.bibles) as [string, ...string[]]
     if (!valid.bibles.length){
         valid.bibles.push(content.collection.get_preferred_resource().id)
     }

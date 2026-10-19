@@ -3,7 +3,7 @@
 //
 // clean_blueprint() is the security-relevant one: it's what stands between a Firestore doc a
 // co-editor wrote and the rest of the app. The shared zod schema is tested in the typst package;
-// what's tested here is the app's own layer on top — dropping translations that no longer exist,
+// what's tested here is the app's own layer on top — replacing translations that no longer exist,
 // and forcing booklet off for a real printing service.
 
 import {describe, it, expect, beforeEach} from 'vitest'
@@ -97,6 +97,21 @@ describe('clean_blueprint', () => {
         set_translations(['eng_bsb'])
         expect(clean_blueprint(make_blueprint({bibles: ['gone_xyz']})).bibles)
             .toEqual(['eng_bsb'])
+    })
+
+    it('swaps a withdrawn translation for another in the same language', () => {
+        // Withdrawing one Spanish translation shouldn't turn a Spanish design into an English one
+        set_translations(['eng_bsb', 'spa_rvr'])
+        expect(clean_blueprint(make_blueprint({bibles: ['spa_gone', 'eng_bsb']})).bibles)
+            .toEqual(['spa_rvr', 'eng_bsb'])
+    })
+
+    it('never swaps in a translation the design already has', () => {
+        set_translations(['eng_bsb', 'spa_rvr'])
+        expect(clean_blueprint(make_blueprint({bibles: ['spa_gone', 'spa_rvr']})).bibles)
+            .toEqual(['spa_rvr'])
+        expect(clean_blueprint(make_blueprint({bibles: ['spa_rvr', 'spa_gone']})).bibles)
+            .toEqual(['spa_rvr'])
     })
 
     it('keeps a second translation that does exist', () => {

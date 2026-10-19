@@ -30,7 +30,9 @@ import {plan_version_cover, render_cover_pdf} from '@/services/cover'
 import {plan_version_images} from '@/services/content_images'
 import {read_wizard_state} from '@/services/new_design'
 import {generate_token} from '@/services/utils'
-import {page_count_guess, DEFAULT_PAGE_GUESS} from '@/services/state'
+import {version_missing_bibles} from '@/services/versions'
+import {page_count_guess, DEFAULT_PAGE_GUESS, alert_dialog} from '@/services/state'
+import {translate} from '@/services/i18n'
 import {report_error, error_to_string} from '@/services/errors'
 import {version_progress, hold_page} from '@/services/compile_progress'
 
@@ -401,10 +403,24 @@ function recompile_job(version:Version, fonts:CustomFont[]):VersionCompileJob {
 }
 
 
+async function refuse_missing_bibles(version:Version):Promise<boolean>{
+    // Tell the user a version can't be rebuilt because fetch.bible has withdrawn a translation it
+    // renders (see version_missing_bibles), rather than let the attempt fail through to the server
+    // and end on a "contact us" screen there's nothing to contact anyone about. The version itself
+    // is left as it was
+    const missing = version_missing_bibles(version)
+    if (!missing.length){
+        return false
+    }
+    await alert_dialog(translate('display.version.bible_withdrawn', {bibles: missing.join(', ')}))
+    return true
+}
+
+
 export async function regenerate_version(version:Version):Promise<void>{
     // Recompile an expired/failed version's PDF from its frozen blueprint and font snapshot
     // NOTE Storage rules only allow (re)creating the object when it no longer exists
-    if (version.status === 'pending'){
+    if (version.status === 'pending' || await refuse_missing_bibles(version)){
         return
     }
     const fonts = await Promise.all(version.custom_fonts.map(meta => load_font_from_meta(meta)))
@@ -421,6 +437,10 @@ export async function regenerate_cover(version:Version):Promise<void>{
     // Far cheaper than regenerate_version (no interior recompile) and it sidesteps the
     // create-once doc.pdf a full recompile would 403 on — only the absent cover.pdf is produced
     if (!version.blueprint.cover || version.status !== 'available'){
+        return
+    }
+    // The cover's copyright blurb is generated from each translation's licence metadata
+    if (await refuse_missing_bibles(version)){
         return
     }
     const doc_ref = doc(firestore, 'versions', version.id)
@@ -536,6 +556,9 @@ export async function retry_version(version:Version):Promise<void>{
         }
     } finally {
         release_page()
+    }
+    if (await refuse_missing_bibles(version)){
+        return
     }
     const fonts = await Promise.all(version.custom_fonts.map(meta => load_font_from_meta(meta)))
     await updateDoc(doc(firestore, 'versions', version.id), {error: null})

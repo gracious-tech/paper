@@ -12,8 +12,8 @@ import {firestore} from '@/services/firebase'
 import {api} from '@/services/api'
 import {user} from '@/services/auth'
 import {blue, state, health, estimated_pages, welcome_seen} from '@/services/state'
-import {clean_blueprint, gen_content_name, content_preview, get_default_blueprint}
-    from '@/services/blueprints'
+import {clean_blueprint, gen_content_name, content_preview, get_default_blueprint,
+    replace_missing_bibles} from '@/services/blueprints'
 import {generate_token} from '@/services/utils'
 import {report_error} from '@/services/errors'
 import {translate} from '@/services/i18n'
@@ -651,10 +651,11 @@ export async function create_design_from_version(
     // Two steps, and the order is forced: a design's assets can only be written once the
     // design doc exists (Storage rules authorise against it), so the design is created still
     // pointing at the version's snapshots and then repointed at its own copies. In between it
-    // renders identically — the snapshot and the copy are the same bytes
+    // renders identically — the snapshot and the copy are the same bytes. Cleaned again since the
+    // frozen blueprint may name a translation fetch.bible has since withdrawn (see clean_blueprint)
     const id = await create_design(version.blueprint, version.wizard_draft ?? undefined,
         version.simple_mode)
-    Object.assign(blue, await rehydrate_version_blueprint(version.blueprint, id))
+    Object.assign(blue, clean_blueprint(await rehydrate_version_blueprint(version.blueprint, id)))
     await flush_changes()
     return id
 }
@@ -736,7 +737,9 @@ export async function fetch_design_editors_info(id:string):Promise<DesignEditorI
 function meta_from_doc(id:string, data:DocumentData):DesignMeta{
     // Build a DesignMeta list entry from a Firestore doc
     const blueprint = (data['blueprint'] ?? {}) as Record<string, unknown>
-    const bibles = (blueprint['bibles'] ?? []) as string[]
+    // As the design will open with them — a withdrawn translation stays in the doc until the
+    // field is next written, since clean_blueprint() swaps it in memory only
+    const bibles = replace_missing_bibles((blueprint['bibles'] ?? []) as string[])
     return {
         id,
         // Resolved at read time off the raw doc fields, like content_summary below — nothing

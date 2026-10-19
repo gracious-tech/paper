@@ -9,6 +9,7 @@ import {migrate_version_blueprint} from 'paper-bible-typst'
 import {firestore, firebase_storage} from '@/services/firebase'
 import {api} from '@/services/api'
 import {user} from '@/services/auth'
+import {content} from '@/services/content'
 import {designs, current_design_id} from '@/services/designs'
 import {read_wizard_state} from '@/services/new_design'
 import {report_error} from '@/services/errors'
@@ -185,6 +186,14 @@ export function cover_failed(version:Version):boolean{
     // the interior PDF can still be viewed/downloaded, the cover can't (and can be regenerated
     // on its own via regenerate_cover in version_compile.ts)
     return version.cover_status === 'failed' && version.status === 'available'
+}
+
+
+export function version_missing_bibles(version:Version):string[]{
+    // Translations the version's frozen blueprint renders that fetch.bible no longer offers. Its
+    // PDF can't be rebuilt without them, and swapping in another (as clean_blueprint() does for a
+    // live design) would change the text of a document that has already been shared
+    return version.blueprint.bibles.filter(id => !(id in content.translations))
 }
 
 

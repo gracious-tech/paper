@@ -6,7 +6,7 @@ import {PassageReference} from '@gracious.tech/fetch-client'
 import {z} from 'zod'
 
 import {content} from '@/services/content'
-import {get_default_blueprint, get_passages, font_default_for_bibles}
+import {get_default_blueprint, get_passages, font_default_for_bibles, replace_missing_bibles}
     from '@/services/blueprints'
 import {auto_binding} from '@/services/binding_advice'
 import {seed_cover_preset, render_wizard_cover_preview} from '@/services/cover'
@@ -129,7 +129,22 @@ export function clean_wizard_draft(value:unknown):NewDesignDraft|null{
         return null
     }
     const result = wizard_draft_schema.safeParse(value)
-    return result.success ? result.data : get_default_draft()
+    if (!result.success){
+        return get_default_draft()
+    }
+
+    // Translations fetch.bible has since withdrawn are swapped exactly as clean_blueprint() swaps
+    // them, since apply_wizard_edit() rebuilds the whole blueprint from this list. An empty list
+    // still means "step not reached yet", so only a chosen-but-now-empty one gets the default
+    const draft = result.data
+    const chosen = draft.bibles.filter(id => id)
+    if (chosen.length){
+        draft.bibles = replace_missing_bibles(chosen)
+        if (!draft.bibles.length){
+            draft.bibles.push(content.collection.get_preferred_resource().id)
+        }
+    }
+    return draft
 }
 
 

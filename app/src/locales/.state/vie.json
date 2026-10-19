@@ -43,6 +43,7 @@
   "display.splash.get_started": "Start Creating",
   "display.splash.languages": "In over 800 languages",
   "display.splash.tagline": "Print Scripture in whatever style you need",
+  "display.version.bible_withdrawn": "This version can't be generated again, because a Bible translation it uses is no longer available ({bibles}). Edit the design to choose another translation, then build a new version.",
   "display.version.contact": "Contact Us",
   "display.version.error": "An error occurred",
   "display.version.include_code": "Please include this code in your email:",

@@ -43,6 +43,7 @@
   "display.splash.get_started": "Bắt đầu",
   "display.splash.languages": "Hơn 800 ngôn ngữ",
   "display.splash.tagline": "In các sách Kinh Thánh theo bất kỳ kiểu nào bạn cần",
+  "display.version.bible_withdrawn": "Không thể tạo lại phiên bản này vì một bản dịch Kinh Thánh mà nó sử dụng không còn được cung cấp ({bibles}). Hãy chỉnh sửa thiết kế để chọn một bản dịch khác, rồi tạo một phiên bản mới.",
   "display.version.contact": "Liên hệ với chúng tôi",
   "display.version.error": "Đã xảy ra lỗi",
   "display.version.include_code": "Vui lòng kèm mã này trong email của bạn:",
