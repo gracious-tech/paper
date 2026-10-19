@@ -10,4 +10,11 @@ cd "$(dirname "$0")/.."
 
 PROJECT="${1:-paper-bible}"
 
-npx firebase deploy --project "$PROJECT" --only firestore,storage
+# The project's own firebase-tools, unless one is installed on the PATH instead (CI's deploy job
+# installs just firebase-tools, rather than running the whole project's npm install)
+FIREBASE=(npx firebase)
+if command -v firebase >/dev/null; then
+    FIREBASE=(firebase)
+fi
+
+"${FIREBASE[@]}" deploy --project "$PROJECT" --only firestore,storage

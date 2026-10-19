@@ -1,0 +1,63 @@
+#!/usr/bin/env bash
+
+# One-off (re-runnable): let GitHub Actions deploy to AWS by deploying infra/github_ci.yml, then
+# set the repository variables .github/workflows/deploy.yml reads (with the gh CLI if it's
+# logged in, otherwise printing the commands). Needs admin aws credentials.
+#
+# Usage: .bin/setup_ci_aws
+
+set -euo pipefail
+cd "$(dirname "$0")/.."
+
+STACK="${STACK:-paper-bible}"
+CI_STACK="$STACK-ci"
+REGION="${REGION:-${AWS_REGION:-us-west-2}}"
+REPOSITORY="${REPOSITORY:-gracious-tech/paper}"
+
+
+ci_output(){
+    # Read one of the CI stack's outputs by key
+    aws cloudformation describe-stacks --region "$REGION" --stack-name "$CI_STACK" \
+        --query "Stacks[0].Outputs[?OutputKey=='$1'].OutputValue | [0]" --output text
+}
+
+
+set_variable(){
+    # Set a GitHub repository variable, or print how to when gh isn't logged in
+    if command -v gh >/dev/null && gh auth status >/dev/null 2>&1; then
+        gh variable set "$1" --repo "$REPOSITORY" --body "$2"
+        echo "Set $1"
+    else
+        echo "  gh variable set $1 --repo $REPOSITORY --body '$2'"
+    fi
+}
+
+
+# An account can have only one GitHub OIDC provider. On the first deploy, reuse one that already
+# exists (e.g. from another repo's CI). Once the stack exists its own parameter is kept, so a
+# provider this stack created is never mistaken for a pre-existing one (which would delete it)
+OVERRIDES=()
+if ! aws cloudformation describe-stacks --region "$REGION" --stack-name "$CI_STACK" \
+        >/dev/null 2>&1; then
+    QUERY="OpenIDConnectProviderList[?ends_with(Arn, '/token.actions.githubusercontent.com')]"
+    EXISTING="$(aws iam list-open-id-connect-providers --query "$QUERY.Arn | [0]" \
+        --output text)"
+    if [ "$EXISTING" = "None" ]; then
+        EXISTING=''
+    fi
+    OVERRIDES=(--parameter-overrides "ExistingOidcProviderArn=$EXISTING"
+        "Repository=$REPOSITORY" "AppStack=$STACK")
+fi
+
+aws cloudformation deploy \
+    --region "$REGION" \
+    --stack-name "$CI_STACK" \
+    --template-file infra/github_ci.yml \
+    --capabilities CAPABILITY_NAMED_IAM \
+    --no-fail-on-empty-changeset \
+    "${OVERRIDES[@]}"
+
+echo
+echo "Repository variables:"
+set_variable AWS_DEPLOY_ROLE_ARN "$(ci_output DeployRoleArn)"
+set_variable AWS_CFN_ROLE_ARN "$(ci_output CloudFormationRoleArn)"

@@ -8,4 +8,19 @@
 set -euo pipefail
 cd "$(dirname "$0")/.."
 
+# Pull down the sourcemaps .bin/deploy_app uploads per build (the site bucket's sourcemaps/
+# prefix), so stack traces resolve here whichever machine deployed. Like the reports, the bucket
+# is only an inbox (it expires them at 90 days) and errors/sourcemaps/ is the lasting copy, so
+# this only ever syncs down, and never deletes. Best-effort: without AWS credentials only the
+# local copy is used
+SITE_BUCKET="$(aws cloudformation describe-stacks --region us-west-2 \
+    --stack-name paper-bible \
+    --query "Stacks[0].Outputs[?OutputKey=='SiteBucketName'].OutputValue | [0]" \
+    --output text 2>/dev/null || true)"
+if [ -n "$SITE_BUCKET" ] && [ "$SITE_BUCKET" != "None" ]; then
+    aws s3 sync "s3://$SITE_BUCKET/sourcemaps/" errors/sourcemaps/ --only-show-errors
+else
+    echo "(Couldn't reach the sourcemap archive, so only local sourcemaps will be used)" >&2
+fi
+
 node errors/cli.ts "$@"

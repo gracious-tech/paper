@@ -1,51 +1,99 @@
 #!/usr/bin/env bash
 
 # Build and ship the app's static content — pure content shipping, no CloudFormation involved
-# (the S3 bucket + CloudFront distribution themselves come from .bin/deploy_aws). Two-tier
-# cache-control: content-hashed files under assets/ are immutable forever, everything else
-# (notably index.html) is never cached, so a deploy is visible to returning visitors
+# (the S3 bucket + CloudFront distribution themselves come from infra/cloudformation.yml).
+# Two-tier cache-control: content-hashed files under assets/ are immutable forever, everything
+# else (notably index.html) is never cached, so a deploy is visible to returning visitors
 # immediately. The CloudFront invalidation only needs to cover the non-hashed paths — hashed
 # assets/* objects never change under an existing name, so there's nothing there to invalidate.
+# A previous build's assets are kept for KEEP_DAYS after it was last deployed, since tabs still
+# running it load chunks (the Typst worker among them) lazily, long after their first page load.
+# Lulu's print prices are refreshed separately (.bin/refresh_lulu_prices, before CI's tests),
+# so a build only ever ships committed prices.
 
 set -euo pipefail
 cd "$(dirname "$0")/.."
 
 STACK="${STACK:-paper-bible}"
 REGION="${REGION:-${AWS_REGION:-us-west-2}}"
+KEEP_DAYS=30
 
-# Refresh Lulu's print prices from their published spec sheet, so each deploy ships current
-# ones (see app/tools/gen_lulu_prices.ts). Committed output, so this is usually a no-op diff
-.bin/gen_lulu_prices
 
-# The app imports the local Typst packages from their dist/ output, which vite won't rebuild
-.bin/build_typst
+stack_output(){
+    # Read one of the stack's outputs by key
+    aws cloudformation describe-stacks --region "$REGION" --stack-name "$STACK" \
+        --query "Stacks[0].Outputs[?OutputKey=='$1'].OutputValue | [0]" --output text
+}
 
-(cd app && npx vite build)
 
-# Archive this build's sourcemaps locally for .bin/audit_errors to symbolicate stack traces
-# with (see vite.config.mts: sourcemap:'hidden') — filenames are content-hashed, so archiving
-# is just an accumulating, collision-free copy, never pruned. Never shipped to the bucket: kept
-# out of the sync below so original source is never publicly fetchable
-mkdir -p errors/sourcemaps
-cp app/dist/assets/*.map errors/sourcemaps/ 2>/dev/null || true
+BUCKET="$(stack_output SiteBucketName)"
+DISTRIBUTION_ID="$(stack_output DistributionId)"
 
-BUCKET="$(aws cloudformation describe-stacks --region "$REGION" --stack-name "$STACK" \
-    --query "Stacks[0].Outputs[?OutputKey=='SiteBucketName'].OutputValue | [0]" --output text)"
-DISTRIBUTION_ID="$(aws cloudformation describe-stacks --region "$REGION" --stack-name "$STACK" \
-    --query "Stacks[0].Outputs[?OutputKey=='DistributionId'].OutputValue | [0]" --output text)"
+# Build first, unless given --prebuilt: CI builds app/dist in a job with no cloud credentials
+# (so no npm package's code ever runs where they are) and deploys it from another
+if [ "${1:-}" != '--prebuilt' ]; then
+    .bin/build_app
+fi
+
+# Archive this build's sourcemaps for .bin/audit_errors to symbolicate stack traces with (see
+# vite.config.mts: sourcemap:'hidden'), under the bucket's sourcemaps/ prefix, which
+# audit_errors syncs down from. Kept apart from assets/, which old builds' files are pruned
+# from, because reports from old builds still need their maps. Filenames are content-hashed, so
+# the archive only accumulates (until the bucket's 90-day lifecycle rule)
+aws s3 sync app/dist/assets/ "s3://$BUCKET/sourcemaps/" --exclude '*' --include '*.map' \
+    --only-show-errors
 
 # Long-immutable for the content-hashed assets directory — must land first, so nothing else can
-# briefly land with a matching immutable Cache-Control from a stale rule ordering
-aws s3 sync app/dist/assets/ "s3://$BUCKET/assets/" --delete --exclude "*.map" \
+# briefly land with a matching immutable Cache-Control from a stale rule ordering. No --delete:
+# old builds' files are pruned below instead, once nothing can still be running them
+aws s3 sync app/dist/assets/ "s3://$BUCKET/assets/" --exclude "*.map" \
     --cache-control "public, max-age=31536000, immutable"
 
 # Everything else (index.html, icons, etc) — no caching, so a deploy is visible immediately.
 # With max-age=0/must-revalidate CloudFront shouldn't serve stale copies anyway, but a small
 # invalidation of just the non-hashed root paths is a cheap extra guarantee — the hashed
 # assets/* objects never need it, since a changed file gets a new name, not new content at an
-# old one
-aws s3 sync app/dist/ "s3://$BUCKET/" --delete --exclude "assets/*" \
+# old one. The other prefixes deploys keep are excluded too, or --delete would wipe them
+aws s3 sync app/dist/ "s3://$BUCKET/" --delete \
+    --exclude "assets/*" --exclude "sourcemaps/*" --exclude "deploys/*" \
     --cache-control "public, max-age=0, must-revalidate"
 
 aws cloudfront create-invalidation --distribution-id "$DISTRIBUTION_ID" \
     --paths "/" "/index.html" --query "Invalidation.Id" --output text
+
+# Record which assets this build uses, as deploys/<time>.txt, for pruning by later deploys
+NOW="$(date -u +%Y%m%dT%H%M%SZ)"
+ls app/dist/assets | grep -v '\.map$' \
+    | aws s3 cp - "s3://$BUCKET/deploys/$NOW.txt" --content-type text/plain --only-show-errors
+
+# Every asset a build deployed in the last KEEP_DAYS uses (this one included), dropping the
+# manifests of builds older than that
+CUTOFF="$(date -u -d "-$KEEP_DAYS days" +%Y%m%dT%H%M%SZ)"
+declare -A keep=()
+for key in $(aws s3api list-objects-v2 --bucket "$BUCKET" --prefix deploys/ \
+        --query 'Contents[].Key' --output text); do
+    stamp="$(basename "$key" .txt)"
+    if [[ "$stamp" < "$CUTOFF" ]]; then
+        aws s3 rm "s3://$BUCKET/$key" --only-show-errors
+        continue
+    fi
+    for name in $(aws s3 cp "s3://$BUCKET/$key" -); do
+        keep["$name"]=1
+    done
+done
+
+# Delete the assets no recent build uses. The upload age is checked too, so files from before
+# deploys kept manifests (or from a deploy that failed before writing one) still get KEEP_DAYS
+UPLOAD_CUTOFF="$(date -u -d "-$KEEP_DAYS days" +%Y-%m-%dT%H:%M:%S)"
+prune=()
+while read -r key modified; do
+    name="${key#assets/}"
+    if [ -z "${keep[$name]:-}" ] && [[ "$modified" < "$UPLOAD_CUTOFF" ]]; then
+        prune+=(--include "$name")
+    fi
+done < <(aws s3api list-objects-v2 --bucket "$BUCKET" --prefix assets/ \
+    --query 'Contents[].[Key,LastModified]' --output text)
+if [ ${#prune[@]} -gt 0 ]; then
+    echo "Pruning $(( ${#prune[@]} / 2 )) asset(s) no build from the last $KEEP_DAYS days uses"
+    aws s3 rm "s3://$BUCKET/assets/" --recursive --exclude '*' "${prune[@]}" --only-show-errors
+fi

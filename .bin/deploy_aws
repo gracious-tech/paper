@@ -148,6 +148,13 @@ PARAM_OVERRIDES=(
     "PriceClass=$PRICE_CLASS"
 )
 
+# CI deploys through a CloudFormation service role rather than with its own permissions (see
+# infra/github_ci.yml). Left unset, CloudFormation keeps using the role the stack last used
+ROLE_ARGS=()
+if [ -n "${CFN_ROLE_ARN:-}" ]; then
+    ROLE_ARGS=(--role-arn "$CFN_ROLE_ARN")
+fi
+
 # CAPABILITY_NAMED_IAM because the template creates a named execution role
 aws cloudformation deploy \
     --region "$REGION" \
@@ -155,6 +162,7 @@ aws cloudformation deploy \
     --template-file infra/cloudformation.yml \
     --capabilities CAPABILITY_NAMED_IAM \
     --no-fail-on-empty-changeset \
+    "${ROLE_ARGS[@]}" \
     --parameter-overrides "${PARAM_OVERRIDES[@]}"
 
 echo
@@ -172,4 +180,4 @@ echo "  1. Point $DOMAIN at the DistributionDomainName value above (a Porkbun AL
 echo "  2. Put the GCP service-account key into Secrets Manager:"
 echo "       aws secretsmanager put-secret-value --region $REGION --secret-id $SECRET_ARN \\"
 echo "           --secret-string file://path/to/key.json"
-echo "  3. .bin/deploy_api && .bin/deploy_app && .bin/deploy_firebase"
+echo "  3. Let GitHub Actions deploy: .bin/setup_ci_aws && .bin/setup_ci_gcp, then push to main"

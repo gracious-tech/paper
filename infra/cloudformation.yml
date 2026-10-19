@@ -61,6 +61,14 @@ Resources:
         BlockPublicPolicy: true
         IgnorePublicAcls: true
         RestrictPublicBuckets: true
+      # sourcemaps/ only carries each build's maps to .bin/audit_errors, which keeps them locally
+      # (like the errors/ inbox in Firebase Storage, swept at the same age)
+      LifecycleConfiguration:
+        Rules:
+          - Id: expire-sourcemaps
+            Status: Enabled
+            Prefix: sourcemaps/
+            ExpirationInDays: 90
 
   SiteOriginAccessControl:
     Type: AWS::CloudFront::OriginAccessControl

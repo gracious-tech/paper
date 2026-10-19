@@ -3,42 +3,45 @@
 # Build, push, and deploy new server code to the (already-provisioned — see .bin/deploy_aws)
 # paper-bible stack. Only the ImageUri parameter is overridden: `aws cloudformation deploy`
 # re-supplies every other parameter with its current stack value. The template itself is the
-# local infra/cloudformation.yml though, so any template changes are deployed along with it.
-
-# Runs from inside the dev container, which has no docker daemon access (deliberately — no
-# socket mount). The build/push step needs docker, so this script pauses and asks for it to be
-# run on the host instead, rather than exposing the host's docker socket into the container just
-# for this. aws itself stays container-side throughout: ACCOUNT_ID and IMAGE_URI are resolved
-# here (from aws/git, not docker), and the ECR login password is fetched here too and handed to
-# the host via a short-lived gitignored file, so .bin/push_server_lambda's own `aws ecr
-# get-login-password` call is skipped and the host never needs aws credentials at all.
+# local infra/cloudformation.yml though, so any template changes are deployed along with it
+# (see .bin/deploy_stack).
+#
+# Usage: .bin/deploy_api [--prebuilt]
+#   --prebuilt  push the paper-bible-lambda:<commit> image already in the local docker instead
+#               of building it (CI builds in a job with no cloud credentials, then deploys the
+#               result from another)
 
 set -euo pipefail
 cd "$(dirname "$0")/.."
 
-STACK="${STACK:-paper-bible}"
 REGION="${REGION:-${AWS_REGION:-us-west-2}}"
 ECR_REPO="${ECR_REPO:-paper-bible}"
 ACCOUNT_ID="$(aws sts get-caller-identity --query Account --output text)"
 TAG="$(git rev-parse --short HEAD)$(git diff --quiet || echo -dirty)"
 IMAGE_URI="$ACCOUNT_ID.dkr.ecr.$REGION.amazonaws.com/$ECR_REPO:$TAG"
 
-TOKEN_FILE=".bin/.ecr_token"
-aws ecr get-login-password --region "$REGION" > "$TOKEN_FILE"
-chmod 600 "$TOKEN_FILE"
-trap 'rm -f "$TOKEN_FILE"' EXIT
+if docker info >/dev/null 2>&1; then
+    # Docker is available here (CI, or a machine with a daemon): build and push directly
+    if [ "${1:-}" != '--prebuilt' ]; then
+        .bin/build_server_lambda
+    fi
+    .bin/push_server_lambda "$ACCOUNT_ID" "$REGION"
+else
+    # The dev container has no docker daemon access (deliberately — no socket mount), so the
+    # build/push step is handed to the host instead, rather than exposing the host's docker
+    # socket into the container just for this. aws itself stays container-side throughout: the
+    # ECR login password is fetched here and handed to the host via a short-lived gitignored
+    # file, so .bin/push_server_lambda's own `aws ecr get-login-password` call is skipped and
+    # the host never needs aws credentials at all
+    TOKEN_FILE=".bin/.ecr_token"
+    aws ecr get-login-password --region "$REGION" > "$TOKEN_FILE"
+    chmod 600 "$TOKEN_FILE"
+    trap 'rm -f "$TOKEN_FILE"' EXIT
 
-echo "Run this on the host now:"
-echo "  export ECR_PASSWORD=\"\$(cat $TOKEN_FILE)\""
-echo "  .bin/build_server_lambda && .bin/push_server_lambda $ACCOUNT_ID $REGION"
-read -rp "Press enter once that's finished (pushed as $IMAGE_URI)... "
+    echo "Run this on the host now:"
+    echo "  export ECR_PASSWORD=\"\$(cat $TOKEN_FILE)\""
+    echo "  .bin/build_server_lambda && .bin/push_server_lambda $ACCOUNT_ID $REGION"
+    read -rp "Press enter once that's finished (pushed as $IMAGE_URI)... "
+fi
 
-aws cloudformation deploy \
-    --region "$REGION" \
-    --stack-name "$STACK" \
-    --template-file infra/cloudformation.yml \
-    --capabilities CAPABILITY_NAMED_IAM \
-    --no-fail-on-empty-changeset \
-    --parameter-overrides "ImageUri=$IMAGE_URI"
-
-echo "Deployed $IMAGE_URI to $STACK"
+.bin/deploy_stack "$IMAGE_URI"

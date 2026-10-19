@@ -1,0 +1,34 @@
+#!/usr/bin/env bash
+
+# Deploy infra/cloudformation.yml to the already-provisioned stack (see .bin/deploy_aws),
+# optionally switching both Lambda functions to a new server image. Every parameter not
+# overridden keeps its current stack value — that's how `aws cloudformation deploy` treats an
+# existing stack — so this never needs the certificate, domain etc. Used by .bin/deploy_api, and
+# by CI on its own when only the template changed.
+#
+# Usage: .bin/deploy_stack [image-uri]
+
+set -euo pipefail
+cd "$(dirname "$0")/.."
+
+STACK="${STACK:-paper-bible}"
+REGION="${REGION:-${AWS_REGION:-us-west-2}}"
+IMAGE_URI="${1:-}"
+
+ARGS=(--region "$REGION" --stack-name "$STACK" --template-file infra/cloudformation.yml
+    --capabilities CAPABILITY_NAMED_IAM --no-fail-on-empty-changeset)
+
+# CI deploys through a CloudFormation service role rather than with its own permissions (see
+# infra/github_ci.yml). Left unset, CloudFormation keeps using the role the stack last used
+if [ -n "${CFN_ROLE_ARN:-}" ]; then
+    ARGS+=(--role-arn "$CFN_ROLE_ARN")
+fi
+
+# Only a new image is passed; everything else is the stack's existing value
+if [ -n "$IMAGE_URI" ]; then
+    ARGS+=(--parameter-overrides "ImageUri=$IMAGE_URI")
+fi
+
+aws cloudformation deploy "${ARGS[@]}"
+
+echo "Deployed $STACK${IMAGE_URI:+ with $IMAGE_URI}"

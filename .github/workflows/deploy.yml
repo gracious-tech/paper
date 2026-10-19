@@ -1,0 +1,319 @@
+# Test every push to main, then deploy whichever parts changed since they were last deployed
+# (see .bin/deploy_plan). Run it by hand with "all" ticked to redeploy everything regardless.
+#
+# Credentials are short-lived OIDC tokens only (see .bin/setup_ci_aws and .bin/setup_ci_gcp,
+# which also set the repository variables read below), and they're kept away from npm code: a
+# job is the only real isolation boundary (every step of a job can request its OIDC token, and
+# steps share one machine), so everything that installs or runs the project's dependencies
+# happens in jobs with no cloud access and read-only repo access, and the jobs that hold
+# credentials only run the deploy tools on what those jobs built
+
+name: Deploy
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+    inputs:
+      all:
+        description: "Redeploy everything, not just what changed"
+        type: boolean
+        default: false
+
+# One deploy at a time. A push while one runs waits instead of cancelling it, and only the newest
+# waiting run is kept — its diff against the deployed/* tags covers the pushes it replaced
+concurrency:
+  group: deploy
+  cancel-in-progress: false
+
+permissions:
+  contents: read
+
+env:
+  AWS_REGION: us-west-2
+  GCP_PROJECT: paper-bible
+
+jobs:
+
+  # Regenerate Lulu's prices when the last check was over a month ago (see
+  # .bin/refresh_lulu_prices). The generator needs printing-services, so this can't push:
+  # lulu_push commits the result
+  lulu:
+    runs-on: ubuntu-latest
+    outputs:
+      fetched: ${{ steps.gen.outputs.fetched }}
+    steps:
+      # Tags too, for the last check's date
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+          persist-credentials: false
+
+      - name: Check whether the prices are due
+        id: due
+        run: .bin/refresh_lulu_prices --due | tee -a "$GITHUB_OUTPUT"
+
+      - uses: actions/setup-node@v4
+        if: steps.due.outputs.due == 'true'
+        with:
+          node-version: 24
+          cache: npm
+
+      - if: steps.due.outputs.due == 'true'
+        run: npm ci
+
+      # Lulu being unreachable mustn't hold up a deploy, so a failure keeps the committed prices
+      # (and leaves the check date alone, so the next deploy tries again)
+      - name: Regenerate the prices
+        id: gen
+        if: steps.due.outputs.due == 'true'
+        run: |
+          if .bin/gen_lulu_prices; then
+              echo "fetched=true" >> "$GITHUB_OUTPUT"
+          else
+              echo "::warning::Couldn't refresh Lulu's prices, so the committed ones are kept"
+          fi
+
+      - uses: actions/upload-artifact@v4
+        if: steps.gen.outputs.fetched == 'true'
+        with:
+          name: lulu_prices
+          path: app/src/services/lulu_prices.json
+          retention-days: 1
+
+  # Commit a re-price as its own reviewable diff, and record the check's date. Runs no npm code,
+  # so it alone may push. Pushed before the tests run (the generator already refuses to write a
+  # sheet that's missing a product the app offers, and the tests still gate the deploy). A push
+  # made with the workflow's own token never starts another run, so this run deploys it. If main
+  # moved on meanwhile it's dropped instead: the newer push's run, queued behind this one, retries
+  lulu_push:
+    needs: lulu
+    if: needs.lulu.outputs.fetched == 'true'
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    outputs:
+      sha: ${{ steps.push.outputs.sha }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/download-artifact@v4
+        with:
+          name: lulu_prices
+          path: app/src/services
+
+      - name: Commit and push
+        id: push
+        run: |
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          .bin/refresh_lulu_prices --commit
+          if git push origin HEAD:main; then
+              git push -f origin refs/tags/checked/lulu_prices
+              echo "sha=$(git rev-parse HEAD)" >> "$GITHUB_OUTPUT"
+          else
+              echo "::warning::main moved on during this run, so the Lulu price check wasn't kept"
+          fi
+
+  # Test, work out what to deploy, and build it. No cloud access and a read-only token, since
+  # this is where every dependency's code runs. Runs whether or not lulu_push did
+  build:
+    needs: [lulu, lulu_push]
+    if: ${{ !cancelled() && !failure() }}
+    runs-on: ubuntu-latest
+    outputs:
+      sha: ${{ steps.plan.outputs.sha }}
+      firebase_setup: ${{ steps.plan.outputs.firebase_setup }}
+      firebase_rules: ${{ steps.plan.outputs.firebase_rules }}
+      api_image: ${{ steps.plan.outputs.api_image }}
+      stack: ${{ steps.plan.outputs.stack }}
+      aws_setup: ${{ steps.plan.outputs.aws_setup }}
+      app: ${{ steps.plan.outputs.app }}
+    steps:
+      # The full history and tags, for deploy_plan's diffs against the deployed/* tags. A full
+      # clone in every job also keeps short commit hashes (the image tag) the same length
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ needs.lulu_push.outputs.sha || github.sha }}
+          fetch-depth: 0
+          persist-credentials: false
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: npm
+
+      # The Firebase emulators the rules + server suites run against are Java
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: 21
+
+      # The emulator jars, which firebase-tools otherwise downloads on every run
+      - uses: actions/cache@v4
+        with:
+          path: .emulator_cache
+          key: emulators-${{ hashFiles('package-lock.json') }}
+
+      - run: npm ci
+
+      # typst-node's suite shells out to the Typst CLI
+      - run: .bin/setup_typst
+
+      # The app and typst-node import the local Typst packages from their dist/ output
+      - run: .bin/build_typst
+
+      - name: Typecheck
+        run: |
+          (cd app && npx vue-tsc --noEmit -p tsconfig.json)
+          npx tsc -p server/tsconfig.json
+          npx tsc -p e2e/tsconfig.json
+
+      - run: .bin/audit_unit
+
+      - name: Work out what changed
+        id: plan
+        run: |
+          echo "sha=$(git rev-parse HEAD)" >> "$GITHUB_OUTPUT"
+          .bin/deploy_plan ${{ inputs.all && '--all' || '' }} | tee -a "$GITHUB_OUTPUT"
+
+      - name: Build the app
+        if: steps.plan.outputs.app == 'true'
+        run: .bin/build_app
+
+      - uses: actions/upload-artifact@v4
+        if: steps.plan.outputs.app == 'true'
+        with:
+          name: app_dist
+          path: app/dist
+          retention-days: 1
+
+      - name: Build the server image
+        if: steps.plan.outputs.api_image == 'true'
+        run: |
+          .bin/build_server_lambda
+          docker save "paper-bible-lambda:$(git rev-parse --short HEAD)" \
+              | gzip -1 > server_image.tar.gz
+
+      - uses: actions/upload-artifact@v4
+        if: steps.plan.outputs.api_image == 'true'
+        with:
+          name: server_image
+          path: server_image.tar.gz
+          retention-days: 1
+          compression-level: 0
+
+  # Ship what build built. Holds the credentials, so it runs only the deploy tools (aws, gcloud,
+  # docker, and firebase-tools installed on its own) and never the project's npm install
+  deploy:
+    needs: build
+    if: ${{ !cancelled() && !failure() }}
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write  # Moving the deployed/* tags
+      id-token: write  # OIDC tokens for AWS and Google Cloud
+    env:
+      CFN_ROLE_ARN: ${{ vars.AWS_CFN_ROLE_ARN }}
+      PLAN_FIREBASE: >-
+        ${{ needs.build.outputs.firebase_setup == 'true'
+        || needs.build.outputs.firebase_rules == 'true' }}
+      PLAN_AWS: >-
+        ${{ needs.build.outputs.stack == 'true' || needs.build.outputs.aws_setup == 'true'
+        || needs.build.outputs.app == 'true' }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ needs.build.outputs.sha }}
+          fetch-depth: 0
+
+      - name: Check CI has been set up
+        env:
+          AWS_DEPLOY_ROLE_ARN: ${{ vars.AWS_DEPLOY_ROLE_ARN }}
+          GCP_WORKLOAD_IDENTITY_PROVIDER: ${{ vars.GCP_WORKLOAD_IDENTITY_PROVIDER }}
+          GCP_SERVICE_ACCOUNT: ${{ vars.GCP_SERVICE_ACCOUNT }}
+        run: |
+          missing=''
+          for name in AWS_DEPLOY_ROLE_ARN CFN_ROLE_ARN GCP_WORKLOAD_IDENTITY_PROVIDER \
+                  GCP_SERVICE_ACCOUNT; do
+              if [ -z "${!name}" ]; then
+                  missing="$missing $name"
+              fi
+          done
+          if [ -n "$missing" ]; then
+              echo "::error::Repository variables not set:$missing" \
+                  "— run .bin/setup_ci_aws and .bin/setup_ci_gcp"
+              exit 1
+          fi
+
+      # --- Firebase (first, so the app never goes live ahead of rules it relies on) ----------
+
+      - uses: actions/setup-node@v4
+        if: env.PLAN_FIREBASE == 'true'
+        with:
+          node-version: 24
+
+      # Just firebase-tools, at the version the lockfile pins, and without install scripts
+      - name: Install firebase-tools
+        if: env.PLAN_FIREBASE == 'true'
+        run: |
+          version="$(node -p \
+              "require('./package-lock.json').packages['node_modules/firebase-tools'].version")"
+          npm install --global --ignore-scripts "firebase-tools@$version"
+
+      - name: Authenticate to Google Cloud
+        if: env.PLAN_FIREBASE == 'true'
+        uses: google-github-actions/auth@v2
+        with:
+          workload_identity_provider: ${{ vars.GCP_WORKLOAD_IDENTITY_PROVIDER }}
+          service_account: ${{ vars.GCP_SERVICE_ACCOUNT }}
+
+      - name: Install gcloud
+        if: needs.build.outputs.firebase_setup == 'true'
+        uses: google-github-actions/setup-gcloud@v2
+
+      - name: Firebase project setup
+        if: needs.build.outputs.firebase_setup == 'true'
+        run: .bin/deploy_firebase_initial "$GCP_PROJECT" && .bin/mark_deployed firebase_setup
+
+      - name: Firebase rules
+        if: needs.build.outputs.firebase_rules == 'true'
+        run: .bin/deploy_firebase "$GCP_PROJECT" && .bin/mark_deployed firebase_rules
+
+      # --- AWS (the server before the app, which expects the server's current API) -------------
+
+      - name: Authenticate to AWS
+        if: env.PLAN_AWS == 'true'
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          role-to-assume: ${{ vars.AWS_DEPLOY_ROLE_ARN }}
+          aws-region: ${{ env.AWS_REGION }}
+
+      - uses: actions/download-artifact@v4
+        if: needs.build.outputs.api_image == 'true'
+        with:
+          name: server_image
+
+      # A new image always goes out through the stack, so this covers template changes too
+      - name: Server image and stack
+        if: needs.build.outputs.api_image == 'true'
+        run: |
+          gunzip -c server_image.tar.gz | docker load
+          .bin/deploy_api --prebuilt && .bin/mark_deployed api_image stack
+
+      - name: Stack
+        if: needs.build.outputs.api_image != 'true' && needs.build.outputs.stack == 'true'
+        run: .bin/deploy_stack && .bin/mark_deployed stack
+
+      - name: AWS account setup
+        if: needs.build.outputs.aws_setup == 'true'
+        run: .bin/deploy_aws && .bin/mark_deployed aws_setup
+
+      - uses: actions/download-artifact@v4
+        if: needs.build.outputs.app == 'true'
+        with:
+          name: app_dist
+          path: app/dist
+
+      - name: App
+        if: needs.build.outputs.app == 'true'
+        run: .bin/deploy_app --prebuilt && .bin/mark_deployed app

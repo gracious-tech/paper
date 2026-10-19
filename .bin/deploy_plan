@@ -1,0 +1,79 @@
+#!/usr/bin/env bash
+
+# Work out which deploy steps the current commit needs, by diffing it against the commit each
+# step last deployed from (the deployed/<step> tag .bin/mark_deployed moves once the step
+# succeeds). A step with no tag yet, or whose tagged commit isn't in this clone, always runs.
+# Prints one `<step>=true|false` line per step, the format GitHub Actions reads from
+# $GITHUB_OUTPUT (see .github/workflows/deploy.yml).
+#
+# The input lists below are the only thing deciding what gets rebuilt, so a file a step newly
+# depends on must be added to its list, or edits to that file won't deploy. One-off setup works
+# the same way: the setup scripts are idempotent, so editing one (e.g. a new TTL line in
+# deploy_firebase_initial) makes the next deploy re-run it once.
+#
+# Usage: .bin/deploy_plan [--all]   (--all reports every step as needed)
+
+set -euo pipefail
+cd "$(dirname "$0")/.."
+
+ALL=false
+if [ "${1:-}" = '--all' ]; then
+    ALL=true
+fi
+
+# Firebase project setup that a rules deploy can't do: Storage lifecycle + CORS, Firestore TTLs
+FIREBASE_SETUP=(.bin/deploy_firebase_initial firebase_storage_lifecycle.json)
+
+# Firestore/Storage security rules and indexes
+FIREBASE_RULES=(.bin/deploy_firebase firebase.json .firebaserc firestore.rules
+    firestore.indexes.json firebase_storage.rules)
+
+# The server's container image (everything server/Dockerfile.lambda builds from)
+API_IMAGE=(server typst typst-node package.json package-lock.json .typst-version
+    .bin/build_server_lambda .bin/push_server_lambda .bin/setup_typst .bin/deploy_api
+    ':!typst/tests' ':!typst-node/tests')
+
+# The CloudFormation stack, which also redeploys whenever a new image is pushed
+STACK=(infra/cloudformation.yml .bin/deploy_stack)
+
+# Account-level AWS setup: the certificate, ECR repo and every stack parameter
+AWS_SETUP=(.bin/deploy_aws)
+
+# The static app (the local Typst packages are built into it)
+APP=(app typst typst-web package.json package-lock.json .bin/deploy_app .bin/build_app
+    .bin/build_typst ':!app/tests' ':!app/i18n' ':!app/tools' ':!typst/tests')
+
+
+needs_deploy(){
+    # Whether a step's inputs (the remaining args) changed since its tagged commit
+    local tag="refs/tags/deployed/$1"
+    shift
+    if [ "$ALL" = true ]; then
+        echo true
+        return
+    fi
+    if ! git rev-parse -q --verify "$tag^{commit}" >/dev/null; then
+        echo true
+        return
+    fi
+    if git diff --quiet "$tag" HEAD -- "$@"; then
+        echo false
+    else
+        echo true
+    fi
+}
+
+
+# A new image is deployed through the stack, so either one changing redeploys the stack
+api_image="$(needs_deploy api_image "${API_IMAGE[@]}")"
+stack="$(needs_deploy stack "${STACK[@]}")"
+if [ "$api_image" = true ]; then
+    stack=true
+fi
+
+echo "firebase_setup=$(needs_deploy firebase_setup "${FIREBASE_SETUP[@]}")"
+echo "firebase_rules=$(needs_deploy firebase_rules "${FIREBASE_RULES[@]}")"
+echo "api_image=$api_image"
+echo "stack=$stack"
+echo "aws_setup=$(needs_deploy aws_setup "${AWS_SETUP[@]}")"
+echo "app=$(needs_deploy app "${APP[@]}")"

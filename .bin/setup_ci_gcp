@@ -1,0 +1,83 @@
+#!/usr/bin/env bash
+
+# One-off (re-runnable): let GitHub Actions deploy the Firebase side (security rules, and the
+# project setup in .bin/deploy_firebase_initial) with no stored keys, via Workload Identity
+# Federation: workflows on the repo's main branch can act as a deploy service account. Then set
+# the repository variables .github/workflows/deploy.yml reads (with the gh CLI if it's logged
+# in, otherwise printing the commands). Needs `gcloud auth login` as a project owner.
+#
+# Usage: .bin/setup_ci_gcp [gcp-project-id]
+
+set -euo pipefail
+cd "$(dirname "$0")/.."
+
+PROJECT="${1:-paper-bible}"
+REPOSITORY="${REPOSITORY:-gracious-tech/paper}"
+BRANCH="${BRANCH:-main}"
+POOL='github'
+PROVIDER='github'
+SA_NAME='github-deploy'
+SA="$SA_NAME@$PROJECT.iam.gserviceaccount.com"
+BUCKET="gs://$PROJECT.firebasestorage.app"
+PROJECT_NUMBER="$(gcloud projects describe "$PROJECT" --format='value(projectNumber)')"
+POOL_PATH="projects/$PROJECT_NUMBER/locations/global/workloadIdentityPools/$POOL"
+
+
+set_variable(){
+    # Set a GitHub repository variable, or print how to when gh isn't logged in
+    if command -v gh >/dev/null && gh auth status >/dev/null 2>&1; then
+        gh variable set "$1" --repo "$REPOSITORY" --body "$2"
+        echo "Set $1"
+    else
+        echo "  gh variable set $1 --repo $REPOSITORY --body '$2'"
+    fi
+}
+
+
+# The APIs token exchange goes through
+gcloud services enable iamcredentials.googleapis.com sts.googleapis.com --project "$PROJECT"
+
+# The service account deploys act as
+if ! gcloud iam service-accounts describe "$SA" --project "$PROJECT" >/dev/null 2>&1; then
+    gcloud iam service-accounts create "$SA_NAME" --project "$PROJECT" \
+        --display-name "GitHub Actions deploy"
+fi
+
+# What it may do: deploy rules and indexes, set Firestore TTL policies, and set the Storage
+# bucket's lifecycle + CORS (granted on that bucket alone, not every bucket in the project)
+for role in roles/firebase.admin roles/datastore.indexAdmin \
+        roles/serviceusage.serviceUsageConsumer; do
+    gcloud projects add-iam-policy-binding "$PROJECT" --member "serviceAccount:$SA" \
+        --role "$role" --condition=None --quiet >/dev/null
+done
+gcloud storage buckets add-iam-policy-binding "$BUCKET" --member "serviceAccount:$SA" \
+    --role roles/storage.admin >/dev/null
+
+# Trust GitHub's tokens, but only from this repo's deploy branch
+if ! gcloud iam workload-identity-pools describe "$POOL" --project "$PROJECT" \
+        --location global >/dev/null 2>&1; then
+    gcloud iam workload-identity-pools create "$POOL" --project "$PROJECT" --location global \
+        --display-name "GitHub Actions"
+fi
+if ! gcloud iam workload-identity-pools providers describe "$PROVIDER" --project "$PROJECT" \
+        --location global --workload-identity-pool "$POOL" >/dev/null 2>&1; then
+    gcloud iam workload-identity-pools providers create-oidc "$PROVIDER" --project "$PROJECT" \
+        --location global --workload-identity-pool "$POOL" \
+        --display-name "GitHub Actions" \
+        --issuer-uri 'https://token.actions.githubusercontent.com' \
+        --attribute-mapping \
+            'google.subject=assertion.sub,attribute.repository=assertion.repository,attribute.ref=assertion.ref' \
+        --attribute-condition \
+            "assertion.repository == '$REPOSITORY' && assertion.ref == 'refs/heads/$BRANCH'"
+fi
+
+# Let those tokens act as the service account
+gcloud iam service-accounts add-iam-policy-binding "$SA" --project "$PROJECT" \
+    --role roles/iam.workloadIdentityUser \
+    --member "principalSet://iam.googleapis.com/$POOL_PATH/attribute.repository/$REPOSITORY" \
+    >/dev/null
+
+echo
+echo "Repository variables:"
+set_variable GCP_WORKLOAD_IDENTITY_PROVIDER "$POOL_PATH/providers/$PROVIDER"
+set_variable GCP_SERVICE_ACCOUNT "$SA"

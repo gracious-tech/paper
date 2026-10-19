@@ -1,0 +1,15 @@
+#!/usr/bin/env bash
+
+# Record that the given deploy steps are now live from HEAD, by moving their deployed/<step>
+# tags to it on origin — what .bin/deploy_plan diffs against next time. Run by CI after each
+# step succeeds; a manual deploy needn't run it (the next CI run just redeploys that step).
+#
+# Usage: .bin/mark_deployed <step>...
+
+set -euo pipefail
+cd "$(dirname "$0")/.."
+
+for step in "$@"; do
+    git tag -f "deployed/$step" HEAD
+    git push -f origin "refs/tags/deployed/$step"
+done

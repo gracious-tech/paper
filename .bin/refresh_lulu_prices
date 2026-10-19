@@ -1,0 +1,68 @@
+#!/usr/bin/env bash
+
+# Re-check Lulu's print prices (see app/tools/gen_lulu_prices.ts) if they were last checked
+# over a month ago, committing a re-price as its own reviewable diff. The check date is the
+# checked/lulu_prices annotated tag's own date, since the prices file only changes when Lulu's
+# data does. Lulu being unreachable never fails this: the committed prices are kept, and the tag
+# stays put so the next run tries again.
+#
+# CI runs the two halves in separate jobs, so the job that runs npm code (gen_lulu_prices needs
+# printing-services) never holds the token that can push to the repo:
+#   .bin/refresh_lulu_prices           all of it, if due (for running by hand)
+#   .bin/refresh_lulu_prices --due     just print due=true|false ($GITHUB_OUTPUT's format)
+#   .bin/refresh_lulu_prices --commit  commit the prices file if it changed, and move the tag
+
+set -euo pipefail
+cd "$(dirname "$0")/.."
+
+TAG='checked/lulu_prices'
+MAX_AGE_DAYS=30
+PRICES='app/src/services/lulu_prices.json'
+
+
+is_due(){
+    # Whether the last check was over MAX_AGE_DAYS ago (or there's never been one)
+    local checked_at age_days
+    checked_at="$(git for-each-ref --format='%(taggerdate:unix)' "refs/tags/$TAG")"
+    age_days=$(( ($(date +%s) - ${checked_at:-0}) / 86400 ))
+    echo "Lulu prices last checked $age_days days ago" >&2
+    [ "$age_days" -ge "$MAX_AGE_DAYS" ]
+}
+
+
+commit_check(){
+    # Commit a real re-price (gen_lulu_prices leaves the file untouched otherwise), then record
+    # the check itself, so unchanged prices aren't fetched again for another month
+    if ! git diff --quiet -- "$PRICES"; then
+        git commit -m 'Refresh Lulu prices' -- "$PRICES" >&2
+    fi
+    git tag -a -f "$TAG" -m 'Lulu prices checked' HEAD >&2
+}
+
+
+case "${1:-}" in
+    --due)
+        if is_due; then
+            echo 'due=true'
+        else
+            echo 'due=false'
+        fi
+        ;;
+    --commit)
+        commit_check
+        ;;
+    '')
+        if ! is_due; then
+            exit 0
+        fi
+        if ! .bin/gen_lulu_prices >&2; then
+            echo "Couldn't refresh Lulu's prices, so the committed ones are kept" >&2
+            exit 0
+        fi
+        commit_check
+        ;;
+    *)
+        echo "Unknown option $1 (--due | --commit)" >&2
+        exit 1
+        ;;
+esac

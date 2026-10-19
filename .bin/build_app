@@ -1,0 +1,16 @@
+#!/usr/bin/env bash
+
+# Build the app into app/dist for .bin/deploy_app, which runs this itself unless given
+# --prebuilt (CI builds in a job with no cloud credentials, then deploys the result from another)
+
+set -euo pipefail
+cd "$(dirname "$0")/.."
+
+# Refuse to ship UI text that skips translation or catalogs that would render wrong. Missing
+# translations only fall back to English, so they're listed but don't block a deploy
+.bin/i18n_check --allow-missing
+
+# The app imports the local Typst packages from their dist/ output, which vite won't rebuild
+.bin/build_typst
+
+(cd app && npx vite build)
