@@ -629,6 +629,13 @@ ${gen_notes_locale(typography)}
 #show footnote.entry: set text(size: ${typography.footnote_size})
 ${gen_footnote_entry_width(overrides.footnote_entry_width)}
 
+// Glue each in-text footnote marker to whatever follows it. A marker is a link, and Bible markup
+// often puts one hard against the next word (\`llamadme #footnote[...]Mara\`) — Typst drops the
+// space before a marker, so marker + word read as one hyphenatable word and a justified line can
+// end with a hyphen right after the marker. Typst's PDF export then fails on that hyphen
+// ("expected link ancestor in logical tree"); a word joiner rules out a break there
+#show footnote: it => [#it#sym.wj]
+
 // Consumer-function definitions emitted by the USX→Typst converter
 ${chapter}
 ${verse}

@@ -255,6 +255,25 @@ describe('compile_pdf', () => {
         // No two remaining font program streams may be byte-identical
         expect(new Set(bytes).size).toBe(bytes.length)
     }, 15000)
+
+    it('compiles when a line could hyphenate straight after a footnote marker', async () => {
+        // Markers set hard against the next word (as fetch.bible's Reina-Valera does) once made
+        // the PDF export fail ("expected link ancestor in logical tree") wherever a justified
+        // line hyphenated right after one. Which width breaks there depends on the font, so
+        // sweep a range rather than pin one
+        const passage = make_request().content[0]!
+        const content = '#vn(20)Y ella les respondiá: No me llaméis #footnote[Placentera.]Noemi,'
+            + ' sino llamadme #footnote[Amarga.]Mara: porque en grande amargura me ha puesto el'
+            + ' #footnote[x]Todopoderoso. Llegaron #footnote[y]extraordinariamente'
+            + ' #footnote[z]misericordiosamente a la #footnote[w]bienaventuranza y'
+            + ' #footnote[v]Bethlehemitas #footnote[u]incomprensiblemente fin.'
+        const widths = Array.from({length: 17}, (_, i) => `${90 + i * 5}mm`)
+        await Promise.all(widths.map(width => compile_pdf(make_request({
+            page: {...TEST_PAGE, width},
+            typography: {...TEST_TYPOGRAPHY, lang: 'es'},
+            content: [{...passage, show_footnotes: true, bibles: [{content}]}],
+        }))))
+    }, 60000)
 })
 
 
