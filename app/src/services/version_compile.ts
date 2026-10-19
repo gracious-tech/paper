@@ -355,6 +355,12 @@ export async function compile_and_upload(job:VersionCompileJob):Promise<void>{
             await request_server_compile(id, page_estimate)
         }
     } catch (error){
+        // A version deleted mid-compile fails both the upload and the server fallback (each
+        // needs its doc), but nothing is left to fail, so it's dropped quietly
+        const snapshot = await getDoc(doc_ref).catch(() => null)
+        if (snapshot && !snapshot.exists()){
+            return
+        }
         // Even the server fallback failed (it records its own failures — this catch covers
         // not being able to reach it at all). Record the report's id on the doc so the failed
         // view can offer a support link containing it
@@ -362,7 +368,7 @@ export async function compile_and_upload(job:VersionCompileJob):Promise<void>{
             {force: true, critical: true, context: {version_id: id, stage: 'compile_fallback'}})
         // Only clobber the status if this version is still pending — a concurrent winner may
         // have set it 'available' while this attempt was failing
-        const current = (await getDoc(doc_ref).catch(() => null))?.data()?.['status']
+        const current = snapshot?.data()?.['status']
         if (current !== undefined && current !== 'pending'){
             return
         }

@@ -297,6 +297,7 @@
   "display.preview.end_of_preview": "End of preview",
   "display.preview.error": "Something went wrong :(",
   "display.preview.failed": "Couldn't generate preview",
+  "display.preview.failed_build_hint": "You can still build it, which usually works even when the preview doesn't.",
   "display.preview.final_touches": "Final touches",
   "display.preview.generating_preview": "Generating preview",
   "display.preview.getting_started": "Getting started",

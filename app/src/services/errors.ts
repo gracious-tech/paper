@@ -22,6 +22,13 @@ How to integrate:
 // List of keywords that if present anywhere in an error message, should ignore
 const ignore_errors = [
     '@safari-extension://',
+    // Scripts that in-app browsers inject into every page (Brave iOS, Facebook's Android IAB)
+    '__firefox__',
+    'iabjs://',
+    // The user or OS cleared site data while Firebase's IndexedDB stores were open
+    'Database deleted by request of the user',
+    // A crawler's IndexedDB shared with other sites holds another project's Firestore cache
+    'Tried to deserialize key from different project',
 ]
 
 
@@ -264,11 +271,21 @@ export function error_to_string(error:unknown):string{
     // Try get more info
     let info = ''
     try {
+        // NOTE Errors from another realm (an iframe, an injected script) fail `instanceof Error`,
+        //      and JSON.stringify gives '{}' for them since message/stack aren't enumerable
+        const error_like = error as {message?:unknown, stack?:unknown}|null
         if (error instanceof Error){
             // NOTE `error.name` will be same as constructor name already included above
             info = `${error.message}\n\n${error.stack!}`
+        } else if (typeof error_like?.message === 'string'){
+            info = `${error_like.message}\n\n${String(error_like.stack)}`
         } else if (typeof error === 'object'){
             info = JSON.stringify(error, undefined, 4)
+            // Say what the object was when it has nothing enumerable to show
+            if (info === '{}'){
+                const keys = Object.getOwnPropertyNames(error).join(', ')
+                info = `{} (own keys: ${keys || 'none'}; as string: ${String(error)})`
+            }
         } else {
             info = String(error)
         }
@@ -286,6 +303,13 @@ export function error_to_string(error:unknown):string{
 ;(self as unknown as {app_errors_ready:boolean}).app_errors_ready = true
 
 
+function is_abort(error:unknown):boolean{
+    // Whether an uncaught error is just a cancelled request (a superseded fetch, a page
+    // navigation, Firestore tearing down its own transport). Nothing awaited it, so nothing failed
+    return error instanceof DOMException && error.name === 'AbortError'
+}
+
+
 addEventListener('error', (event:ErrorEvent):void => {
     // Report uncaught errors, silently: nothing was waiting on the code that threw, so whether
     // the user was affected can't be known from here (and is usually not — a large share come
@@ -298,13 +322,27 @@ addEventListener('error', (event:ErrorEvent):void => {
         return
     }
 
+    // Ignore "Script error.", which is all a browser reveals of an error thrown by a cross-origin
+    // script. The app's own scripts are all same-origin, so these come from injected ones
+    if (!event.error && event.message === 'Script error.'){
+        return
+    }
+
+    // Ignore cancelled requests
+    if (is_abort(event.error)){
+        return
+    }
+
     const error:unknown = event.error ?? event.message ?? 'unknown'
     report_error('silent', error)
 })
 
 
 addEventListener('unhandledrejection', event => {
-    // Report uncaught errors in promises (silently, as above)
+    // Report uncaught errors in promises (silently, as above), except cancelled requests
+    if (is_abort(event.reason)){
+        return
+    }
     report_error('silent', event.reason)
 })
 

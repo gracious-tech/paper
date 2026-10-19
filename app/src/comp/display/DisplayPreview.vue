@@ -28,14 +28,16 @@ div.preview
         //- Semi-transparent readout of the in-progress recompile, layered over the still-visible
         //- (and still-scrollable, via pointer-events:none) previous PDF
         transition(name='fade')
-            div.overlay(v-if='progress_message || overlay_error')
-                div.overlay_box(:class='{error: overlay_error}')
-                    p(v-if='overlay_error' class='overlay_title')
+            div.overlay(v-if='progress_message || overlay_failed')
+                div.overlay_box(:class='{error: overlay_failed}')
+                    p(v-if='overlay_failed' class='overlay_title')
                         strong {{ overlay_error_title }}
-                    p {{ overlay_error || progress_message }}
-    div.status(v-else-if='error_msg')
+                    p {{ overlay_failed ? $t("display.preview.failed_build_hint") : progress_message }}
+    //- The cause isn't shown: it's rarely meaningful to the user, and a preview failure says
+    //- little about the build, which can fall back to the server
+    div.status(v-else-if='failed')
         h3(class='mb-4') {{ $t("display.preview.failed") }}
-        p(class='status-detail') {{ error_msg }}
+        p {{ $t("display.preview.failed_build_hint") }}
     div.status(v-else)
         p {{ progress_message || $t("display.preview.generating_preview") + "…" }}
 
@@ -66,9 +68,10 @@ import type {CompileProgress} from '@/services/compile_progress'
 const {t} = useI18n()
 
 
-// Object URL of the current compiled PDF, and any compile error message
+// Object URL of the current compiled PDF, and whether the last compile failed with no previous
+// PDF to keep showing
 const pdf_url = ref<string|null>(null)
-const error_msg = ref<string|null>(null)
+const failed = ref(false)
 
 // Text for the currently active progress stage, or null between compiles (and for stages the
 // user doesn't need to see — see stage_text() in compile_progress.ts)
@@ -77,11 +80,25 @@ const progress_message = ref<string|null>(null)
 // Set instead of progress_message when a recompile fails while an old preview is still showing
 // underneath — the overlay stays up (rather than vanishing back to the stale PDF unexplained)
 // and turns red to surface the failure
-const overlay_error = ref<string|null>(null)
+const overlay_failed = ref(false)
 
-// Title shown above overlay_error — kept out of the template since the pug-to-TS bridge
-// mishandles the unbalanced parenthesis in the smiley within an inline mustache expression
+// Title shown above the overlay's failure message — kept out of the template since the
+// pug-to-TS bridge mishandles the unbalanced parenthesis in the smiley within an inline
+// mustache expression
 const overlay_error_title = computed(() => t("display.preview.error"))
+
+
+// Report a failed preview and show it, over the old preview if there is one
+function show_failure(error:unknown, stage:string):void{
+    // Preview failures are transient while editing, so record without any support prompt
+    // (the throttle in errors.ts stops this spamming reports per keystroke)
+    report_error('silent', error, {context: {stage}})
+    if (pdf_url.value){
+        overlay_failed.value = true
+    } else {
+        failed.value = true
+    }
+}
 
 // Which portion of an over-long document to preview. Documents past the preview size limit
 // are truncated to a fast-compiling window positioned by this (see truncate_for_preview).
@@ -143,8 +160,8 @@ async function compile(){
     }
 
     const run = ++latest_run
-    error_msg.value = null
-    overlay_error.value = null
+    failed.value = false
+    overlay_failed.value = false
 
     // Forwarded to both the content-fetching and PDF-compiling stages, so the overlay reflects
     // whichever one is currently running
@@ -191,13 +208,7 @@ async function compile(){
                 if (run !== latest_run){
                     return
                 }
-                const message = error instanceof Error ? error.message : String(error)
-                report_error('silent', error, {context: {stage: 'preview_cover'}})
-                if (pdf_url.value){
-                    overlay_error.value = message
-                } else {
-                    error_msg.value = message
-                }
+                show_failure(error, 'preview_cover')
                 return
             }
             if (run !== latest_run){
@@ -235,19 +246,9 @@ async function compile(){
         if (run !== latest_run){
             return
         }
-        const message = error instanceof Error ? error.message : String(error)
-
-        // Preview failures are transient while editing, so record without any support prompt
-        // (the throttle in errors.ts stops this spamming reports per keystroke)
-        report_error('silent', error, {context: {stage: 'preview'}})
-
-        // An old preview is still showing underneath — keep the overlay up and turn it red to
+        // If an old preview is still showing underneath, the overlay stays up and turns red to
         // explain the failure, rather than silently reverting to the (now stale) PDF
-        if (pdf_url.value){
-            overlay_error.value = message
-        } else {
-            error_msg.value = message
-        }
+        show_failure(error, 'preview')
     } finally {
         if (run === latest_run){
             progress_message.value = null

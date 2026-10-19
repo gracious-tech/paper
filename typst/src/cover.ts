@@ -8,7 +8,7 @@
 
 import {get_builtin_bg} from 'bookcover-core'
 
-import {resolve_reading_trim} from './trim.js'
+import {resolve_reading_trim, usable_length} from './trim.js'
 
 import type {Blueprint, CoverConfig} from './types.js'
 
@@ -57,9 +57,10 @@ export function cover_form_for_render(cover:CoverConfig, blueprint:Blueprint,
 
     // Home printing is a plain A4/US-Letter sheet: nothing is trimmed and nothing is bound
     // along a spine, so the wraparound is exactly two trim faces wide (matching an interior
-    // booklet sheet). The blueprint's manual bleed/spine aren't even offered in home mode
-    const bleed = home ? 0 : blueprint.custom_bleed
-    const spine = home ? 0 : blueprint.custom_spine
+    // booklet sheet). The blueprint's manual bleed/spine aren't even offered in home mode.
+    // A cleared bleed/spine field hands back '' (see usable_length), which bookcover rejects
+    const bleed = home ? 0 : usable_length(blueprint.custom_bleed)
+    const spine = home ? 0 : usable_length(blueprint.custom_spine)
 
     // A fold-at-home booklet's chosen size is the sheet that gets folded, so the finished book
     // is half of it — the cover must wrap a reading page, not the sheet. No named size can

@@ -259,8 +259,12 @@ self.addEventListener('message', (event:MessageEvent<WorkerRequest>) => {
             // Log here too since the Error loses its stack when serialised for the main thread
             console.error(error)
             const error_msg = error instanceof Error ? error.message : String(error)
+            // A stack overflow inside the WASM compiler is a RangeError rather than a
+            // RuntimeError, but it aborts Rust mid-call just the same, so it's a trap too
+            const stack_overflow = error instanceof RangeError
+                && /call stack/i.test(error.message)
             const response:WorkerResponse = {id, kind: 'result', ok: false, error: error_msg,
-                fatal: error instanceof WebAssembly.RuntimeError}
+                fatal: error instanceof WebAssembly.RuntimeError || stack_overflow}
             postMessage(response)
         }
     })
