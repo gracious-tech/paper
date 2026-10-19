@@ -1,11 +1,11 @@
 
 import {auto_fix} from './fix.ts'
 import {resolve_commit} from './git.ts'
-import {issue_prompt, write_prompt, update_triage, is_returned, needs_attention}
+import {issue_prompt, list_prompt, write_prompt, update_triage, status_name, needs_attention}
     from './store.ts'
 import {make_terminal, print_wrapped, run_attached} from './terminal.ts'
 
-import type {IssueStatus, IssueView, Priorities} from './store.ts'
+import type {IssueView, Priorities} from './store.ts'
 import type {Terminal} from './terminal.ts'
 
 
@@ -18,26 +18,9 @@ export interface Snapshot {
     priorities:Priorities|null
 }
 
-// Keys for picking a shortlisted issue straight into the automatic fixer
-const SHORTLIST_KEYS = ['a', 'b', 'c']
-
-// Fixed-width labels for each status
-const STATUS_LABELS:Record<IssueStatus, string> = {
-    new: 'NEW  ',
-    deferred: 'LATER',
-    fixed: 'FIXED',
-    diagnosing: 'DIAG ',
-    ignored: 'IGNOR',
-}
-
-
-function status_label(issue:IssueView):string{
-    // A returned issue is labelled by why it's back rather than by its stored status
-    if (is_returned(issue)){
-        return issue.status === 'fixed' ? 'REGR ' : 'INFO '
-    }
-    return STATUS_LABELS[issue.status]
-}
+// Keys for picking a shortlisted issue straight into the automatic fixer (not a/b/c, since c
+// opens claude in both views)
+const SHORTLIST_KEYS = ['x', 'y', 'z']
 
 
 function print_list(snapshot:Snapshot, show_all:boolean):IssueView[]{
@@ -51,14 +34,15 @@ function print_list(snapshot:Snapshot, show_all:boolean):IssueView[]{
         const severity = issue.critical ? 'CRIT ' : 'error'
         const count = String((issue.active.length || issue.records.length)).padStart(4)
         const ips = String(issue.ips).padStart(3)
-        const columns = `${String(index + 1).padStart(3)}  ${status_label(issue)}  ${severity}`
-            + `  ${count}x  ${ips} ip  ${issue.latest.slice(0, 10)}  `
+        const columns = `${String(index + 1).padStart(3)}  ${severity}`
+            + `  ${ips}ip  ${count}x  ${issue.latest.slice(0, 10)}  `
         // A wrapped summary continues under itself, leaving the number column clear
         print_wrapped(columns + issue.summary, columns.length)
     }
     const hidden = snapshot.issues.length - shown.length
     if (hidden){
-        console.log(`     (${hidden} fixed/ignored issue(s) hidden, h to show)`)
+        console.log(`     (${hidden} issue(s) hidden: fixed, ignored or unreported for 30 days;`
+            + ' h to show)')
     }
 
     // Claude's picks, keyed for the automatic fixer
@@ -84,8 +68,8 @@ function print_list(snapshot:Snapshot, show_all:boolean):IssueView[]{
         ? `${SHORTLIST_KEYS.slice(0, priorities.shortlist.length).join('/')} auto-fix suggestion, `
         : ''
     const noise = priorities?.noise.length ? 'i ignore noise, ' : ''
-    print_wrapped(`Commands: ${keys}<number> open issue, ${noise}h show/hide fixed,`
-        + ' r refresh from bucket, q quit', 4)
+    print_wrapped(`Commands: ${keys}<number> open issue, c discuss list with claude, ${noise}`
+        + 'h show/hide fixed, r refresh from bucket, q quit', 4)
     return shown
 }
 
@@ -105,7 +89,7 @@ function print_detail(issue:IssueView):void{
         print_wrapped(`Note: ${issue.note}`, 4)
     }
     const commit = issue.commit ? ` at ${issue.commit.slice(0, 10)}` : ''
-    print_wrapped(`Status: ${status_label(issue).trim()}${commit}   IPs: ${issue.ips}`
+    print_wrapped(`Status: ${status_name(issue)}${commit}   IPs: ${issue.ips}`
         + `   Fingerprints: ${issue.fingerprints.join(', ')}`, 4)
     if (issue.resolution){
         print_wrapped(`Resolution: ${issue.resolution}`, 4)
@@ -128,7 +112,7 @@ function print_detail(issue:IssueView):void{
     console.log(JSON.stringify(issue.active[0] ?? issue.records[0], undefined, 4))
     console.log('')
     print_wrapped('Commands: f auto-fix, c fix interactively with claude, x mark fixed, i ignore,'
-        + ' l later, u reopen, n note, b back', 4)
+        + ' u reopen, n note, b back', 4)
 }
 
 
@@ -149,7 +133,7 @@ async function detail_loop(term:Terminal, issue:IssueView):Promise<void>{
             // Fix it in an interactive claude session, then return to the list once it exits
             const prompt = 'Please investigate and fix the following error reported by users of'
                 + ` this app.\n\n${issue_prompt(issue)}`
-            console.log(`Starting claude with the fix prompt (${write_prompt(issue, prompt)})...`)
+            console.log(`Starting claude with the fix prompt (${write_prompt(issue.id, prompt)})...`)
             await run_attached(term.handoff, 'claude', [prompt])
             return
 
@@ -170,12 +154,6 @@ async function detail_loop(term:Terminal, issue:IssueView):Promise<void>{
             // Hidden for good; any further reports are filed under it silently
             update_triage(issue.id, {status: 'ignored'})
             console.log('Ignored')
-            return
-
-        } else if (answer === 'l'){
-            // Defer — drops below new issues and out of claude's shortlist
-            update_triage(issue.id, {status: 'deferred'})
-            console.log('Marked for later')
             return
 
         } else if (answer === 'u'){
@@ -216,6 +194,17 @@ async function ignore_noise(term:Terminal, snapshot:Snapshot):Promise<void>{
 }
 
 
+async function discuss_list(term:Terminal, snapshot:Snapshot):Promise<void>{
+    // Talk the whole list over in an interactive claude session, briefed via the system prompt
+    // so the developer asks the first question. Reading an issue needs no approval; changing
+    // triage does, so every decision claude applies is one the developer saw
+    const prompt = list_prompt(snapshot.issues, snapshot.priorities)
+    console.log(`Starting claude with the issue list (${write_prompt('_list', prompt)})...`)
+    await run_attached(term.handoff, 'claude', ['--append-system-prompt', prompt,
+        '--allowedTools', 'Bash(node errors/triage.ts show:*)'])
+}
+
+
 export async function run_tui(refresh:(download:boolean) => Promise<Snapshot>):Promise<void>{
     // Main loop: list issues, fix a suggestion or open an issue, act on it
     const term = make_terminal()
@@ -234,6 +223,10 @@ export async function run_tui(refresh:(download:boolean) => Promise<Snapshot>):P
                 snapshot = await refresh(true)
             } else if (answer === 'h'){
                 show_all = !show_all
+            } else if (answer === 'c'){
+                await discuss_list(term, snapshot)
+                // Reassemble from local state (claude may have changed triage)
+                snapshot = await refresh(false)
             } else if (answer === 'i' && snapshot.priorities?.noise.length){
                 await ignore_noise(term, snapshot)
                 snapshot = await refresh(false)
@@ -245,7 +238,7 @@ export async function run_tui(refresh:(download:boolean) => Promise<Snapshot>):P
                 }
             } else if (answer && Number.isInteger(index) && index >= 1 && index <= shown.length){
                 await detail_loop(term, shown[index - 1]!)
-                // Reassemble from local state (the issue may have been resolved/deferred)
+                // Reassemble from local state (the issue may have been resolved/ignored)
                 snapshot = await refresh(false)
             }
         }

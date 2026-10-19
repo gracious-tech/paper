@@ -273,7 +273,8 @@ paper_bible/
     rules/            #   firestore.rules + firebase_storage.rules, asserted from a client
     server/           #   server/src handlers direct, plus routes.test.ts over real HTTP
   errors/             # .bin/audit_errors internals: bucket sync, claude clustering + ranking,
-                      #   background fixer, triage TUI
+                      #   background fixer, triage TUI, triage.ts (the CLI its list-level
+                      #   claude session applies decisions with)
   branding/           # Source icon/social/splash artwork
   typst/                   # paper-bible-typst: core (Blueprint→TypstRequest, typst gen,
                             #   split_blueprint_doc/join_blueprint_doc for Firestore doc shape)

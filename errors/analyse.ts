@@ -1,7 +1,7 @@
 
 import {claude_structured} from './claude.ts'
-import {load_issues, save_issues, load_priorities, save_priorities, is_returned}
-    from './store.ts'
+import {load_issues, save_issues, load_priorities, save_priorities, is_returned,
+    needs_attention} from './store.ts'
 import {symbolicate} from './sourcemap.ts'
 
 import type {ErrorRecord} from '../server/src/errors.ts'
@@ -228,10 +228,10 @@ function build_rank_prompt(candidates:IssueView[]):string{
 
 
 export function rank_issues(issues:IssueView[]):Priorities|null{
-    // Claude's shortlist + noise list over the issues needing a decision (new or returned —
-    // deferred ones were put aside deliberately). The cached ranking is reused, minus whatever
+    // Claude's shortlist + noise list over the issues needing a decision (open and recent).
+    // The cached ranking is reused, minus whatever
     // has since been dealt with, until an issue appears or gains reports; null if ranking failed
-    const candidates = issues.filter(issue => issue.status === 'new' || is_returned(issue))
+    const candidates = issues.filter(needs_attention)
     const basis = Object.fromEntries(candidates.map(issue => [issue.id, issue.active.length]))
     if (!candidates.length){
         return {basis, shortlist: [], noise: []}

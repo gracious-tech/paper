@@ -4,7 +4,7 @@ import {fileURLToPath} from 'node:url'
 
 import {list_error_objects, download_object, delete_object} from './bucket.ts'
 import {ensure_dirs, save_record, has_valid_record, load_records, load_issues, load_triage,
-    assemble_issues} from './store.ts'
+    assemble_issues, load_synced, save_synced} from './store.ts'
 import {classify_new_fingerprints, rank_issues} from './analyse.ts'
 import {build_includes} from './git.ts'
 import {run_tui} from './tui.ts'
@@ -37,6 +37,9 @@ if (!project){
 }
 const bucket = process.env['STORAGE_BUCKET'] ?? `${project}.firebasestorage.app`
 
+// How long after a sync starting the tool skips the bucket
+const SYNC_INTERVAL_MS = 24 * 60 * 60 * 1000
+
 
 async function sync_records():Promise<void>{
     // Move reports from the bucket into the local store. The bucket is only an inbox: each
@@ -58,6 +61,20 @@ async function sync_records():Promise<void>{
     if (kept){
         console.warn(`${kept} report(s) didn't parse, so were left in the bucket`)
     }
+    save_synced()
+}
+
+
+function sync_due():boolean{
+    // Startup only syncs once a day, so reopening the tool goes straight to the list (r syncs
+    // on demand)
+    const synced = load_synced()
+    if (synced && Date.now() - new Date(synced).getTime() < SYNC_INTERVAL_MS){
+        const hours = Math.floor((Date.now() - new Date(synced).getTime()) / (60 * 60 * 1000))
+        console.log(`Last synced from the bucket ${hours}h ago (r to sync now)`)
+        return false
+    }
+    return true
 }
 
 
@@ -79,7 +96,10 @@ async function refresh(download:boolean):Promise<Snapshot>{
 
 
 ensure_dirs()
-await sync_records()
+if (sync_due()){
+    await sync_records()
+}
+// Also retries a classification that failed last time (no claude call when nothing is pending)
 classify_new_fingerprints(load_records())
 await run_tui(refresh)
 

@@ -242,7 +242,7 @@ export async function auto_fix(term:Terminal, issue:IssueView):Promise<void>{
     const start_head = head_commit()
     const untracked_before = new Set(untracked_files())
     const prompt = fix_prompt(issue)
-    write_prompt(issue, prompt)
+    write_prompt(issue.id, prompt)
 
     console.log(`\nFixing "${issue.summary}" with claude in the background (Ctrl+C stops it)`)
     const result = await run_fixer(term, prompt)
