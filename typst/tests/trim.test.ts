@@ -1,7 +1,7 @@
 
 import {describe, it, expect} from 'vitest'
 
-import {resolve_trim, convert_unit, typst_unit} from '../src/index.js'
+import {resolve_trim, convert_unit, typst_unit, usable_length} from '../src/index.js'
 
 import type {Blueprint} from '../src/types.js'
 
@@ -17,6 +17,27 @@ describe('typst_unit', () => {
     it('maps the blueprint spelling to the one typst understands', () => {
         expect(typst_unit('mm')).toBe('mm')
         expect(typst_unit('inch')).toBe('in')
+    })
+
+})
+
+
+describe('usable_length', () => {
+
+    it('keeps an ordinary length', () => {
+        expect(usable_length(12.5)).toBe(12.5)
+        expect(usable_length(0)).toBe(0)
+    })
+
+    it('treats a length stepped below zero as no space', () => {
+        expect(usable_length(0.95 - 1)).toBe(0)
+        expect(usable_length(-3.41)).toBe(0)
+    })
+
+    it('treats a cleared or non-numeric field as no space', () => {
+        expect(usable_length('' as unknown as number)).toBe(0)
+        expect(usable_length(NaN)).toBe(0)
+        expect(usable_length(Infinity)).toBe(0)
     })
 
 })

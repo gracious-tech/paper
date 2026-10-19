@@ -25,6 +25,14 @@ export function convert_unit(value:number, from:MeasureUnit, to:MeasureUnit):num
 }
 
 
+// A user-entered spacing length (margin, column gap) as a number Typst can lay out. The editor's
+// number fields have no bounds: a cleared field hands back '' and arrow-stepping runs freely below
+// zero (0.95 - 1 = -0.050000000000000044), and neither renders, so both mean "no space"
+export function usable_length(value:number):number {
+    return typeof value === 'number' && Number.isFinite(value) ? Math.max(0, value) : 0
+}
+
+
 // Work out the trim dimensions from the selected printing service + named size, or the
 // manually entered custom dimensions
 export function resolve_trim(blue:Blueprint):{width:number, height:number, unit:MeasureUnit} {

@@ -12,17 +12,17 @@ v-card-text(class='overflow-y-auto')
     h2 {{$t("options.layout.margins")}}
 
     div(class='d-flex align-center')
-        v-text-field(v-model.number='blue.margin_top' type='number' variant='underlined'
+        v-text-field(v-model.number='blue.margin_top' type='number' min='0' variant='underlined'
             density='compact' :label='$t("common.top")' class='mr-4')
-        v-text-field(v-model.number='blue.margin_bottom' type='number' variant='underlined'
+        v-text-field(v-model.number='blue.margin_bottom' type='number' min='0' variant='underlined'
             density='compact' :label='$t("common.bottom")' class='mr-4')
-        v-text-field(v-model.number='blue.margin_inner' type='number' variant='underlined'
+        v-text-field(v-model.number='blue.margin_inner' type='number' min='0' variant='underlined'
             density='compact' :label='$t("options.layout.inner")' class='mr-4')
-        v-text-field(v-model.number='blue.margin_outer' type='number' variant='underlined'
+        v-text-field(v-model.number='blue.margin_outer' type='number' min='0' variant='underlined'
             density='compact' :label='$t("options.layout.outer")' class='mr-4')
 
     div(class='d-flex align-center mt-6 mb-2')
-        v-text-field(v-model.number='blue.column_gap' type='number' variant='underlined'
+        v-text-field(v-model.number='blue.column_gap' type='number' min='0' variant='underlined'
             density='compact' :label='$t("options.layout.column_gap")' class='mr-4'
             style='max-width: 90px' :disabled='blue.columns === false')
         AppOptionToggle(v-model='margin_unit' :items='margin_unit_items' size='small' density='compact')

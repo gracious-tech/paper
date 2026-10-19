@@ -7,7 +7,8 @@
 import {FetchClient, PassageReference} from '@gracious.tech/fetch-client'
 
 import {LruCache, estimate_bytes, escape_typst, emphasize_sentences} from './helpers.js'
-import {resolve_reading_trim, convert_unit, resolve_binding_gutter, typst_unit} from './trim.js'
+import {resolve_reading_trim, convert_unit, resolve_binding_gutter, typst_unit, usable_length}
+    from './trim.js'
 import {prose_to_typst, replace_copyright_marker} from './prose.js'
 import {gen_copyright_typst} from './copyright.js'
 import {resolve_icon} from './icon_cache.js'
@@ -462,10 +463,11 @@ export class BibleContent {
         // so text near the spine isn't lost into the fold (no-op for home/booklet/custom modes)
         const gutter = blue.margin_gutter_auto ? resolve_binding_gutter(blue, page_count) : 0
 
-        const margin_top = Math.min(blue.margin_top, max_vertical)
-        const margin_bottom = Math.min(blue.margin_bottom, max_vertical)
-        const margin_inner = Math.min(blue.margin_inner + gutter, max_horizontal)
-        const margin_outer = Math.min(blue.margin_outer, max_horizontal)
+        // A blank or negative margin (see usable_length) is no margin rather than invalid Typst
+        const margin_top = Math.min(usable_length(blue.margin_top), max_vertical)
+        const margin_bottom = Math.min(usable_length(blue.margin_bottom), max_vertical)
+        const margin_inner = Math.min(usable_length(blue.margin_inner) + gutter, max_horizontal)
+        const margin_outer = Math.min(usable_length(blue.margin_outer), max_horizontal)
 
         // Typst spells inches 'in' where the blueprint spells them 'inch' (see typst_unit)
         const trim_unit = typst_unit(trim.unit)
@@ -561,7 +563,7 @@ export class BibleContent {
             show_lines: blue.show_lines,
             // null = auto-detect by book, true = 2 columns, false = single column
             columns: blue.columns === null ? 'auto' : (blue.columns ? 2 : 1),
-            column_gap: `${blue.column_gap}${typst_unit(blue.margin_unit)}`,
+            column_gap: `${usable_length(blue.column_gap)}${typst_unit(blue.margin_unit)}`,
             book: passage.book,
             book_name: this.collection.get_books(blue.bibles[0], {object: true})[passage.book]
                 ?.name ?? passage.book,
