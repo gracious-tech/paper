@@ -11,7 +11,8 @@ export {generate_pdf} from './pdf_postprocess.js'
 export {generate_pdf_spread_preview} from './pdf_postprocess.js'
 
 // Adds a short "this is only a preview" / "end of preview" strip to the front/back of a preview PDF
-export {add_preview_strip} from './pdf_postprocess.js'
+export {add_preview_strip, gen_preview_strip_typst, gen_cover_slot_typst, notice_fonts}
+    from './pdf_postprocess.js'
 
 // Preview truncation: cuts an over-long request down to a fast-compiling window of content
 export {truncate_for_preview, PREVIEW_CHAR_LIMIT} from './preview.js'
@@ -77,6 +78,8 @@ export type {PmDoc} from 'pm-to-typst'
 // Copyright/attribution statement builder — shared by the interior compile (bible_content) and
 // the cover blurb (the default cover seeds the AUTO-COPYRIGHT marker into its rear text)
 export {gen_copyright_typst} from './copyright.js'
+export {doc_translator, doc_language} from './doc_strings.js'
+export type {DocKey, DocTranslate} from './doc_strings.js'
 
 // All types
 export type {

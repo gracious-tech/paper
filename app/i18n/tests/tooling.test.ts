@@ -82,7 +82,8 @@ describe('translation_warnings', () => {
     })
 
     it('flags a glossary term rendered other than the locale chose', () => {
-        expect(translation_warnings('Delete design', 'Xóa bản vẽ', {terms: {design: 'thiết kế'}}))
+        const terms = {terms: {design: 'thiết kế'}}
+        expect(translation_warnings('Delete design', 'Xóa bản vẽ', terms))
             .toEqual(['glossary term "design" not rendered as "thiết kế"'])
     })
 
@@ -97,7 +98,8 @@ describe('translation_warnings', () => {
     })
 
     it('accepts the chosen rendering of a glossary term', () => {
-        expect(translation_warnings('Delete design', 'Xóa thiết kế', {terms: {design: 'thiết kế'}}))
+        const terms = {terms: {design: 'thiết kế'}}
+        expect(translation_warnings('Delete design', 'Xóa thiết kế', terms))
             .toEqual([])
     })
 })

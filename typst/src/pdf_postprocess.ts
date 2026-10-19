@@ -1,22 +1,22 @@
 
-import {PDFDocument, PDFFont, PDFPage, StandardFonts, degrees, rgb} from 'pdf-lib'
+import {PDFDocument, PDFPage, degrees, rgb} from 'pdf-lib'
+import {escape_typst_str} from 'typst-utils'
+import {resolve_fallback_chain, detect_cjk_variant} from 'typst-fonts'
 
 import {generate_typst, generate_typst_facing, generate_typst_blank,
     generate_typst_lines, passage_is_alternate, half_blank_content_side} from './generate.js'
 import {optimize_pdf} from './pdf_optimize.js'
-import {parse_unit, to_pt} from './helpers.js'
+import {escape_typst} from './helpers.js'
+import {resolve_lang} from './lang.js'
 
 import type {MarginMode} from './generate.js'
 import type {TypstRequest, TypstContentItem, TypstPassage, TypstCustomPage, CompileFn,
-    ProgressFn} from './types.js'
+    ProgressFn, TextDir} from './types.js'
 
 
 // Fill color for a spread-preview slot that isn't a real page (see arrange_spreads) — a subtle
 // gray so it reads as "not printed" rather than a blank printed page
 const NOT_A_PAGE_FILL = rgb(0.9, 0.9, 0.9)
-
-// Text color for the "inside of cover" hint drawn on that same slot
-const NOT_A_PAGE_LABEL_COLOR = rgb(0.55, 0.55, 0.55)
 
 
 // A blank/lines padding page's single compiled page gets reused at many different absolute
@@ -91,6 +91,7 @@ export async function generate_pdf(
 // For on-screen preview only, never for printing.
 export async function generate_pdf_spread_preview(
     request:TypstRequest, compile_fn:CompileFn, on_progress?:ProgressFn,
+    cover_slot?:Uint8Array,
 ):Promise<Uint8Array> {
 
     // A folded booklet reads in the same sequential order as a book, so assemble either as a
@@ -119,24 +120,7 @@ export async function generate_pdf_spread_preview(
 
     on_progress?.({stage: 'arrange', label: 'spreads'})
     on_progress?.({stage: 'finalize'})
-    return await arrange_spreads(reading_doc, reading_request)
-}
-
-
-// Draw text centred within one half (page_w wide) of a spread page, starting at x_offset (0 for
-// the left slot, page_w for the right)
-function draw_slot_label(
-    page:PDFPage, font:PDFFont, text:string, x_offset:number, page_w:number, page_h:number,
-) {
-    const size = 18
-    const text_width = font.widthOfTextAtSize(text, size)
-    page.drawText(text, {
-        x: x_offset + (page_w - text_width) / 2,
-        y: page_h / 2 - size / 2,
-        size,
-        font,
-        color: NOT_A_PAGE_LABEL_COLOR,
-    })
+    return await arrange_spreads(reading_doc, reading_request, cover_slot)
 }
 
 
@@ -146,11 +130,13 @@ function draw_slot_label(
 //
 // With a front cover (request.preview_cover_label is set for exactly that case), a leading gray
 // slot — the inside face of the cover — is prepended so page 1 lands on the right of the first
-// spread, and a trailing one closes it off as the inside face of the back cover. Without a
+// spread, and a trailing one closes it off as the inside face of the back cover. The leading one
+// is `cover_slot` when given (gen_cover_slot_typst, compiled — it carries the label); otherwise,
+// and for any other slot, a plain gray fill. Without a
 // cover there are no such faces, so the first page (and the last, when nothing faces it) is
 // emitted on its own single-width page instead, and the full-width spreads run between them.
 async function arrange_spreads(
-    reading_doc:PDFDocument, request:TypstRequest,
+    reading_doc:PDFDocument, request:TypstRequest, cover_slot?:Uint8Array,
 ):Promise<Uint8Array> {
 
     const total = reading_doc.getPageCount()
@@ -161,11 +147,11 @@ async function arrange_spreads(
     const spread_doc = await PDFDocument.create()
     const {width: page_w, height: page_h} = reading_doc.getPage(0).getSize()
 
-    // Only embedded when there's actually a label to draw (the CLI/server compile path never
-    // sets preview_cover_label, since it has no i18n to translate it with)
+    // The CLI/server compile path never sets preview_cover_label (it has no i18n to translate it
+    // with), and only the browser compiles a labelled slot to go with it
     const has_cover = !!request.preview_cover_label
-    const label_font = has_cover
-        ? await spread_doc.embedFont(StandardFonts.Helvetica)
+    const slot_page = has_cover && cover_slot
+        ? (await spread_doc.embedPdf(cover_slot, [0]))[0]!
         : null
 
     // Slot order for the spreads. With a cover: a leading gray slot (inside of front cover) so
@@ -212,12 +198,13 @@ async function arrange_spreads(
             const [embed] = await spread_doc.embedPages([reading_doc.getPage(left_slot)])
             new_page.drawPage(embed!, {x: 0, y: 0, width: page_w, height: page_h})
         } else {
-            new_page.drawRectangle({x: 0, y: 0, width: page_w, height: page_h, color: NOT_A_PAGE_FILL})
             // Only the very first spread's left slot is the front cover's inside face — later
             // null slots (e.g. a trailing pad) aren't, so the label is deliberately not repeated
-            if (i === 0 && label_font) {
-                draw_slot_label(
-                    new_page, label_font, request.preview_cover_label!, 0, page_w, page_h)
+            if (i === 0 && slot_page) {
+                new_page.drawPage(slot_page, {x: 0, y: 0, width: page_w, height: page_h})
+            } else {
+                new_page.drawRectangle(
+                    {x: 0, y: 0, width: page_w, height: page_h, color: NOT_A_PAGE_FILL})
             }
         }
         if (right_slot != null) {
@@ -372,96 +359,82 @@ async function assemble_pages(
 }
 
 
-// Preview strip geometry (points): base type sizes, the gap between the two lines, and the
-// padding around the text block. Type shrinks below the base sizes on narrow pages so the
-// longer line always fits; the strip height then follows the text.
+// Preview strip type sizes (points), the gap between its two lines, and its padding
 const PREVIEW_STRIP_TITLE_SIZE = 13
 const PREVIEW_STRIP_SUBTITLE_SIZE = 9.5
 const PREVIEW_STRIP_LINE_GAP = 6
 const PREVIEW_STRIP_PADDING = 11
 
-// Light orange fill so the strip reads as a notice rather than a page of content
-const PREVIEW_STRIP_FILL = rgb(1, 0.878, 0.698)
 
-
-// Add a short two-line notice strip to a preview PDF — position 'start' prepends it as page 1
-// ("this is only a preview"), 'end' appends it as the last page ("end of preview"). The strip
-// is 80% of a trim page wide and only tall enough for its text plus padding, on a light orange
-// ground, so it reads as a note rather than a page of content. Called after every other
-// assembly step (cover merge included) so it always lands at the very edge of the document, in
-// every view and section. Text is passed in already translated (this package has no i18n),
-// along with an English `fallback` for text the strip's fonts can't draw (see below).
-export async function add_preview_strip(
-    pdf_bytes:Uint8Array, page_width:string, title:string, subtitle:string,
-    position:'start'|'end', fallback?:[string, string],
-):Promise<Uint8Array> {
-
-    const doc = await PDFDocument.load(pdf_bytes)
-    const {num, unit} = parse_unit(page_width)
-    const width = to_pt(num, unit) * 0.8
-
-    const bold = await doc.embedFont(StandardFonts.HelveticaBold)
-    const regular = await doc.embedFont(StandardFonts.Helvetica)
-
-    // pdf-lib's built-in fonts only encode WinAnsi (roughly Latin-1), so text in most other
-    // languages would throw and take the whole preview down — it gets the English instead
-    if (fallback && !(can_encode(bold, title) && can_encode(regular, subtitle))) {
-        [title, subtitle] = fallback
-    }
-
-    // Shrink the type if the wider of the two lines wouldn't fit within the padded width
-    let title_size = PREVIEW_STRIP_TITLE_SIZE
-    let subtitle_size = PREVIEW_STRIP_SUBTITLE_SIZE
-    let line_gap = PREVIEW_STRIP_LINE_GAP
-    const natural = Math.max(
-        bold.widthOfTextAtSize(title, title_size),
-        regular.widthOfTextAtSize(subtitle, subtitle_size),
-    )
-    const available = width - PREVIEW_STRIP_PADDING * 2
-    if (natural > available){
-        const shrink = available / natural
-        title_size *= shrink
-        subtitle_size *= shrink
-        line_gap *= shrink
-    }
-
-    const block_height = title_size + line_gap + subtitle_size
-    const height = block_height + PREVIEW_STRIP_PADDING * 2
-
-    const page = position === 'start'
-        ? doc.insertPage(0, [width, height])
-        : doc.addPage([width, height])
-    page.drawRectangle({x: 0, y: 0, width, height, color: PREVIEW_STRIP_FILL})
-
-    let y = height - PREVIEW_STRIP_PADDING - title_size
-    page.drawText(title, {
-        x: (width - bold.widthOfTextAtSize(title, title_size)) / 2,
-        y,
-        size: title_size,
-        font: bold,
-        color: rgb(0.1, 0.1, 0.1),
-    })
-    y -= line_gap + subtitle_size
-    page.drawText(subtitle, {
-        x: (width - regular.widthOfTextAtSize(subtitle, subtitle_size)) / 2,
-        y,
-        size: subtitle_size,
-        font: regular,
-        color: rgb(0.3, 0.3, 0.3),
-    })
-
-    return doc.save()
+// The Noto fallback families a preview notice's text needs beyond the base font, by script —
+// notices are in the app's UI language, which can be any script whatever the Bible's is
+export function notice_fonts(text:string):string[] {
+    return resolve_fallback_chain(text, detect_cjk_variant(text), 'sans')
 }
 
 
-// Whether a font can draw every character of `text`
-function can_encode(font:PDFFont, text:string):boolean {
-    try {
-        font.encodeText(text)
-        return true
-    } catch {
-        return false
+// Typst's font list syntax for an ordered set of families
+function typst_font_list(fonts:string[]):string {
+    return `(${fonts.map(family => `"${escape_typst_str(family)}"`).join(', ')})`
+}
+
+
+// Typst source for the gray "inside of the front cover" slot a cover's preview opens on (see
+// arrange_spreads): one page the size of the book's, labelled in the middle. Typeset rather than
+// drawn for the same reason as the preview strip below. `label` is already translated
+export function gen_cover_slot_typst(page:{width:string, height:string}, label:string,
+        fonts:string[]):string {
+    return [
+        `#set page(width: ${page.width}, height: ${page.height}, margin: 10%,`
+            + ' fill: rgb(230, 230, 230))',
+        `#set text(font: ${typst_font_list(fonts)}, size: 18pt, fill: rgb(140, 140, 140))`,
+        `#align(center + horizon)[${escape_typst(label)}]`,
+    ].join('\n')
+}
+
+
+// Typst source for the short notice strip a preview gets at its start ("this is only a
+// preview") or end ("end of preview"): 80% of a trim page wide and only as tall as its text,
+// on a light orange ground so it reads as a note rather than a page of content. Typeset by Typst
+// rather than drawn by pdf-lib, whose built-in fonts can't draw most of the world's scripts nor
+// shape any that need it. `locale` is the UI locale the text is in (e.g. "vie", "zho-Hant"),
+// `fonts` every family to use, in order. Text is passed in already translated (this package has
+// no UI i18n).
+export function gen_preview_strip_typst(page_width:string, title:string, subtitle:string,
+        locale:string, dir:TextDir, fonts:string[]):string {
+    const lang = resolve_lang(locale.split('-')[0])
+    return [
+        `#set page(width: ${page_width} * 0.8, height: auto, margin: ${PREVIEW_STRIP_PADDING}pt,`
+            + ' fill: rgb(255, 224, 178))',
+        `#set text(font: ${typst_font_list(fonts)}, lang: "${lang}", dir: ${dir},`
+            + ' hyphenate: false, fill: rgb(26, 26, 26))',
+        '#set align(center)',
+        '#set par(justify: false)',
+        `#stack(spacing: ${PREVIEW_STRIP_LINE_GAP}pt,`,
+        `    text(weight: "bold", size: ${PREVIEW_STRIP_TITLE_SIZE}pt)[${escape_typst(title)}],`,
+        `    text(size: ${PREVIEW_STRIP_SUBTITLE_SIZE}pt, fill: rgb(77, 77, 77))`
+            + `[${escape_typst(subtitle)}],`,
+        ')',
+    ].join('\n')
+}
+
+
+// Add a compiled preview strip (gen_preview_strip_typst) to a preview PDF — position 'start'
+// prepends it as page 1, 'end' appends it as the last page. Called after every other assembly
+// step (cover merge included) so it always lands at the very edge of the document, in every view
+// and section.
+export async function add_preview_strip(
+    pdf_bytes:Uint8Array, strip_pdf:Uint8Array, position:'start'|'end',
+):Promise<Uint8Array> {
+    const doc = await PDFDocument.load(pdf_bytes)
+    const strip = await PDFDocument.load(strip_pdf)
+    const [page] = await doc.copyPages(strip, [0])
+    if (position === 'start') {
+        doc.insertPage(0, page!)
+    } else {
+        doc.addPage(page!)
     }
+    return doc.save()
 }
 
 

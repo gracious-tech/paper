@@ -19,6 +19,7 @@ import {max_chapter_in_content} from './content_passage.js'
 import {detect_font_fallbacks} from './fonts_detect.js'
 import {resolve_lang} from './lang.js'
 import {resolve_design_name, get_cover_title} from './blueprint_doc.js'
+import {doc_translator, doc_language} from './doc_strings.js'
 
 import type {CjkVariant, FontStyle} from 'typst-fonts'
 import type {QuoteState} from './helpers.js'
@@ -424,6 +425,7 @@ export class BibleContent {
             features: {
                 show_chapters: blue.show_chapters,
                 show_chapters_style: blue.show_chapters_style,
+                chapter_label: doc_translator(doc_language(blue, resources))('doc.chapter'),
                 show_verses: blue.show_verses,
                 show_wj: blue.show_wj,
                 show_wj_color: blue.show_wj_color,

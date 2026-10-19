@@ -1,0 +1,7 @@
+{
+  "source": "eng",
+  "locales": {
+    "eng": {"name": "English", "english": "English", "dir": "ltr"},
+    "vie": {"name": "Tiếng Việt", "english": "Vietnamese", "dir": "ltr"}
+  }
+}

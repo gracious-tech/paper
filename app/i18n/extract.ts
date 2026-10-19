@@ -1,67 +1,83 @@
 
-// Reconcile eng.json with the t()/$t() calls in the code.
+// Reconcile each domain's eng.json with the t()/$t() calls in its code (see lib.ts).
 //  - lists keys referenced in code but missing from eng.json (add these by hand, with the
 //    English text and, where the call site alone is ambiguous, a note in context.json)
 //  - lists keys in eng.json that nothing references any more
 // With --prune it removes the unused keys from eng.json, every locale file and every base file.
-// Usage: node app/i18n/extract.ts [--prune]
+// Usage: node app/i18n/extract.ts [--domain ui|doc] [--prune]
 
 import {
     SOURCE_LOCALE, read_meta, read_catalog, write_catalog, locale_path, base_path, scan_usage,
-    unused_keys as find_unused, undefined_keys as find_undefined, rel,
+    unused_keys, undefined_keys, domains_from_args, rel,
 } from './lib.ts'
+import {write_doc_module} from './gen_doc.ts'
 
-const prune = process.argv.includes('--prune')
+import type {Domain} from './lib.ts'
 
-const eng = read_catalog(locale_path(SOURCE_LOCALE))
-const usage = scan_usage()
+const args = process.argv.slice(2)
+const prune = args.includes('--prune')
 
-const undefined_keys = find_undefined(eng, usage)
-const unused_keys = find_unused(eng, usage)
+let pruned_doc = false
+for (const domain of domains_from_args(args)){
+    pruned_doc ||= reconcile(domain) && domain.name === 'doc'
+}
+if (pruned_doc){
+    write_doc_module()
+}
 
-if (undefined_keys.length){
-    console.log(`${undefined_keys.length} key(s) used in code but missing from `
-        + `${SOURCE_LOCALE}.json:`)
-    for (const key of undefined_keys){
-        const sites = usage.get(key)!.map(site => `${site.file}:${site.line}`)
-        console.log(`  ${key}   [${sites.join(', ')}]`)
+
+// Report (and with --prune, remove) one domain's undefined and unused keys, returning whether
+// anything was pruned
+function reconcile(domain:Domain):boolean {
+    const eng = read_catalog(locale_path(domain, SOURCE_LOCALE))
+    const usage = scan_usage(domain)
+    const undefined_list = undefined_keys(eng, usage)
+    const unused_list = unused_keys(domain, eng, usage)
+    const file = rel(locale_path(domain, SOURCE_LOCALE))
+
+    console.log(`── ${domain.name}`)
+    if (undefined_list.length){
+        console.log(`${undefined_list.length} key(s) used in code but missing from ${file}:`)
+        for (const key of undefined_list){
+            const sites = usage.get(key)!.map(site => `${site.file}:${site.line}`)
+            console.log(`  ${key}   [${sites.join(', ')}]`)
+        }
+    } else {
+        console.log(`no undefined keys — every call resolves`)
     }
-} else {
-    console.log(`no undefined keys — every t()/$t() call resolves`)
-}
 
-console.log()
+    if (!unused_list.length){
+        console.log(`no unused keys — every ${file} entry has a call site\n`)
+        return false
+    }
 
-if (!unused_keys.length){
-    console.log(`no unused keys — every ${SOURCE_LOCALE}.json entry has a call site`)
-    process.exit(0)
-}
+    console.log(`${unused_list.length} key(s) in ${file} with no call site:`)
+    for (const key of unused_list){
+        console.log(`  ${key}`)
+    }
+    if (!prune){
+        console.log(`re-run with --prune to remove them from ${file} and all its locales\n`)
+        return false
+    }
 
-console.log(`${unused_keys.length} key(s) in ${SOURCE_LOCALE}.json with no call site:`)
-for (const key of unused_keys){
-    console.log(`  ${key}`)
-}
-
-if (!prune){
-    console.log(`\nre-run with --prune to remove them from ${SOURCE_LOCALE}.json and all locales`)
-    process.exit(0)
-}
-
-// Prune unused keys everywhere
-const drop = new Set(unused_keys)
-const meta = read_meta()
-for (const path of [locale_path(SOURCE_LOCALE),
-        ...meta.targets.flatMap(l => [locale_path(l), base_path(l)])]){
-    const catalog = read_catalog(path)
-    let removed = 0
-    for (const key of Object.keys(catalog)){
-        if (drop.has(key)){
-            delete catalog[key]
-            removed++
+    // Prune unused keys from the source, every locale and every base file
+    const drop = new Set(unused_list)
+    const meta = read_meta(domain)
+    for (const path of [locale_path(domain, SOURCE_LOCALE),
+            ...meta.targets.flatMap(l => [locale_path(domain, l), base_path(domain, l)])]){
+        const catalog = read_catalog(path)
+        let removed = 0
+        for (const key of Object.keys(catalog)){
+            if (drop.has(key)){
+                delete catalog[key]
+                removed++
+            }
+        }
+        if (removed){
+            write_catalog(path, catalog)
+            console.log(`  pruned ${removed} from ${rel(path)}`)
         }
     }
-    if (removed){
-        write_catalog(path, catalog)
-        console.log(`  pruned ${removed} from ${rel(path)}`)
-    }
+    console.log()
+    return true
 }

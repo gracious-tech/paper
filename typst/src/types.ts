@@ -74,6 +74,10 @@ export interface TypstRequest {
 export interface FeatureConfig {
     show_chapters:boolean
     show_chapters_style:'divider'|'float'|'heading'
+    // The 'heading' style's text, with {n} where the number goes (e.g. "Chapter {n}"), already in
+    // the document's language (see doc_strings.ts) — the worker that generates the source has
+    // no catalogs of its own
+    chapter_label:string
     show_verses:boolean
     show_wj:boolean
     show_wj_color:string|null

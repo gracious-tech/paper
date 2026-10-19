@@ -24,9 +24,11 @@ const FREE:Restrictions = {
 // Build the resource metadata the copyright builder reads, with only the fields it touches
 function make_resource(id:string, overrides:{restrictions?:Partial<Restrictions>,
         license_id?:string|null, license_name?:string, license_url?:string,
-        name_local?:string, name_english?:string, attribution?:string} = {}):GetResourcesItem {
+        name_local?:string, name_english?:string, attribution?:string, language?:string} = {})
+        :GetResourcesItem {
     return {
         id,
+        language: overrides.language ?? 'eng',
         name_local: overrides.name_local ?? 'Berean Standard Bible',
         name_english: overrides.name_english ?? 'Berean Standard Bible',
         attribution: overrides.attribution ?? 'BSB Committee',
@@ -207,6 +209,42 @@ describe('block structure', () => {
 
     it('renders with no translations selected at all', () => {
         const out = gen_copyright_typst(make_blueprint({bibles: [] as unknown as [string]}), {})
+        expect(out).toContain('Resources used:')
+    })
+})
+
+
+describe('language', () => {
+
+    // Worded in the primary translation's language — the language the book itself is in
+
+    it('prints in the primary translation\'s language', () => {
+        const resources = {vie_bd2011: make_resource('vie_bd2011', {language: 'vie'})}
+        const out = gen_copyright_typst(make_blueprint({bibles: ['vie_bd2011']}), resources)
+        expect(out).toContain('Tài liệu đã sử dụng:')
+        expect(out).not.toContain('Resources used:')
+    })
+
+    it('keeps the link markup inside a translated "Created with" line', () => {
+        const resources = {vie_bd2011: make_resource('vie_bd2011', {language: 'vie'})}
+        const out = gen_copyright_typst(make_blueprint({bibles: ['vie_bd2011'], app_link: true}),
+            resources)
+        expect(out).toContain('Được tạo bằng #link("https://paper.bible")[/paper.bible/]')
+    })
+
+    it('falls back to English for a language with no translation', () => {
+        const resources = {xyz_test: make_resource('xyz_test', {language: 'xyz'})}
+        const out = gen_copyright_typst(make_blueprint({bibles: ['xyz_test']}), resources)
+        expect(out).toContain('Resources used:')
+    })
+
+    it('follows the primary translation, not the second', () => {
+        const resources = {
+            eng_bsb: make_resource('eng_bsb'),
+            vie_bd2011: make_resource('vie_bd2011', {language: 'vie'}),
+        }
+        const out = gen_copyright_typst(make_blueprint({bibles: ['eng_bsb', 'vie_bd2011']}),
+            resources)
         expect(out).toContain('Resources used:')
     })
 })

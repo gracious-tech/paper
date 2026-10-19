@@ -1,14 +1,17 @@
 
 // Build the document's copyright / attribution statement as Typst markup. The licensing
 // conditions are computed from the selected translations (+ study notes + the creator's own
-// material), then rendered into a small footer-style block.
+// material), then rendered into a small footer-style block, worded in the language of the
+// document's primary translation (see doc_strings.ts).
 
 import {escape_typst_str} from 'typst-utils'
 
 import {escape_typst} from './helpers.js'
 import {gen_qr_typst} from './qr.js'
+import {doc_translator, doc_language} from './doc_strings.js'
 
 import type {Blueprint} from './types.js'
+import type {DocTranslate} from './doc_strings.js'
 import type {GetResourcesItem, RuntimeLicense} from '@gracious.tech/fetch-client'
 
 
@@ -33,15 +36,15 @@ interface CopyrightData {
 
 
 // The blanket copying statement for each non-'none' outcome
-const STATEMENT:Record<'modify'|'share', string> = {
-    modify: "This material can be freely copied, modified, and translated.",
-    share: "This material can be freely copied and shared.",
-}
+const STATEMENT = {
+    modify: 'doc.copyright.modify',
+    share: 'doc.copyright.share',
+} as const
 
 
 // Gather the licensing conditions and attributions for the current blueprint
 function compute_copyright(
-    blue:Blueprint, resources:Record<string, GetResourcesItem>,
+    blue:Blueprint, resources:Record<string, GetResourcesItem>, t:DocTranslate,
 ):CopyrightData {
 
     // Collect restriction sets and attribution rows
@@ -72,8 +75,8 @@ function compute_copyright(
             forbid_limitless: false,
         })
         resource_rows.push({
-            text: "Study notes — Tyndale House Publishers",
-            license: "CC BY-SA",
+            text: `${t('doc.copyright.study_notes')} — Tyndale House Publishers`,
+            license: 'CC BY-SA',
             url: '',
         })
     }
@@ -110,13 +113,16 @@ function compute_copyright(
 export function gen_copyright_typst(
     blue:Blueprint, resources:Record<string, GetResourcesItem>, share_url?:string,
 ):string {
-    const data = compute_copyright(blue, resources)
+    const t = doc_translator(doc_language(blue, resources))
+    const data = compute_copyright(blue, resources, t)
 
     // Build paragraphs/lists, separated by blank lines
     const parts:string[] = []
     if (data.app_link) {
-        parts.push('#align(center)[#text(weight: "bold", size: 1.3em)[Created with '
-            + '#link("https://paper.bible")[/paper.bible/]]]')
+        // Escaped as text first, then the placeholder swapped for the link's markup
+        const created = escape_typst(t('doc.copyright.created_with'))
+            .replace('{link}', '#link("https://paper.bible")[/paper.bible/]')
+        parts.push(`#align(center)[#text(weight: "bold", size: 1.3em)[${created}]]`)
     }
 
     // Link + QR code back to this design/version so a reader can customise and reprint it —
@@ -124,7 +130,7 @@ export function gen_copyright_typst(
     // grid with the QR on the left and the instruction + link on the right
     if (blue.design_link && share_url) {
         const qr = gen_qr_typst(share_url)
-        const invite = escape_typst("Customize and print this yourself")
+        const invite = escape_typst(t('doc.copyright.customize'))
         // Keep the full URL as the link target, but drop the scheme from the visible text
         const share_url_label = share_url.replace(/^https?:\/\//, '')
         const link = `#text(size: 0.8em)[#link("${escape_typst_str(share_url)}")`
@@ -139,9 +145,9 @@ export function gen_copyright_typst(
     }
 
     if (data.statement !== 'none') {
-        parts.push(escape_typst(STATEMENT[data.statement]))
+        parts.push(escape_typst(t(STATEMENT[data.statement])))
     }
-    parts.push(escape_typst("Resources used:"))
+    parts.push(escape_typst(t('doc.copyright.resources')))
     parts.push(data.resources
         .map(r => {
             // Surface any license URL except Creative Commons (its terms are widely known)
@@ -152,8 +158,8 @@ export function gen_copyright_typst(
 
     // Closing line for the creator's own material
     if (blue.public_domain) {
-        parts.push(escape_typst(
-            "All other material is dedicated to the public domain (freely.giving/free)"))
+        const site = 'freely.giving/free'
+        parts.push(escape_typst(t('doc.copyright.public_domain', {site})))
     }
 
     // Attribution text — block content so the overrides stay scoped to the copyright block:

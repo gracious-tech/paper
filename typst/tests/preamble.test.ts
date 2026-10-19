@@ -1,7 +1,7 @@
 
 import {describe, it, expect} from 'vitest'
 
-import {gen_preamble} from '../src/preamble.js'
+import {gen_preamble, chapter_label_expr} from '../src/preamble.js'
 import {CHAPTER_HEADING_LEVEL} from '../src/helpers.js'
 import {make_passage, make_request, TEST_PAGE, TEST_TYPOGRAPHY, TEST_FEATURES}
     from './fixtures.js'
@@ -320,6 +320,12 @@ describe('gen_preamble', () => {
             expect(CHAPTER_HEADING_LEVEL).not.toBe(1)
         })
 
+        it('takes the heading text from the translated label', () => {
+            const result = gen_preamble(make_request({features: {...TEST_FEATURES,
+                show_chapters: true, show_chapters_style: 'heading', chapter_label: 'Chương {n}'}}))
+            expect(result).toContain(`heading(level: ${CHAPTER_HEADING_LEVEL}, "Chương " + str(n))`)
+        })
+
         it('hides chapters when show_chapters is false', () => {
             const result = gen_preamble(make_request({
                 features: {...TEST_FEATURES, show_chapters: false},
@@ -404,5 +410,23 @@ describe('gen_preamble', () => {
             }))
             expect(result).toContain('#let wj(body, ..rest) = body')
         })
+    })
+})
+
+
+describe('chapter_label_expr', () => {
+
+    it('puts the number wherever the label does', () => {
+        expect(chapter_label_expr('Chapter {n}')).toBe('"Chapter " + str(n)')
+        expect(chapter_label_expr('第{n}章')).toBe('"第" + str(n) + "章"')
+        expect(chapter_label_expr('{n}. fejezet')).toBe('str(n) + ". fejezet"')
+    })
+
+    it('escapes the label for a Typst string', () => {
+        expect(chapter_label_expr('"Ch" {n}')).toBe('"\\"Ch\\" " + str(n)')
+    })
+
+    it('copes with a label that has no number', () => {
+        expect(chapter_label_expr('Chapter')).toBe('"Chapter"')
     })
 })

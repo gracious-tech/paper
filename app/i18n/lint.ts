@@ -12,7 +12,7 @@
 import {readFileSync} from 'node:fs'
 import {createRequire} from 'node:module'
 
-import {source_files, rel, APP_DIR} from './lib.ts'
+import {source_files, rel, APP_DIR, DOMAINS} from './lib.ts'
 
 import type * as TS from 'typescript'
 
@@ -152,5 +152,6 @@ export function lint_source(file:string, source:string):Finding[] {
 
 // Every untranslated piece of text in app/src
 export function find_untranslated():Finding[] {
-    return source_files().flatMap(path => lint_source(rel(path), readFileSync(path, 'utf8')))
+    return source_files(DOMAINS.ui)
+        .flatMap(path => lint_source(rel(path), readFileSync(path, 'utf8')))
 }

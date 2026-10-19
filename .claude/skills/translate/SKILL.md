@@ -1,26 +1,39 @@
 ---
 name: translate
-description: Translate paper.bible's UI — add a locale, translate missing/stale strings for one or many locales, or bring translations up to date after English UI text was added or reworded. Use whenever the task touches app/src/locales/, .bin/i18n_*, or asks for the app "in <language>".
+description: Translate paper.bible's UI and the text it prints into books — add a locale, translate missing/stale strings for one or many locales, or bring translations up to date after English text was added or reworded. Use whenever the task touches app/src/locales/, typst/locales/, .bin/i18n_*, or asks for the app or its printed books "in <language>".
 ---
 
 # Translating the paper.bible UI
 
-Every translation is written by Claude through one loop. Catalogs (`app/src/locales/*.json`) and
-their base files (`.state/`) are **never edited by hand** — the tools write them, so staleness
-tracking and validation can't be skipped.
+Every translation is written by Claude through one loop. Catalogs and their base files
+(`.state/`) are **never edited by hand** — the tools write them, so staleness tracking and
+validation can't be skipped.
+
+There are two catalog **domains**, handled identically by every command:
+
+| Domain | What | Catalogs | Locale list | Keyed by |
+|---|---|---|---|---|
+| `ui` | the app's interface | `app/src/locales/` | `app/src/locales.json` | the UI locale detected from the browser |
+| `doc` | the few strings printed *into* a book: copyright page, "Chapter N" | `typst/locales/` | `typst/locales.json` | the fetch.bible language of the book's primary translation |
+
+A book prints in its Bible's language whatever language its creator's UI is in, so `doc` has
+its own language list — usually broader than `ui`'s, since it's 8 strings rather than 660. Its
+catalogs are compiled into `typst/src/generated/doc_strings.ts` (the tools do this; `i18n_check`
+fails if it's stale). A language missing from `doc` simply prints in English.
 
 ## The loop (one or more locales)
 
 ```bash
-.bin/i18n_status                  # one line per locale: % done, missing, stale
-.bin/i18n_job vie fra             # writes app/i18n/jobs/<loc>.json (default ≤250 strings each)
-# → read each job, write app/i18n/jobs/<loc>.out.json (see below)
+.bin/i18n_status                  # per domain, one line per locale: % done, missing, stale
+.bin/i18n_job vie fra             # writes app/i18n/jobs/<domain>.<loc>.json (≤250 strings each)
+# → read each job, write the .out.json it names (see below)
 .bin/i18n_apply                   # validates + merges every .out.json, deletes the job files
 .bin/i18n_job vie fra             # repeat until it says "nothing to translate"
 .bin/i18n_check --allow-missing   # must pass; drop --allow-missing once every locale is complete
 ```
 
-Run `.bin/i18n_job` with no locale to cover every locale with outstanding work. `--only
+Run `.bin/i18n_job` with no locale to cover every locale with outstanding work, in both
+domains; `--domain ui|doc` restricts it to one. `--only
 common.,dialog.account.` narrows a job to key prefixes. `--review` adds the strings already
 translated, to re-check them (e.g. after improving context notes or the glossary); it's a single
 unbatched pass, so narrow it with `--only` rather than looping on it.
@@ -66,6 +79,14 @@ glossary term not rendered the way `_terms` says.
 
 ## Adding a locale
 
+**For printed books (`doc`):** add the language to `typst/locales.json` under its fetch.bible
+code (the `language` of its translations, ISO 639-3, e.g. `arb`, `cmn`, `swh` — not the UI's
+codes), with `name`/`english`/`dir`, then run the loop. Use the chapter word published Bibles in
+that language print; the job's notes say so. Prefer languages you translate reliably — a wrong
+copyright statement printed in someone's Bible is worse than an English one.
+
+**For the UI (`ui`):**
+
 1. Find the code detection uses: `bcp47_to_locale()` in `app/src/services/locale.ts` maps the
    browser's tag (`ar`, `pt-BR`, `zh-Hant`) to an ISO 639-3 code (`ara`, `por`, `zho-Hant`).
    Use that code — `i18n_check` fails on a code browsers could never select (e.g. `arb`). If
@@ -73,7 +94,8 @@ glossary term not rendered the way `_terms` says.
 2. Add it to `app/src/locales.json`: `"<code>": {"name": "<its own name for itself>",
    "english": "<English name>", "dir": "ltr"|"rtl"}`.
 3. Run the loop above. The first job has no `style`: decide the conventions and send `_style`
-   and `_terms` with the first batch.
+   and `_terms` with the first batch. If the language is also a Bible language (most are),
+   add it to `typst/locales.json` too, so books in it print in it.
 4. If the bookcover widget should also be translated, that's its own repo's catalogs; add the
    code to `COVER_LOCALES` in `DialogCoverEditor.vue` once it supports it.
 
@@ -86,9 +108,9 @@ it to read this skill and write only that job's `.out.json`. Run `.bin/i18n_appl
 they've all finished, then loop for the remaining batches. Translation quality drops for
 low-resource languages; say so to the user rather than presenting those as reviewed.
 
-## After changing English UI text
+## After changing English text
 
-Adding or rewording a string in `eng.json` makes it missing/stale in every locale. Finish the
+Adding or rewording a string in either `eng.json` makes it missing/stale in every locale. Finish the
 code change, then run the loop for all locales (`.bin/i18n_job` with no arguments). For an English
 edit that doesn't change the meaning (typo, punctuation), skip retranslating with
 `.bin/i18n_sync --bless <key ...>`.
@@ -111,3 +133,15 @@ edit that doesn't change the meaning (typo, punctuation), skip retranslating wit
   it follows a language change.
 - `vuetify.*` keys are Vuetify's own strings, re-nested for it by `vuetify_messages()`; add one
   there only if the app starts using a Vuetify feature that shows another.
+
+## Writing text the typst package prints into a book
+
+- Add the key (prefixed `doc.`) with its English to `typst/locales/eng.json`, a note to
+  `app/i18n/context.json`, run `.bin/i18n_sync` to recompile, then look it up with
+  `doc_translator(doc_language(blue, resources))` from `typst/src/doc_strings.ts`.
+- Text generated in the worker (from a `TypstRequest`, which has no catalogs) must be resolved by
+  `BibleContent.resolve()` and carried in the request — see `FeatureConfig.chapter_label`.
+- Escape for Typst first, then swap a placeholder for markup (see "Created with {link}" in
+  `copyright.ts`).
+- Never draw text with pdf-lib's built-in fonts: they only encode WinAnsi, so most languages
+  throw. Typeset it — see `compile_standalone()` in typst-web for UI-language notices.

@@ -59,6 +59,7 @@ export const TEST_TITLEPAGE:TitlepageConfig = {
 export const TEST_FEATURES:FeatureConfig = {
     show_chapters: true,
     show_chapters_style: 'divider',
+    chapter_label: 'Chapter {n}',
     show_verses: true,
     show_wj: false,
     show_wj_color: '#cc0000',

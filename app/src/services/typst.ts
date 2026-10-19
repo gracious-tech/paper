@@ -1,7 +1,7 @@
 
 import {shallowRef, toRaw} from 'vue'
 
-import {translate, translate_source} from '@/services/i18n'
+import {locale, locale_dir} from '@/services/i18n'
 
 import type {CustomFont} from 'typst-fonts'
 import type {TypstRequest, ProgressFn} from 'paper-bible-typst'
@@ -234,13 +234,11 @@ export class TypstWorkerClient {
     }
 
     // Add a short "this is only a preview" / "end of preview" notice strip to the front or back
-    // of a preview PDF, given the keys of its two lines (drawn in English when the locale's
-    // script is beyond the strip's fonts — see add_preview_strip)
-    async preview_strip(pdf:Uint8Array, page_width:string, title_key:string, subtitle_key:string,
+    // of a preview PDF. Text is passed in already translated, and typeset in the active locale
+    async preview_strip(pdf:Uint8Array, page_width:string, title:string, subtitle:string,
             position:'start'|'end'):Promise<Uint8Array> {
-        const outcome = await this.send({action: 'preview_strip', pdf, page_width, position,
-            title: translate(title_key), subtitle: translate(subtitle_key),
-            fallback: [translate_source(title_key), translate_source(subtitle_key)]})
+        const outcome = await this.send({action: 'preview_strip', pdf, page_width, title,
+            subtitle, position, locale: locale.value, dir: locale_dir(locale.value)})
         return outcome.result as Uint8Array
     }
 

@@ -2,7 +2,8 @@
 import {describe, it, expect} from 'vitest'
 import {PDFDocument} from 'pdf-lib'
 
-import {generate_pdf, generate_pdf_spread_preview, add_preview_strip}
+import {generate_pdf, generate_pdf_spread_preview, add_preview_strip, gen_preview_strip_typst,
+    gen_cover_slot_typst, notice_fonts}
     from '../src/pdf_postprocess.js'
 import {make_request, make_passage, make_title, make_custom, TEST_TITLEPAGE} from './fixtures.js'
 
@@ -227,87 +228,103 @@ describe('generate_pdf_spread_preview', () => {
         expect(doc.getPage(2).getWidth()).toBe(200)
     })
 
+    it('draws the compiled cover slot into the first spread when given one', async () => {
+        // The labelled slot comes typeset from gen_cover_slot_typst (the browser compiles it);
+        // without one the slot is a plain gray fill, so the slot's page adds to the output
+        const request = make_request({arrangement: 'booklet', content: [make_passage()],
+            preview_cover_label: 'Inside of cover'})
+        const slot = await PDFDocument.create()
+        slot.addPage([100, 200]).drawText('Inside of cover')
+        const plain = await generate_pdf_spread_preview(request, fake_compile)
+        const labelled = await generate_pdf_spread_preview(request, fake_compile, undefined,
+            await slot.save())
+        expect((await PDFDocument.load(labelled)).getPageCount())
+            .toBe((await PDFDocument.load(plain)).getPageCount())
+        expect(labelled.length).toBeGreaterThan(plain.length)
+    })
+
 })
 
 
 describe('add_preview_strip', () => {
 
-    const TITLE = 'This is only a preview'
-    const SUBTITLE = 'Create document to see the finished version'
+    // A compiled strip stands in for gen_preview_strip_typst's output: one short wide page
+    const make_strip = async () => {
+        const strip = await PDFDocument.create()
+        strip.addPage([340, 60])
+        return strip.save()
+    }
 
-    it('prepends an 80%-width, short-height page for position "start"', async () => {
+    const make_book = async () => {
         const source = await PDFDocument.create()
         source.addPage([200, 400])
         source.addPage([200, 400])
-        const before = await source.save()
+        return source.save()
+    }
 
-        const after = await add_preview_strip(before, '150mm', TITLE, SUBTITLE, 'start')
-
-        const doc = await PDFDocument.load(after)
+    it('prepends the strip as page 1 for position "start"', async () => {
+        const doc = await PDFDocument.load(
+            await add_preview_strip(await make_book(), await make_strip(), 'start'))
         expect(doc.getPageCount()).toBe(3)
-        const strip = doc.getPage(0)
-        // 80% of 150mm in points, and much shorter than a real page
-        expect(strip.getSize().width).toBeCloseTo(150 * 72 / 25.4 * 0.8, 1)
-        expect(strip.getSize().height).toBeLessThan(120)
+        expect(doc.getPage(0).getSize()).toEqual({width: 340, height: 60})
         // Original pages follow, untouched
         expect(doc.getPage(1).getSize()).toEqual({width: 200, height: 400})
     })
 
     it('appends the strip as the last page for position "end"', async () => {
-        const source = await PDFDocument.create()
-        source.addPage([200, 400])
-        source.addPage([200, 400])
-
-        const after = await add_preview_strip(
-            await source.save(), '150mm', 'End of preview', SUBTITLE, 'end')
-
-        const doc = await PDFDocument.load(after)
+        const doc = await PDFDocument.load(
+            await add_preview_strip(await make_book(), await make_strip(), 'end'))
         expect(doc.getPageCount()).toBe(3)
-        const strip = doc.getPage(2)
-        expect(strip.getSize().width).toBeCloseTo(150 * 72 / 25.4 * 0.8, 1)
-        expect(strip.getSize().height).toBeLessThan(120)
-        // Original pages unchanged and still first
+        expect(doc.getPage(2).getSize()).toEqual({width: 340, height: 60})
         expect(doc.getPage(0).getSize()).toEqual({width: 200, height: 400})
     })
+})
 
-    it('shrinks the text (and the strip) to fit a narrow page', async () => {
-        const wide_src = await PDFDocument.create()
-        wide_src.addPage([600, 800])
-        const narrow_src = await PDFDocument.create()
-        narrow_src.addPage([600, 800])
 
-        const wide = await PDFDocument.load(
-            await add_preview_strip(await wide_src.save(), '160mm', TITLE, SUBTITLE, 'start'))
-        const narrow = await PDFDocument.load(
-            await add_preview_strip(await narrow_src.save(), '70mm', TITLE, SUBTITLE, 'start'))
+describe('gen_preview_strip_typst', () => {
 
-        // Each strip is 80% of its own page width
-        expect(wide.getPage(0).getSize().width).toBeCloseTo(160 * 72 / 25.4 * 0.8, 1)
-        expect(narrow.getPage(0).getSize().width).toBeCloseTo(70 * 72 / 25.4 * 0.8, 1)
-        // The narrow page forced the type smaller, so its strip is shorter than the wide one's
-        expect(narrow.getPage(0).getSize().height).toBeLessThan(wide.getPage(0).getSize().height)
+    const fonts = ['Base', 'Noto Sans Arabic']
+    const source = (title:string, locale = 'eng', dir:'ltr'|'rtl' = 'ltr') =>
+        gen_preview_strip_typst('150mm', title, 'Subtitle', locale, dir, fonts)
+
+    it('is 80% of the page wide and only as tall as its text', () => {
+        expect(source('Title')).toContain('#set page(width: 150mm * 0.8, height: auto')
     })
 
-    it('falls back to the English for text its fonts cannot draw', async () => {
-        // Vietnamese needs characters outside WinAnsi, which pdf-lib's built-in fonts throw on
-        const source = await PDFDocument.create()
-        source.addPage([200, 400])
-        const after = await add_preview_strip(await source.save(), '150mm',
-            'Đây chỉ là bản xem trước', 'Tạo tài liệu để xem bản hoàn chỉnh', 'start',
-            [TITLE, SUBTITLE])
-        expect((await PDFDocument.load(after)).getPageCount()).toBe(2)
+    it('typesets in the given fonts, language and direction', () => {
+        const out = source('هذه معاينة فقط', 'ara', 'rtl')
+        expect(out).toContain('font: ("Base", "Noto Sans Arabic")')
+        expect(out).toContain('lang: "ar", dir: rtl')
     })
 
-    it('keeps translated text its fonts can draw', async () => {
-        const source = await PDFDocument.create()
-        source.addPage([200, 400])
-        const english = await add_preview_strip(await source.save(), '150mm', TITLE, SUBTITLE,
-            'start')
-        const french = await add_preview_strip(await source.save(), '150mm',
-            'Ceci n\'est qu\'un aperçu', 'Créez le document pour voir la version finale',
-            'start', [TITLE, SUBTITLE])
-        // Different words drawn, so different bytes
-        expect(french.length).not.toBe(english.length)
+    it('reads the language from a locale with a script subtag', () => {
+        expect(source('预览', 'zho-Hant')).toContain('lang: "zh"')
     })
 
+    it('escapes its text for Typst markup', () => {
+        expect(source('#1 [preview]')).toContain('\\#1 \\[preview\\]')
+    })
+})
+
+
+describe('gen_cover_slot_typst', () => {
+
+    it('is a gray page the size of the book\'s, labelled in the middle', () => {
+        const out = gen_cover_slot_typst({width: '148mm', height: '210mm'}, 'Mặt trong bìa',
+            ['Base'])
+        expect(out).toContain('#set page(width: 148mm, height: 210mm')
+        expect(out).toContain('#align(center + horizon)[Mặt trong bìa]')
+    })
+})
+
+
+describe('notice_fonts', () => {
+
+    it('adds the Noto family a script needs', () => {
+        expect(notice_fonts('هذه معاينة فقط')).toEqual(['Noto Sans Arabic'])
+    })
+
+    it('needs nothing beyond the base font for Latin text, accents included', () => {
+        expect(notice_fonts('Đây chỉ là bản xem trước')).toEqual([])
+    })
 })

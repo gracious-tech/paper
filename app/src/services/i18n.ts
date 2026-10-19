@@ -57,12 +57,6 @@ export function translate(key:string, params?:Params):string {
     return interpolate(message, params)
 }
 
-// The English text of a key whatever the active locale, for the rare fallback where the
-// locale's own text can't be used (e.g. drawn with a font that lacks its script)
-export function translate_source(key:string, params?:Params):string {
-    return interpolate(catalogs[SOURCE_LOCALE]![key] ?? key, params)
-}
-
 // The translator signature, for helpers that take `t` as an argument rather than importing it
 export type Translate = typeof translate
 

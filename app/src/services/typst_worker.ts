@@ -12,12 +12,13 @@
 import {version as compiler_version} from '@myriaddreamin/typst-ts-web-compiler/package.json'
 import {version as renderer_version} from '@myriaddreamin/typst-ts-renderer/package.json'
 import {init as init_typst} from 'paper-bible-typst-web'
-import {add_preview_strip, collect_fonts} from 'paper-bible-typst'
+import {add_preview_strip, collect_fonts, gen_preview_strip_typst, notice_fonts}
+    from 'paper-bible-typst'
 import {PDFDocument, rgb} from 'pdf-lib'
 
 import type {TypstWeb} from 'paper-bible-typst-web'
 import type {CustomFont} from 'typst-fonts'
-import type {TypstRequest, ProgressEvent} from 'paper-bible-typst'
+import type {TypstRequest, ProgressEvent, TextDir} from 'paper-bible-typst'
 
 
 // Where a rendered wraparound cover's trim box and fold guide lines fall, in PDF points, as
@@ -43,7 +44,7 @@ export type WorkerAction =
     | {action:'compile_svg', request:TypstRequest}
     | {action:'page_count', pdf:Uint8Array}
     | {action:'preview_strip', pdf:Uint8Array, page_width:string, title:string, subtitle:string,
-        position:'start'|'end', fallback:[string, string]}
+        position:'start'|'end', locale:string, dir:TextDir}
     | {action:'prepend_cover', cover:Uint8Array, book:Uint8Array, geometry:CoverPageGeometry|null}
 
 // Every request carries an id, echoed back in the matching response
@@ -192,11 +193,6 @@ async function handle_action(
     if (message.action === 'page_count'){
         return {result: (await PDFDocument.load(message.pdf)).getPageCount(), pages: null}
     }
-    if (message.action === 'preview_strip'){
-        const bytes = await add_preview_strip(message.pdf, message.page_width, message.title,
-            message.subtitle, message.position, message.fallback)
-        return {result: bytes, pages: null}
-    }
     if (message.action === 'prepend_cover'){
         return {result: await prepend_cover(message.cover, message.book, message.geometry),
             pages: null}
@@ -212,6 +208,14 @@ async function handle_action(
     }
     if (message.action === 'compile_svg'){
         return {result: await generator.compile_svg(message.request), pages: null}
+    }
+    if (message.action === 'preview_strip'){
+        // Typeset in the UI's language, with the fonts its script needs (see notice_fonts)
+        const {title, subtitle, page_width, locale, dir} = message
+        const strip = await generator.compile_standalone(notice_fonts(`${title} ${subtitle}`),
+            fonts => gen_preview_strip_typst(page_width, title, subtitle, locale, dir, fonts))
+        return {result: await add_preview_strip(message.pdf, strip, message.position),
+            pages: null}
     }
 
     // Both PDF compiles report their page count alongside the bytes — every caller wants it and

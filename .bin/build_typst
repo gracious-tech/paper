@@ -8,6 +8,10 @@ cd "$(dirname "$(dirname "$0")")"
 ROOT="$PWD"
 node "$ROOT/typst/gen_patterns.ts"
 
+# Recompile the document strings (typst/locales/) into the package too — normally already
+# current, since the i18n tooling rewrites it whenever it touches those catalogs
+node "$ROOT/app/i18n/gen_doc.ts"
+
 
 # Compile each module's TypeScript to its dist/ output (paths relative to repo root)
 for module in typst typst-web typst-node; do

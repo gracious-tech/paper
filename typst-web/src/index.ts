@@ -4,9 +4,10 @@ import {createTypstRenderer} from '@myriaddreamin/typst.ts/renderer'
 import {loadFonts} from '@myriaddreamin/typst.ts'
 
 import {load_fonts_prefix, font_urls_for, fonts_to_blob_urls, revoke_blob_urls} from 'typst-fonts/web'
+import {base_font} from 'typst-fonts'
 
-import {generate_pdf, generate_pdf_spread_preview, generate_typst, collect_fonts}
-    from 'paper-bible-typst'
+import {generate_pdf, generate_pdf_spread_preview, generate_typst, collect_fonts,
+    gen_cover_slot_typst, notice_fonts} from 'paper-bible-typst'
 
 import type {TypstCompiler} from '@myriaddreamin/typst.ts/compiler'
 import type {TypstRenderer} from '@myriaddreamin/typst.ts/renderer'
@@ -77,6 +78,11 @@ export class TypstWeb {
     // each ensure_fonts() call, so a caller can keep passing the same (mutated) array reference
     // rather than re-calling the setter on every upload
     private custom_fonts:CustomFont[] = []
+    // A second compiler for small standalone pages in the UI's language (see compile_standalone),
+    // created on first use and kept while their fonts stay the same, so they never displace the
+    // main compiler's fonts — reinitialising that one means reloading every font a book uses
+    private standalone_compiler:TypstCompiler|null = null
+    private standalone_fonts = ''
     // Cumulative Typst source bytes compiled in this realm. The WASM compiler permanently
     // accumulates module-global state for every unique source it compiles (measured at roughly
     // 60x the source size): the wasm-bindgen module is a once-per-realm singleton, so no
@@ -105,14 +111,19 @@ export class TypstWeb {
         this.active_fonts = ''
     }
 
-    // (Re)initialise the compiler so it can shape text with the given font URLs
-    private async reinit_compiler(font_urls:string[]):Promise<void> {
+    // A new compiler instance that can shape text with the given font URLs
+    private async create_compiler(font_urls:string[]):Promise<TypstCompiler> {
         const compiler = createTypstCompiler()
         await compiler.init({
             getModule: () => ({module_or_path: this.wasm_url}),
             beforeBuild: [loadFonts(font_urls, {assets: false})],
         })
-        this.compiler = compiler
+        return compiler
+    }
+
+    // (Re)initialise the compiler so it can shape text with the given font URLs
+    private async reinit_compiler(font_urls:string[]):Promise<void> {
+        this.compiler = await this.create_compiler(font_urls)
     }
 
     // Whether this realm has accumulated enough permanent WASM state (see compiled_bytes) that
@@ -141,15 +152,20 @@ export class TypstWeb {
         return renderer
     }
 
-    // Register one source (plus any assets) in the compiler's shadow filesystem, counting its
-    // bytes toward the wear budget above. assets (e.g. passage images) are mapped by virtual
-    // filename, the same primitive the bookcover-web pipeline uses for its own images
-    private load_source(source:string, assets?:Record<string, Uint8Array>):void {
+    // Count a source's bytes toward the wear budget above, unless this exact source was seen
+    private count_wear(source:string):void {
         const hash = hash_source(source)
         if (!this.seen_sources.has(hash)) {
             this.seen_sources.add(hash)
             this.compiled_bytes += source.length
         }
+    }
+
+    // Register one source (plus any assets) in the compiler's shadow filesystem, counting its
+    // bytes toward the wear budget above. assets (e.g. passage images) are mapped by virtual
+    // filename, the same primitive the bookcover-web pipeline uses for its own images
+    private load_source(source:string, assets?:Record<string, Uint8Array>):void {
+        this.count_wear(source)
         this.compiler.resetShadow()
         this.compiler.addSource('/main.typ', source)
         for (const [filename, bytes] of Object.entries(assets ?? {})) {
@@ -227,7 +243,42 @@ export class TypstWeb {
     // including every blank/note page exactly as printed. For on-screen preview only.
     async compile_pdf_preview(request:TypstRequest, on_progress?:ProgressFn):Promise<Uint8Array> {
         await this.ensure_fonts(request)
-        return generate_pdf_spread_preview(request, this.make_compile_fn(), on_progress)
+        // The labelled "inside of the front cover" slot, typeset in the UI's language
+        const label = request.preview_cover_label
+        const cover_slot = label
+            ? await this.compile_standalone(notice_fonts(label),
+                fonts => gen_cover_slot_typst(request.page, label, fonts))
+            : undefined
+        return generate_pdf_spread_preview(request, this.make_compile_fn(), on_progress,
+            cover_slot)
+    }
+
+    // Compile a small standalone page — a preview notice in the UI's language, rather than part
+    // of the book — on a second compiler loaded with only the curated base font plus
+    // `families` (e.g. the Noto fallbacks its text's script needs; see notice_fonts). `build`
+    // gets that full ordered font list and returns the Typst source
+    async compile_standalone(families:string[], build:(fonts:string[]) => string)
+            :Promise<Uint8Array> {
+        await this.fonts_manifest_ready
+        const base = base_font()
+        const fonts = [base, ...families.filter(family => family !== base)]
+        const cache_key = fonts.join(',')
+        if (!this.standalone_compiler || cache_key !== this.standalone_fonts) {
+            this.standalone_compiler = await this.create_compiler(
+                font_urls_for(this.fonts_prefix, fonts))
+            this.standalone_fonts = cache_key
+        }
+        const source = build(fonts)
+        this.count_wear(source)
+        const compiler = this.standalone_compiler
+        compiler.resetShadow()
+        compiler.addSource('/main.typ', source)
+        const result = await compiler.compile({mainFilePath: '/main.typ',
+            format: CompileFormatEnum.pdf})
+        if (!result.result) {
+            throw_compile_error(result.diagnostics)
+        }
+        return result.result
     }
 
     // Compile a request straight to an SVG string, skipping the PDF post-processing pipeline

@@ -355,6 +355,24 @@ function gen_pad_start(typography:TypographyConfig):string {
 }
 
 
+// A Typst string expression for a translated label with an {n} placeholder, evaluated where
+// `n` is in scope — e.g. "Chapter {n}" -> "Chapter " + str(n), or "第{n}章" -> "第" + str(n) +
+// "章" — so each language puts the number where its grammar does
+export function chapter_label_expr(label:string):string {
+    const parts = label.split('{n}')
+    const pieces:string[] = []
+    parts.forEach((part, i) => {
+        if (part) {
+            pieces.push(`"${escape_typst_str(part)}"`)
+        }
+        if (i < parts.length - 1) {
+            pieces.push('str(n)')
+        }
+    })
+    return pieces.join(' + ') || '""'
+}
+
+
 // Generate the document preamble: page setup, fonts, paragraph settings, footer, and the
 // consumer-function definitions emitted by the USX→Typst converter
 export function gen_preamble(request:TypstRequest, overrides:PreambleOverrides = {}):string {
@@ -491,7 +509,7 @@ export function gen_preamble(request:TypstRequest, overrides:PreambleOverrides =
         // rules style this level and hide only the content's own levels (see gen_heading_rules)
         chapter = `#let ch(n, ..rest) = {
     ${running.chapter}.update(n)
-    heading(level: ${CHAPTER_HEADING_LEVEL}, "Chapter " + str(n))
+    heading(level: ${CHAPTER_HEADING_LEVEL}, ${chapter_label_expr(request.features.chapter_label)})
 }`
     }
 
