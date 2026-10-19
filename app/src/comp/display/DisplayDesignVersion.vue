@@ -72,7 +72,7 @@ div.version
             h3(class='mb-6') {{$t("display.version.error")}}
             div
                 v-btn(@click='regen' color='secondary') {{$t("common.try_again")}}
-            div(class='my-6') or
+            div(class='my-6') {{$t("display.version.or")}}
             div
                 v-btn(:href='contact_url' target='_blank' variant='tonal' color='secondary') {{$t("display.version.contact")}}
             p(class='mt-4 mb-3') {{$t("display.version.include_code")}}

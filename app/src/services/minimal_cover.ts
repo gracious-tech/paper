@@ -12,6 +12,7 @@ import {get_custom_font_styles} from '@/services/custom_fonts'
 import {book_icon} from '@/services/icons'
 import {typst_generator} from '@/services/typst'
 import {generate_token} from '@/services/utils'
+import {translate} from '@/services/i18n'
 
 import type {Blueprint, ContentCustom, ContentTitle} from '@/services/types'
 
@@ -38,7 +39,7 @@ export function minimal_cover_copyright_item():ContentCustom{
     return {
         type: 'custom',
         id: generate_token(),
-        name: "Copyright",
+        name: translate('common.copyright'),
         doc: {type: 'doc', content: [
             {type: 'paragraph', content: [{type: 'text', text: COPYRIGHT_MARKER}]},
         ]},

@@ -11,6 +11,7 @@ div.cont(class='text-body-medium')
                 AppIcon(name='arrow_back')
             | {{$t("app.about")}}
 
+        //- English only, like PublisherReplies itself (i18n-ignore)
         h1(class='text-headline-small mb-4') Replies from publishers
 
         PublisherReplies

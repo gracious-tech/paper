@@ -218,11 +218,11 @@ const done = () => {
 }
 
 
-// Measurement unit for the margin fields (literal labels, not translated)
-const margin_unit_items = [
-    {value: 'mm', title: "mm"},
-    {value: 'inch', title: "inch"},
-]
+// Measurement unit for the margin fields ("mm" is the same everywhere, "inch" isn't)
+const margin_unit_items = computed(() => [
+    {value: 'mm', title: 'mm'},
+    {value: 'inch', title: t("common.unit_inch")},
+])
 
 
 // Where the running heading / page number sits, and how it's aligned across the page
@@ -337,11 +337,11 @@ const gutter_amount = computed(() => {
 
 
 // Chapter number style options
-const chapter_styles = [
+const chapter_styles = computed(() => [
     {value: 'divider', title: t("editor.advanced.divider") + " | --- 2 ---"},
     {value: 'float', title: t("editor.advanced.margin_number") + " | 2"},
     {value: 'heading', title: t("editor.advanced.heading_chapter") + " 2"},
-]
+])
 
 
 // The margin number hangs in the page margin, which a second column of text doesn't have, so

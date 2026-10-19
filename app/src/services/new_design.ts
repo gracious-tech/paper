@@ -21,6 +21,7 @@ import img_type_study from '@/assets/images/design_types/type_study.avif'
 import img_type_bilingual from '@/assets/images/design_types/type_bilingual.avif'
 
 import type {Blueprint, ContentPassage, ContentPictureStory} from '@/services/types'
+import type {Translate} from '@/services/i18n'
 
 
 // The design types offered by the wizard's first step
@@ -247,7 +248,7 @@ export function all_wizard_steps_valid(draft:NewDesignDraft):boolean{
 
 // Display label/subtitle per design type — hoisted out of NewDesignType.vue so the simple-mode
 // summary row can show the same text as the wizard step itself
-export function wizard_type_label(id:NewDesignType, t:(key:string) => string):
+export function wizard_type_label(id:NewDesignType, t:Translate):
         {label:string, subtitle:string}{
     const labels:Record<NewDesignType, {label:string, subtitle:string}> = {
         regular: {
@@ -281,7 +282,7 @@ export function wizard_type_label(id:NewDesignType, t:(key:string) => string):
 
 // Display label per cover style — hoisted out of NewDesignCover.vue for the same reason as
 // wizard_type_label() above
-export function wizard_cover_label(id:NewDesignCover, t:(key:string) => string):string{
+export function wizard_cover_label(id:NewDesignCover, t:Translate):string{
     const labels:Record<NewDesignCover, string> = {
         photo: t("common.photo"),
         pattern: t("svc.wizard.cover_pattern"),
@@ -307,16 +308,18 @@ export async function render_wizard_preview(id:NewDesignCover, blueprint:Bluepri
 // The professional trim sizes the wizard offers, each an exact match to a Lulu size id —
 // hoisted out of NewDesignPrint.vue so the simple-mode summary row can name the size the same
 // way the wizard did ("Small" rather than "Novella")
-export function wizard_size_options(t:(key:string) => string):
+export function wizard_size_options(t:Translate):
         {id:string, label:string, dims:string, subtitle:string}[]{
+    // Trim dimensions in inches, as the sizes are named in the printing industry
+    const dims = (w:number, h:number) => t("wizard.print.dims_inches", {w, h})
     return [
-        {id: 'novella', label: t("wizard.print.small"), dims: '5 × 8 inches',
+        {id: 'novella', label: t("wizard.print.small"), dims: dims(5, 8),
             subtitle: t("wizard.print.size_small_desc")},
-        {id: 'digest', label: t("wizard.print.medium"), dims: '5.5 × 8.5 inches',
+        {id: 'digest', label: t("wizard.print.medium"), dims: dims(5.5, 8.5),
             subtitle: t("wizard.print.size_medium_desc")},
-        {id: 'us_trade', label: t("wizard.print.large"), dims: '6 × 9 inches',
+        {id: 'us_trade', label: t("wizard.print.large"), dims: dims(6, 9),
             subtitle: t("wizard.print.size_large_desc")},
-        {id: 'executive', label: t("wizard.print.extra_large"), dims: '7 × 10 inches',
+        {id: 'executive', label: t("wizard.print.extra_large"), dims: dims(7, 10),
             subtitle: t("wizard.print.size_xl_desc")},
     ]
 }
@@ -324,7 +327,7 @@ export function wizard_size_options(t:(key:string) => string):
 
 // The wizard's label for a professional trim size, or null if it isn't one the wizard offers
 // (the design was taken beyond the wizard's own choices in the full editor)
-export function wizard_size_label(size_id:string, t:(key:string) => string):string|null{
+export function wizard_size_label(size_id:string, t:Translate):string|null{
     return wizard_size_options(t).find(option => option.id === size_id)?.label ?? null
 }
 

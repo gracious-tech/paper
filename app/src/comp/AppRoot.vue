@@ -9,8 +9,9 @@ v-app.app(v-else)
             h1
                 router-link.brand_link(:to='{name: "designs"}')
                     BrandIcon.brand
+                    //- The product name is never translated (i18n-ignore)
                     span Paper Bible
-                span.beta beta
+                span.beta {{ $t("app.beta") }}
                 v-spacer
                 //- Filled and green once signed in; struck-through and flagged while a guest,
                 //- since guest work lives only in this browser and is easily lost.
@@ -40,6 +41,11 @@ v-app.app(v-else)
                             template(#prepend)
                                 AppIcon(name='donate')
                             v-list-item-title {{ $t("app.donate") }}
+                        v-list-item(@click='state.language = true')
+                            template(#prepend)
+                                AppIcon(name='translate')
+                            v-list-item-title {{ $t("app.language") }}
+                            v-list-item-subtitle {{ LOCALES[locale]?.name }}
 
             AppNavbar(v-if='!on_info_page')
 
@@ -73,6 +79,7 @@ DialogPageSuggestions
 DialogHowToPrint
 DialogEstimateCost
 DialogPrintServiceWarning
+DialogLanguage
 //- LEGACY Remove with app/src/legacy/ once old data no longer needs recovering
 DialogLegacy
 
@@ -86,7 +93,7 @@ v-snackbar(:model-value='!!state.toast' @update:model-value='state.toast = null'
 
 import {computed, ref} from 'vue'
 import {useRoute} from 'vue-router'
-import {useI18n} from '@/services/i18n'
+import {useI18n, LOCALES} from '@/services/i18n'
 
 import AppNavbar from '@/comp/nav/AppNavbar.vue'
 import DialogViewedDesign from '@/comp/dialogs/DialogViewedDesign.vue'
@@ -101,6 +108,7 @@ import DialogPageSuggestions from '@/comp/dialogs/DialogPageSuggestions.vue'
 import DialogHowToPrint from '@/comp/dialogs/DialogHowToPrint.vue'
 import DialogEstimateCost from '@/comp/dialogs/DialogEstimateCost.vue'
 import DialogPrintServiceWarning from '@/comp/dialogs/DialogPrintServiceWarning.vue'
+import DialogLanguage from '@/comp/dialogs/DialogLanguage.vue'
 import DisplaySplash from '@/comp/display/DisplaySplash.vue'
 import DisplayPreview from '@/comp/display/DisplayPreview.vue'
 import DisplayDesignVersion from '@/comp/display/DisplayDesignVersion.vue'
@@ -119,7 +127,7 @@ import {use_is_mobile} from '@/services/display'
 
 
 const route = useRoute()
-const {t} = useI18n()
+const {t, locale} = useI18n()
 const is_mobile = use_is_mobile()
 
 
@@ -140,7 +148,7 @@ const show_splash = computed(() => {
 
 
 // Bind the Coloris color picker to every [data-coloris] input (AppColor), once, app-wide
-init_coloris(t("app.used_in_design"))
+init_coloris(() => t("app.used_in_design"))
 
 
 // LEGACY Detect data from the previous app, revealing ViewDesigns' "My Old Docs" button.

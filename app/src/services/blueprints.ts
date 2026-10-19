@@ -81,7 +81,7 @@ export function get_default_blueprint():Blueprint{
         // can't express — and Crimson Pro has almost no Greek/Cyrillic anyway. The wizard
         // swaps in Noto Serif when a translation's language isn't one Source Serif 4 covers
         // — see font_default_for_bibles()
-        font_text: "Source Serif 4",
+        font_text: 'Source Serif 4',
         font_text2: null,
         font_headings: null,
 
@@ -348,9 +348,9 @@ export function gen_content_name(item:ContentItem, bible=blue.bibles[0], abbrevi
     } else if (item.type === 'title'){
         return item.title
     } else if (item.type === 'picture_story'){
-        return item.title || "Picture story"
+        return item.title || translate('options.content.picture_story')
     }
-    return "Nameless"
+    return translate('svc.blueprint.nameless')
 }
 
 
@@ -389,7 +389,7 @@ export function content_preview(items:ContentItem[], bible=blue.bibles[0]):strin
     const ot_ids = books_ordered.slice(0, 39)
     const nt_ids = books_ordered.slice(39)
     if (books_ordered.every(id => whole_books.has(id))){
-        return "Whole bible"
+        return translate('svc.blueprint.whole_bible')
     }
     const whole_ot = ot_ids.every(id => whole_books.has(id))
     const whole_nt = nt_ids.every(id => whole_books.has(id))
@@ -408,16 +408,17 @@ export function content_preview(items:ContentItem[], bible=blue.bibles[0]):strin
 
     const parts:string[] = []
     if (whole_ot){
-        parts.push("OT")
+        parts.push(translate('svc.blueprint.ot'))
     }
     if (whole_nt){
-        parts.push("NT")
+        parts.push(translate('svc.blueprint.nt'))
     }
     for (const item of remaining){
         if (item.type === 'passage'){
             parts.push(gen_content_name(item, bible, abbreviate))
         } else if (item.type === 'picture_story'){
-            parts.push(picture_story_reference(item, bible, abbreviate) ?? "Custom text")
+            parts.push(picture_story_reference(item, bible, abbreviate)
+                ?? translate('svc.blueprint.custom_text'))
         }
     }
     return parts.join(', ')
@@ -533,7 +534,7 @@ export function format_service_label(blueprint:Pick<Blueprint, 'service_id'|'boo
         if (booklet){
             return short ? t("common.booklet") : t("common.booklet_home")
         }
-        return t("common.home")
+        return t("svc.blueprint.service_home")
     }
     if (service_id === 'custom'){
         return short ? t("common.custom") : t("common.custom_menu")

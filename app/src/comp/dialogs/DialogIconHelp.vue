@@ -11,8 +11,10 @@ v-dialog(v-model='open_model' max-width='450')
                 li {{$t("editor.icon_help.step_visit")}}
                 li {{$t("editor.icon_help.step_open")}}
                 li
-                    | {{$t("editor.icon_help.step_copy")}}
-                    code.mx-1 collection:icon-name
+                    AppSentence(:text='$t("editor.icon_help.step_copy")')
+                        template(#example)
+                            //- Not words to translate (i18n-ignore)
+                            code collection:icon-name
                 li {{$t("editor.icon_help.step_paste")}}
         template(#actions)
             v-btn(href='https://icon-sets.iconify.design' target='_blank' rel='noopener'

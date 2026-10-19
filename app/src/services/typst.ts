@@ -1,6 +1,8 @@
 
 import {shallowRef, toRaw} from 'vue'
 
+import {translate, translate_source} from '@/services/i18n'
+
 import type {CustomFont} from 'typst-fonts'
 import type {TypstRequest, ProgressFn} from 'paper-bible-typst'
 import type {CoverPageGeometry, WorkerAction, WorkerResponse} from './typst_worker'
@@ -171,7 +173,7 @@ export class TypstWorkerClient {
                 // A fresh worker failing the same way means the document itself exceeds the
                 // 32-bit WASM heap — surface something clearer than the raw trap message
                 if (retry_error instanceof FatalWorkerError){
-                    throw new Error("Document too large to generate in the browser "
+                    throw new Error('Document too large to generate in the browser '
                         + `(${retry_error.message})`)
                 }
                 throw retry_error
@@ -232,11 +234,13 @@ export class TypstWorkerClient {
     }
 
     // Add a short "this is only a preview" / "end of preview" notice strip to the front or back
-    // of a preview PDF. Text is passed in already translated
-    async preview_strip(pdf:Uint8Array, page_width:string, title:string, subtitle:string,
+    // of a preview PDF, given the keys of its two lines (drawn in English when the locale's
+    // script is beyond the strip's fonts — see add_preview_strip)
+    async preview_strip(pdf:Uint8Array, page_width:string, title_key:string, subtitle_key:string,
             position:'start'|'end'):Promise<Uint8Array> {
-        const outcome = await this.send(
-            {action: 'preview_strip', pdf, page_width, title, subtitle, position})
+        const outcome = await this.send({action: 'preview_strip', pdf, page_width, position,
+            title: translate(title_key), subtitle: translate(subtitle_key),
+            fallback: [translate_source(title_key), translate_source(subtitle_key)]})
         return outcome.result as Uint8Array
     }
 

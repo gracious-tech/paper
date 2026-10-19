@@ -109,7 +109,13 @@ paper_bible/
   firebase.json            # Firestore/Storage rules refs + emulator ports only — hosting and
                             #   compute are AWS now (see infra/), not Firebase Hosting/Cloud Run
   .firebaserc              # Project aliases (default/dev/prod)
+  .github/workflows/
+    deploy.yml             # Every push to main: lulu → lulu_push (price check if due), build
+                            #   (typecheck, audit_unit, plan, build), deploy (what changed) —
+                            #   see "Deploys run in GitHub Actions" in Gotchas
   infra/
+    github_ci.yml          # The CI stack (paper-bible-ci, deployed once by setup_ci_aws): the
+                            #   OIDC-assumed deploy role + the CloudFormation service role
     cloudformation.yml     # The one AWS stack (us-west-2): S3+CloudFront for the app, API
                             #   Gateway + 2 Lambda functions (light/compile) for the server,
                             #   IAM, Secrets Manager (GCP creds), CloudWatch log groups. The ACM
@@ -146,26 +152,40 @@ paper_bible/
                             #   no API server
     serve_server           # Local API server against the emulators (port 8788; runs
                             #   server/src/dev_server.ts, not the Lambda entry point)
-    deploy_app             # Pure content shipping, no CloudFormation: build_typst + vite build, two-tier
+    build_app              # i18n_check + build_typst + vite build, into app/dist
+    deploy_app             # Pure content shipping, no CloudFormation: build_app (unless
+                            #   --prebuilt), sourcemaps to the site bucket's sourcemaps/, two-tier
                             #   `aws s3 sync` (immutable for hashed assets/, no-cache for
-                            #   index.html etc), then a small CloudFront invalidation
+                            #   index.html etc), then a small CloudFront invalidation. Old
+                            #   builds' assets/ stay 30 days past their last deploy (per-deploy
+                            #   manifests in deploys/), so open tabs can still lazy-load chunks
     deploy_firebase        # firebase deploy --only firestore,storage — rules/indexes only,
                             #   run on every deploy (not one-time, unlike deploy_firebase_initial)
     build_server_lambda     # Stage server/deploy/ (allowlisted context for Dockerfile.lambda),
                             #   docker build tagged with the current commit hash (runs
                             #   setup_typst first if .bin/typst isn't the pinned version)
     push_server_lambda      # docker push the built image to ECR
-    deploy_api              # build_server_lambda + push_server_lambda, then `cloudformation
-                            #   deploy` overriding just ImageUri — the local template is
-                            #   deployed too, so infra changes ship with it
-    i18n_status/_sync/_check/_extract  # Translation tooling (logic in app/i18n/); see i18n section
+    deploy_api              # build_server_lambda + push_server_lambda (handed to the host when
+                            #   there's no docker daemon), then deploy_stack with the new image
+    deploy_stack            # `cloudformation deploy` of the local template, overriding at most
+                            #   ImageUri (every other parameter keeps its stack value)
+    deploy_plan             # Which deploy steps HEAD needs, by diffing each step's inputs
+                            #   against its deployed/<step> tag; mark_deployed moves the tag
+    setup_ci_aws / setup_ci_gcp  # One-off: OIDC trust for GitHub Actions on each side, and the
+                            #   repository variables deploy.yml reads
+    i18n_status/_job/_apply/_check/_sync/_extract  # Translation tooling (logic in app/i18n/);
+                            #   see the i18n section and .claude/skills/translate
     audit_unit             # Every unit/integration suite (typst, typst-node, app, rules,
-                            #   server) — starts its own emulators; see the Testing section
+                            #   server, i18n) — starts its own emulators; see the Testing section
     audit_e2e              # Playwright e2e tests (needs the dev stack running; see e2e/)
     audit_stress           # Compile stress ladder, browser (WASM) + server (see e2e/tiers.ts)
     audit_errors           # Move error reports out of the bucket + triage them (TUI; claude
-                            #   groups, shortlists and auto-fixes them for review)
-    gen_lulu_prices        # Refresh Lulu's print prices (run by deploy_app)
+                            #   groups, shortlists and auto-fixes them for review). Syncs the
+                            #   site bucket's sourcemaps/ into errors/sourcemaps/ first
+    gen_lulu_prices        # Regenerate Lulu's print prices
+    refresh_lulu_prices    # gen_lulu_prices + commit a re-price, if the checked/lulu_prices
+                            #   tag is over 30 days old. --due/--commit are the halves CI runs
+                            #   in separate jobs
   app/                     # The Vue SPA (workspace)
     src/
       init.ts              # ** APP ENTRY POINT ** auth → content → designs → router → mount
@@ -230,7 +250,9 @@ paper_bible/
         coloris.ts / color_palette.ts / icons.ts / fonts.ts / display.ts / examples.ts /
           utils.ts         # Pickers, icon + font manifests, breakpoints, examples, tokens
     i18n/                  # Translation tooling (node, own tsconfig; excluded from app tsconfig)
-                            #   lib/status/sync/check/extract + context.json/glossary.json
+                            #   lib/lint/status/job/apply/check/sync/extract + tests/, plus
+                            #   context.json/glossary.json and style/<loc>.json;
+                            #   jobs/ is transient (gitignored)
     tools/                 # Other node tooling (own tsconfig): gen_lulu_prices.ts
     tests/                 # Vitest suites for the service logic (vitest.config.mts aliases
                             #   services/content + services/state to stubs/); no component tests
@@ -426,17 +448,21 @@ neither side knows about the other's setup process.
    prints a DNS record to add at Porkbun on a first run, re-run once added), then deploys
    `infra/cloudformation.yml`
 6. Put the GCP service-account key from step 4 into the secret `.bin/deploy_aws` just created
-7. `.bin/deploy_api` (server code), `.bin/deploy_app [alias]` (app hosting), and
-   `.bin/deploy_firebase [alias]` (Firestore/Storage rules)
-8. Point the domain's DNS at the printed CloudFront distribution (a Porkbun ALIAS record —
+7. `.bin/setup_ci_aws` and `.bin/setup_ci_gcp [project-id]` — let GitHub Actions deploy (OIDC
+   on both sides, no stored keys) and set the repository variables `deploy.yml` reads
+8. Push to `main`. The first run has no `deployed/*` tags, so it deploys everything
+9. Point the domain's DNS at the printed CloudFront distribution (a Porkbun ALIAS record —
    DNS isn't on Route53, so this step is manual, not part of the CloudFormation stack)
+
+After that, every push to `main` deploys itself. The scripts still work by hand
+(`deploy_api`, `deploy_stack`, `deploy_app`, `deploy_firebase`) for a deploy outside CI.
 
 
 ## Testing
 
 ```bash
 .bin/audit_unit                 # everything below (~1 min; starts its own emulators)
-.bin/audit_unit app             # one group: typst | typst-node | app | rules | server
+.bin/audit_unit app             # one group: typst | typst-node | app | rules | server | i18n
 .bin/audit_unit rules storage   # a group plus a vitest filter
 .bin/audit_e2e                  # Playwright journeys (needs the dev stack running)
 ```
@@ -693,9 +719,9 @@ neither side knows about the other's setup process.
   browser, or Google's sign-in code) starts using must be added there, and until it is it's
   blocked in production only. The per-source reasoning is in the comment beside the policy.
   Things that aren't obvious from it:
-  - **It only changes with a stack deploy** (`.bin/deploy_aws`), never `.bin/deploy_app` —
-    CloudFront adds the header, and it never reaches the Vite dev server, so a CSP mistake
-    only ever shows in production. An edit left undeployed silently keeps the old policy live
+  - **It only changes with a stack deploy** (CI's stack step, or `.bin/deploy_stack`), never
+    `.bin/deploy_app` — CloudFront adds the header, and it never reaches the Vite dev server, so
+    a CSP mistake only ever shows in production
   - **Frames need `data:`** (it's in `default-src`, which frames fall back to; any future
     `frame-src` must keep it). A browser that can't show a PDF inline
     (Android Chrome-based browsers always, desktop Chrome set to download PDFs) frames its own
@@ -750,6 +776,39 @@ neither side knows about the other's setup process.
   `firebase.ts` which safely does run at top level. Locally `serve_server` points at the
   untracked `assets/` dir (a copy/symlink of the bookcover repo's assets tree) directly, no
   sync involved
+- **Deploys run in GitHub Actions** (`.github/workflows/deploy.yml`), and only for what changed.
+  Each step records the commit it last deployed from as a `deployed/<step>` tag on origin
+  (moved by `.bin/mark_deployed` once the step succeeds). `.bin/deploy_plan` diffs each step's
+  **input list** against its tag, so a failed step simply runs again on the next push. Four
+  things follow:
+  - **A file a step newly reads must be added to its list in `deploy_plan`**, or edits to it
+    won't deploy. A new image always goes out through the stack, so the stack step runs then too
+  - **One-off setup is idempotent scripts, not version numbers.** `deploy_firebase_initial`
+    (Storage lifecycle/CORS, Firestore TTLs) and `deploy_aws` (certificate, every stack
+    parameter) are inputs to their own steps, so editing one makes the next deploy re-run it
+    once. A new one-off belongs in one of them (or a new script added to `deploy_plan`), and
+    must stay safe to re-run
+  - **Order is Firebase → server → app**, so the app never goes live ahead of the rules or API
+    it expects. Tests and typechecks gate the whole run. Run the workflow by hand with "all"
+    to redeploy everything
+  - **No npm code runs where the credentials are.** A job is GitHub's only isolation boundary:
+    every step in a job with `id-token: write` can request the OIDC token, and steps share one
+    machine. So `npm ci`, the tests and the builds all run in jobs with no cloud access and a
+    read-only repo token (`lulu`, `build`). The jobs that hold credentials run only deploy
+    tools on what `build` produced: `deploy` (via artifacts and `--prebuilt`, with
+    firebase-tools installed alone, pinned to the lockfile's version, without install scripts),
+    and `lulu_push`, which commits the regenerated prices. Keep it that way: a step that needs
+    the project's packages belongs in `build`, not `deploy`
+  CI holds no keys: it assumes `paper-bible-github-deploy` (AWS) and `github-deploy@` (GCP)
+  through OIDC, and only from `main`. On the AWS side it can't deploy the app stack with its
+  own permissions: stack updates go through the `paper-bible-cloudformation` service role
+  (`CFN_ROLE_ARN`). Once a stack has used that role, CloudFormation keeps using it, so a manual
+  deploy needs `iam:PassRole` for it, which an admin already has. The CI's own roles live in
+  `infra/github_ci.yml`, a separate stack, so an app deploy can never change them. Sourcemaps
+  go to the site bucket's `sourcemaps/` prefix, not the deploying machine. They're kept out of
+  `assets/`, whose `--delete` sync would drop old builds' maps. Like the error reports, that
+  prefix is only an inbox (expired at 90 days): `audit_errors` syncs it down, never up, into
+  `errors/sourcemaps/`, which is the lasting copy (gitignored, so back it up with `records/`)
 - **Hono middleware registered after a route is composed after it, not before — even if
   the middleware is meant to gate that route.** `authed_post()` never calls `next()`, so an
   `app.use('/api/x', ...)` added from a module that imports (and therefore runs after)
@@ -771,15 +830,24 @@ neither side knows about the other's setup process.
   to 2.11 across their catalogue), so never FX-convert one into another — pick the currency and
   read that column. Prices are never hand-written: `.bin/gen_lulu_prices` fetches Lulu's
   published spec sheet (a public .xlsx, unzipped and parsed with node built-ins — no library)
-  and regenerates `lulu_prices.json`, and `deploy_app` runs it, so each deploy ships current
-  prices and a Lulu re-price lands as a reviewable diff. They're only as fresh as the last
-  deploy. The generated limits are also stricter than the ones printing-services models
+  and regenerates `lulu_prices.json`. There's no schedule: a deploy re-checks them when the
+  last check is over 30 days old (`.bin/refresh_lulu_prices`, before the tests), and commits a
+  re-price to `main` as its own reviewable diff. That's pushed before the tests run, since only
+  a job running no npm code may push; the generator refuses to write a sheet missing any product
+  the app offers, and the tests still gate the deploy. Lulu being unreachable only warns. The check
+  date is the `checked/lulu_prices` tag's own date, since the file only changes when Lulu's data
+  does. So prices are as fresh as the last deploy, give or take a month. Builds only ship
+  committed prices. The generated limits are also stricter than the ones printing-services models
   (landscape perfect-bound caps at 250 pages, not 800)
 
 
 ## i18n
 
-- **No i18n library.** `services/i18n.ts` is a ~70-line homegrown module: `translate(key,
+Translation is done entirely by Claude, through the loop in **`.claude/skills/translate`** —
+read it before touching a catalog. The design choices below all serve that: plain strings a model
+can't mangle, a self-contained job per locale, and a validator between the model and the app.
+
+- **No i18n library.** `services/i18n.ts` is a small homegrown module: `translate(key,
   params?)` does a flat catalog lookup with `{named}` placeholder substitution and `eng`
   fallback; `useI18n()` returns `{t, locale}`; the default export is a Vue plugin that adds
   `$t`. Rationale: the app targets 800+ machine-translated locales, where an ICU/format
@@ -787,27 +855,37 @@ neither side knows about the other's setup process.
   targets) — see [[i18n-symbolic-keys-migration]].
 - **Symbolic keys**, not English strings: `$t('options.style.justify')`. Catalogs are flat
   JSON keyed by ISO 639-3 (`app/src/locales/eng.json` = source of truth with real English,
-  `vie.json` = Vietnamese, ...). `eng` is bundled + is the fallback; other locales load on
-  demand. `services/locale.ts` maps the browser's BCP-47 tag to a locale code.
-  `app/src/locales.json` lists `source` + `supported` (not `eng`).
+  `vie.json` = Vietnamese, ...). `eng` is bundled + is the fallback; other locales load during
+  boot, in parallel with auth (`initial_locale()`: a hand-picked locale from the header menu's
+  language dialog, remembered in localStorage, else browser detection via `services/locale.ts`).
+  `app/src/locales.json` lists every locale, `eng` included, with its own name and `dir`.
+- **Everything else follows the locale too** (the `watch(locale)` in `init.ts`): `<html lang
+  dir>`, Vuetify's own strings and RTL layout (its strings live in our catalogs as `vuetify.*`,
+  re-nested by `vuetify_messages()`), Firebase Auth's email language, dates via `intl_tag()`.
+  The failure splash gets its translator through `set_error_translator()` (errors.ts must stay
+  import-first). The bookcover widget has its own catalogs (`COVER_LOCALES`)
 - **Messages are plain strings** with `{named}` placeholders only — no ICU, no plural/select
-  syntax. Plurals / branching are done in calling code by picking the key
-  (`t(n === 1 ? 'x.one' : 'x.other', {n})` — see `count_phrase()` in `blueprints.ts`) or
-  designed out (label:value). Keys assembled at runtime like that are invisible to the
-  usage scanner — list their prefix in `app/i18n/dynamic_keys.json` so they don't read as
-  unused.
-- `app/src/locales/.state/<loc>.json` records the English each translation was made from,
-  so staleness is detectable when the source string is reworded.
-- Tooling (`app/i18n/`, run via `.bin/i18n_*`):
-  - `.bin/i18n_status` — per-locale coverage: missing / stale / orphan, plus source-level
-    undefined (`$t` key not in `eng.json`) and unused keys
-  - `.bin/i18n_extract [--prune]` — reconcile `eng.json` with `$t()` call sites
-  - `.bin/i18n_sync [--bless [key ...]]` — canonicalise all catalogs + drop orphans;
-    `--bless` records current English as the translation base after a translation batch
-  - `.bin/i18n_check [--allow-missing]` — CI gate: canonical form, no undefined/unused,
-    no orphan/stale, `{placeholder}` parity. `--allow-missing` tolerates untranslated keys
-    while a locale is still being filled in
-- **Adding a UI string:** wrap it as `$t('namespace.key')`, add `namespace.key` → English to
-  `eng.json`, optionally note usage in `app/i18n/context.json`, then translate (or run
-  `.bin/i18n_status` to see the gap). **Renaming English:** edit `eng.json`, `i18n_status`
-  flags every locale as stale, retranslate, then `.bin/i18n_sync --bless`.
+  syntax. Plurals / branching are done in calling code by picking the key (`count_phrase()`
+  in `i18n.ts`) or designed out (label:value). Markup or links inside a sentence go in
+  `{placeholders}` filled by `AppSentence`'s slots — never fragments glued around elements. Keys
+  passed by name or built at runtime are found by `scan_mentions()` (the literal key, its stem,
+  or a template's start), so they need no registration
+- **Untranslated UI text fails the build.** `.bin/i18n_check` (run by `audit_unit` and
+  `deploy_app`) lints app/src (`app/i18n/lint.ts`): in TypeScript a double-quoted literal is UI
+  text by the quoting convention, so it must go through `t()` or be single-quoted; Pug text and
+  static UI attributes are lexed. Deliberate exceptions carry `i18n-ignore` (line) or
+  `i18n-ignore-file`, with the reason
+- **Catalogs are written by the tools, not by hand.** `.bin/i18n_job <loc>` writes
+  `app/i18n/jobs/<loc>.json` (strings + call-site context + glossary + the locale's style file);
+  Claude writes a flat `<loc>.out.json`; `.bin/i18n_apply` refuses anything that would render
+  wrong (placeholders, tags, line breaks, keep-terms), merges the rest and records the English
+  each entry was translated from in `app/src/locales/.state/<loc>.json` — which is how
+  staleness is detected when English is reworded. `app/i18n/style/<loc>.json` carries a
+  locale's conventions and glossary renderings between batches
+- Other tooling: `.bin/i18n_status [loc ...]` (one line per locale; naming locales lists keys),
+  `.bin/i18n_extract [--prune]` (eng.json vs call sites), `.bin/i18n_sync [--bless key ...]`
+  (canonicalise, drop orphans; `--bless` marks a meaning-preserving English edit as current)
+- **Adding a UI string:** `$t('namespace.key')` + the English in `eng.json` (+ a note in
+  `app/i18n/context.json` if the call site alone is ambiguous), then run the skill's loop for
+  every locale (`.bin/i18n_job` with no arguments). **Rewording English** works the same: the
+  locales go stale and the next job carries the old and new English plus the old translation.

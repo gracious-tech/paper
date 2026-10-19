@@ -93,7 +93,7 @@ template(v-else)
 <script lang='ts' setup>
 
 import {computed, ref} from 'vue'
-import {useI18n} from '@/services/i18n'
+import {useI18n, count_phrase} from '@/services/i18n'
 import {PassageReference} from '@gracious.tech/fetch-client'
 
 import {versions, latest_version, version_expired, download_version_pdf,
@@ -147,7 +147,7 @@ const content_label = computed(() => {
         return content.collection.reference_to_string(new PassageReference(passages[0]!),
             latest_version.value.blueprint.bibles[0])
     }
-    return `${passages.length} ${t("view.version_list.passages")}`
+    return count_phrase(t, 'view.version_list.passages', passages.length)
 })
 
 

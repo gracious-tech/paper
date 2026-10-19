@@ -1,14 +1,14 @@
 
 // Reconcile eng.json with the t()/$t() calls in the code.
 //  - lists keys referenced in code but missing from eng.json (add these by hand, with the
-//    English text and, ideally, a note in _context.json)
+//    English text and, where the call site alone is ambiguous, a note in context.json)
 //  - lists keys in eng.json that nothing references any more
 // With --prune it removes the unused keys from eng.json, every locale file and every base file.
 // Usage: node app/i18n/extract.ts [--prune]
 
 import {
     SOURCE_LOCALE, read_meta, read_catalog, write_catalog, locale_path, base_path, scan_usage,
-    unused_keys as find_unused,
+    unused_keys as find_unused, undefined_keys as find_undefined, rel,
 } from './lib.ts'
 
 const prune = process.argv.includes('--prune')
@@ -16,13 +16,15 @@ const prune = process.argv.includes('--prune')
 const eng = read_catalog(locale_path(SOURCE_LOCALE))
 const usage = scan_usage()
 
-const undefined_keys = [...usage.keys()].filter(k => !(k in eng)).sort()
+const undefined_keys = find_undefined(eng, usage)
 const unused_keys = find_unused(eng, usage)
 
 if (undefined_keys.length){
-    console.log(`${undefined_keys.length} key(s) used in code but missing from ${SOURCE_LOCALE}.json:`)
+    console.log(`${undefined_keys.length} key(s) used in code but missing from `
+        + `${SOURCE_LOCALE}.json:`)
     for (const key of undefined_keys){
-        console.log(`  ${key}   [${[...usage.get(key)!].join(', ')}]`)
+        const sites = usage.get(key)!.map(site => `${site.file}:${site.line}`)
+        console.log(`  ${key}   [${sites.join(', ')}]`)
     }
 } else {
     console.log(`no undefined keys — every t()/$t() call resolves`)
@@ -49,7 +51,7 @@ if (!prune){
 const drop = new Set(unused_keys)
 const meta = read_meta()
 for (const path of [locale_path(SOURCE_LOCALE),
-        ...meta.supported.flatMap(l => [locale_path(l), base_path(l)])]){
+        ...meta.targets.flatMap(l => [locale_path(l), base_path(l)])]){
     const catalog = read_catalog(path)
     let removed = 0
     for (const key of Object.keys(catalog)){
@@ -60,6 +62,6 @@ for (const path of [locale_path(SOURCE_LOCALE),
     }
     if (removed){
         write_catalog(path, catalog)
-        console.log(`  pruned ${removed} from ${path.replace(/.*\/app\/src\//, 'app/src/')}`)
+        console.log(`  pruned ${removed} from ${rel(path)}`)
     }
 }

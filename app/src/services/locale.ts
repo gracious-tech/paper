@@ -56,6 +56,15 @@ export function locale_to_bcp47(locale:string):string {
 }
 
 
+// The BCP-47 tag Intl formatters (dates, numbers) should use for one of our locales: the
+// browser's own tag when it's the same language, so its regional conventions survive (en-GB
+// dates rather than en-US ones), else the bare language tag
+export function intl_tag(locale:string):string {
+    const wanted = navigator.languages?.length ? navigator.languages : [navigator.language]
+    return wanted.find(tag => bcp47_to_locale(tag) === locale) ?? locale_to_bcp47(locale)
+}
+
+
 // A function naming countries in the user's own language, e.g. "au" -> "Australia".
 // Intl.DisplayNames throws on a tag it can't parse and has no data for many of our locales, so
 // English stands behind it, and the code itself behind that

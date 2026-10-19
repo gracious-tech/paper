@@ -288,4 +288,26 @@ describe('add_preview_strip', () => {
         expect(narrow.getPage(0).getSize().height).toBeLessThan(wide.getPage(0).getSize().height)
     })
 
+    it('falls back to the English for text its fonts cannot draw', async () => {
+        // Vietnamese needs characters outside WinAnsi, which pdf-lib's built-in fonts throw on
+        const source = await PDFDocument.create()
+        source.addPage([200, 400])
+        const after = await add_preview_strip(await source.save(), '150mm',
+            'Đây chỉ là bản xem trước', 'Tạo tài liệu để xem bản hoàn chỉnh', 'start',
+            [TITLE, SUBTITLE])
+        expect((await PDFDocument.load(after)).getPageCount()).toBe(2)
+    })
+
+    it('keeps translated text its fonts can draw', async () => {
+        const source = await PDFDocument.create()
+        source.addPage([200, 400])
+        const english = await add_preview_strip(await source.save(), '150mm', TITLE, SUBTITLE,
+            'start')
+        const french = await add_preview_strip(await source.save(), '150mm',
+            'Ceci n\'est qu\'un aperçu', 'Créez le document pour voir la version finale',
+            'start', [TITLE, SUBTITLE])
+        // Different words drawn, so different bytes
+        expect(french.length).not.toBe(english.length)
+    })
+
 })

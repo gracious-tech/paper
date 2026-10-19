@@ -1,8 +1,17 @@
 {
-  "/paper.bible/": "Product name. Never translate. Keep the surrounding slashes when the source has them.",
-  "Bible": "Use the locale's standard word for the Christian scriptures.",
-  "design": "A saved document configuration owned by the user. Keep one consistent noun across the whole UI.",
-  "version": "An immutable rendered snapshot of a design. Must stay distinct from \"design\".",
-  "booklet": "A folded-and-stapled print format. Use the locale's bookbinding term.",
-  "cover": "The wraparound book cover (front, spine and rear)."
+  "/paper.bible/": {"note": "Product name as a stylised URL. Never translate; keep the surrounding slashes.", "keep": true},
+  "Paper Bible": {"note": "Product name. Never translate.", "keep": true},
+  "Lulu": {"note": "A print-on-demand company (lulu.com). Never translate.", "keep": true},
+  "Google": {"note": "Company name (as in \"Sign in with Google\"). Never translate.", "keep": true},
+  "Tyndale": {"note": "Tyndale House, the publisher of the study notes. Never translate.", "keep": true},
+  "PDF": {"note": "The file format. Keep as PDF unless the locale has a standard different abbreviation."},
+  "Bible": {"note": "Use the locale's standard word for the Christian scriptures."},
+  "design": {"note": "A saved, editable document configuration owned by the user (the things listed under \"Designs\"). Keep one consistent noun across the whole UI."},
+  "version": {"note": "An immutable rendered snapshot of a design (a built PDF). Must stay distinct from \"design\", and from a Bible translation."},
+  "translation": {"note": "A Bible translation (e.g. a particular English or Spanish Bible), not the act of translating the UI."},
+  "passage": {"note": "A selected range of Bible text, e.g. John 3:1-21."},
+  "booklet": {"note": "A folded-and-stapled print format. Use the locale's bookbinding term."},
+  "cover": {"note": "The wraparound book cover (front, spine and rear)."},
+  "binding": {"note": "How the printed pages are held together (perfect-bound, saddle-stitched, coil)."},
+  "picture story": {"note": "A content type: a sequence of illustrated slides retelling a Bible story."}
 }

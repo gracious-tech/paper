@@ -1,5 +1,6 @@
 
 // Access to data created by the PREVIOUS version of Paper Bible (pre-Firebase)
+// English only, like DialogLegacy.vue, since it's all removed together (i18n-ignore-file)
 //
 // The old app kept everything in an IndexedDB database on the client and rendered PDFs into an
 // AWS S3 bucket. None of that is migrated into the new app, so this module exists purely to let

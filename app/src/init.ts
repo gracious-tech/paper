@@ -13,7 +13,7 @@ import '@fontsource-variable/roboto'  // Vuetify's UI font (see --v-font-body in
 import './styles.sss'
 import 'vuetify/styles'
 
-import {createApp, defineAsyncComponent} from 'vue'
+import {createApp, defineAsyncComponent, watch} from 'vue'
 import {createVuetify} from 'vuetify'
 import {md3} from 'vuetify/blueprints'
 import CheckboxBlank from '@material-symbols/svg-400/rounded/check_box_outline_blank.svg'
@@ -31,11 +31,13 @@ import AppIcon from './comp/global/AppIcon.vue'
 import AppColor from './comp/global/AppColor.vue'
 import AppFontSelect from './comp/global/AppFontSelect.vue'
 import AppOptionToggle from './comp/global/AppOptionToggle.vue'
+import AppSentence from './comp/global/AppSentence.vue'
 import AppRoot from './comp/AppRoot.vue'
-import locales_meta from './locales.json'
-import {i18n, load_locale, translate} from '@/services/i18n'
+import {i18n, load_locale, translate, initial_locale, locale, locale_dir, vuetify_messages, LOCALES,
+    SOURCE_LOCALE} from '@/services/i18n'
 import {show_toast, report_failure, health} from '@/services/state'
-import {detect_locale} from '@/services/locale'
+import {locale_to_bcp47} from '@/services/locale'
+import {firebase_auth} from '@/services/firebase'
 import {router} from '@/services/router'
 import {ensure_signed_in, is_email_link, stored_email_for_link, complete_email_link}
     from '@/services/auth'
@@ -45,7 +47,7 @@ import {content, bible_content, load_fonts} from '@/services/content'
 import {typst_generator, TypstWorkerClient, ASSETS_PREFIX} from '@/services/typst'
 import {custom_fonts} from '@/services/custom_fonts'
 import {start_watchers} from '@/services/watchers'
-import {report_error, vue_error_handler} from '@/services/errors'
+import {report_error, vue_error_handler, set_error_translator} from '@/services/errors'
 
 
 // Create app
@@ -59,22 +61,33 @@ app.component('AppProse', defineAsyncComponent(() => import('./comp/global/AppPr
 app.component('AppColor', AppColor)
 app.component('AppFontSelect', AppFontSelect)
 app.component('AppOptionToggle', AppOptionToggle)
+app.component('AppSentence', AppSentence)
 
 
-// Register i18n — eng is bundled as the fallback, the detected locale is fetched on demand
+// Register i18n — eng is bundled as the fallback, the user's locale is fetched during boot (see
+// below) so the first paint is already in their language
 app.use(i18n)
-const app_locale = detect_locale(locales_meta.supported)
-if (app_locale !== 'eng'){
-    void load_locale(app_locale).catch(() => {
+set_error_translator(translate)
+const app_locale = initial_locale()
+const locale_ready = app_locale === SOURCE_LOCALE ? Promise.resolve() : load_locale(app_locale)
+    .catch((error:unknown) => {
         // Non-essential — the app stays usable in English
-        console.error(`Failed to load i18n for ${app_locale}`)
+        report_error('silent', error, {context: {stage: 'load_locale', locale: app_locale}})
     })
-}
 
 
 // Add Vuetify
-app.use(createVuetify({
+const vuetify = createVuetify({
     blueprint: md3,
+    // Vuetify's own strings come from our catalogs (see vuetify_messages), and its RTL layout
+    // follows each locale's declared direction
+    locale: {
+        locale: SOURCE_LOCALE,
+        fallback: SOURCE_LOCALE,
+        messages: {[SOURCE_LOCALE]: vuetify_messages(SOURCE_LOCALE)},
+        rtl: Object.fromEntries(
+            Object.keys(LOCALES).map(code => [code, locale_dir(code) === 'rtl'])),
+    },
     theme: {
         defaultTheme: 'custom',
         themes: {
@@ -132,7 +145,20 @@ app.use(createVuetify({
             success: CheckCircle,
         },
     },
-}))
+})
+app.use(vuetify)
+
+
+// Everything outside our own catalogs that also has to follow the active locale: the page's
+// lang/dir (screen readers, hyphenation, RTL layout), Vuetify's strings, and the language of
+// the emails Firebase Auth sends (sign-in links)
+watch(locale, code => {
+    document.documentElement.lang = locale_to_bcp47(code)
+    document.documentElement.dir = locale_dir(code)
+    vuetify.locale.messages.value[code] = vuetify_messages(code)
+    vuetify.locale.current.value = code
+    firebase_auth.languageCode = locale_to_bcp47(code)
+}, {immediate: true})
 
 
 // Wait for critical services before mounting. Anything that fails here leaves the app unable to
@@ -140,12 +166,13 @@ app.use(createVuetify({
 void (async () => {
 
     // Sign in (anonymously if no persisted user) and init the Bible-content layer in parallel
-    // (auth must resolve before any Firestore/Storage access below).
+    // (auth must resolve before any Firestore/Storage access below), with the UI catalog
+    // alongside them since it costs nothing extra there and avoids an English first paint.
     // NOTE The content layer can't be deferred past the mount: the designs layer reads
     // `content.collection`/`content.translations` throughout (clean_blueprint and
     // get_default_blueprint in blueprints.ts, content_summary via meta_from_doc), so nothing
     // below this line can run without it
-    await Promise.all([ensure_signed_in(), bible_content.init()])
+    await Promise.all([ensure_signed_in(), bible_content.init(), locale_ready])
 
     // If arriving via a passwordless email sign-in link, take the URL now and clean it — the
     // code is single-use, so if the address stayed sign-in-shaped every later refresh would

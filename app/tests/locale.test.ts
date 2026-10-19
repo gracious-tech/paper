@@ -6,7 +6,8 @@
 
 import {describe, it, expect, afterEach, vi} from 'vitest'
 
-import {bcp47_to_locale, locale_to_bcp47, country_namer, detect_locale} from '@/services/locale'
+import {bcp47_to_locale, locale_to_bcp47, country_namer, detect_locale, intl_tag}
+    from '@/services/locale'
 
 
 afterEach(() => {
@@ -141,5 +142,19 @@ describe('country_namer', () => {
         const name = country_namer('xyz')
         expect(typeof name('au')).toBe('string')
         expect(name('au').length).toBeGreaterThan(0)
+    })
+})
+
+
+describe('intl_tag', () => {
+
+    it('keeps the browser\'s regional tag for the same language', () => {
+        set_browser_languages(['en-GB', 'vi'])
+        expect(intl_tag('eng')).toBe('en-GB')
+    })
+
+    it('falls back to the bare tag when the browser doesn\'t ask for that language', () => {
+        set_browser_languages(['fr-FR'])
+        expect(intl_tag('vie')).toBe('vi')
     })
 })

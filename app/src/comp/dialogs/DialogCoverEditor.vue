@@ -34,9 +34,14 @@ import {cover_form_for_render, get_cover_title, get_cover_title_from_form,
     is_known_builtin_background} from 'paper-bible-typst'
 
 import type {EmbedFormState} from 'bookcover-core'
-import type {InitMessage, HostMessage, WidgetMessage} from 'bookcover-web'
+import type {InitMessage, HostMessage, WidgetMessage, AppLocale} from 'bookcover-web'
 import type {CoverBgSuggestion} from '@/services/asset_suggestions'
 import type {CoverConfig} from '@/services/types'
+
+
+// The locales the bookcover widget itself is translated into (its own catalogs, in the bookcover
+// repo); any other locale gets the widget in English
+const COVER_LOCALES:AppLocale[] = ['eng', 'vie']
 
 
 const {t, locale} = useI18n()
@@ -117,7 +122,7 @@ const send_init = async () => {
         finished_mode: true,
         hide_size_section: true,
         bg_suggestions: suggestions.map(({path, url, label}) => ({id: path, url, label})),
-        locale: locale.value.startsWith('vi') ? 'vie' : 'eng',
+        locale: COVER_LOCALES.find(code => code === locale.value) ?? 'eng',
     }
     frame_window.postMessage(message, COVER_EDITOR_ORIGIN)
     loaded.value = true

@@ -222,14 +222,13 @@ async function compile(){
         // marker when content before the window was dropped. The end strip is only added when
         // content past the window was dropped.
         const [start_title, start_subtitle] = truncation.dropped_before
-            ? [t("display.preview.start_of_preview"), t("display.preview.build_for_rest")]
-            : [t("display.preview.banner_title"), t("display.preview.banner_subtitle")]
+            ? ['display.preview.start_of_preview', 'display.preview.build_for_rest']
+            : ['display.preview.banner_title', 'display.preview.banner_subtitle']
         bytes = await generator.preview_strip(
             bytes, truncation.request.page.width, start_title, start_subtitle, 'start')
         if (truncation.dropped_after){
-            bytes = await generator.preview_strip(
-                bytes, truncation.request.page.width,
-                t("display.preview.end_of_preview"), t("display.preview.build_for_rest"), 'end')
+            bytes = await generator.preview_strip(bytes, truncation.request.page.width,
+                'display.preview.end_of_preview', 'display.preview.build_for_rest', 'end')
         }
         if (run !== latest_run){
             return

@@ -85,6 +85,10 @@ let splash_displayed = false
 // (this module must stay import-first and dependency-free, so it can't import auth itself)
 let auth_token_getter:(() => Promise<string|null>)|null = null
 
+// Translator for the failure splash, set via `set_error_translator()` once i18n is registered
+// (same reason as above). Until then, or if the failure was i18n's own, the splash is English
+let splash_translate:((key:string) => string)|null = null
+
 
 // UTILS
 
@@ -153,15 +157,18 @@ function show_error_splash(debug=''):void{
     splash_displayed = true
     const container = make_element('div')
     container.className = 'fail-splash'
-    const link = make_element('a', "Let us know")
+    // The English fallbacks are deliberate: this can be reached before i18n exists
+    const t = (key:string, english:string) => splash_translate?.(key) ?? english
+    const link = make_element('a', t('app.error_report', "Let us know"))  // i18n-ignore
     link.href = `https://gracious.tech/contact?desc=${encodeURIComponent(debug)}`
     link.target = '_blank'
     link.rel = 'noopener'
     const paragraph = make_element('p')
     paragraph.append(link)
-    const button = make_element('button', "RELOAD")
+    const button = make_element('button', t('common.reload', "Reload"))  // i18n-ignore
     button.addEventListener('click', () => {location.reload()})
-    container.append(make_element('h1', "Something went wrong"), paragraph, button)
+    const title = make_element('h1', t('app.error_title', "Something went wrong"))  // i18n-ignore
+    container.append(title, paragraph, button)
     document.body.prepend(container)
 }
 
@@ -185,6 +192,12 @@ function show_unsupported():void{
 export function set_error_auth(getter:() => Promise<string|null>):void{
     // Provide a token getter so error reports carry the user's uid (set once auth initialised)
     auth_token_getter = getter
+}
+
+
+export function set_error_translator(translate:(key:string) => string):void{
+    // Let the failure splash speak the user's language (set once i18n is registered)
+    splash_translate = translate
 }
 
 

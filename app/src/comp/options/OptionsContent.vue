@@ -52,12 +52,12 @@ import type {Story} from '@/services/stories'
 const {t} = useI18n()
 
 
-const type_label:Record<string, string> = {
+const type_label = computed<Record<string, string>>(() => ({
     passage: t("common.passage"),
     custom: t("common.text"),
     title: t("options.content.title_page"),
     picture_story: t("options.content.picture_story"),
-}
+}))
 
 
 const warnings = computed(() => {
@@ -158,7 +158,7 @@ const add_copyright = () => {
     blue.content.push(reactive({
         type: 'custom',
         id: generate_token(),
-        name: "Copyright",
+        name: t("common.copyright"),
         doc: {type: 'doc', content: [
             {type: 'paragraph', content: [{type: 'text', text: 'AUTO-COPYRIGHT'}]},
         ]},

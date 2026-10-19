@@ -54,7 +54,7 @@ v-dialog(:model-value='mode !== null' @update:model-value='cancel' :fullscreen='
 
 import {computed, reactive, ref, watch} from 'vue'
 import {cloneDeep} from 'lodash-es'
-import {useI18n} from '@/services/i18n'
+import {useI18n, count_phrase} from '@/services/i18n'
 import {useRouter} from 'vue-router'
 
 import {state, confirm_dialog, report_failure} from '@/services/state'
@@ -150,7 +150,7 @@ const books_selected_label = computed(() => {
     } else if (draft.type === 'picture_story'){
         count = draft.stories.length
     }
-    return `${count} ${t("wizard.included")}`
+    return count_phrase(t, 'wizard.included', count)
 })
 
 

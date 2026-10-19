@@ -82,7 +82,7 @@ const whole_bible = computed(() => books.length > 0 && draft.books.length >= boo
 
 
 // Hint passed to <NewDesignPassages> for the "specify exact passages" input
-const passages_hint = t('wizard.passages.hint')
+const passages_hint = computed(() => t('wizard.passages.hint'))
 
 
 // Toggle a single book in/out of the selection

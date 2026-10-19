@@ -66,7 +66,7 @@ const {t} = useI18n()
 
 
 // Hint passed to <NewDesignPassages> for the "specify exact passages" input
-const passages_hint = t('wizard.passages.hint_with_images')
+const passages_hint = computed(() => t('wizard.passages.hint_with_images'))
 
 
 // Loaded data (fetched once per mount; the wizard resets on every open so no need to cache

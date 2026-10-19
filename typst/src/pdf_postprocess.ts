@@ -389,10 +389,11 @@ const PREVIEW_STRIP_FILL = rgb(1, 0.878, 0.698)
 // is 80% of a trim page wide and only tall enough for its text plus padding, on a light orange
 // ground, so it reads as a note rather than a page of content. Called after every other
 // assembly step (cover merge included) so it always lands at the very edge of the document, in
-// every view and section. Text is passed in already translated (this package has no i18n).
+// every view and section. Text is passed in already translated (this package has no i18n),
+// along with an English `fallback` for text the strip's fonts can't draw (see below).
 export async function add_preview_strip(
     pdf_bytes:Uint8Array, page_width:string, title:string, subtitle:string,
-    position:'start'|'end',
+    position:'start'|'end', fallback?:[string, string],
 ):Promise<Uint8Array> {
 
     const doc = await PDFDocument.load(pdf_bytes)
@@ -401,6 +402,12 @@ export async function add_preview_strip(
 
     const bold = await doc.embedFont(StandardFonts.HelveticaBold)
     const regular = await doc.embedFont(StandardFonts.Helvetica)
+
+    // pdf-lib's built-in fonts only encode WinAnsi (roughly Latin-1), so text in most other
+    // languages would throw and take the whole preview down — it gets the English instead
+    if (fallback && !(can_encode(bold, title) && can_encode(regular, subtitle))) {
+        [title, subtitle] = fallback
+    }
 
     // Shrink the type if the wider of the two lines wouldn't fit within the padded width
     let title_size = PREVIEW_STRIP_TITLE_SIZE
@@ -444,6 +451,17 @@ export async function add_preview_strip(
     })
 
     return doc.save()
+}
+
+
+// Whether a font can draw every character of `text`
+function can_encode(font:PDFFont, text:string):boolean {
+    try {
+        font.encodeText(text)
+        return true
+    } catch {
+        return false
+    }
 }
 
 

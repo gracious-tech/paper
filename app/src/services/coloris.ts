@@ -16,7 +16,7 @@ let initialised = false
 
 // Configure Coloris once. `swatch_label` is the (translated) heading for the row of the open
 // design's own colors — passed in because this module has no component scope for $t
-export function init_coloris(swatch_label:string):void{
+export function init_coloris(swatch_label:() => string):void{
     if (initialised){
         return
     }
@@ -26,7 +26,7 @@ export function init_coloris(swatch_label:string):void{
     // deliberately not a reactive watch, so the row can't shift under the user while they're
     // still picking a color from it
     const apply_swatches = () => {
-        Coloris({swatchGroups: [{label: swatch_label, colors: design_colors()}]})
+        Coloris({swatchGroups: [{label: swatch_label(), colors: design_colors()}]})
     }
 
     Coloris({

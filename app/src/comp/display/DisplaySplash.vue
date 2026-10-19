@@ -5,6 +5,7 @@ div.cont
 
     h1(class='mb-12')
         BrandIcon
+        //- The product name is never translated (i18n-ignore)
         | Paper Bible
 
     h2 {{$t("display.splash.tagline")}}

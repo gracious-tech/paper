@@ -75,11 +75,13 @@ export function stage_text(event:CompileProgress, t:Translate):string|null {
     if (event.stage === 'start'){
         return t("display.preview.getting_started") + "…"
     }
+    // Fetch and compile events always carry the book (label) and the step counts
+    const step = {label: event.label ?? '', i: event.i ?? 0, total: event.total ?? 0}
     if (event.stage === 'fetch'){
-        return `${t("display.preview.downloading")} ${event.label} (${event.i}/${event.total})`
+        return t("display.preview.downloading", step)
     }
     if (event.stage === 'compile'){
-        return `${t("display.preview.writing")} ${event.label} (${event.i}/${event.total})`
+        return t("display.preview.writing", step)
     }
     if (event.stage === 'finalize'){
         return t("display.preview.final_touches") + "…"

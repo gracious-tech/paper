@@ -30,6 +30,7 @@ v-card-text(class='overflow-y-auto')
     v-list(v-else)
         //- NOTE @click='' needed to make Vuetify show cursor etc as if clickable
         v-list-item(v-if='displayed_language === "eng"' base-color='warning' @click='')
+            //- Not words to translate (i18n-ignore)
             v-list-item-title NIV / ESV / NLT / ...
             DialogPeddlers
         template(v-for='trans of translations')
@@ -55,6 +56,7 @@ v-card-text(class='overflow-y-auto')
 import {computed, ref, watch} from 'vue'
 
 import {content} from '@/services/content'
+import {useI18n} from '@/services/i18n'
 import DialogPeddlers from '@/comp/dialogs/DialogPeddlers.vue'
 import DialogMissingTranslation from '@/comp/dialogs/DialogMissingTranslation.vue'
 
@@ -66,6 +68,7 @@ import type {GetResourcesItem} from '@gracious.tech/fetch-client'
 // new-design wizard) — selection is emitted only, the host decides what to do with it
 const props = defineProps<{modelValue:string|null}>()
 const emit = defineEmits<{(e:'update:modelValue', id:string):void}>()
+const {t} = useI18n()
 
 
 // Constants
@@ -98,7 +101,7 @@ const translations = computed(() => {
     // Add in separate groups
     const items:(GetResourcesItem|string)[] = decent
     if (niche.length){
-        items.push("Historical & Niche Translations")
+        items.push(t("common.niche_translations"))
         items.push(...niche)
     }
     return items

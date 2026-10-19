@@ -12,12 +12,12 @@ v-dialog(v-model='dialog' activator='parent' max-width='420' :fullscreen='is_mob
                     p(class='font-weight-bold') {{$t("dialog.fonts.google_howto")}}
                     ol(class='d-flex flex-column ga-1 pl-4')
                         li
-                            | {{$t("dialog.fonts.visit")}}
-                            |
-                            a(href='https://fonts.google.com' target='_blank'
-                                rel='noopener') fonts.google.com
-                            |
-                            | {{$t("dialog.fonts.find_family")}}
+                            AppSentence(:text='$t("dialog.fonts.visit_site")')
+                                template(#site)
+                                    a(href='https://fonts.google.com' target='_blank'
+                                            rel='noopener')
+                                        //- Not words to translate (i18n-ignore)
+                                        | fonts.google.com
                         li {{$t('dialog.fonts.get_font_step')}}
                         li {{$t("dialog.fonts.upload_zip")}}
 
@@ -27,6 +27,7 @@ v-dialog(v-model='dialog' activator='parent' max-width='420' :fullscreen='is_mob
                     @dragleave.prevent='is_dragging = false' @drop.prevent='on_drop')
                     AppIcon(name='upload')
                     span {{$t("dialog.fonts.drop_files")}}
+                    //- Not words to translate (i18n-ignore)
                     span(class='text-body-small text-medium-emphasis') .zip, .ttf, .otf
                     input(ref='file_input' type='file' accept='.zip,.ttf,.otf' multiple
                         class='d-none' @change='on_file_select')

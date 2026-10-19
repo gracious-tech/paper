@@ -15,7 +15,7 @@ div.grid
 //- Home branch: just the printer's paper size (booklet folding is on by default, no option)
 template(v-if='draft.service_id === "home"')
     div(class='mt-4 text-medium-emphasis') {{ $t("wizard.print.paper_size") }}
-    AppOptionToggle(v-model='home_size_id' :items='HOME_SIZE_OPTIONS' class='mt-2')
+    AppOptionToggle(v-model='home_size_id' :items='home_size_options' class='mt-2')
 
 //- Professional branch: always Lulu, binding is implied by the design type — the only
 //- choice offered here is the book's trim size, with a comparison image for scale
@@ -66,10 +66,10 @@ if (draft.service_id === 'home' && draft.size_id === null){
 
 
 // Home paper sizes (the printer's sheet, not a book trim size)
-const HOME_SIZE_OPTIONS = [
-    {value: 'a4', title: "A4"},
-    {value: 'us_letter', title: "US Letter"},
-]
+const home_size_options = computed(() => [
+    {value: 'a4', title: 'A4'},
+    {value: 'us_letter', title: t("common.us_letter")},
+])
 
 
 // Bridge the toggle (always a string) to draft.size_id, which is null until a size is picked.

@@ -2,6 +2,7 @@
 <template lang='pug'>
 
 //- English only, like the commercial translations it explains, so not run through i18n
+//- (i18n-ignore-file)
 div
     p(class='text-body-large').
         In 2023 we asked the owners of popular English translations for permission to include them

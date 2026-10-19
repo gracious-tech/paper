@@ -1,6 +1,9 @@
 
 import {debounce as lodash_debounce} from 'lodash-es'
 
+import {locale} from '@/services/i18n'
+import {intl_tag} from '@/services/locale'
+
 
 export function buffer_to_url64(buffer:ArrayBuffer):string{
     // Encode binary data as a url-safe base64 string
@@ -56,7 +59,7 @@ export function debounce<T>(fn:T, ms=500){
 
 export function format_datetime(date:Date):string{
     // The app's canonical exact date + time rendering (locale-aware, e.g. "2 Sep 2026, 14:30")
-    return date.toLocaleString(undefined, {dateStyle: 'medium', timeStyle: 'short'})
+    return date.toLocaleString(intl_tag(locale.value), {dateStyle: 'medium', timeStyle: 'short'})
 }
 
 
@@ -64,7 +67,8 @@ export function format_relative_time(date:Date):string{
     // Human-friendly "time ago" (e.g. "3 hours ago", "2 weeks ago") for recent dates, falling
     // back to a plain date once a relative count stops being useful
     const seconds = (Date.now() - date.getTime()) / 1000
-    const rtf = new Intl.RelativeTimeFormat(undefined, {numeric: 'auto'})
+    const tag = intl_tag(locale.value)
+    const rtf = new Intl.RelativeTimeFormat(tag, {numeric: 'auto'})
     const minutes = seconds / 60
     const hours = minutes / 60
     const days = hours / 24
@@ -81,7 +85,7 @@ export function format_relative_time(date:Date):string{
     } else if (weeks < 8){
         return rtf.format(-Math.round(weeks), 'week')
     } else if (months < 12){
-        return date.toLocaleDateString(undefined, {month: 'short', day: 'numeric'})
+        return date.toLocaleDateString(tag, {month: 'short', day: 'numeric'})
     }
-    return date.toLocaleDateString()
+    return date.toLocaleDateString(tag)
 }

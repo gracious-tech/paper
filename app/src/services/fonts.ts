@@ -14,9 +14,6 @@ export type FontItem = string | {type:'subheader', title:string}
     | {title:string, value:string|null}
 
 
-// Shown in a font picker item when no real example text is available yet
-export const DEFAULT_FONT_EXAMPLE = "In the beginning God created the heavens and the earth."
-
 
 // The "Styles" group (decorative/display faces) is always sorted after the more useful
 // text-face groups, regardless of its position in the manifest

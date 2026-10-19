@@ -5,24 +5,28 @@
 //  - drops orphan keys (no longer in eng.json) from each locale and its base file
 //  - drops base entries whose key is no longer translated
 //
-// With --bless it also records the current English as the translation base for keys that
-// look translated (value differs from English), or for the specific keys passed after it.
-// Run --bless straight after finishing a batch of translations so `status` shows them current.
-// Usage: node app/i18n/sync.ts [--bless [key ...]]
+// With --bless <key ...> it also marks those keys' existing translations as current for the
+// English they now have, in every locale — for an English edit that doesn't change the meaning
+// (a typo, punctuation), where retranslating would be wasted. Anything else goes through
+// .bin/i18n_job + .bin/i18n_apply, which record the base themselves.
+// Usage: node app/i18n/sync.ts [--bless key ...]
 
-import {
-    SOURCE_LOCALE, read_meta, read_catalog, write_catalog, locale_path, base_path,
-} from './lib.ts'
+import {SOURCE_LOCALE, read_meta, read_catalog, write_catalog, locale_path, base_path}
+    from './lib.ts'
 
 const args = process.argv.slice(2)
 const bless = args.includes('--bless')
 const bless_keys = args.filter(a => !a.startsWith('--'))
+if (bless && !bless_keys.length){
+    console.error('--bless needs the keys to bless (blessing everything would hide real staleness)')
+    process.exit(1)
+}
 
 const eng = read_catalog(locale_path(SOURCE_LOCALE))
 write_catalog(locale_path(SOURCE_LOCALE), eng)
 const meta = read_meta()
 
-for (const loc of meta.supported){
+for (const loc of meta.targets){
     const target = read_catalog(locale_path(loc))
     const base = read_catalog(base_path(loc))
 
@@ -36,28 +40,17 @@ for (const loc of meta.supported){
             continue
         }
         clean_target[key] = value
-        // Carry an existing base forward; --bless refreshes it (below)
         if (base[key] !== undefined){
             clean_base[key] = base[key]!
         }
     }
 
-    // Optionally record the current English as the base for translated keys
+    // Mark the named keys as translated from the current English
     let blessed = 0
-    if (bless){
-        const targets = bless_keys.length ? bless_keys : Object.keys(clean_target)
-        for (const key of targets){
-            if (clean_target[key] === undefined){
-                continue
-            }
-            if (bless_keys.length === 0 && clean_target[key] === eng[key]){
-                // Skip entries that are still identical to English (not really translated)
-                continue
-            }
-            if (clean_base[key] !== eng[key]){
-                clean_base[key] = eng[key]!
-                blessed++
-            }
+    for (const key of bless_keys){
+        if (clean_target[key] !== undefined && clean_base[key] !== eng[key]){
+            clean_base[key] = eng[key]!
+            blessed++
         }
     }
 
@@ -67,5 +60,5 @@ for (const loc of meta.supported){
     const missing = Object.keys(eng).filter(k => clean_target[k] === undefined).length
     console.log(`${loc}: ${Object.keys(clean_target).length} entries, ${missing} missing`
         + (orphans ? `, ${orphans} orphan(s) removed` : '')
-        + (bless ? `, ${blessed} base(s) blessed` : ''))
+        + (bless ? `, ${blessed} blessed` : ''))
 }

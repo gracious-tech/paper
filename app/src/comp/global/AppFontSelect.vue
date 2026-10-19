@@ -29,7 +29,7 @@ import {computed, ref} from 'vue'
 import {useI18n} from '@/services/i18n'
 
 import {content} from '@/services/content'
-import {font_items, font_items_with_auto, DEFAULT_FONT_EXAMPLE} from '@/services/fonts'
+import {font_items, font_items_with_auto} from '@/services/fonts'
 import {font_suggestions, adopt_font} from '@/services/asset_suggestions'
 import {current_design_id} from '@/services/designs'
 import {report_failure} from '@/services/state'
@@ -51,7 +51,8 @@ const {t} = useI18n()
 const font_items_auto = font_items_with_auto(t)
 const items = computed(() => props.auto ? font_items_auto.value : font_items.value)
 
-const example_text = computed(() => content.example_text[props.example] || DEFAULT_FONT_EXAMPLE)
+// Shown in each font item; the UI's own Genesis 1:1 stands in until the Bible's text is loaded
+const example_text = computed(() => content.example_text[props.example] || t("common.font_example"))
 
 // Whether a font picked from another design is still being copied into this one
 const copying = ref(false)

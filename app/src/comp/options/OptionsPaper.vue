@@ -114,17 +114,17 @@ use_page_estimate_while_mounted()
 
 
 // A4 / US Letter choice for home printing
-const home_size_items = [
-    {value: 'a4', title: "A4"},
-    {value: 'us_letter', title: "US Letter"},
-]
+const home_size_items = computed(() => [
+    {value: 'a4', title: 'A4'},
+    {value: 'us_letter', title: t("common.us_letter")},
+])
 
 
-// Measurement unit for custom dimensions (literal labels, not translated)
-const custom_unit_items = [
-    {value: 'mm', title: "mm"},
-    {value: 'inch', title: "inch"},
-]
+// Measurement unit for custom dimensions ("mm" is the same everywhere, "inch" isn't)
+const custom_unit_items = computed(() => [
+    {value: 'mm', title: 'mm'},
+    {value: 'inch', title: t("common.unit_inch")},
+])
 
 
 // The unit toggle's value — setting it converts the existing measurements to the new unit

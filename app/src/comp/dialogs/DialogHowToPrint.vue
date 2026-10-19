@@ -65,31 +65,31 @@ v-dialog(v-model='open' max-width='850' scrollable :fullscreen='is_mobile')
 
                 h4(class='text-title-small') {{ $t("dialog.how_to_print.lulu_color_h") }}
                 p(class='text-body-medium')
-                    | {{ $t("dialog.how_to_print.lulu_color_p_1") }}
-                    em {{ $t("dialog.how_to_print.lulu_color_bw") }}
-                    | {{ $t("dialog.how_to_print.lulu_color_p_2") }}
-                    em {{ $t("dialog.how_to_print.lulu_color_std") }}
-                    | {{ $t("dialog.how_to_print.lulu_color_p_3") }}
+                    AppSentence(:text='$t("dialog.how_to_print.lulu_color_p")')
+                        template(#bw)
+                            em {{ $t("dialog.how_to_print.lulu_color_bw") }}
+                        template(#color)
+                            em {{ $t("dialog.how_to_print.lulu_color_std") }}
 
                 h4(class='text-title-small mt-4') {{ $t("dialog.how_to_print.lulu_paper_h") }}
                 p(class='text-body-medium')
-                    | {{ $t("dialog.how_to_print.lulu_paper_p_1") }}
-                    em {{ $t("dialog.how_to_print.lulu_paper_60") }}
-                    | {{ $t("dialog.how_to_print.lulu_paper_p_2") }}
-                    em {{ $t("dialog.how_to_print.lulu_paper_cream") }}
-                    | {{ $t("dialog.how_to_print.lulu_paper_p_3") }}
-                    em {{ $t("dialog.how_to_print.lulu_paper_white") }}
-                    | {{ $t("dialog.how_to_print.lulu_paper_p_4") }}
-                    em {{ $t("dialog.how_to_print.lulu_paper_80") }}
-                    | {{ $t("dialog.how_to_print.lulu_paper_p_5") }}
+                    AppSentence(:text='$t("dialog.how_to_print.lulu_paper_p")')
+                        template(#light)
+                            em {{ $t("dialog.how_to_print.lulu_paper_60") }}
+                        template(#cream)
+                            em {{ $t("dialog.how_to_print.lulu_paper_cream") }}
+                        template(#white)
+                            em {{ $t("dialog.how_to_print.lulu_paper_white") }}
+                        template(#heavy)
+                            em {{ $t("dialog.how_to_print.lulu_paper_80") }}
 
                 h4(class='text-title-small mt-4') {{ $t("dialog.how_to_print.lulu_finish_h") }}
                 p(class='text-body-medium')
-                    | {{ $t("dialog.how_to_print.lulu_finish_p_1") }}
-                    em {{ $t("dialog.how_to_print.lulu_finish_glossy") }}
-                    | {{ $t("dialog.how_to_print.lulu_finish_p_2") }}
-                    em {{ $t("dialog.how_to_print.lulu_finish_matte") }}
-                    | {{ $t("dialog.how_to_print.lulu_finish_p_3") }}
+                    AppSentence(:text='$t("dialog.how_to_print.lulu_finish_p")')
+                        template(#glossy)
+                            em {{ $t("dialog.how_to_print.lulu_finish_glossy") }}
+                        template(#matte)
+                            em {{ $t("dialog.how_to_print.lulu_finish_matte") }}
 
 
             //- Any other printing service (and the manual "Custom" service)
@@ -204,8 +204,7 @@ const lulu_steps = computed<[WalkthroughStep, ...WalkthroughStep[]]>(() => [
     {video: '/walkthrough/lulu/lulu4.mp4', label: 'dialog.how_to_print.lulu_walk_4_label',
         title: 'dialog.how_to_print.lulu_walk_4_title',
         body: 'dialog.how_to_print.lulu_walk_4_body',
-        warning: {before: 'dialog.how_to_print.lulu_walk_4_warning_1',
-            after: 'dialog.how_to_print.lulu_walk_4_warning_2', value: lulu_binding_name.value}},
+        warning: {text: 'dialog.how_to_print.lulu_walk_4_warning', value: lulu_binding_name.value}},
     {video: '/walkthrough/lulu/lulu5.mp4', label: 'dialog.how_to_print.lulu_walk_5_label',
         title: 'dialog.how_to_print.lulu_walk_5_title',
         body: 'dialog.how_to_print.lulu_walk_5_body',

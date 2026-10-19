@@ -1,1 +1,26 @@
-{}
+{
+  "app.beta": "A small badge beside the app's name in the header, marking it as a beta release.",
+  "common.end": "A toggle button choosing which part of a long document the live preview shows: its end.",
+  "common.home": "A back button on the About and Privacy pages that returns to the app's main page (the list of designs).",
+  "common.start": "A toggle button choosing which part of a long document the live preview shows: its start.",
+  "common.us_letter": "The North American paper size (8.5 × 11 in), offered beside A4.",
+  "dialog.account.delete_word": "The word the user must type to confirm deleting their account; it is also inserted into dialog.account.delete_confirm as {word}. Use a single word in capitals where the script has them.",
+  "dialog.fonts.get_font_step": "\"Get font\" and \"Download all\" are button names on Google Fonts' website; keep them as that site shows them.",
+  "dialog.how_to_print.lulu_color_bw": "The exact name of an option on Lulu's English-only website, which the user has to find there. Keep it in English as Lulu shows it.",
+  "dialog.how_to_print.lulu_color_std": "The exact name of an option on Lulu's English-only website, which the user has to find there. Keep it in English as Lulu shows it.",
+  "dialog.how_to_print.lulu_finish_glossy": "The exact name of an option on Lulu's English-only website, which the user has to find there. Keep it in English as Lulu shows it.",
+  "dialog.how_to_print.lulu_finish_matte": "The exact name of an option on Lulu's English-only website, which the user has to find there. Keep it in English as Lulu shows it.",
+  "dialog.how_to_print.lulu_paper_60": "The exact name of an option on Lulu's English-only website (60 lb paper). Keep it as Lulu shows it.",
+  "dialog.how_to_print.lulu_paper_80": "The exact name of an option on Lulu's English-only website (80 lb paper). Keep it as Lulu shows it.",
+  "dialog.how_to_print.lulu_paper_cream": "The exact name of an option on Lulu's English-only website, which the user has to find there. Keep it in English as Lulu shows it.",
+  "dialog.how_to_print.lulu_paper_white": "The exact name of an option on Lulu's English-only website, which the user has to find there. Keep it in English as Lulu shows it.",
+  "svc.blueprint.service_home": "The chosen printing service when printing at home on your own printer (not a booklet) — shown as a short label in design summaries.",
+  "vuetify.close": "Screen-reader label for a close button on an alert or chip.",
+  "vuetify.dismiss": "Screen-reader label for a button that dismisses a notice.",
+  "vuetify.input.appendAction": "Screen-reader label for an icon button at the end of a field; {0} is the field's label.",
+  "vuetify.input.clear": "Screen-reader label for the button that clears a text field; {0} is the field's label.",
+  "vuetify.input.prependAction": "Screen-reader label for an icon button at the start of a field; {0} is the field's label.",
+  "vuetify.loading": "Screen-reader label for a loading spinner.",
+  "vuetify.noDataText": "Shown inside a dropdown list that has no items to choose from.",
+  "vuetify.open": "Screen-reader label for the button that opens a dropdown list."
+}

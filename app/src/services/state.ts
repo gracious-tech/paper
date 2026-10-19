@@ -52,6 +52,9 @@ export const state = reactive({
     // Whether the account dialog is open — set by the header's account button and by any flow
     // that needs a guest to sign in first (e.g. inviting an editor), rendered by DialogAccount
     account: false,
+    // Whether the language picker is open — set by the header's menu, rendered by
+    // DialogLanguage (mounted in AppRoot)
+    language: false,
     // The version whose "How to print" guidance is being shown (null = hidden) — set by the
     // "How to print" buttons in the version preview toolbar (DisplayDesignVersion) and the
     // mobile action row (DesignVersionsList), rendered by DialogHowToPrint (in AppRoot).

@@ -14,9 +14,9 @@ div.walkthrough
     div.caption
         h4(class='text-title-medium') {{ $t(current.title) }}
         p(v-if='current.warning' class='text-body-medium warning')
-            | {{ $t(current.warning.before) }}
-            em {{ current.warning.value }}
-            | {{ $t(current.warning.after) }}
+            AppSentence(:text='$t(current.warning.text)')
+                template(#value)
+                    em {{ current.warning.value }}
         p(class='text-body-medium') {{ $t(current.body, current.body_params) }}
         v-btn(v-if='current.action' size='small' variant='tonal' class='action'
                 :href='current.action.href' :target='current.action.href ? "_blank" : undefined'
@@ -51,8 +51,9 @@ export interface WalkthroughStep {
     // Optional {named} substitutions for `body` (e.g. a value resolved from the open version)
     body_params?:Record<string, string|number>
     // Optional bold warning-coloured line shown above the body (e.g. a required setting) —
-    // `value` is an already-resolved plain string (not a translation key), emphasised inline
-    warning?:{before:string, value:string, after:string}
+    // `text` is a key whose {value} placeholder is filled with `value`, an already-resolved
+    // plain string (not a translation key), emphasised inline
+    warning?:{text:string, value:string}
     // Optional action button shown under the caption — `href` for an external link (opens in a
     // new tab), `on_click` for an in-app handler (e.g. triggering a PDF download)
     action?:{label:string, href?:string, on_click?:() => void}

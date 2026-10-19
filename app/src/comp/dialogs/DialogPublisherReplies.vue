@@ -2,6 +2,7 @@
 <template lang='pug'>
 
 //- English only, like the commercial translations it explains, so not run through i18n
+//- (i18n-ignore-file)
 v-dialog(v-model='dialog' activator='parent' max-width='800' scrollable)
     v-card
         template(#title) Replies from publishers

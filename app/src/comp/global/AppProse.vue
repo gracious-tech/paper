@@ -49,6 +49,7 @@ import redo_icon from '@material-symbols/svg-400/outlined/redo.svg?component'
 import {resolve_prose_dir} from 'paper-bible-typst'
 
 import {doc_dir} from '@/services/state'
+import {useI18n} from '@/services/i18n'
 
 import type {PmDoc} from 'paper-bible-typst'
 
@@ -97,64 +98,67 @@ const focus_empty_space = () => {
 }
 
 
+const {t} = useI18n()
+
+
 // Toolbar buttons, as fixed rows of groups (dividers separate groups within a row)
-const rows = [
+const rows = computed(() => [
     [
         [
-            {title: "Bold", icon: format_bold,
+            {title: t("common.bold"), icon: format_bold,
                 active: () => editor.value!.isActive('bold'),
                 run: () => editor.value!.chain().focus().toggleBold().run()},
-            {title: "Italic", icon: format_italic,
+            {title: t("common.italic"), icon: format_italic,
                 active: () => editor.value!.isActive('italic'),
                 run: () => editor.value!.chain().focus().toggleItalic().run()},
-            {title: "Underline", icon: format_underlined,
+            {title: t("editor.prose.underline"), icon: format_underlined,
                 active: () => editor.value!.isActive('underline'),
                 run: () => editor.value!.chain().focus().toggleUnderline().run()},
         ],
         [
-            {title: "Heading 1", icon: format_h1,
+            {title: t("editor.prose.heading_1"), icon: format_h1,
                 active: () => editor.value!.isActive('heading', {level: 1}),
                 run: () => editor.value!.chain().focus().toggleHeading({level: 1}).run()},
-            {title: "Heading 2", icon: format_h2,
+            {title: t("editor.prose.heading_2"), icon: format_h2,
                 active: () => editor.value!.isActive('heading', {level: 2}),
                 run: () => editor.value!.chain().focus().toggleHeading({level: 2}).run()},
         ],
         [
-            {title: "Bullet list", icon: format_list_bulleted,
+            {title: t("editor.prose.bullet_list"), icon: format_list_bulleted,
                 active: () => editor.value!.isActive('bulletList'),
                 run: () => editor.value!.chain().focus().toggleBulletList().run()},
-            {title: "Numbered list", icon: format_list_numbered,
+            {title: t("editor.prose.numbered_list"), icon: format_list_numbered,
                 active: () => editor.value!.isActive('orderedList'),
                 run: () => editor.value!.chain().focus().toggleOrderedList().run()},
         ],
     ],
     [
         [
-            {title: "Align left", icon: format_align_left,
+            {title: t("editor.prose.align_left"), icon: format_align_left,
                 active: () => editor.value!.isActive({textAlign: 'left'}),
                 run: () => editor.value!.chain().focus().setTextAlign('left').run()},
-            {title: "Align center", icon: format_align_center,
+            {title: t("editor.prose.align_center"), icon: format_align_center,
                 active: () => editor.value!.isActive({textAlign: 'center'}),
                 run: () => editor.value!.chain().focus().setTextAlign('center').run()},
-            {title: "Align right", icon: format_align_right,
+            {title: t("editor.prose.align_right"), icon: format_align_right,
                 active: () => editor.value!.isActive({textAlign: 'right'}),
                 run: () => editor.value!.chain().focus().setTextAlign('right').run()},
         ],
         [
-            {title: "Superscript", icon: superscript_icon,
+            {title: t("editor.prose.superscript"), icon: superscript_icon,
                 active: () => editor.value!.isActive('superscript'),
                 run: () => editor.value!.chain().focus().toggleSuperscript().run()},
-            {title: "Divider", icon: horizontal_rule,
+            {title: t("editor.prose.divider"), icon: horizontal_rule,
                 run: () => editor.value!.chain().focus().setHorizontalRule().run()},
         ],
         [
-            {title: "Undo", icon: undo_icon,
+            {title: t("editor.prose.undo"), icon: undo_icon,
                 run: () => editor.value!.chain().focus().undo().run()},
-            {title: "Redo", icon: redo_icon,
+            {title: t("editor.prose.redo"), icon: redo_icon,
                 run: () => editor.value!.chain().focus().redo().run()},
         ],
     ],
-] as {title:string, icon:unknown, active?:() => boolean, run:() => void}[][][]
+] as {title:string, icon:unknown, active?:() => boolean, run:() => void}[][][])
 
 
 // Destroy the editor to release ProseMirror resources when the component unmounts

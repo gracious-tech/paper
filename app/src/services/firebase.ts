@@ -8,12 +8,12 @@ import {getStorage, connectStorageEmulator} from 'firebase/storage'
 // Firebase web config (public identifiers, safe to commit — access is controlled by security
 // rules, not by hiding these values)
 const config = {
-    apiKey: "AIzaSyA79zfGv_3w-kiyGbE-2iPQNDxD-J3pcqs",
-    authDomain: "paper-bible.firebaseapp.com",
-    projectId: "paper-bible",
-    storageBucket: "paper-bible.firebasestorage.app",
-    messagingSenderId: "886725246097",
-    appId: "1:886725246097:web:6921eb0f43f9312dfa1330",
+    apiKey: 'AIzaSyA79zfGv_3w-kiyGbE-2iPQNDxD-J3pcqs',
+    authDomain: 'paper-bible.firebaseapp.com',
+    projectId: 'paper-bible',
+    storageBucket: 'paper-bible.firebasestorage.app',
+    messagingSenderId: '886725246097',
+    appId: '1:886725246097:web:6921eb0f43f9312dfa1330',
 }
 
 

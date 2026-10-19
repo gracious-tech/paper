@@ -43,7 +43,7 @@ export type WorkerAction =
     | {action:'compile_svg', request:TypstRequest}
     | {action:'page_count', pdf:Uint8Array}
     | {action:'preview_strip', pdf:Uint8Array, page_width:string, title:string, subtitle:string,
-        position:'start'|'end'}
+        position:'start'|'end', fallback:[string, string]}
     | {action:'prepend_cover', cover:Uint8Array, book:Uint8Array, geometry:CoverPageGeometry|null}
 
 // Every request carries an id, echoed back in the matching response
@@ -194,7 +194,7 @@ async function handle_action(
     }
     if (message.action === 'preview_strip'){
         const bytes = await add_preview_strip(message.pdf, message.page_width, message.title,
-            message.subtitle, message.position)
+            message.subtitle, message.position, message.fallback)
         return {result: bytes, pages: null}
     }
     if (message.action === 'prepend_cover'){

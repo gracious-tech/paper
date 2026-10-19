@@ -84,7 +84,7 @@ watch(tmp_ref, () => {
         ref_obj = content.collection.string_to_reference(tmp_ref.value, blue.bibles[1])
     }
     if (!ref_obj){
-        errors.value = ["Unknown book"]
+        errors.value = [t("editor.passage.unknown_book")]
         error.value = true
         return
     }

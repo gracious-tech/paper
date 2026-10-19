@@ -67,6 +67,7 @@ div.cont
     //- Sits outside the list so searching/filtering can never hide it
     div.legacy(v-if='legacy.available')
         VBtn(@click='legacy.open = true' color='warning' variant='flat')
+            //- English only, like the legacy dialog it opens (i18n-ignore)
             | My Old Creations
 
 </template>

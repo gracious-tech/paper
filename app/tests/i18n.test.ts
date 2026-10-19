@@ -9,9 +9,10 @@
 import {readFileSync, readdirSync} from 'node:fs'
 import {fileURLToPath} from 'node:url'
 
-import {describe, it, expect} from 'vitest'
+import {describe, it, expect, afterEach, vi} from 'vitest'
 
-import {translate, count_phrase, useI18n, locale, SOURCE_LOCALE, i18n} from '@/services/i18n'
+import {translate, count_phrase, useI18n, locale, SOURCE_LOCALE, i18n, LOCALES, locale_dir,
+    vuetify_messages, initial_locale} from '@/services/i18n'
 
 import eng from '@/locales/eng.json'
 
@@ -105,6 +106,87 @@ describe('the vue plugin', () => {
         const app = {config: {globalProperties: {} as Record<string, unknown>}}
         i18n.install(app as never)
         expect(app.config.globalProperties['$t']).toBe(translate)
+    })
+})
+
+
+afterEach(() => {
+    vi.unstubAllGlobals()
+})
+
+
+describe('locales.json', () => {
+
+    it('lists the source locale too, for the language picker', () => {
+        expect(LOCALES[SOURCE_LOCALE]?.name).toBe('English')
+    })
+
+    it('has a catalog file for every locale it lists', () => {
+        const files = readdirSync(LOCALES_DIR).filter(name => name.endsWith('.json'))
+        expect(Object.keys(LOCALES).map(code => `${code}.json`).sort()).toEqual(files.sort())
+    })
+})
+
+
+describe('locale_dir', () => {
+
+    it('reads a listed locale\'s direction', () => {
+        expect(locale_dir(SOURCE_LOCALE)).toBe('ltr')
+    })
+
+    it('treats an unknown locale as left-to-right', () => {
+        expect(locale_dir('zzz')).toBe('ltr')
+    })
+})
+
+
+describe('initial_locale', () => {
+
+    // Pretend the browser prefers these languages, and that this was picked by hand (or not)
+    function setup(languages:string[], chosen:string|null):void{
+        vi.stubGlobal('navigator', {languages, language: languages[0]})
+        vi.stubGlobal('localStorage', {getItem: () => chosen})
+    }
+
+    it('detects the browser\'s language when nothing was picked', () => {
+        setup(['vi-VN', 'en'], null)
+        expect(initial_locale()).toBe('vie')
+    })
+
+    it('prefers a language the user picked by hand', () => {
+        setup(['vi-VN'], 'eng')
+        expect(initial_locale()).toBe('eng')
+    })
+
+    it('ignores a remembered pick the app no longer offers', () => {
+        setup(['vi-VN'], 'xyz')
+        expect(initial_locale()).toBe('vie')
+    })
+
+    it('still detects when storage is blocked', () => {
+        vi.stubGlobal('navigator', {languages: ['vi'], language: 'vi'})
+        vi.stubGlobal('localStorage', {getItem: () => {
+            throw new Error('blocked')
+        }})
+        expect(initial_locale()).toBe('vie')
+    })
+})
+
+
+describe('vuetify_messages', () => {
+
+    it('re-nests the vuetify.* keys the way Vuetify looks them up', () => {
+        const messages = vuetify_messages(SOURCE_LOCALE)
+        expect(messages['close']).toBe('Close')
+        expect((messages['input'] as Record<string, string>)['clear']).toBe('Clear {0}')
+    })
+
+    it('leaves out the app\'s own keys', () => {
+        expect(Object.keys(vuetify_messages(SOURCE_LOCALE))).not.toContain('common')
+    })
+
+    it('falls back to English for a locale that isn\'t loaded', () => {
+        expect(vuetify_messages('xyz')['close']).toBe('Close')
     })
 })
 
