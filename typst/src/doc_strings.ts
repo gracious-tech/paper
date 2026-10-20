@@ -17,10 +17,14 @@ export type DocKey = keyof typeof DOC_SOURCE
 export type DocTranslate = (key:DocKey, params?:Record<string, string|number>) => string
 
 
-// A translator for one document language (a fetch.bible language code, e.g. "vie"), English for
-// a language — or a key — with no translation yet
+// A translator for one document language (a fetch.bible language code, e.g. "vie", with its
+// script when the translation declares one, e.g. "cmn-Hant"). A script-qualified code falls back
+// to the bare language's catalog, so a language written in more than one script must key its
+// catalogs by script instead. English for a language — or a key — with no translation yet
 export function doc_translator(language:string|undefined):DocTranslate {
-    const catalog = (language && DOC_TRANSLATIONS[language]) || {}
+    const bare = language?.split('-')[0]
+    const catalog = (language && DOC_TRANSLATIONS[language])
+        || (bare && DOC_TRANSLATIONS[bare]) || {}
     return (key, params) => {
         const message:string = catalog[key] ?? DOC_SOURCE[key]
         return message.replace(/\{(\w+)\}/g, (whole, name:string) => {
@@ -30,9 +34,15 @@ export function doc_translator(language:string|undefined):DocTranslate {
 }
 
 
-// The language a document prints its own wording in: its primary translation's
+// The language a document prints its own wording in: its primary translation's, qualified by
+// script where fetch.bible declares one (e.g. "cmn-Hans"/"cmn-Hant", since Chinese Bibles come
+// in both and one catalog can't serve them)
 export function doc_language(blue:Pick<Blueprint, 'bibles'>,
         resources:Record<string, GetResourcesItem>):string|undefined {
     const primary = blue.bibles[0]
-    return primary ? resources[primary]?.language : undefined
+    const resource = primary ? resources[primary] : undefined
+    if (!resource){
+        return undefined
+    }
+    return resource.script ? `${resource.language}-${resource.script}` : resource.language
 }

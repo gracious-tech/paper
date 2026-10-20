@@ -1,0 +1,15 @@
+{
+  "terms": {
+    "PDF": "PDF",
+    "Bible": "बाइबल",
+    "design": "डिज़ाइन",
+    "version": "संस्करण",
+    "translation": "अनुवाद",
+    "passage": "अंश",
+    "booklet": "पुस्तिका",
+    "cover": "कवर",
+    "binding": "बाइंडिंग",
+    "picture story": "चित्र कहानी"
+  },
+  "notes": "Address the user politely with \"आप\" and polite imperatives (करें, चुनें, सहेजें, हटाएँ); buttons are short verb phrases, headings/labels are nouns without a full stop. Full sentences end with the danda (।); keep ?, !, :, …, and the em dash (—) as in English. Use curly double quotes “ ”. Use Western digits. Prefer common, natural Hindi over heavily Sanskritised terms; well-established tech loanwords are written in Devanagari with nukta (फ़ॉन्ट, फ़ाइल, डिज़ाइन, ऑफ़लाइन, साइन इन, अपलोड, कॉपी). Chandrabindu spellings (हाँ, जाएँ, कहानियाँ). Errors follow \"… नहीं हो सका — फिर से कोशिश करें\". \"interior\" (the book's inside pages) = \"अंदरूनी पृष्ठ\"; \"page\" = \"पृष्ठ\" (\"पन्ने\" for physical sheets). Option names on Lulu's English-only site and Google Fonts' button names stay in English."
+}

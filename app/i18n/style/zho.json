@@ -1,0 +1,15 @@
+{
+  "terms": {
+    "PDF": "PDF",
+    "Bible": "圣经",
+    "design": "设计",
+    "version": "版本",
+    "translation": "译本",
+    "passage": "经文",
+    "booklet": "小册子",
+    "cover": "封面",
+    "binding": "装订方式",
+    "picture story": "图画故事"
+  },
+  "notes": "Address the user politely as “您” (never “你”). Use full-width Chinese punctuation (，。：；？！（）) and curly Chinese quotation marks “…” for names of buttons/settings; use … for trailing ellipses. Put a half-width space between Chinese characters and Latin words, digits or {placeholders} that render as Latin/numbers (e.g. “生成 PDF”, “{n} 本书”), but not next to Chinese punctuation. Where English uses an em dash to join an error and a suggestion (“Couldn't X — try again”), use a full-width comma instead (“无法……，请重试”). Labels and buttons are short and verb-first where they are actions (e.g. “保存”, “重新生成”). “Build” (turning a design into a version/PDF) is rendered 生成. Option names on Lulu's English-only website stay in English. Bible terminology follows the Chinese Union Version (和合本) tradition: 圣经、旧约、新约、神."
+}

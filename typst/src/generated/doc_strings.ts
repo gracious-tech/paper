@@ -18,6 +18,216 @@ export const DOC_SOURCE = {
 
 // Translations by fetch.bible language code; a key a translation lacks falls back to DOC_SOURCE
 export const DOC_TRANSLATIONS:Record<string, Partial<Record<keyof typeof DOC_SOURCE, string>>> = {
+    "arb": {
+        "doc.chapter": "الأصحاح {n}",
+        "doc.copyright.created_with": "أُنشئ باستخدام {link}",
+        "doc.copyright.customize": "خصِّص هذا الكتاب واطبعه بنفسك",
+        "doc.copyright.modify": "يجوز نسخ هذه المادة وتعديلها وترجمتها بحرّية.",
+        "doc.copyright.public_domain": "جميع المواد الأخرى مُهداة إلى الملك العام ({site})",
+        "doc.copyright.resources": "المصادر المستخدمة:",
+        "doc.copyright.share": "يجوز نسخ هذه المادة ومشاركتها بحرّية.",
+        "doc.copyright.study_notes": "ملاحظات دراسية"
+    },
+    "ben": {
+        "doc.chapter": "অধ্যায় {n}",
+        "doc.copyright.created_with": "{link} দিয়ে তৈরি",
+        "doc.copyright.customize": "এটি নিজের মতো করে সাজিয়ে নিজেই ছাপান",
+        "doc.copyright.modify": "এই বিষয়বস্তু অবাধে অনুলিপি, পরিবর্তন ও অনুবাদ করা যেতে পারে।",
+        "doc.copyright.public_domain": "বাকি সমস্ত বিষয়বস্তু পাবলিক ডোমেইনে উৎসর্গ করা হয়েছে ({site})",
+        "doc.copyright.resources": "ব্যবহৃত উৎসসমূহ:",
+        "doc.copyright.share": "এই বিষয়বস্তু অবাধে অনুলিপি করা ও অন্যদের সঙ্গে ভাগ করে নেওয়া যেতে পারে।",
+        "doc.copyright.study_notes": "অধ্যয়ন টীকা"
+    },
+    "cmn-Hans": {
+        "doc.chapter": "第{n}章",
+        "doc.copyright.created_with": "由 {link} 制作",
+        "doc.copyright.customize": "自行定制并打印本书",
+        "doc.copyright.modify": "本书内容可自由复制、修改和翻译。",
+        "doc.copyright.public_domain": "其余所有内容均已贡献至公有领域（{site}）",
+        "doc.copyright.resources": "所用资源：",
+        "doc.copyright.share": "本书内容可自由复制和分享。",
+        "doc.copyright.study_notes": "研读注释"
+    },
+    "cmn-Hant": {
+        "doc.chapter": "第{n}章",
+        "doc.copyright.created_with": "由 {link} 製作",
+        "doc.copyright.customize": "自行訂製並列印本書",
+        "doc.copyright.modify": "本書內容可自由複製、修改和翻譯。",
+        "doc.copyright.public_domain": "其餘所有內容均已貢獻至公眾領域（{site}）",
+        "doc.copyright.resources": "所用資源：",
+        "doc.copyright.share": "本書內容可自由複製和分享。",
+        "doc.copyright.study_notes": "研讀註釋"
+    },
+    "deu": {
+        "doc.chapter": "Kapitel {n}",
+        "doc.copyright.created_with": "Erstellt mit {link}",
+        "doc.copyright.customize": "Selbst anpassen und drucken",
+        "doc.copyright.modify": "Dieses Werk darf frei kopiert, verändert und übersetzt werden.",
+        "doc.copyright.public_domain": "Alle übrigen Inhalte wurden in die Gemeinfreiheit entlassen ({site})",
+        "doc.copyright.resources": "Verwendete Quellen:",
+        "doc.copyright.share": "Dieses Werk darf frei kopiert und weitergegeben werden.",
+        "doc.copyright.study_notes": "Studienanmerkungen"
+    },
+    "fra": {
+        "doc.chapter": "Chapitre {n}",
+        "doc.copyright.created_with": "Créé avec {link}",
+        "doc.copyright.customize": "Personnalisez et imprimez-le vous-même",
+        "doc.copyright.modify": "Ce contenu peut être librement copié, modifié et traduit.",
+        "doc.copyright.public_domain": "Tout autre contenu est placé dans le domaine public ({site})",
+        "doc.copyright.resources": "Ressources utilisées :",
+        "doc.copyright.share": "Ce contenu peut être librement copié et partagé.",
+        "doc.copyright.study_notes": "Notes d’étude"
+    },
+    "hin": {
+        "doc.chapter": "अध्याय {n}",
+        "doc.copyright.created_with": "{link} से बनाया गया",
+        "doc.copyright.customize": "इसे स्वयं अनुकूलित करें और छापें",
+        "doc.copyright.modify": "इस सामग्री की स्वतंत्र रूप से प्रतिलिपि बनाई जा सकती है, इसमें परिवर्तन किया जा सकता है और इसका अनुवाद किया जा सकता है।",
+        "doc.copyright.public_domain": "अन्य सभी सामग्री सार्वजनिक डोमेन को समर्पित है ({site})",
+        "doc.copyright.resources": "प्रयुक्त संसाधन:",
+        "doc.copyright.share": "इस सामग्री की स्वतंत्र रूप से प्रतिलिपि बनाई जा सकती है और इसे साझा किया जा सकता है।",
+        "doc.copyright.study_notes": "अध्ययन टिप्पणियाँ"
+    },
+    "ind": {
+        "doc.chapter": "Pasal {n}",
+        "doc.copyright.created_with": "Dibuat dengan {link}",
+        "doc.copyright.customize": "Sesuaikan dan cetak sendiri buku ini",
+        "doc.copyright.modify": "Materi ini boleh disalin, diubah, dan diterjemahkan secara bebas.",
+        "doc.copyright.public_domain": "Semua materi lainnya didedikasikan ke domain publik ({site})",
+        "doc.copyright.resources": "Sumber yang digunakan:",
+        "doc.copyright.share": "Materi ini boleh disalin dan dibagikan secara bebas.",
+        "doc.copyright.study_notes": "Catatan studi"
+    },
+    "ita": {
+        "doc.chapter": "Capitolo {n}",
+        "doc.copyright.created_with": "Creato con {link}",
+        "doc.copyright.customize": "Personalizza e stampa questo libro in autonomia",
+        "doc.copyright.modify": "Questo materiale può essere liberamente copiato, modificato e tradotto.",
+        "doc.copyright.public_domain": "Tutto l'altro materiale è dedicato al pubblico dominio ({site})",
+        "doc.copyright.resources": "Risorse utilizzate:",
+        "doc.copyright.share": "Questo materiale può essere liberamente copiato e condiviso.",
+        "doc.copyright.study_notes": "Note di studio"
+    },
+    "jpn": {
+        "doc.chapter": "第{n}章",
+        "doc.copyright.created_with": "{link}で作成",
+        "doc.copyright.customize": "ご自分でカスタマイズして印刷できます",
+        "doc.copyright.modify": "本書の内容は、自由に複製、改変、翻訳することができます。",
+        "doc.copyright.public_domain": "その他の内容はすべてパブリックドメインに提供されています（{site}）",
+        "doc.copyright.resources": "使用した資料：",
+        "doc.copyright.share": "本書の内容は、自由に複製、共有することができます。",
+        "doc.copyright.study_notes": "注解"
+    },
+    "kor": {
+        "doc.chapter": "제{n}장",
+        "doc.copyright.created_with": "{link}에서 제작",
+        "doc.copyright.customize": "원하는 대로 바꾸어 직접 인쇄해 보세요",
+        "doc.copyright.modify": "이 자료는 자유롭게 복제, 수정 및 번역할 수 있습니다.",
+        "doc.copyright.public_domain": "그 밖의 모든 자료는 퍼블릭 도메인({site})에 헌정되었습니다",
+        "doc.copyright.resources": "사용된 자료:",
+        "doc.copyright.share": "이 자료는 자유롭게 복제하고 공유할 수 있습니다.",
+        "doc.copyright.study_notes": "스터디 노트"
+    },
+    "mar": {
+        "doc.chapter": "अध्याय {n}",
+        "doc.copyright.created_with": "{link} वापरून तयार केले",
+        "doc.copyright.customize": "हे स्वतः सानुकूलित करा आणि छापा",
+        "doc.copyright.modify": "हे साहित्य मुक्तपणे कॉपी करता येते, त्यात बदल करता येतात आणि त्याचे भाषांतर करता येते.",
+        "doc.copyright.public_domain": "इतर सर्व साहित्य सार्वजनिक क्षेत्राला समर्पित केले आहे ({site})",
+        "doc.copyright.resources": "वापरलेली संसाधने:",
+        "doc.copyright.share": "हे साहित्य मुक्तपणे कॉपी करता येते आणि सामायिक करता येते.",
+        "doc.copyright.study_notes": "अभ्यास टिपा"
+    },
+    "pes": {
+        "doc.chapter": "باب {n}",
+        "doc.copyright.created_with": "ساخته‌شده با {link}",
+        "doc.copyright.customize": "این کتاب را خودتان سفارشی و چاپ کنید",
+        "doc.copyright.modify": "این مطالب را می‌توان آزادانه تکثیر کرد، تغییر داد و ترجمه کرد.",
+        "doc.copyright.public_domain": "همهٔ مطالب دیگر به مالکیت عمومی واگذار شده‌اند ({site})",
+        "doc.copyright.resources": "منابع استفاده‌شده:",
+        "doc.copyright.share": "این مطالب را می‌توان آزادانه تکثیر کرد و به اشتراک گذاشت.",
+        "doc.copyright.study_notes": "یادداشت‌های مطالعاتی"
+    },
+    "por": {
+        "doc.chapter": "Capítulo {n}",
+        "doc.copyright.created_with": "Criado com {link}",
+        "doc.copyright.customize": "Personalize e imprima seu próprio exemplar",
+        "doc.copyright.modify": "Este material pode ser livremente copiado, modificado e traduzido.",
+        "doc.copyright.public_domain": "Todo o restante do material é dedicado ao domínio público ({site})",
+        "doc.copyright.resources": "Recursos utilizados:",
+        "doc.copyright.share": "Este material pode ser livremente copiado e compartilhado.",
+        "doc.copyright.study_notes": "Notas de estudo"
+    },
+    "rus": {
+        "doc.chapter": "Глава {n}",
+        "doc.copyright.created_with": "Создано с помощью {link}",
+        "doc.copyright.customize": "Настройте и напечатайте эту книгу сами",
+        "doc.copyright.modify": "Этот материал можно свободно копировать, изменять и переводить.",
+        "doc.copyright.public_domain": "Все остальные материалы переданы в общественное достояние ({site})",
+        "doc.copyright.resources": "Использованные источники:",
+        "doc.copyright.share": "Этот материал можно свободно копировать и распространять.",
+        "doc.copyright.study_notes": "Комментарии"
+    },
+    "spa": {
+        "doc.chapter": "Capítulo {n}",
+        "doc.copyright.created_with": "Creado con {link}",
+        "doc.copyright.customize": "Personalice e imprima su propio ejemplar",
+        "doc.copyright.modify": "Este material puede copiarse, modificarse y traducirse libremente.",
+        "doc.copyright.public_domain": "Todo el material restante está dedicado al dominio público ({site})",
+        "doc.copyright.resources": "Recursos utilizados:",
+        "doc.copyright.share": "Este material puede copiarse y compartirse libremente.",
+        "doc.copyright.study_notes": "Notas de estudio"
+    },
+    "tam": {
+        "doc.chapter": "அதிகாரம் {n}",
+        "doc.copyright.created_with": "{link} மூலம் உருவாக்கப்பட்டது",
+        "doc.copyright.customize": "இதை நீங்களே தனிப்பயனாக்கி அச்சிடுங்கள்",
+        "doc.copyright.modify": "இந்த உள்ளடக்கத்தைத் தடையின்றி நகலெடுக்கலாம், மாற்றலாம், மொழிபெயர்க்கலாம்.",
+        "doc.copyright.public_domain": "மற்ற அனைத்து உள்ளடக்கமும் பொதுக் களத்திற்கு அர்ப்பணிக்கப்பட்டுள்ளது ({site})",
+        "doc.copyright.resources": "பயன்படுத்தப்பட்ட மூலங்கள்:",
+        "doc.copyright.share": "இந்த உள்ளடக்கத்தைத் தடையின்றி நகலெடுக்கலாம், பகிரலாம்.",
+        "doc.copyright.study_notes": "ஆய்வுக் குறிப்புகள்"
+    },
+    "tel": {
+        "doc.chapter": "{n}వ అధ్యాయము",
+        "doc.copyright.created_with": "{link} ద్వారా రూపొందించబడింది",
+        "doc.copyright.customize": "మీకు నచ్చినట్లు మార్చి, మీరే ముద్రించుకోండి",
+        "doc.copyright.modify": "ఈ రచనను స్వేచ్ఛగా కాపీ చేయవచ్చు, మార్చవచ్చు, అనువదించవచ్చు.",
+        "doc.copyright.public_domain": "మిగిలిన అంశాలన్నీ పబ్లిక్ డొమైన్‌కు అంకితం చేయబడ్డాయి ({site})",
+        "doc.copyright.resources": "ఉపయోగించిన వనరులు:",
+        "doc.copyright.share": "ఈ రచనను స్వేచ్ఛగా కాపీ చేయవచ్చు, ఇతరులతో పంచుకోవచ్చు.",
+        "doc.copyright.study_notes": "అధ్యయన గమనికలు"
+    },
+    "tha": {
+        "doc.chapter": "บทที่ {n}",
+        "doc.copyright.created_with": "สร้างด้วย {link}",
+        "doc.copyright.customize": "ปรับแต่งและพิมพ์เล่มนี้ได้ด้วยตนเอง",
+        "doc.copyright.modify": "เนื้อหานี้สามารถคัดลอก ดัดแปลง และแปลได้อย่างเสรี",
+        "doc.copyright.public_domain": "เนื้อหาอื่นทั้งหมดอุทิศให้เป็นสาธารณสมบัติ ({site})",
+        "doc.copyright.resources": "แหล่งข้อมูลที่ใช้:",
+        "doc.copyright.share": "เนื้อหานี้สามารถคัดลอกและแบ่งปันได้อย่างเสรี",
+        "doc.copyright.study_notes": "คำอธิบายเพื่อการศึกษา"
+    },
+    "tur": {
+        "doc.chapter": "{n}. Bölüm",
+        "doc.copyright.created_with": "{link} ile oluşturuldu",
+        "doc.copyright.customize": "Bunu kendiniz özelleştirip yazdırın",
+        "doc.copyright.modify": "Bu materyal serbestçe kopyalanabilir, değiştirilebilir ve çevrilebilir.",
+        "doc.copyright.public_domain": "Diğer tüm materyaller kamu malına adanmıştır ({site})",
+        "doc.copyright.resources": "Kullanılan kaynaklar:",
+        "doc.copyright.share": "Bu materyal serbestçe kopyalanabilir ve paylaşılabilir.",
+        "doc.copyright.study_notes": "Çalışma notları"
+    },
+    "urd": {
+        "doc.chapter": "باب {n}",
+        "doc.copyright.created_with": "{link} کے ذریعے تیار کیا گیا",
+        "doc.copyright.customize": "اسے اپنی مرضی کے مطابق ترتیب دے کر خود پرنٹ کریں",
+        "doc.copyright.modify": "اس مواد کی آزادانہ نقل، ترمیم اور ترجمے کی اجازت ہے۔",
+        "doc.copyright.public_domain": "دیگر تمام مواد عوامی ملکیت (پبلک ڈومین) کے لیے وقف کیا گیا ہے ({site})",
+        "doc.copyright.resources": "استعمال شدہ ذرائع:",
+        "doc.copyright.share": "اس مواد کی آزادانہ نقل اور تقسیم کی اجازت ہے۔",
+        "doc.copyright.study_notes": "مطالعاتی حواشی"
+    },
     "vie": {
         "doc.chapter": "Chương {n}",
         "doc.copyright.created_with": "Được tạo bằng {link}",

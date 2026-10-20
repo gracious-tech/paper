@@ -1,0 +1,10 @@
+{
+  "doc.chapter": "บทที่ {n}",
+  "doc.copyright.created_with": "สร้างด้วย {link}",
+  "doc.copyright.customize": "ปรับแต่งและพิมพ์เล่มนี้ได้ด้วยตนเอง",
+  "doc.copyright.modify": "เนื้อหานี้สามารถคัดลอก ดัดแปลง และแปลได้อย่างเสรี",
+  "doc.copyright.public_domain": "เนื้อหาอื่นทั้งหมดอุทิศให้เป็นสาธารณสมบัติ ({site})",
+  "doc.copyright.resources": "แหล่งข้อมูลที่ใช้:",
+  "doc.copyright.share": "เนื้อหานี้สามารถคัดลอกและแบ่งปันได้อย่างเสรี",
+  "doc.copyright.study_notes": "คำอธิบายเพื่อการศึกษา"
+}

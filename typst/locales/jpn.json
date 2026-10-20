@@ -1,0 +1,10 @@
+{
+  "doc.chapter": "第{n}章",
+  "doc.copyright.created_with": "{link}で作成",
+  "doc.copyright.customize": "ご自分でカスタマイズして印刷できます",
+  "doc.copyright.modify": "本書の内容は、自由に複製、改変、翻訳することができます。",
+  "doc.copyright.public_domain": "その他の内容はすべてパブリックドメインに提供されています（{site}）",
+  "doc.copyright.resources": "使用した資料：",
+  "doc.copyright.share": "本書の内容は、自由に複製、共有することができます。",
+  "doc.copyright.study_notes": "注解"
+}

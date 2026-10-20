@@ -115,10 +115,11 @@ function check_domain(domain:Domain):void {
         }
         if (domain.name === 'ui'){
             check_detectable(code)
-        } else if (!/^[a-z]{3}$/.test(code)){
-            // Document strings follow the Bible's language, as fetch.bible names it
+        } else if (!/^[a-z]{3}(-[A-Z][a-z]{3})?$/.test(code)){
+            // Document strings follow the Bible's language, as fetch.bible names it, plus its
+            // script where fetch.bible declares one (see doc_language() in typst/src/doc_strings.ts)
             note(`${rel(domain.meta_path)}: "${code}" isn't a fetch.bible language code`
-                + ' (ISO 639-3)')
+                + ' (ISO 639-3, optionally with an ISO 15924 script, e.g. cmn-Hant)')
         }
     }
 

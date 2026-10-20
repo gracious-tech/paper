@@ -1,0 +1,18 @@
+{
+  "terms": {
+    "PDF": "PDF",
+    "Bible": "Библия",
+    "design": "макет",
+    "version": "версия",
+    "translation": "перевод",
+    "passage": "отрывок",
+    "booklet": "брошюра",
+    "cover": "обложка",
+    "binding": "переплёт",
+    "picture story": "история в картинках",
+    "build (a version)": "собрать (книгу)",
+    "study notes": "комментарии",
+    "page count": "стр. (abbreviation after a number)"
+  },
+  "notes": "Address the user with the polite plural «вы» (lowercase), using polite imperatives (Попробуйте ещё раз, Выберите…). Sentence case for all labels, headings and buttons. Buttons and menu actions are infinitives (Сохранить, Удалить, Поделиться); section headings and tabs are nouns. Russian «ёлочки» quotes; option names the user must find on an English-only site (Lulu, Google Fonts) stay in English inside «». Use ё consistently. Spaced em dash ( — ), as in the English. Failure messages follow «Не удалось … — попробуйте ещё раз». Counted nouns avoid plural agreement with label:value (Книг: {n}) or abbreviations (дн.). Decimal comma (0,4 дюйма); metric units мм, см, г/м²."
+}

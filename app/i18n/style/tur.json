@@ -1,0 +1,16 @@
+{
+  "terms": {
+    "Bible": "Kutsal Kitap",
+    "design": "tasarım",
+    "version": "sürüm",
+    "translation": "çeviri",
+    "passage": "pasaj",
+    "booklet": "kitapçık",
+    "cover": "kapak",
+    "binding": "ciltleme",
+    "picture story": "resimli hikâye",
+    "PDF": "PDF",
+    "sheet": "yaprak"
+  },
+  "notes": "Address the user politely with \"siz\" in sentences and messages (\"Tekrar deneyin\", \"Oturum açın\"), but write buttons and menu actions in the short imperative form Turkish apps use (\"Kaydet\", \"Sil\", \"Kapat\", \"Yeniden dene\"). Sentence case for labels, headings and buttons (only the first word and proper nouns capitalised). Use curly double quotes “…” around option names and quoted UI text, keeping the English \"…\" ellipsis style as in the source. Keep product/company names (Paper Bible, Lulu, Google) and PDF unchanged; prefer \"PDF dosyası\" so suffixes attach to \"dosya\" rather than to the abbreviation. Avoid attaching case suffixes to {placeholders}: use postpositions or nouns such as \"olarak\", \"ile\", \"adresini\", \"seçeneğini\" instead. Option names on Lulu's English-only website stay in English. Use \"Kutsal Kitap\" for the Bible and \"Eski/Yeni Antlaşma\" for the testaments, following the Turkish Kutsal Kitap; use TDK spelling with circumflexes where standard (kâğıt, hikâye, hâlâ). Numbers use a decimal comma (0,4) and metric units first (g/m², cm)."
+}

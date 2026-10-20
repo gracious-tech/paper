@@ -1,0 +1,10 @@
+{
+  "doc.chapter": "Chapter {n}",
+  "doc.copyright.created_with": "Created with {link}",
+  "doc.copyright.customize": "Customize and print this yourself",
+  "doc.copyright.modify": "This material can be freely copied, modified, and translated.",
+  "doc.copyright.public_domain": "All other material is dedicated to the public domain ({site})",
+  "doc.copyright.resources": "Resources used:",
+  "doc.copyright.share": "This material can be freely copied and shared.",
+  "doc.copyright.study_notes": "Study notes"
+}

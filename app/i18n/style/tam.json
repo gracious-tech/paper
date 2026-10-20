@@ -1,0 +1,33 @@
+{
+  "terms": {
+    "PDF": "PDF",
+    "Bible": "பைபிள்",
+    "design": "வடிவமைப்பு",
+    "version": "பதிப்பு",
+    "translation": "மொழிபெயர்ப்பு",
+    "passage": "வசனப்பகுதி",
+    "booklet": "சிற்றேடு",
+    "cover": "அட்டை",
+    "binding": "கட்டுமுறை",
+    "picture story": "படக் கதை",
+    "editor": "திருத்துநர்",
+    "chapter": "அதிகாரம்",
+    "category": "பிரிவு",
+    "type": "வகை",
+    "interior": "உள்பக்கங்கள்",
+    "build (create the final PDF version)": "உருவாக்கு",
+    "preview": "முன்னோட்டம்",
+    "column": "நெடுவரிசை",
+    "spine": "முதுகு",
+    "gutter": "கட்டு ஓரம்",
+    "margin": "ஓரம்",
+    "icon": "சின்னம்",
+    "remove (vs. delete = நீக்கு)": "அகற்று",
+    "public domain": "பொதுக் களம்",
+    "verse": "வசனம்",
+    "footnote": "அடிக்குறிப்பு",
+    "study notes": "ஆய்வுக் குறிப்புகள்",
+    "title page": "தலைப்புப் பக்கம்"
+  },
+  "notes": "Address the user politely as நீங்கள் (implied); instructions and messages use the polite -வும் imperative (e.g. மீண்டும் முயலவும்). Buttons and menu items use the short bare imperative standard in Tamil software (சேமி, நீக்கு, பகிர், ரத்துசெய்), labels and headings are nouns. Tamil has no capitals; keep product names (Paper Bible, Lulu, Google) in Latin script and attach case suffixes with a hyphen (Lulu-வின், PDF-ஐ). Use “curly” double quotes; keep the English em dash (—) and ellipsis as in the source. Option names on English-only external sites (Lulu, Google Fonts) stay in English, sometimes with a Tamil gloss; printer-dialog terms get the Tamil name with the English in parentheses. Bible quotations follow the classic BSI Tamil Bible wording."
+}

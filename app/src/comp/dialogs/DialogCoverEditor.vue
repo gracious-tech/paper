@@ -40,8 +40,14 @@ import type {CoverConfig} from '@/services/types'
 
 
 // The locales the bookcover widget itself is translated into (its own catalogs, in the bookcover
-// repo); any other locale gets the widget in English
-const COVER_LOCALES:AppLocale[] = ['eng', 'vie']
+// repo), keyed by our locale code where the widget spells it differently; any other locale gets
+// the widget in English
+const COVER_LOCALES:Record<string, AppLocale> = {
+    eng: 'eng', ara: 'ara', ben: 'ben', deu: 'deu', fas: 'fas', fra: 'fra', hin: 'hin',
+    ind: 'ind', ita: 'ita', jpn: 'jpn', kor: 'kor', mar: 'mar', por: 'por', rus: 'rus',
+    spa: 'spa', tam: 'tam', tel: 'tel', tha: 'tha', tur: 'tur', urd: 'urd', vie: 'vie',
+    zho: 'zho_hans',
+}
 
 
 const {t, locale} = useI18n()
@@ -122,7 +128,7 @@ const send_init = async () => {
         finished_mode: true,
         hide_size_section: true,
         bg_suggestions: suggestions.map(({path, url, label}) => ({id: path, url, label})),
-        locale: COVER_LOCALES.find(code => code === locale.value) ?? 'eng',
+        locale: COVER_LOCALES[locale.value] ?? 'eng',
     }
     frame_window.postMessage(message, COVER_EDITOR_ORIGIN)
     loaded.value = true

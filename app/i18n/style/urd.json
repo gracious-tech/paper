@@ -1,0 +1,16 @@
+{
+  "terms": {
+    "Bible": "کتابِ مقدس",
+    "design": "ڈیزائن",
+    "version": "ورژن",
+    "translation": "ترجمہ",
+    "passage": "اقتباس",
+    "booklet": "کتابچہ",
+    "cover": "سرورق",
+    "binding": "جلد بندی",
+    "picture story": "تصویری کہانی",
+    "PDF": "PDF",
+    "sheet": "کاغذ"
+  },
+  "notes": "Address the user formally as \"آپ\" with polite imperatives (\"کریں\"، \"دیکھیں\"); buttons are short verb phrases (\"محفوظ کریں\"، \"سرورق ڈاؤن لوڈ کریں\"), section labels are nouns. Avoid first-person gendered verbs (سکتا/سکتی، گا/گی) in text the user 'says'; rephrase neutrally. Urdu script has no capitals. Use Urdu punctuation: \"۔\" full stop, \"،\" comma, \"؟\" question mark, \"؛\" semicolon; keep the English dashes (—, –), ellipses and straight double quotes around option names. Keep Western digits and units as the English has them (\"1.\"، 70gsm، 100%، pt). Option names the user must find on an English-only site (Lulu, Google Fonts) and product names (Iconify, Amazon, NIV, Tyndale Open Study Notes) stay in English; printer-dialog settings are translated with the English in parentheses, e.g. \"چھوٹے کنارے\" (short edge). Prefer loanwords familiar from Pakistani apps (اکاؤنٹ، سائن ان، اپ لوڈ، فونٹ، پرنٹ، مارجن، سیٹنگز) where they are the natural word, standard Urdu otherwise. Fixed renderings: plural ڈیزائنز; interior = اندرونی صفحات; margins = مارجن; notes = حواشی, study notes = مطالعاتی حواشی, footnotes = فٹ نوٹس; heading(s) = سرخی/سرخیاں; title page = عنوانی صفحہ; spine = پشت; verse = آیت; Scripture = کلامِ مقدس; Jesus' words = یسوع کے الفاظ; preview = پیش منظر; build/generate = بنائیں; advanced options = تفصیلی اختیارات; workarounds = متبادل طریقے; Old/New Testament = عہدِ عتیق / عہدِ جدید; chapter = باب; copies = نسخے, a copy of a design = نقل; Bible books = کتابیں; public domain = عوامی ملکیت; PDF is feminine (\"PDF تیار ہو رہی ہے\")."
+}

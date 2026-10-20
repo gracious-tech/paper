@@ -68,9 +68,10 @@ const parse_passage = (id:string, text:string):DraftPassage => {
 
 
 // Parse every non-blank line/comma-separated entry of the textarea into a new draft passage,
-// appended in order
+// appended in order. Commas include the Arabic-script (،) and CJK (，、) ones those keyboards type
 const add_passages = () => {
-    const lines = passage_input.value.split(/[\n,]/).map(line => line.trim()).filter(line => line)
+    const lines = passage_input.value.split(/[\n,،，、]/).map(line => line.trim())
+        .filter(line => line)
     for (const line of lines){
         draft.passages.push(parse_passage(generate_token(), line))
     }

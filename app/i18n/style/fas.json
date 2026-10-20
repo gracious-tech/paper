@@ -1,0 +1,15 @@
+{
+  "terms": {
+    "Bible": "کتاب مقدس",
+    "design": "طرح",
+    "version": "نسخه",
+    "translation": "ترجمه",
+    "passage": "بخش",
+    "booklet": "کتابچه",
+    "cover": "جلد",
+    "binding": "صحافی",
+    "picture story": "داستان مصور",
+    "PDF": "PDF"
+  },
+  "notes": "Polite, formal-neutral register: address the user as «شما» with plural imperatives («دوباره امتحان کنید»), never «تو». Labels and buttons are short noun or verbal-noun phrases («ذخیره»، «افزودن»، «دانلود جلد»); headings in plain sentence form. Persian punctuation (، ؛ ؟), guillemets «» around quoted option or button names, and «…» for an ellipsis. Write the zero-width non-joiner where standard (می‌شود، طرح‌ها، به‌صورت) and «ـهٔ» for the ezafe after a silent h (اندازهٔ). Numbers written in the text use Persian digits (۱، ۷۰، ۱۰۰٪, decimal separator ٫). Keep Paper Bible, Lulu, Google, PDF, and option/button names from Lulu's and Google Fonts' English-only sites, in Latin script. Fixed renderings: chapter = «باب» (as in Persian Bibles); font = «قلم»; upload = «بارگذاری»; download = «دانلود»; reload = «تازه‌سازی»; sign in/out = «ورود»/«خروج»; account = «حساب کاربری»; link = «پیوند»; printed copies of a book are counted as «کتاب», never «نسخه» (reserved for a version)."
+}

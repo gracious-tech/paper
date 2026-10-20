@@ -1,0 +1,10 @@
+{
+  "doc.chapter": "第{n}章",
+  "doc.copyright.created_with": "由 {link} 制作",
+  "doc.copyright.customize": "自行定制并打印本书",
+  "doc.copyright.modify": "本书内容可自由复制、修改和翻译。",
+  "doc.copyright.public_domain": "其余所有内容均已贡献至公有领域（{site}）",
+  "doc.copyright.resources": "所用资源：",
+  "doc.copyright.share": "本书内容可自由复制和分享。",
+  "doc.copyright.study_notes": "研读注释"
+}

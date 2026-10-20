@@ -1,0 +1,15 @@
+{
+  "terms": {
+    "PDF": "PDF",
+    "Bible": "Bibel",
+    "design": "Entwurf",
+    "version": "Version",
+    "translation": "Übersetzung",
+    "passage": "Bibelstelle",
+    "booklet": "Heft",
+    "cover": "Umschlag",
+    "binding": "Bindung",
+    "picture story": "Bildergeschichte"
+  },
+  "notes": "Address the user formally as „Sie“ (Ihr/Ihnen), polite but plain. Buttons and menu items use the infinitive (Speichern, Abbrechen, Konto löschen); headings and labels are short noun phrases with normal German capitalisation (nouns capitalised, otherwise sentence case — no English title case). Quotation marks are German „…“; the English em dash between clauses becomes a spaced en dash ( – ). Error toasts take the form „… konnte nicht … werden – bitte versuchen Sie es erneut“. Use … for trailing ellipses, a space before % and units (100 %, 1 cm, 70 g/m²), decimal comma, and gender-neutral wording where it is natural (e.g. „Zum Bearbeiten einladen“ rather than „Bearbeiter“). Option names on Lulu's English-only website stay in English. Printer duplex options: „an der langen/kurzen Kante wenden“."
+}
