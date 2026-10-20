@@ -44,7 +44,7 @@ jobs:
       fetched: ${{ steps.gen.outputs.fetched }}
     steps:
       # Tags too, for the last check's date
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
         with:
           fetch-depth: 0
           persist-credentials: false
@@ -53,7 +53,7 @@ jobs:
         id: due
         run: .bin/refresh_lulu_prices --due | tee -a "$GITHUB_OUTPUT"
 
-      - uses: actions/setup-node@v4
+      - uses: actions/setup-node@v7
         if: steps.due.outputs.due == 'true'
         with:
           node-version: 24
@@ -74,7 +74,7 @@ jobs:
               echo "::warning::Couldn't refresh Lulu's prices, so the committed ones are kept"
           fi
 
-      - uses: actions/upload-artifact@v4
+      - uses: actions/upload-artifact@v7
         if: steps.gen.outputs.fetched == 'true'
         with:
           name: lulu_prices
@@ -95,9 +95,9 @@ jobs:
     outputs:
       sha: ${{ steps.push.outputs.sha }}
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
 
-      - uses: actions/download-artifact@v4
+      - uses: actions/download-artifact@v8
         with:
           name: lulu_prices
           path: app/src/services
@@ -132,25 +132,25 @@ jobs:
     steps:
       # The full history and tags, for deploy_plan's diffs against the deployed/* tags. A full
       # clone in every job also keeps short commit hashes (the image tag) the same length
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
         with:
           ref: ${{ needs.lulu_push.outputs.sha || github.sha }}
           fetch-depth: 0
           persist-credentials: false
 
-      - uses: actions/setup-node@v4
+      - uses: actions/setup-node@v7
         with:
           node-version: 24
           cache: npm
 
       # The Firebase emulators the rules + server suites run against are Java
-      - uses: actions/setup-java@v4
+      - uses: actions/setup-java@v6
         with:
           distribution: temurin
           java-version: 21
 
       # The emulator jars, which firebase-tools otherwise downloads on every run
-      - uses: actions/cache@v4
+      - uses: actions/cache@v6
         with:
           path: .emulator_cache
           key: emulators-${{ hashFiles('package-lock.json') }}
@@ -183,7 +183,7 @@ jobs:
         if: steps.plan.outputs.app == 'true'
         run: .bin/build_app
 
-      - uses: actions/upload-artifact@v4
+      - uses: actions/upload-artifact@v7
         if: steps.plan.outputs.app == 'true'
         with:
           name: app_dist
@@ -197,7 +197,7 @@ jobs:
           docker save "paper-bible-lambda:$(git rev-parse --short HEAD)" \
               | gzip -1 > server_image.tar.gz
 
-      - uses: actions/upload-artifact@v4
+      - uses: actions/upload-artifact@v7
         if: steps.plan.outputs.api_image == 'true'
         with:
           name: server_image
@@ -223,7 +223,7 @@ jobs:
         ${{ needs.build.outputs.stack == 'true' || needs.build.outputs.aws_setup == 'true'
         || needs.build.outputs.app == 'true' }}
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
         with:
           ref: ${{ needs.build.outputs.sha }}
           fetch-depth: 0
@@ -249,10 +249,12 @@ jobs:
 
       # --- Firebase (first, so the app never goes live ahead of rules it relies on) ----------
 
-      - uses: actions/setup-node@v4
+      # No npm cache here, not even setup-node's automatic one: it would be written by build
+      - uses: actions/setup-node@v7
         if: env.PLAN_FIREBASE == 'true'
         with:
           node-version: 24
+          package-manager-cache: false
 
       # Just firebase-tools, at the version the lockfile pins, and without install scripts
       - name: Install firebase-tools
@@ -264,14 +266,14 @@ jobs:
 
       - name: Authenticate to Google Cloud
         if: env.PLAN_FIREBASE == 'true'
-        uses: google-github-actions/auth@v2
+        uses: google-github-actions/auth@v3
         with:
           workload_identity_provider: ${{ vars.GCP_WORKLOAD_IDENTITY_PROVIDER }}
           service_account: ${{ vars.GCP_SERVICE_ACCOUNT }}
 
       - name: Install gcloud
         if: needs.build.outputs.firebase_setup == 'true'
-        uses: google-github-actions/setup-gcloud@v2
+        uses: google-github-actions/setup-gcloud@v3
 
       - name: Firebase project setup
         if: needs.build.outputs.firebase_setup == 'true'
@@ -285,12 +287,12 @@ jobs:
 
       - name: Authenticate to AWS
         if: env.PLAN_AWS == 'true'
-        uses: aws-actions/configure-aws-credentials@v4
+        uses: aws-actions/configure-aws-credentials@v6
         with:
           role-to-assume: ${{ vars.AWS_DEPLOY_ROLE_ARN }}
           aws-region: ${{ env.AWS_REGION }}
 
-      - uses: actions/download-artifact@v4
+      - uses: actions/download-artifact@v8
         if: needs.build.outputs.api_image == 'true'
         with:
           name: server_image
@@ -310,7 +312,7 @@ jobs:
         if: needs.build.outputs.aws_setup == 'true'
         run: .bin/deploy_aws && .bin/mark_deployed aws_setup
 
-      - uses: actions/download-artifact@v4
+      - uses: actions/download-artifact@v8
         if: needs.build.outputs.app == 'true'
         with:
           name: app_dist
