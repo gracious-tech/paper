@@ -6,6 +6,7 @@
   "app.contact": "Liên hệ",
   "app.donate": "Ủng hộ",
   "app.engine_failed": "Không tải được trình tạo PDF — hãy thử tải lại trang",
+  "app.error_content_unreachable": "Không thể kết nối với fetch.bible, nơi cung cấp văn bản Kinh Thánh. Có thể mạng của bạn đang chặn trang này — hãy thử một mạng khác, chẳng hạn dữ liệu di động.",
   "app.error_report": "Báo cho chúng tôi",
   "app.error_title": "Đã xảy ra lỗi",
   "app.language": "Ngôn ngữ",

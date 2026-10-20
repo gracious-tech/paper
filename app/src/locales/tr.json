@@ -6,6 +6,7 @@
   "app.contact": "Bize ulaşın",
   "app.donate": "Bağış yap",
   "app.engine_failed": "PDF oluşturucu yüklenemedi — sayfayı yeniden yüklemeyi deneyin",
+  "app.error_content_unreachable": "Kutsal Kitap metnini sağlayan fetch.bible’a bağlanılamadı. Ağınız onu engelliyor olabilir — mobil veri gibi farklı bir ağ deneyin.",
   "app.error_report": "Bize bildirin",
   "app.error_title": "Bir şeyler ters gitti",
   "app.language": "Dil",

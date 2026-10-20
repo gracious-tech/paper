@@ -6,6 +6,7 @@
   "app.contact": "联系我们",
   "app.donate": "捐赠",
   "app.engine_failed": "PDF 生成器加载失败，请尝试重新加载",
+  "app.error_content_unreachable": "无法连接到提供圣经文本的 fetch.bible。您的网络可能屏蔽了它，请尝试其他网络，例如移动数据。",
   "app.error_report": "告诉我们",
   "app.error_title": "出错了",
   "app.language": "语言",

@@ -15,6 +15,7 @@ import 'vuetify/styles'
 
 import {createApp, defineAsyncComponent, watch} from 'vue'
 import {createVuetify} from 'vuetify'
+import {FetchNetworkError} from '@gracious.tech/fetch-client'
 import {md3} from 'vuetify/blueprints'
 import CheckboxBlank from '@material-symbols/svg-400/rounded/check_box_outline_blank.svg'
 import Checkbox from '@material-symbols/svg-400/rounded/check_box.svg'
@@ -269,7 +270,11 @@ void (async () => {
         setTimeout(prefetch, 3000)
     }
 })().catch((error:unknown) => {
-    report_error('splash', error, {context: boot_failure_context(error)})
+    // fetch.bible failing at the network level (no response at all) means something between the
+    // user and it is blocking it, which only they can get around
+    const message = error instanceof FetchNetworkError
+        ? translate('app.error_content_unreachable') : undefined
+    report_error('splash', error, {context: boot_failure_context(error), message})
 })
 
 

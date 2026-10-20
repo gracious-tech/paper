@@ -6,6 +6,7 @@
   "app.contact": "اتصل بنا",
   "app.donate": "تبرّع",
   "app.engine_failed": "تعذّر تحميل مُنشئ ملفات PDF — حاول إعادة التحميل",
+  "app.error_content_unreachable": "تعذّر الاتصال بـ fetch.bible، الذي يوفّر نص الكتاب المقدس. ربما تحجبه شبكتك — جرّب شبكة أخرى، مثل بيانات الجوّال.",
   "app.error_report": "أبلغنا",
   "app.error_title": "حدث خطأ ما",
   "app.language": "اللغة",

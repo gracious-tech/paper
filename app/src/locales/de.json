@@ -6,6 +6,7 @@
   "app.contact": "Kontakt",
   "app.donate": "Spenden",
   "app.engine_failed": "Der PDF-Generator konnte nicht geladen werden – bitte laden Sie die Seite neu",
+  "app.error_content_unreachable": "Es konnte keine Verbindung zu fetch.bible hergestellt werden, das den Bibeltext bereitstellt. Möglicherweise wird es von Ihrem Netzwerk blockiert – versuchen Sie es mit einem anderen Netzwerk, z. B. mobilen Daten.",
   "app.error_report": "Geben Sie uns Bescheid",
   "app.error_title": "Etwas ist schiefgelaufen",
   "app.language": "Sprache",

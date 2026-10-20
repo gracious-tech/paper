@@ -6,6 +6,7 @@
   "app.contact": "Fale conosco",
   "app.donate": "Doar",
   "app.engine_failed": "Não foi possível carregar o gerador de PDF — tente recarregar",
+  "app.error_content_unreachable": "Não foi possível conectar ao fetch.bible, que fornece o texto da Bíblia. Sua rede pode estar bloqueando o acesso — tente outra rede, como os dados móveis.",
   "app.error_report": "Avise-nos",
   "app.error_title": "Algo deu errado",
   "app.language": "Idioma",

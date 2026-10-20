@@ -6,6 +6,7 @@
   "app.contact": "Contact us",
   "app.donate": "Donate",
   "app.engine_failed": "The PDF generator couldn't load — try reloading",
+  "app.error_content_unreachable": "Couldn't connect to fetch.bible, which provides the Bible text. Your network may be blocking it — try a different network, such as mobile data.",
   "app.error_report": "Let us know",
   "app.error_title": "Something went wrong",
   "app.language": "Language",

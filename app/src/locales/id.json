@@ -6,6 +6,7 @@
   "app.contact": "Hubungi kami",
   "app.donate": "Donasi",
   "app.engine_failed": "Pembuat PDF gagal dimuat — coba muat ulang",
+  "app.error_content_unreachable": "Tidak dapat terhubung ke fetch.bible, yang menyediakan teks Alkitab. Jaringan Anda mungkin memblokirnya — coba jaringan lain, seperti data seluler.",
   "app.error_report": "Beri tahu kami",
   "app.error_title": "Terjadi kesalahan",
   "app.language": "Bahasa",

@@ -150,10 +150,11 @@ function make_element<K extends keyof HTMLElementTagNameMap>(tag:K, text = '')
 }
 
 
-function show_error_splash(debug=''):void{
+function show_error_splash(debug='', message?:string):void{
     // Insert the failure splash into the DOM. Built element by element rather than from an HTML
     // string: `debug` carries the error message, which can quote a shared design's content, and
-    // URL-encoding alone leaves quotes that could break out of an attribute
+    // URL-encoding alone leaves quotes that could break out of an attribute. `message` explains
+    // the failure when the caller knows something the user can act on
     splash_displayed = true
     const container = make_element('div')
     container.className = 'fail-splash'
@@ -168,7 +169,11 @@ function show_error_splash(debug=''):void{
     const button = make_element('button', t('common.reload', "Reload"))  // i18n-ignore
     button.addEventListener('click', () => {location.reload()})
     const title = make_element('h1', t('app.error_title', "Something went wrong"))  // i18n-ignore
-    container.append(title, paragraph, button)
+    container.append(title)
+    if (message){
+        container.append(make_element('p', message))
+    }
+    container.append(paragraph, button)
     document.body.prepend(container)
 }
 
@@ -202,10 +207,12 @@ export function set_error_translator(translate:(key:string) => string):void{
 
 
 export function report_error(type:'silent'|'splash', error:unknown,
-        options:{force?:boolean, critical?:boolean, context?:Record<string, string|number>} = {})
+        options:{force?:boolean, critical?:boolean, context?:Record<string, string|number>,
+            message?:string|undefined} = {})
         :string{
     // Report an error, returning the report's id ('' if not reported). Only 'splash' shows
-    // anything, for when the app can't run at all (it failed to boot). Every other failure is
+    // anything (with `message` under its title, if given), for when the app can't run at all
+    // (it failed to boot). Every other failure is
     // either told to the user where they acted (see report_failure() in state.ts) or reported
     // silently, since an error on its own says nothing about whether the user was affected
 
@@ -250,7 +257,8 @@ export function report_error(type:'silent'|'splash', error:unknown,
 
     // Optionally show the failure splash (debug string ends up in the support contact link)
     if (type === 'splash' && !splash_displayed){
-        show_error_splash(`${self.location.hostname} error:${error_id}\n${error_str.slice(0, 300)}`)
+        show_error_splash(`${self.location.hostname} error:${error_id}\n${error_str.slice(0, 300)}`,
+            options.message)
     }
 
     return error_id

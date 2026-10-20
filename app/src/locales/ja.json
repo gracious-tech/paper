@@ -6,6 +6,7 @@
   "app.contact": "お問い合わせ",
   "app.donate": "寄付する",
   "app.engine_failed": "PDF生成エンジンを読み込めませんでした。再読み込みしてください。",
+  "app.error_content_unreachable": "聖書本文を提供しているfetch.bibleに接続できませんでした。お使いのネットワークでブロックされている可能性があります。モバイルデータ通信など、別のネットワークをお試しください。",
   "app.error_report": "お知らせください",
   "app.error_title": "問題が発生しました",
   "app.language": "言語",
