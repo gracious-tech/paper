@@ -40,6 +40,7 @@ import {ref, computed, watch} from 'vue'
 import {useI18n} from '@/services/i18n'
 
 import {content} from '@/services/content'
+import {default_bible} from '@/services/blueprints'
 import {report_error} from '@/services/errors'
 import {fetch_stories, fetch_story_sections, get_story_significance, story_reference_label,
     story_canonical_cmp} from '@/services/stories'
@@ -125,7 +126,7 @@ const book_order = computed(() => {
 // Localized book name for a group's subheader
 const book_name = (book:string):string => {
     const books = content.collection.get_books(
-        content.collection.get_preferred_resource().id, {object: true, whole: true})
+        default_bible(), {object: true, whole: true})
     return books[book]?.name ?? book
 }
 

@@ -7,10 +7,11 @@
 import {books_ordered} from '@gracious.tech/fetch-client'
 
 import {content} from '@/services/content'
-import {get_default_blueprint, font_default_for_bibles, guess_paper_size}
+import {get_default_blueprint, font_default_for_bibles, guess_paper_size, default_bible}
     from '@/services/blueprints'
 import {seed_cover_preset} from '@/services/cover'
 import {generate_token} from '@/services/utils'
+import {locale} from '@/services/i18n'
 import {create_design} from '@/services/designs'
 import img_study from '@/assets/images/examples/study.webp'
 import img_bilingual from '@/assets/images/examples/bilingual.webp'
@@ -171,7 +172,7 @@ export function example_label(id:string, t:Translate):
 function whole_books(book_ids:string[]):ContentPassage[]{
     const selected = new Set(book_ids)
     const canonical = content.collection
-        .get_books(content.collection.get_preferred_resource().id, {whole: true})
+        .get_books(default_bible(), {whole: true})
         .map(book => book.id)
         .filter(id => selected.has(id))
     return canonical.map(book => ({
@@ -203,10 +204,12 @@ function personal_message_item(t:Translate):ContentCustom{
 // Build a real Blueprint for an example: defaults, its diff, its content, then a cover carrying
 // the example's own title/subtitle (there's no wizard title field involved here, so it's staged
 // directly rather than through blueprint.name). `message` is the example's translated opening
-// message page, if it has one
+// message page, if it has one. `bible` is the translation the example is read in (beside any
+// of its own, see `trans`)
 export function build_example_blueprint(example:ExampleDesign, title:string, subtitle:string,
-        message:ContentCustom|null = null):Blueprint{
+        message:ContentCustom|null, bible:string):Blueprint{
     const blueprint = get_default_blueprint()
+    blueprint.bibles = [bible]
     Object.assign(blueprint, example.diff)
     // Examples printed at home don't pin a size themselves — default to the user's likely
     // printer paper size rather than always A4 (professional trims are unaffected, since those
@@ -243,10 +246,15 @@ export function build_example_blueprint(example:ExampleDesign, title:string, sub
 }
 
 
-// Create and open a real design from an example, ready to refine further or print as-is
+// Create and open a real design from an example, ready to refine further or print as-is. Its
+// cover and message page are written in the app's language, so it's read in a translation in
+// that language too, rather than the browser's preferred one (the two differ once a language is
+// picked by hand) — else its printed copyright page and chapter headings, which follow the
+// Bible, wouldn't match its own cover
 export function create_example_design(id:string, t:Translate):Promise<string>{
     const example = EXAMPLE_DESIGNS.find(item => item.id === id)!
     const {title, subtitle} = example_label(id, t)
     const message = example.message ? personal_message_item(t) : null
-    return create_design(build_example_blueprint(example, title, subtitle, message))
+    const bible = content.collection.get_preferred_resource([locale.value]).id
+    return create_design(build_example_blueprint(example, title, subtitle, message, bible))
 }

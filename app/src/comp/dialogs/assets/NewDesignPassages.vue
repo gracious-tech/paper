@@ -30,6 +30,7 @@ div
 import {ref} from 'vue'
 
 import {content} from '@/services/content'
+import {default_bible} from '@/services/blueprints'
 import {generate_token} from '@/services/utils'
 import AppDraggableList from '@/comp/global/AppDraggableList.vue'
 
@@ -50,7 +51,7 @@ const passage_input = ref('')
 // Parse a single line of free-text into a draft passage (book/chapter/verse fields null if the
 // text isn't a recognised reference, so the tick just reflects `book !== null`)
 const parse_passage = (id:string, text:string):DraftPassage => {
-    const bible = content.collection.get_preferred_resource().id
+    const bible = default_bible()
     const parsed = content.collection.string_to_reference(text, bible)
     // PassageReference silently clamps chapter/verse numbers that don't exist ("2 Cor 2:333"
     // becomes 2:17), so also require args_valid — otherwise a typo'd number reads as valid

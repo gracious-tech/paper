@@ -108,6 +108,16 @@ export async function choose_locale(code:string):Promise<void> {
     }
 }
 
+// Whether the active locale was picked by hand rather than detected from the browser — a pick
+// says more about the user's language than their browser does (see default_bible())
+export function locale_was_picked():boolean {
+    try {
+        return localStorage.getItem(CHOSEN_LOCALE_KEY) !== null
+    } catch {
+        return false
+    }
+}
+
 // Nested message tree, the shape Vuetify's locale adapter reads
 export interface NestedMessages {
     [key:string]:NestedMessages|string

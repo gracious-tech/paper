@@ -7,11 +7,36 @@ import {get_service, get_common_sizes} from 'printing-services'
 import {content} from '@/services/content'
 import {blue} from '@/services/state'
 
-import {count_phrase, translate} from '@/services/i18n'
+import {count_phrase, translate, locale, locale_was_picked} from '@/services/i18n'
 
 import type {Blueprint, ContentItem, ContentCustom, ContentPassage, ContentPictureStory,
     MeasureUnit} from '@/services/types'
 import type {Translate} from '@/services/i18n'
+
+
+// The primary translation of the user's most recently edited design of their own, kept current
+// from the designs list by init_designs() — null until that loads, and for a user with none
+let last_used_bible:string|null = null
+
+
+// Record the translation the user's latest design is read in (see last_used_bible)
+export function set_last_used_bible(id:string|null):void{
+    last_used_bible = id
+}
+
+
+// The translation a new design starts in: the one the user last used, so a Bible they switched
+// to carries over to their next design, else the recommended one for their language. That's the
+// app's language when they picked it by hand, else the browser's own preference order (which
+// fetch-client reads itself when given none) — not the app's language regardless, since a
+// browser language the app has no UI catalog for falls back to English, but still has Bibles
+export function default_bible():string{
+    if (last_used_bible && last_used_bible in content.translations){
+        return last_used_bible
+    }
+    const languages = locale_was_picked() ? [locale.value, ...navigator.languages] : []
+    return content.collection.get_preferred_resource(languages).id
+}
 
 
 // Default blueprint for 1st use, reset, and base for saved old blueprint versions
@@ -43,7 +68,7 @@ export function get_default_blueprint():Blueprint{
         // Content
         content: [],
         last_item_at_end: false,
-        bibles: [content.collection.get_preferred_resource().id],
+        bibles: [default_bible()],
         bibles_layout: 'columns',
         bibles_align: 'paragraph',
 
@@ -214,7 +239,7 @@ export function clean_blueprint(blueprint:unknown):Blueprint{
     // Ensure bibles still exist
     valid.bibles = replace_missing_bibles(valid.bibles) as [string, ...string[]]
     if (!valid.bibles.length){
-        valid.bibles.push(content.collection.get_preferred_resource().id)
+        valid.bibles.push(default_bible())
     }
 
     // Booklet (fold in half) only makes sense for self-managed printing (home/custom) —

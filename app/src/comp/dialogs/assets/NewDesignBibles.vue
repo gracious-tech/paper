@@ -41,7 +41,7 @@ import {computed, ref, watch} from 'vue'
 import {useI18n} from '@/services/i18n'
 
 import {content, ensure_bible_books_loaded} from '@/services/content'
-import {missing_book_warnings} from '@/services/blueprints'
+import {missing_book_warnings, default_bible} from '@/services/blueprints'
 import {use_is_mobile} from '@/services/display'
 import BiblePicker from '@/comp/reuseable/BiblePicker.vue'
 
@@ -60,10 +60,11 @@ const {t} = useI18n()
 const is_mobile = use_is_mobile()
 
 
-// Default the primary slot to the preferred translation on first reaching this step (rather
-// than in get_default_draft(), so the step isn't marked complete until actually viewed)
+// Default the primary slot to the user's usual translation (see default_bible) on first
+// reaching this step (rather than in get_default_draft(), so the step isn't marked complete
+// until actually viewed)
 if (!draft.bibles.length){
-    draft.bibles.push(content.collection.get_preferred_resource().id)
+    draft.bibles.push(default_bible())
 }
 
 

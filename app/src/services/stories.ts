@@ -2,6 +2,7 @@
 import {FetchClient, PassageReference, books_ordered} from '@gracious.tech/fetch-client'
 
 import {content, endpoint} from '@/services/content'
+import {default_bible} from '@/services/blueprints'
 import {generate_token} from '@/services/utils'
 
 import type {SectionData} from '@gracious.tech/fetch-client'
@@ -102,7 +103,7 @@ export function story_canonical_cmp(a:Story, b:Story):number {
 // Human-readable reference label for a story, e.g. "Luke 2:8-20"
 export function story_reference_label(story:Story):string {
     const books = content.collection.get_books(
-        content.collection.get_preferred_resource().id, {object: true, whole: true})
+        default_bible(), {object: true, whole: true})
     const book_name = books[story.book]?.name ?? story.book
     const verses = story.start_chapter === story.end_chapter
         ? `${story.start_chapter}:${story.start_verse}-${story.end_verse}`

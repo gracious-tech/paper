@@ -6,8 +6,8 @@ import {PassageReference} from '@gracious.tech/fetch-client'
 import {z} from 'zod'
 
 import {content} from '@/services/content'
-import {get_default_blueprint, get_passages, font_default_for_bibles, replace_missing_bibles}
-    from '@/services/blueprints'
+import {get_default_blueprint, get_passages, font_default_for_bibles, replace_missing_bibles,
+    default_bible} from '@/services/blueprints'
 import {auto_binding} from '@/services/binding_advice'
 import {seed_cover_preset, render_wizard_cover_preview} from '@/services/cover'
 import {apply_minimal_cover, render_minimal_cover_preview} from '@/services/minimal_cover'
@@ -142,7 +142,7 @@ export function clean_wizard_draft(value:unknown):NewDesignDraft|null{
     if (chosen.length){
         draft.bibles = replace_missing_bibles(chosen)
         if (!draft.bibles.length){
-            draft.bibles.push(content.collection.get_preferred_resource().id)
+            draft.bibles.push(default_bible())
         }
     }
     return draft
@@ -386,7 +386,7 @@ export function wizard_preview_blueprint(draft:NewDesignDraft, pages:number|null
     } else if (draft.type !== 'picture_story'){
         const selected = new Set(draft.books)
         const canonical = content.collection
-            .get_books(content.collection.get_preferred_resource().id, {whole: true})
+            .get_books(default_bible(), {whole: true})
             .map(book => book.id)
             .find(id => selected.has(id))
         if (canonical){
@@ -527,7 +527,7 @@ export async function build_new_blueprint(draft:NewDesignDraft, pages:number|nul
     } else {
         const selected = new Set(draft.books)
         const canonical = content.collection
-            .get_books(content.collection.get_preferred_resource().id, {whole: true})
+            .get_books(default_bible(), {whole: true})
             .map(book => book.id)
             .filter(id => selected.has(id))
         blueprint.content = canonical.map(book => {

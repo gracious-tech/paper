@@ -56,6 +56,7 @@ v-card-text(class='overflow-y-auto')
 import {computed, ref, watch} from 'vue'
 
 import {content} from '@/services/content'
+import {default_bible} from '@/services/blueprints'
 import {useI18n} from '@/services/i18n'
 import DialogPeddlers from '@/comp/dialogs/DialogPeddlers.vue'
 import DialogMissingTranslation from '@/comp/dialogs/DialogMissingTranslation.vue'
@@ -78,7 +79,7 @@ const languages_by_pop = content.collection.get_languages({sort_by: 'population'
 
 
 // State (initial language from the current selection, else the user's preferred translation)
-const initial_trans = props.modelValue ?? content.collection.get_preferred_resource().id
+const initial_trans = props.modelValue ?? default_bible()
 const show_languages = ref(false)
 const displayed_language = ref(initial_trans.split('_')[0]!)
 const languages_search = ref('')

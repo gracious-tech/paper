@@ -13,7 +13,7 @@ import {api} from '@/services/api'
 import {user} from '@/services/auth'
 import {blue, state, health, estimated_pages, welcome_seen} from '@/services/state'
 import {clean_blueprint, gen_content_name, content_preview, get_default_blueprint,
-    replace_missing_bibles} from '@/services/blueprints'
+    replace_missing_bibles, set_last_used_bible} from '@/services/blueprints'
 import {generate_token} from '@/services/utils'
 import {report_error} from '@/services/errors'
 import {translate} from '@/services/i18n'
@@ -799,6 +799,9 @@ export async function init_designs(open_id:string|null = null, welcome = true):P
         designs.splice(0, designs.length, ...snap.docs.map(item => {
             return meta_from_doc(item.id, item.data({serverTimestamps: 'estimate'}))
         }))
+        // New designs start in the Bible the user's latest design of their own is read in
+        // (the list is most recent first) — see default_bible()
+        set_last_used_bible(designs.find(item => item.owner === uid)?.paper.bibles[0] ?? null)
         resolve_designs_loaded()
         resolve_first(snap)
     }, error => {

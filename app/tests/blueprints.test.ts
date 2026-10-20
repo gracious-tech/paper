@@ -13,7 +13,8 @@ import {books_ordered} from '@gracious.tech/bible-references'
 import {get_default_blueprint, clean_blueprint, collect_passage_books, content_preview,
     gen_content_name, picture_story_reference, missing_book_warnings, has_missing_books,
     unit_label, format_dims, format_paper_size, format_service_label, format_pages_label,
-    get_passages, default_title, font_default_for_bibles} from '@/services/blueprints'
+    get_passages, default_title, font_default_for_bibles, default_bible, set_last_used_bible}
+    from '@/services/blueprints'
 
 import {reset_content, set_translations, set_books} from './stubs/content'
 import {make_blueprint, make_passage, make_title, make_custom} from './helpers/blueprint'
@@ -48,6 +49,28 @@ function make_story(id:string, books:(string|null)[]):ContentPictureStory {
 beforeEach(() => {
     reset_content()
     set_translations(['eng_bsb'])
+    set_last_used_bible(null)
+})
+
+
+describe('default_bible', () => {
+
+    it('is the recommended translation for a user with no designs of their own yet', () => {
+        expect(default_bible()).toBe('eng_bsb')
+    })
+
+    it('is the translation the user last used, once they have one', () => {
+        // So switching Bible on one design carries over to the next
+        set_translations(['eng_bsb', 'spa_rvr'])
+        set_last_used_bible('spa_rvr')
+        expect(default_bible()).toBe('spa_rvr')
+        expect(get_default_blueprint().bibles).toEqual(['spa_rvr'])
+    })
+
+    it('falls back when the last-used translation has been withdrawn', () => {
+        set_last_used_bible('spa_gone')
+        expect(default_bible()).toBe('eng_bsb')
+    })
 })
 
 

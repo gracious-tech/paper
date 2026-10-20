@@ -47,6 +47,7 @@ import {computed} from 'vue'
 import {useI18n} from '@/services/i18n'
 
 import {content} from '@/services/content'
+import {default_bible} from '@/services/blueprints'
 import NewDesignPassages from '@/comp/dialogs/assets/NewDesignPassages.vue'
 
 import type {GetBooksItem} from '@gracious.tech/fetch-client'
@@ -67,7 +68,7 @@ const {t} = useI18n()
 // All books (including any the preferred translation lacks — availability depends on the
 // translations chosen next, and the editor already warns about mismatches)
 const books = content.collection.get_books(
-    content.collection.get_preferred_resource().id, {whole: true})
+    default_bible(), {whole: true})
 
 
 // The two testament columns
