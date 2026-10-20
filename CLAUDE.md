@@ -2,7 +2,7 @@
 # Paper Bible (paper.bible)
 
 Web application for creating customized, printable Bible documents in professional
-book/booklet format. Users select Bible passages from 800+ languages, customize
+book/booklet format. Users select Bible passages from 1,000+ languages, customize
 styling (fonts, margins, columns), add decorative title pages and custom content,
 then generate print-ready PDFs — compiled in the browser via Typst (WASM), with a
 server fallback for low-memory devices.
