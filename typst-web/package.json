@@ -19,6 +19,6 @@
         "@myriaddreamin/typst-ts-web-compiler": "0.7.0",
         "@myriaddreamin/typst.ts": "0.7.0",
         "paper-bible-typst": "*",
-        "typst-fonts": "^0.1.1"
+        "typst-fonts": "^0.1.3"
     }
 }
