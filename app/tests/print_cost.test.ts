@@ -185,18 +185,18 @@ describe('guess_country', () => {
 describe('country_items', () => {
 
     it('lists every destination Lulu delivers to', () => {
-        expect(country_items('eng')).toHaveLength(LULU_COUNTRIES.length)
+        expect(country_items('en')).toHaveLength(LULU_COUNTRIES.length)
     })
 
     it('names them in the requested language and sorts by that name', () => {
-        const items = country_items('eng')
+        const items = country_items('en')
         const titles = items.map(item => item.title)
         expect(titles).toEqual([...titles].sort((a, b) => a.localeCompare(b, 'en')))
         expect(items.find(item => item.value === 'AU')!.title).toBe('Australia')
     })
 
     it('gives every item a code the quoter accepts', () => {
-        for (const item of country_items('eng')){
+        for (const item of country_items('en')){
             expect(LULU_CURRENCIES).toContain(currency_for_country(item.value))
         }
     })

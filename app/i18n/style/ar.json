@@ -1,0 +1,21 @@
+{
+  "notes": "Modern Standard Arabic. Address the user directly in the second person singular (masculine imperative, the standard convention in Arabic software: «احفظ»، «اختر»); buttons and menu items use verbal nouns (حفظ، إلغاء، إعادة التسمية), headings use nouns. Use Arabic punctuation (، ؛ ؟) and «guillemets» for quoted UI names; keep the English em dash (—) in error messages. Arabic has no capitals, so no capitalisation scheme. Keep Western digits (1, 2, 100%) as the code inserts them. Error toasts follow \"تعذّر …\" + \"— حاول مرة أخرى\". Names of options on English-only third-party sites (Lulu, Google Fonts) stay in English inside «». Chapter = الأصحاح (Van Dyck usage); books of the Bible = الأسفار; interior = الصفحات الداخلية; double-sided = على الوجهين; long/short edge = الحافة الطويلة/القصيرة. Printed book text: Formal Modern Standard Arabic as printed in published Arabic Bibles. Chapter heading uses الأصحاح (Van Dyck usage) with Western digits; licensing statements use the permissive modal يجوز; public domain = الملك العام; Arabic punctuation (، ؛ ؟) and «guillemets».",
+  "terms": {
+    "PDF": "PDF",
+    "Bible": "الكتاب المقدس",
+    "design": "تصميم",
+    "version": "إصدار",
+    "translation": "ترجمة",
+    "passage": "مقطع",
+    "booklet": "كتيّب",
+    "cover": "غلاف",
+    "binding": "تجليد",
+    "picture story": "قصة مصوّرة",
+    "verse": "آية",
+    "footnote": "حاشية",
+    "study notes": "ملاحظات دراسية",
+    "gutter": "هامش التجليد",
+    "spine": "الكعب",
+    "line height": "تباعد الأسطر"
+  }
+}

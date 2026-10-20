@@ -19,7 +19,7 @@ import {get_service} from 'printing-services'
 import {LULU_CURRENCIES, lulu_book_price, lulu_page_limits} from '@/services/lulu_prices'
 import {build_pod_package_id} from '@/services/lulu_skus'
 import {get_lulu_country, LULU_COUNTRIES} from '@/services/lulu_countries'
-import {country_namer, locale_to_bcp47} from '@/services/locale'
+import {country_namer} from '@/services/locale'
 
 import type {BindingTypeId, InkTypeId, SizeId} from 'printing-services'
 import type {LuluCurrency} from '@/services/lulu_prices'
@@ -154,13 +154,12 @@ export function remember_country(code:string):void{
 // Every destination Lulu will deliver to, named in the user's own language and sorted the way
 // that language sorts them
 export function country_items(locale:string):{value:string, title:string}[]{
-    const tag = locale_to_bcp47(locale)
     const country_name = country_namer(locale)
     const items = LULU_COUNTRIES.map(item => ({
         value: item.code,
         title: country_name(item.code),
     }))
-    return items.sort((a, b) => a.title.localeCompare(b.title, tag))
+    return items.sort((a, b) => a.title.localeCompare(b.title, locale))
 }
 
 

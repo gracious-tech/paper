@@ -16,7 +16,7 @@ import {existsSync, readdirSync, rmSync} from 'node:fs'
 import {join} from 'node:path'
 
 import {
-    SOURCE_LOCALE, JOBS_DIR, DOMAINS, read_catalog, write_catalog, locale_path, base_path,
+    JOBS_DIR, DOMAINS, read_catalog, write_catalog, locale_path, base_path,
     read_json, write_json, read_glossary, read_style, style_path, translation_errors,
     translation_warnings, rel, positional_args,
 } from './lib.ts'
@@ -52,7 +52,7 @@ for (const name of jobs){
     const out = read_json<Record<string, unknown>>(out_path, {})
     const domain = DOMAINS[job.domain]
     const loc = job.locale
-    const eng = read_catalog(locale_path(domain, SOURCE_LOCALE))
+    const eng = read_catalog(locale_path(domain, domain.source))
 
     // The locale's style: decisions recorded in this batch apply to its own warnings too
     const style = read_style(loc)

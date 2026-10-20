@@ -64,7 +64,6 @@ import {get_service} from 'printing-services'
 import {count_phrase as count_phrase_base, useI18n} from '@/services/i18n'
 import {state} from '@/services/state'
 import {use_is_mobile} from '@/services/display'
-import {locale_to_bcp47} from '@/services/locale'
 import {country_items, estimate_print_cost, guess_country, lulu_pod_package_id, lulu_print_spec,
     NotPrintable, remember_country} from '@/services/print_cost'
 import {report_error} from '@/services/errors'
@@ -120,7 +119,7 @@ const lulu_pricing = get_service('lulu').url_pricing
 // Lulu quotes in one of five currencies, picked from the destination — never assume the
 // browser's own, and always name the one the quote actually came back in
 function money(amount:number):string{
-    return new Intl.NumberFormat(locale_to_bcp47(locale.value),
+    return new Intl.NumberFormat(locale.value,
         {style: 'currency', currency: estimate.value?.currency ?? 'USD'}).format(amount)
 }
 

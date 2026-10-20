@@ -1,0 +1,15 @@
+{
+  "notes": "Address the user formally as « vous » (never « tu »); instructions in the imperative vous form (« Réessayez »), buttons and menu items as infinitives (« Enregistrer », « Se déconnecter »), step and section headings as infinitives (« Choisir le papier »). Sentence case for every label and heading (only the first word and proper nouns capitalised: « Nouveau Testament », « Bible »). French typography: guillemets « » with no-break spaces inside, a no-break space (U+00A0) before : ; ! ? and %, and between a number and its unit (70 g/m², 1 cm); typographic apostrophe ’; ellipsis …; decimal comma (0,4 po). Error toasts keep the English pattern « Impossible de … — réessayez ». A design's co-editor is a « collaborateur » (not « éditeur », which reads as publisher); upload is « Importer », download « Télécharger ». Option names on Lulu's English-only website (Standard Color, Glossy, cream…) and Google Fonts' buttons are quoted as those sites show them.",
+  "terms": {
+    "PDF": "PDF",
+    "Bible": "Bible",
+    "design": "projet",
+    "version": "version",
+    "translation": "traduction",
+    "passage": "passage",
+    "booklet": "livret",
+    "cover": "couverture",
+    "binding": "reliure",
+    "picture story": "histoire illustrée"
+  }
+}

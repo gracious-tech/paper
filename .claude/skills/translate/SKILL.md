@@ -13,22 +13,25 @@ There are two catalog **domains**, handled identically by every command:
 
 | Domain | What | Catalogs | Locale list | Keyed by |
 |---|---|---|---|---|
-| `ui` | the app's interface | `app/src/locales/` | `app/src/locales.json` | the UI locale detected from the browser |
-| `doc` | the few strings printed *into* a book: copyright page, "Chapter N" | `typst/locales/` | `typst/locales.json` | the fetch.bible language of the book's primary translation |
+| `ui` | the app's interface | `app/src/locales/` | `app/src/locales.json` | a browser language tag (`en`, `pt-BR`, `zh-Hans`) |
+| `doc` | the few strings printed *into* a book: copyright page, "Chapter N" | `typst/locales/` | `typst/locales.json` | the fetch.bible language of the book's primary translation (`eng`, `pes`, `cmn-Hant`) |
 
 A book prints in its Bible's language whatever language its creator's UI is in, so `doc` has
 its own language list — usually broader than `ui`'s, since it's 8 strings rather than 660. Its
 catalogs are compiled into `typst/src/generated/doc_strings.ts` (the tools do this; `i18n_check`
 fails if it's stale). A language missing from `doc` simply prints in English.
 
+So one language has two codes, one per domain (Vietnamese is `vi` and `vie`); name both when you
+run a job for it. They share one style file, keyed by the written language (`style/vi.json`).
+
 ## The loop (one or more locales)
 
 ```bash
 .bin/i18n_status                  # per domain, one line per locale: % done, missing, stale
-.bin/i18n_job vie fra             # writes app/i18n/jobs/<domain>.<loc>.json (≤250 strings each)
+.bin/i18n_job vi vie fr fra       # writes app/i18n/jobs/<domain>.<loc>.json (≤250 strings each)
 # → read each job, write the .out.json it names (see below)
 .bin/i18n_apply                   # validates + merges every .out.json, deletes the job files
-.bin/i18n_job vie fra             # repeat until it says "nothing to translate"
+.bin/i18n_job vi vie fr fra       # repeat until it says "nothing to translate"
 .bin/i18n_check --allow-missing   # must pass; drop --allow-missing once every locale is complete
 ```
 
@@ -58,8 +61,9 @@ Write **only** the output file named in the job's `output` — a flat object, ev
 ```
 
 `_terms` and `_style` are optional: include them the first time a locale is translated (or when
-a decision is made/changed) — `apply` stores them in `app/i18n/style/<loc>.json` and every later
-job repeats them, which is what keeps a locale consistent across sessions.
+a decision is made/changed) — `apply` stores them in `app/i18n/style/<language>.json` (shared by
+the language's UI and document codes) and every later job repeats them, which is what keeps a
+locale consistent across sessions.
 
 Read `where` before translating short strings. "Home", "Copy", "Print", "Left" etc. mean
 different things in different places; the source line shows whether it's a button, a menu item,
@@ -80,24 +84,26 @@ glossary term not rendered the way `_terms` says.
 ## Adding a locale
 
 **For printed books (`doc`):** add the language to `typst/locales.json` under its fetch.bible
-code (the `language` of its translations, ISO 639-3, e.g. `arb`, `cmn`, `swh` — not the UI's
-codes), with `name`/`english`/`dir`, then run the loop. Use the chapter word published Bibles in
+code (the `language` of its translations, ISO 639-3, e.g. `arb`, `pes`, `swh` — not the UI's
+tags), plus its script where fetch.bible declares one for that language's Bibles (`cmn-Hans`,
+`cmn-Hant`), with `name`/`english`/`dir`, then run the loop. Use the chapter word published Bibles in
 that language print; the job's notes say so. Prefer languages you translate reliably — a wrong
 copyright statement printed in someone's Bible is worse than an English one.
 
 **For the UI (`ui`):**
 
-1. Find the code detection uses: `bcp47_to_locale()` in `app/src/services/locale.ts` maps the
-   browser's tag (`ar`, `pt-BR`, `zh-Hant`) to an ISO 639-3 code (`ara`, `por`, `zho-Hant`).
-   Use that code — `i18n_check` fails on a code browsers could never select (e.g. `arb`). If
-   the language isn't in the map, add it there.
-2. Add it to `app/src/locales.json`: `"<code>": {"name": "<its own name for itself>",
+1. Pick its browser language tag, in the canonical form browsers report (`ar`, `pt-BR`,
+   `zh-Hant`; `i18n_check` fails on e.g. `arb` or `zh-hant`). Add a region only when the
+   catalog is genuinely regional (`pt-BR`). Detection (`best_locale()` in
+   `app/src/services/locale.ts`) matches the browser's tags by language and script, so a
+   `pt-BR` catalog serves `pt-PT` too, and `zh-TW` reaches `zh-Hant` but never `zh-Hans`.
+2. Add it to `app/src/locales.json`: `"<tag>": {"name": "<its own name for itself>",
    "english": "<English name>", "dir": "ltr"|"rtl"}`.
 3. Run the loop above. The first job has no `style`: decide the conventions and send `_style`
    and `_terms` with the first batch. If the language is also a Bible language (most are),
    add it to `typst/locales.json` too, so books in it print in it.
-4. If the bookcover widget should also be translated, that's its own repo's catalogs; add the
-   code to `COVER_LOCALES` in `DialogCoverEditor.vue` once it supports it.
+4. The bookcover widget is sent the same tag and matches it against its own catalogs (its own
+   repo), falling back to English — nothing to add here when it gains a language.
 
 ## Many locales at once
 
@@ -110,7 +116,8 @@ low-resource languages; say so to the user rather than presenting those as revie
 
 ## After changing English text
 
-Adding or rewording a string in either `eng.json` makes it missing/stale in every locale. Finish the
+Adding or rewording a string in either source catalog (`app/src/locales/en.json`,
+`typst/locales/eng.json`) makes it missing/stale in every locale. Finish the
 code change, then run the loop for all locales (`.bin/i18n_job` with no arguments). For an English
 edit that doesn't change the meaning (typo, punctuation), skip retranslating with
 `.bin/i18n_sync --bless <key ...>`.
@@ -118,7 +125,7 @@ edit that doesn't change the meaning (typo, punctuation), skip retranslating wit
 ## Writing UI code that stays translatable
 
 - Every user-visible string goes through `$t('ns.key')` / `t()` / `translate()`, with the English
-  added to `app/src/locales/eng.json`. `i18n_check` (run by `audit_unit` and `deploy_app`) fails on
+  added to `app/src/locales/en.json`. `i18n_check` (run by `audit_unit` and `deploy_app`) fails on
   text that doesn't: in TypeScript a double-quoted literal *is* UI text by the project's quoting
   convention, so non-UI strings must be single-quoted.
 - Deliberately untranslated text (product names, URLs, file extensions) gets `i18n-ignore` on

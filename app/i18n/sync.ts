@@ -1,8 +1,8 @@
 
 // Housekeeping for the locale files of both domains (see lib.ts). Safe to run any time:
-//  - rewrites every eng.json, locale file and base file in canonical form
+//  - rewrites every source catalog, locale file and base file in canonical form
 //    (keys sorted, 2-space indent, trailing newline)
-//  - drops orphan keys (no longer in eng.json) from each locale and its base file
+//  - drops orphan keys (no longer in the source catalog) from each locale and its base file
 //  - drops base entries whose key is no longer translated
 //  - recompiles the document strings into the typst package (gen_doc.ts)
 //
@@ -13,7 +13,7 @@
 // Usage: node app/i18n/sync.ts [--bless key ...]
 
 import {
-    SOURCE_LOCALE, DOMAINS, read_meta, read_catalog, write_catalog, locale_path, base_path,
+    DOMAINS, read_meta, read_catalog, write_catalog, locale_path, base_path,
     positional_args,
 } from './lib.ts'
 import {write_doc_module} from './gen_doc.ts'
@@ -36,8 +36,8 @@ write_doc_module()
 
 // Canonicalise one domain's catalogs and drop what no longer belongs in them
 function sync_domain(domain:Domain):void {
-    const eng = read_catalog(locale_path(domain, SOURCE_LOCALE))
-    write_catalog(locale_path(domain, SOURCE_LOCALE), eng)
+    const eng = read_catalog(locale_path(domain, domain.source))
+    write_catalog(locale_path(domain, domain.source), eng)
 
     for (const loc of read_meta(domain).targets){
         const target = read_catalog(locale_path(domain, loc))

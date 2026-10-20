@@ -36,7 +36,6 @@ import AppRoot from './comp/AppRoot.vue'
 import {i18n, load_locale, translate, initial_locale, locale, locale_dir, vuetify_messages, LOCALES,
     SOURCE_LOCALE} from '@/services/i18n'
 import {show_toast, report_failure, health} from '@/services/state'
-import {locale_to_bcp47} from '@/services/locale'
 import {firebase_auth} from '@/services/firebase'
 import {router} from '@/services/router'
 import {ensure_signed_in, is_email_link, stored_email_for_link, complete_email_link}
@@ -153,11 +152,11 @@ app.use(vuetify)
 // lang/dir (screen readers, hyphenation, RTL layout), Vuetify's strings, and the language of
 // the emails Firebase Auth sends (sign-in links)
 watch(locale, code => {
-    document.documentElement.lang = locale_to_bcp47(code)
+    document.documentElement.lang = code
     document.documentElement.dir = locale_dir(code)
     vuetify.locale.messages.value[code] = vuetify_messages(code)
     vuetify.locale.current.value = code
-    firebase_auth.languageCode = locale_to_bcp47(code)
+    firebase_auth.languageCode = code
 }, {immediate: true})
 
 

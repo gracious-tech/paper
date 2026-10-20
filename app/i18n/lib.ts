@@ -26,15 +26,13 @@ export const GLOSSARY_PATH = join(I18N_DIR, 'glossary.json')
 export const STYLE_DIR = join(I18N_DIR, 'style')
 export const JOBS_DIR = join(I18N_DIR, 'jobs')
 
-// The locale that source strings are authored in (its file holds the real English text)
-export const SOURCE_LOCALE = 'eng'
-
 // A flat map of message key -> message text
 export type Catalog = Record<string, string>
 
 // One set of catalogs and where its strings are used
 export interface Domain {
     name:'ui'|'doc'
+    source:string  // The locale source strings are authored in (its file holds the real English)
     src_dir:string  // Scanned for call sites (the translator's context)
     locales_dir:string  // <code>.json catalogs, with .state/<code>.json translation bases
     meta_path:string  // locales.json: the source locale and every target's names + direction
@@ -44,12 +42,14 @@ export interface Domain {
 export const DOMAINS:Record<Domain['name'], Domain> = {
     ui: {
         name: 'ui',
+        source: 'en',
         src_dir: SRC_DIR,
         locales_dir: join(SRC_DIR, 'locales'),
         meta_path: join(SRC_DIR, 'locales.json'),
     },
     doc: {
         name: 'doc',
+        source: 'eng',
         src_dir: join(TYPST_DIR, 'src'),
         locales_dir: join(TYPST_DIR, 'locales'),
         meta_path: join(TYPST_DIR, 'locales.json'),
@@ -92,7 +92,7 @@ export interface LocalesMeta {
 // Read + parse a domain's locales.json
 export function read_meta(domain:Domain):LocalesMeta {
     const raw = read_json<Partial<LocalesMeta>>(domain.meta_path, {})
-    const source = raw.source ?? SOURCE_LOCALE
+    const source = raw.source ?? domain.source
     const locales = raw.locales ?? {}
     return {source, locales, targets: Object.keys(locales).filter(code => code !== source).sort()}
 }
@@ -142,9 +142,19 @@ export interface LocaleStyle {
     terms?:Record<string, string>  // Glossary term -> this locale's chosen rendering
 }
 
-// Absolute path to a locale's style file
+// The written language a locale code names: its language, plus its script where that isn't the
+// language's usual one ("de" for de/deu, "pt" for pt-BR/por, "zh-Hant" for cmn-Hant). The UI is
+// keyed by browser tags and document strings by fetch.bible codes, so this is what lets both
+// share one style file per written language
+export function style_key(locale:string):string {
+    const full = new Intl.Locale(locale).maximize()
+    const usual = new Intl.Locale(full.language).maximize().script
+    return full.script === usual ? full.language : `${full.language}-${full.script}`
+}
+
+// Absolute path to a locale's style file (shared by every locale code for that written language)
 export function style_path(locale:string):string {
-    return join(STYLE_DIR, `${locale}.json`)
+    return join(STYLE_DIR, `${style_key(locale)}.json`)
 }
 
 // Read a locale's style file ({} until the first batch is applied)
@@ -152,13 +162,13 @@ export function read_style(locale:string):LocaleStyle {
     return read_json<LocaleStyle>(style_path(locale), {})
 }
 
-// Keys defined in eng.json that nothing references — no t()/$t() call and no mention
+// Keys defined in the source catalog that nothing references — no t()/$t() call and no mention
 export function unused_keys(domain:Domain, eng:Catalog, usage:Map<string, Site[]>):string[] {
     const mentions = scan_mentions(domain, Object.keys(eng))
     return Object.keys(eng).filter(key => !usage.has(key) && !mentions.has(key)).sort()
 }
 
-// Keys used in code but missing from eng.json
+// Keys used in code but missing from the source catalog
 export function undefined_keys(eng:Catalog, usage:Map<string, Site[]>):string[] {
     return [...usage.keys()].filter(key => !(key in eng)).sort()
 }

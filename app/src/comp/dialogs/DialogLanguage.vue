@@ -12,7 +12,7 @@ v-dialog(v-model='state.language' max-width='360' scrollable)
                 //- Each name is in its own language, so marked up as such for screen readers
                 v-list-item(v-for='option of filtered' :key='option.code'
                         :active='option.code === locale' @click='pick(option.code)'
-                        :lang='option.tag' :dir='option.dir')
+                        :lang='option.code' :dir='option.dir')
                     v-list-item-title {{ option.name }}
         v-card-actions
             v-spacer
@@ -26,7 +26,6 @@ v-dialog(v-model='state.language' max-width='360' scrollable)
 import {computed, ref} from 'vue'
 
 import {LOCALES, locale, choose_locale, translate} from '@/services/i18n'
-import {locale_to_bcp47} from '@/services/locale'
 import {state, report_failure} from '@/services/state'
 
 
@@ -41,7 +40,7 @@ const filter = ref<string|null>('')
 // Every locale, by its own name, with what's needed to mark each entry up in its language
 const options = computed(() => {
     return Object.entries(LOCALES)
-        .map(([code, info]) => ({code, ...info, tag: locale_to_bcp47(code)}))
+        .map(([code, info]) => ({code, ...info}))
         .sort((a, b) => a.name.localeCompare(b.name))
 })
 

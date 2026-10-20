@@ -1,13 +1,15 @@
 
-// Reconcile each domain's eng.json with the t()/$t() calls in its code (see lib.ts).
-//  - lists keys referenced in code but missing from eng.json (add these by hand, with the
-//    English text and, where the call site alone is ambiguous, a note in context.json)
-//  - lists keys in eng.json that nothing references any more
-// With --prune it removes the unused keys from eng.json, every locale file and every base file.
+// Reconcile each domain's source catalog (app/src/locales/en.json, typst/locales/eng.json) with
+// the t()/$t() calls in its code (see lib.ts).
+//  - lists keys referenced in code but missing from the source catalog (add these by hand, with
+//    the English text and, where the call site alone is ambiguous, a note in context.json)
+//  - lists keys in the source catalog that nothing references any more
+// With --prune it removes the unused keys from the source catalog, every locale file and every
+// base file.
 // Usage: node app/i18n/extract.ts [--domain ui|doc] [--prune]
 
 import {
-    SOURCE_LOCALE, read_meta, read_catalog, write_catalog, locale_path, base_path, scan_usage,
+    read_meta, read_catalog, write_catalog, locale_path, base_path, scan_usage,
     unused_keys, undefined_keys, domains_from_args, rel,
 } from './lib.ts'
 import {write_doc_module} from './gen_doc.ts'
@@ -29,11 +31,11 @@ if (pruned_doc){
 // Report (and with --prune, remove) one domain's undefined and unused keys, returning whether
 // anything was pruned
 function reconcile(domain:Domain):boolean {
-    const eng = read_catalog(locale_path(domain, SOURCE_LOCALE))
+    const eng = read_catalog(locale_path(domain, domain.source))
     const usage = scan_usage(domain)
     const undefined_list = undefined_keys(eng, usage)
     const unused_list = unused_keys(domain, eng, usage)
-    const file = rel(locale_path(domain, SOURCE_LOCALE))
+    const file = rel(locale_path(domain, domain.source))
 
     console.log(`── ${domain.name}`)
     if (undefined_list.length){
@@ -63,7 +65,7 @@ function reconcile(domain:Domain):boolean {
     // Prune unused keys from the source, every locale and every base file
     const drop = new Set(unused_list)
     const meta = read_meta(domain)
-    for (const path of [locale_path(domain, SOURCE_LOCALE),
+    for (const path of [locale_path(domain, domain.source),
             ...meta.targets.flatMap(l => [locale_path(domain, l), base_path(domain, l)])]){
         const catalog = read_catalog(path)
         let removed = 0

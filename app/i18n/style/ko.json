@@ -1,0 +1,21 @@
+{
+  "notes": "Polite formal register: statements and messages in 합니다체 (\"저장하지 못했습니다\"), requests as ~하세요/~해 주세요, questions to the user as ~하시겠습니까?; never address the user with a pronoun (no 당신/귀하), just omit the subject. Buttons and labels are short nouns or noun phrases (\"저장\", \"표지 다운로드\", \"다시 시도\"); step titles end in ~하기. Keep the English em dash \" — \" in error messages. Straight double quotes \"…\" around UI option names, as the English does; option names on Lulu's or Google Fonts' English-only sites stay in English. Use the single-character ellipsis \"…\". Avoid particles directly after a {placeholder} whose final sound is unknown — attach a noun instead (\"{binding} 방식으로\", \"{bw} 옵션을\"). Keep Paper Bible, Lulu, Google and PDF unchanged. Bible quotations follow 개역개정 wording; \"chapter\" is 장, Old/New Testament 구약/신약; interior pages are 내지; booklet binding is 소책자; columns are 1단/2단.",
+  "terms": {
+    "PDF": "PDF",
+    "Bible": "성경",
+    "design": "디자인",
+    "version": "버전",
+    "translation": "번역본",
+    "passage": "본문",
+    "booklet": "소책자",
+    "cover": "표지",
+    "binding": "제본",
+    "picture story": "그림 이야기",
+    "build (a version)": "제작",
+    "study notes": "스터디 노트",
+    "section headings": "소제목",
+    "title page": "제목 페이지",
+    "interior": "내지",
+    "gutter": "제본 여백"
+  }
+}

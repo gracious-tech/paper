@@ -18,7 +18,7 @@ import {rmSync} from 'node:fs'
 import {join} from 'node:path'
 
 import {
-    SOURCE_LOCALE, JOBS_DIR, read_meta, read_catalog, read_context, read_glossary, read_style,
+    JOBS_DIR, read_meta, read_catalog, read_context, read_glossary, read_style,
     locale_path, base_path, analyse_locale, scan_usage, scan_mentions, context_for, write_json,
     rel, domains_from_args, positional_args,
 } from './lib.ts'
@@ -121,7 +121,7 @@ if (written){
 // Write (or clear) the jobs for one domain's locales, returning how many were written
 function write_jobs(domain:Domain, locales:string[]):number {
     const meta = read_meta(domain)
-    const eng = read_catalog(locale_path(domain, SOURCE_LOCALE))
+    const eng = read_catalog(locale_path(domain, domain.source))
     const usage = scan_usage(domain)
     const mentions = scan_mentions(domain, Object.keys(eng))
     let count = 0

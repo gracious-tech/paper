@@ -10,7 +10,7 @@
 
 import {list_services} from 'printing-services'
 
-import {country_namer, locale_to_bcp47} from '@/services/locale'
+import {country_namer} from '@/services/locale'
 
 import type {ServicePublic} from 'printing-services'
 import type {Translate} from '@/services/i18n'
@@ -123,14 +123,13 @@ export function service_select_items(t:Translate, locale:string):ServiceItem[]{
 
     // Then the country-limited ones, grouped under the country's name in the user's language
     const country_name = country_namer(locale)
-    const tag = locale_to_bcp47(locale)
     const own_country = browser_country()
     const countries = [...new Set(services.flatMap(service => service.countries ?? []))]
     countries.sort((a, b) => {
         if (a === own_country || b === own_country){
             return a === own_country ? -1 : 1
         }
-        return country_name(a).localeCompare(country_name(b), tag)
+        return country_name(a).localeCompare(country_name(b), locale)
     })
     for (const country of countries){
         items.push(...group_items(country_name(country),

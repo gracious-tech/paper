@@ -1,5 +1,5 @@
 
-// The homegrown i18n module: a flat catalog lookup with {named} placeholders, an eng fallback,
+// The homegrown i18n module: a flat catalog lookup with {named} placeholders, an en fallback,
 // and plural handling done by picking a key rather than by message-format syntax.
 //
 // Deliberately library-free because the app targets 800+ machine-translated locales, where ICU
@@ -14,7 +14,7 @@ import {describe, it, expect, afterEach, vi} from 'vitest'
 import {translate, count_phrase, useI18n, locale, SOURCE_LOCALE, i18n, LOCALES, locale_dir,
     vuetify_messages, initial_locale} from '@/services/i18n'
 
-import eng from '@/locales/eng.json'
+import eng from '@/locales/en.json'
 
 
 const LOCALES_DIR = fileURLToPath(new URL('../src/locales', import.meta.url))
@@ -95,7 +95,7 @@ describe('useI18n', () => {
 
     it('starts on the source locale', () => {
         expect(locale.value).toBe(SOURCE_LOCALE)
-        expect(SOURCE_LOCALE).toBe('eng')
+        expect(SOURCE_LOCALE).toBe('en')
     })
 })
 
@@ -150,17 +150,22 @@ describe('initial_locale', () => {
 
     it('detects the browser\'s language when nothing was picked', () => {
         setup(['vi-VN', 'en'], null)
-        expect(initial_locale()).toBe('vie')
+        expect(initial_locale()).toBe('vi')
     })
 
     it('prefers a language the user picked by hand', () => {
-        setup(['vi-VN'], 'eng')
-        expect(initial_locale()).toBe('eng')
+        setup(['vi-VN'], 'en')
+        expect(initial_locale()).toBe('en')
+    })
+
+    it('still honours a pick saved under the old ISO 639-3 codes', () => {
+        setup(['en'], 'vie')
+        expect(initial_locale()).toBe('vi')
     })
 
     it('ignores a remembered pick the app no longer offers', () => {
         setup(['vi-VN'], 'xyz')
-        expect(initial_locale()).toBe('vie')
+        expect(initial_locale()).toBe('vi')
     })
 
     it('still detects when storage is blocked', () => {
@@ -168,7 +173,7 @@ describe('initial_locale', () => {
         vi.stubGlobal('localStorage', {getItem: () => {
             throw new Error('blocked')
         }})
-        expect(initial_locale()).toBe('vie')
+        expect(initial_locale()).toBe('vi')
     })
 })
 
@@ -242,10 +247,10 @@ describe('the catalogs themselves', () => {
 
     describe('translated catalogs', () => {
 
-        // Every locale file beside eng.json, checked for placeholder parity — a translation
+        // Every locale file beside en.json, checked for placeholder parity — a translation
         // that dropped or renamed a placeholder renders a literal brace to the user
         const others = readdirSync(LOCALES_DIR)
-            .filter(name => name.endsWith('.json') && name !== 'eng.json')
+            .filter(name => name.endsWith('.json') && name !== 'en.json')
 
         const placeholders = (message:string):string[] =>
             [...message.matchAll(/\{(\w+)\}/g)].map(match => match[1]!).sort()

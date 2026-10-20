@@ -5,7 +5,8 @@
 
 import {describe, it, expect} from 'vitest'
 
-import {translation_errors, translation_warnings, context_for, arg_names} from '../lib.ts'
+import {translation_errors, translation_warnings, context_for, arg_names, style_key}
+    from '../lib.ts'
 import {lint_source} from '../lint.ts'
 
 import type {GlossaryTerm, Site} from '../lib.ts'
@@ -127,6 +128,30 @@ describe('arg_names', () => {
 
     it('collects each placeholder once', () => {
         expect([...arg_names('{a} {b} {a}')]).toEqual(['a', 'b'])
+    })
+})
+
+
+describe('style_key', () => {
+
+    it('files a UI tag and a document code for one written language together', () => {
+        // The UI is keyed by browser tags, document strings by fetch.bible codes
+        expect(style_key('de')).toBe(style_key('deu'))
+        expect(style_key('pt-BR')).toBe(style_key('por'))
+        expect(style_key('ar')).toBe(style_key('arb'))
+        expect(style_key('fa')).toBe(style_key('pes'))
+        expect(style_key('zh-Hans')).toBe(style_key('cmn-Hans'))
+    })
+
+    it('keeps a language\'s other scripts apart', () => {
+        expect(style_key('cmn-Hant')).toBe('zh-Hant')
+        expect(style_key('zh-Hant')).not.toBe(style_key('zh-Hans'))
+        expect(style_key('sr-Latn')).not.toBe(style_key('srp'))
+    })
+
+    it('is the bare language for its usual script', () => {
+        expect(style_key('de')).toBe('de')
+        expect(style_key('zh-Hans')).toBe('zh')
     })
 })
 

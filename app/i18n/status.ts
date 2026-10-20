@@ -6,7 +6,7 @@
 // Usage: node app/i18n/status.ts [locale ...] [--domain ui|doc] [--keys] [--json]
 
 import {
-    SOURCE_LOCALE, DOMAINS, read_meta, read_catalog, locale_path, base_path, analyse_locale,
+    DOMAINS, read_meta, read_catalog, locale_path, base_path, analyse_locale,
     scan_usage, unused_keys, undefined_keys, domains_from_args, positional_args,
 } from './lib.ts'
 import {find_untranslated} from './lint.ts'
@@ -25,10 +25,9 @@ const results = domains.map(domain => report(domain))
 // JSON output for scripting
 if (as_json){
     const domains_json = results.map(({domain, keys, undefined_keys, unused_keys, reports}) => {
-        return {domain, keys, undefined_keys, unused_keys, reports}
+        return {domain, source: DOMAINS[domain].source, keys, undefined_keys, unused_keys, reports}
     })
-    console.log(JSON.stringify({source: SOURCE_LOCALE, untranslated, domains: domains_json},
-        null, 2))
+    console.log(JSON.stringify({untranslated, domains: domains_json}, null, 2))
     process.exit(0)
 }
 
@@ -52,7 +51,7 @@ if (outstanding.size){
 
 // Gather one domain's source problems and per-locale coverage
 function report(domain:Domain){
-    const eng = read_catalog(locale_path(domain, SOURCE_LOCALE))
+    const eng = read_catalog(locale_path(domain, domain.source))
     const meta = read_meta(domain)
     const total = Object.keys(eng).length
     const usage = scan_usage(domain)

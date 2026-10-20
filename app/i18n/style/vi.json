@@ -1,0 +1,15 @@
+{
+  "notes": "Address the user as \"bạn\" (friendly but polite; never \"mày\"/\"quý khách\"). Sentence case for labels and buttons (only the first word and proper nouns capitalised). Buttons are short verb phrases (\"Lưu\", \"Tải xuống bìa\"). Use the Vietnamese ellipsis \"…\" and straight double quotes \"…\" around UI option names, as the English does. Keep product/company names (Paper Bible, Lulu, Google) and the abbreviation PDF unchanged. Use the term \"Kinh Thánh\" for the Bible.",
+  "terms": {
+    "Bible": "Kinh Thánh",
+    "design": "thiết kế",
+    "version": "phiên bản",
+    "translation": "bản dịch",
+    "passage": "đoạn",
+    "booklet": "sách gấp",
+    "cover": "bìa",
+    "binding": "đóng sách",
+    "picture story": "truyện tranh",
+    "PDF": "PDF"
+  }
+}

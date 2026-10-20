@@ -1,0 +1,20 @@
+{
+  "notes": "Neutral international Spanish (no regionalisms, no vosotros). Address the user informally as \"tú\" (imperatives like \"Vuelve a intentarlo\", possessive \"tu\"). Sentence case for all labels, titles and headings (only the first word and proper nouns capitalised, e.g. \"Nuevo Testamento\" stays capitalised). Curly double quotes “ ” for quoted UI names. Error toasts written \"X — try again\" become two sentences: \"No se pudo … . Vuelve a intentarlo\" (no final period where the English has none); avoid the English spaced dash. Prefer LatAm-neutral vocabulary understood everywhere: \"agregar\" (not \"añadir\"), \"costo\", \"ejemplar\" for a printed copy, \"subir\" for upload, \"grapar\" for staple, \"a doble cara\" / \"voltear por el borde largo/corto\" for duplex. \"Disposición\" for layout (never \"diseño\", which is reserved for a design). Lulu's English-only option names stay in English. Decimal comma (\"0,4 in\") and a space before % (\"100 %\").",
+  "terms": {
+    "PDF": "PDF",
+    "Bible": "Biblia",
+    "design": "diseño",
+    "version": "versión",
+    "translation": "traducción",
+    "passage": "pasaje",
+    "booklet": "folleto",
+    "cover": "cubierta",
+    "binding": "encuadernación",
+    "picture story": "historia ilustrada",
+    "build (a version)": "generar",
+    "heading": "título",
+    "title page": "página de título",
+    "gutter": "margen de encuadernación",
+    "header/footer": "encabezado / pie de página"
+  }
+}

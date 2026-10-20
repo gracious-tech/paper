@@ -2,8 +2,8 @@
 // CI gate for translations, across both domains (see lib.ts). Exits non-zero on any of:
 //  - user-visible text in app/src that never goes through t()/$t() (see lint.ts)
 //  - a catalog / base file that is not in canonical form (run .bin/i18n_sync to fix)
-//  - a key used in code but missing from eng.json, or a key in eng.json with no call site
-//  - a locales.json entry that's malformed, or a UI locale browser detection could never pick
+//  - a key used in code but missing from the source catalog, or a source key with no call site
+//  - a locales.json entry that's malformed, or a code in the wrong form for its domain
 //  - a target locale that is missing keys, has orphan keys, or has stale entries
 //  - a translation that would render wrong ({placeholders}, HTML tags, line breaks, keep-terms)
 //  - typst/src/generated/doc_strings.ts out of date with the document catalogs
@@ -15,7 +15,7 @@
 import {existsSync} from 'node:fs'
 
 import {
-    SOURCE_LOCALE, SRC_DIR, DOMAINS, read_meta, read_catalog, locale_path, base_path,
+    DOMAINS, read_meta, read_catalog, locale_path, base_path,
     is_canonical, analyse_locale, scan_usage, unused_keys, undefined_keys, read_glossary,
     translation_errors, rel,
 } from './lib.ts'
@@ -23,13 +23,6 @@ import {find_untranslated} from './lint.ts'
 import {doc_module_current, DOC_MODULE_PATH} from './gen_doc.ts'
 
 import type {Domain} from './lib.ts'
-
-// The app's own browser-tag mapping, so this checks exactly what detection will do. Loaded by
-// path rather than imported, since the app's sources aren't part of the tooling's tsconfig
-const {bcp47_to_locale, locale_to_bcp47} = await import(`${SRC_DIR}/services/locale.ts`) as {
-    bcp47_to_locale:(tag:string) => string|null
-    locale_to_bcp47:(locale:string) => string
-}
 
 const warn_only = process.argv.includes('--warn-only')
 const allow_missing = process.argv.includes('--allow-missing')
@@ -62,7 +55,7 @@ if (allow_missing && missing_count){
 }
 if (!problems.length){
     const counts = Object.values(DOMAINS).map(domain => {
-        const keys = Object.keys(read_catalog(locale_path(domain, SOURCE_LOCALE))).length
+        const keys = Object.keys(read_catalog(locale_path(domain, domain.source))).length
         return `${domain.name}: ${keys} keys, ${read_meta(domain).targets.length} locale(s)`
     })
     console.log(`i18n check passed (${counts.join('; ')})`)
@@ -77,12 +70,12 @@ process.exit(warn_only ? 0 : 1)
 
 // Check one domain's catalogs, call sites and locale list
 function check_domain(domain:Domain):void {
-    const eng = read_catalog(locale_path(domain, SOURCE_LOCALE))
+    const eng = read_catalog(locale_path(domain, domain.source))
     const meta = read_meta(domain)
     const label = (loc:string) => `${domain.name} ${loc}`
 
     // Canonical form of every catalog + base file
-    const files = [locale_path(domain, SOURCE_LOCALE)]
+    const files = [locale_path(domain, domain.source)]
     for (const loc of meta.targets){
         files.push(locale_path(domain, loc), base_path(domain, loc))
     }
@@ -114,7 +107,7 @@ function check_domain(domain:Domain):void {
             note(`${label(code)}: no catalog yet (run .bin/i18n_job ${code})`)
         }
         if (domain.name === 'ui'){
-            check_detectable(code)
+            check_browser_tag(code)
         } else if (!/^[a-z]{3}(-[A-Z][a-z]{3})?$/.test(code)){
             // Document strings follow the Bible's language, as fetch.bible names it, plus its
             // script where fetch.bible declares one (see doc_language() in typst/src/doc_strings.ts)
@@ -134,7 +127,7 @@ function check_domain(domain:Domain):void {
             }
         }
         for (const key of report.orphan){
-            note(`${label(loc)} orphan (not in ${SOURCE_LOCALE}): ${key}`)
+            note(`${label(loc)} orphan (not in ${domain.source}): ${key}`)
         }
         for (const key of report.stale){
             note(`${label(loc)} stale (English changed since translation): ${key}`)
@@ -150,20 +143,19 @@ function check_domain(domain:Domain):void {
 }
 
 
-// A UI locale code must be the one detection maps the browser's tag to: browsers report the
-// shortest tag for a language (CLDR's canonical form — "ar", never "arb"), so e.g. an "arb"
-// entry would be unreachable while bcp47_to_locale() turns "ar" into "ara"
-function check_detectable(code:string):void {
-    let browser_tag = ''
+// A UI locale code is a browser language tag, written the way browsers report it (CLDR's canonical
+// form: "ar" not "arb", "zh-Hans" not "zh-hans"). Detection matches the browser's tags against
+// these by language and script (see best_locale() in app/src/services/locale.ts), so any
+// canonical tag is reachable, but a non-canonical one would never compare equal
+function check_browser_tag(code:string):void {
+    let canonical = ''
     try {
-        browser_tag = Intl.getCanonicalLocales(locale_to_bcp47(code))[0]!
+        canonical = Intl.getCanonicalLocales(code)[0]!
     } catch {
-        note(`app/src/locales.json: "${code}" isn't a valid language code`)
+        note(`app/src/locales.json: "${code}" isn't a valid language tag`)
         return
     }
-    const detected = bcp47_to_locale(browser_tag)
-    if (detected !== code){
-        note(`app/src/locales.json: browsers report "${code}" as "${browser_tag}", which detection`
-            + ` maps to "${detected}" — use that code, or map it in app/src/services/locale.ts`)
+    if (canonical !== code){
+        note(`app/src/locales.json: "${code}" should be written "${canonical}", as browsers report it`)
     }
 }

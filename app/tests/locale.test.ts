@@ -1,13 +1,13 @@
 
-// Browser BCP-47 tags in, the app's ISO 639-3 locale codes out.
+// Browser tags in, the best supported UI locale out.
 //
-// The app keys translations by 639-3 to match the fetch.bible platform, but browsers only ever
-// report BCP-47 — so this mapping is what decides whether someone gets their own language.
+// UI locales are browser language tags themselves, but a browser rarely asks for exactly the tag
+// a catalog is filed under ("pt-PT" for "pt-BR", "zh-TW" for "zh-Hant") — so this matching is
+// what decides whether someone gets their own language.
 
 import {describe, it, expect, afterEach, vi} from 'vitest'
 
-import {bcp47_to_locale, locale_to_bcp47, country_namer, detect_locale, intl_tag}
-    from '@/services/locale'
+import {best_locale, country_namer, detect_locale, intl_tag} from '@/services/locale'
 
 
 afterEach(() => {
@@ -21,67 +21,53 @@ function set_browser_languages(languages:string[]):void{
 }
 
 
-describe('bcp47_to_locale', () => {
+describe('best_locale', () => {
 
-    it('maps a bare two-letter tag', () => {
-        expect(bcp47_to_locale('en')).toBe('eng')
-        expect(bcp47_to_locale('vi')).toBe('vie')
-        expect(bcp47_to_locale('sw')).toBe('swa')
+    const supported = ['en', 'vi', 'pt-BR', 'zh-Hans', 'zh-Hant', 'sr-Latn']
+
+    it('takes an exact match', () => {
+        expect(best_locale('vi', supported)).toBe('vi')
+        expect(best_locale('pt-BR', supported)).toBe('pt-BR')
     })
 
-    it('ignores a region subtag', () => {
-        expect(bcp47_to_locale('en-US')).toBe('eng')
-        expect(bcp47_to_locale('pt-BR')).toBe('por')
+    it('serves a region from the same language', () => {
+        expect(best_locale('en-US', supported)).toBe('en')
+        expect(best_locale('vi-VN', supported)).toBe('vi')
+        expect(best_locale('pt-PT', supported)).toBe('pt-BR')
+        expect(best_locale('pt', supported)).toBe('pt-BR')
     })
 
     it('is case-insensitive', () => {
-        expect(bcp47_to_locale('EN-us')).toBe('eng')
-        expect(bcp47_to_locale('Vi')).toBe('vie')
+        expect(best_locale('EN-us', supported)).toBe('en')
+        expect(best_locale('zh-hant', supported)).toBe('zh-Hant')
     })
 
-    it('distinguishes traditional from simplified Chinese', () => {
-        // The only place a script subtag changes which catalog is wanted
-        expect(bcp47_to_locale('zh-Hant')).toBe('zho-Hant')
-        expect(bcp47_to_locale('zh-Hant-TW')).toBe('zho-Hant')
-        expect(bcp47_to_locale('zh-Hans')).toBe('zho')
-        expect(bcp47_to_locale('zh')).toBe('zho')
-        expect(bcp47_to_locale('zh-CN')).toBe('zho')
+    it('tells the Chinese scripts apart, by region as well as by script', () => {
+        expect(best_locale('zh-TW', supported)).toBe('zh-Hant')
+        expect(best_locale('zh-HK', supported)).toBe('zh-Hant')
+        expect(best_locale('zh-Hant-TW', supported)).toBe('zh-Hant')
+        expect(best_locale('zh-CN', supported)).toBe('zh-Hans')
+        expect(best_locale('zh', supported)).toBe('zh-Hans')
     })
 
-    it('passes an already-639-3 tag through', () => {
-        // The browser won't send one, but a stored preference might
-        expect(bcp47_to_locale('swh')).toBe('swh')
-        expect(bcp47_to_locale('nya')).toBe('nya')
+    it('never serves one script for another', () => {
+        // A Traditional reader is better served by their next browser preference than by
+        // Simplified, and Cyrillic Serbian is a different catalog from Latin
+        expect(best_locale('zh-TW', ['en', 'zh-Hans'])).toBe(null)
+        expect(best_locale('sr', supported)).toBe(null)
+        expect(best_locale('sr-Latn-RS', supported)).toBe('sr-Latn')
     })
 
-    it('returns null for something it cannot map', () => {
-        expect(bcp47_to_locale('')).toBe(null)
-        expect(bcp47_to_locale('xx')).toBe(null)
-        expect(bcp47_to_locale('abcd')).toBe(null)
-    })
-})
-
-
-describe('locale_to_bcp47', () => {
-
-    it('reverses the mapping for Intl', () => {
-        // A 639-3 code the browser has never heard of makes Intl silently fall back to English
-        expect(locale_to_bcp47('eng')).toBe('en')
-        expect(locale_to_bcp47('vie')).toBe('vi')
+    it('understands a legacy ISO 639-3 code', () => {
+        // A language picked by hand was saved under these before the UI moved to browser tags
+        expect(best_locale('vie', supported)).toBe('vi')
+        expect(best_locale('eng', supported)).toBe('en')
     })
 
-    it('keeps a script subtag', () => {
-        expect(locale_to_bcp47('zho-Hant')).toBe('zh-Hant')
-    })
-
-    it('leaves a code with no two-letter equivalent alone', () => {
-        expect(locale_to_bcp47('swh')).toBe('swh')
-    })
-
-    it('round-trips every two-letter mapping', () => {
-        for (const tag of ['en', 'vi', 'fr', 'sw', 'zu', 'th']){
-            expect(locale_to_bcp47(bcp47_to_locale(tag)!)).toBe(tag)
-        }
+    it('returns null for something it cannot use', () => {
+        expect(best_locale('', supported)).toBe(null)
+        expect(best_locale('fr', supported)).toBe(null)
+        expect(best_locale('not a tag', supported)).toBe(null)
     })
 })
 
@@ -90,32 +76,37 @@ describe('detect_locale', () => {
 
     it('picks the first supported language the browser asks for', () => {
         set_browser_languages(['fr-FR', 'vi', 'en'])
-        expect(detect_locale(['vie'])).toBe('vie')
+        expect(detect_locale(['vi'])).toBe('vi')
     })
 
     it('always accepts the fallback, supported or not', () => {
         set_browser_languages(['en-GB'])
-        expect(detect_locale([])).toBe('eng')
+        expect(detect_locale([])).toBe('en')
     })
 
     it('falls back when nothing matches', () => {
         set_browser_languages(['fr-FR', 'de'])
-        expect(detect_locale(['vie'])).toBe('eng')
+        expect(detect_locale(['vi'])).toBe('en')
     })
 
     it('honours an explicit fallback', () => {
         set_browser_languages(['fr'])
-        expect(detect_locale(['vie'], 'vie')).toBe('vie')
+        expect(detect_locale(['vi'], 'vi')).toBe('vi')
     })
 
     it('uses navigator.language when there is no list', () => {
         vi.stubGlobal('navigator', {languages: [], language: 'vi-VN'})
-        expect(detect_locale(['vie'])).toBe('vie')
+        expect(detect_locale(['vi'])).toBe('vi')
+    })
+
+    it('matches a regional tag to its language', () => {
+        set_browser_languages(['pt-PT', 'en'])
+        expect(detect_locale(['pt-BR', 'vi'])).toBe('pt-BR')
     })
 
     it('skips an unmappable tag rather than giving up', () => {
         set_browser_languages(['xx-YY', 'vi'])
-        expect(detect_locale(['vie'])).toBe('vie')
+        expect(detect_locale(['vi'])).toBe('vi')
     })
 })
 
@@ -123,17 +114,17 @@ describe('detect_locale', () => {
 describe('country_namer', () => {
 
     it('names a country in the requested language', () => {
-        expect(country_namer('eng')('au')).toBe('Australia')
+        expect(country_namer('en')('au')).toBe('Australia')
     })
 
     it('accepts a lowercase code', () => {
-        expect(country_namer('eng')('gb')).toBe(country_namer('eng')('GB'))
+        expect(country_namer('en')('gb')).toBe(country_namer('en')('GB'))
     })
 
     it('never returns nothing for an unknown code', () => {
         // Intl answers "Unknown Region" for a reserved code rather than undefined; the code
         // itself is the last resort behind that
-        const name = country_namer('eng')('zz')
+        const name = country_namer('en')('zz')
         expect(typeof name).toBe('string')
         expect(name.length).toBeGreaterThan(0)
     })
@@ -150,11 +141,11 @@ describe('intl_tag', () => {
 
     it('keeps the browser\'s regional tag for the same language', () => {
         set_browser_languages(['en-GB', 'vi'])
-        expect(intl_tag('eng')).toBe('en-GB')
+        expect(intl_tag('en')).toBe('en-GB')
     })
 
-    it('falls back to the bare tag when the browser doesn\'t ask for that language', () => {
+    it('falls back to the locale itself when the browser doesn\'t ask for that language', () => {
         set_browser_languages(['fr-FR'])
-        expect(intl_tag('vie')).toBe('vi')
+        expect(intl_tag('vi')).toBe('vi')
     })
 })

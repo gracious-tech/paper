@@ -1,0 +1,15 @@
+{
+  "notes": "Address the user formally as “আপনি” with polite imperatives (করুন, দেখুন, বেছে নিন). Standard colloquial (চলিত) Bengali, not সাধু. Buttons are short actions in polite imperative (“সংরক্ষণ করুন”, “মুছুন”); simple dismiss/cancel buttons may be bare nouns (“বাতিল”). Labels and headings are nouns. Bengali has no capital letters. End full sentences with the দাঁড়ি (।), keep ? and ! as is; keep the em dash (—) where English uses it; short labels and toasts without a full stop in English get none. Use curly double quotes “ ” for quoted UI/option names. Numbers stay in Western digits (placeholders insert Western digits). Established loanwords are written in Bengali script (ডিজাইন, অ্যাকাউন্ট, সাইন ইন, লিংক, ফন্ট, আপলোড, PDF); option names on Lulu's English-only site and in English print dialogs stay in English, with a Bengali gloss in parentheses where helpful. Interior (of a printed book) = “ভেতরের পৃষ্ঠা”.",
+  "terms": {
+    "PDF": "PDF",
+    "Bible": "বাইবেল",
+    "design": "ডিজাইন",
+    "version": "সংস্করণ",
+    "translation": "অনুবাদ",
+    "passage": "শাস্ত্রাংশ",
+    "booklet": "পুস্তিকা",
+    "cover": "প্রচ্ছদ",
+    "binding": "বাঁধাই",
+    "picture story": "ছবির গল্প"
+  }
+}

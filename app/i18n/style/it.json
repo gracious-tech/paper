@@ -1,0 +1,21 @@
+{
+  "notes": "Address the user informally with “tu” (imperative tu forms for instructions; buttons and menu items use the bare imperative: “Salva”, “Elimina”, “Annulla”). Sentence case for labels, headings and titles (only the first word and proper nouns capitalised, e.g. “Nuovo Testamento”, “Opzioni avanzate”). Curly double quotes “…” for quoted UI terms. Error toasts follow “Impossibile <verbo> … — riprova”, keeping the English em dash with spaces. Font = “font” (il font, i font); font size = “Dimensione del testo”; interior PDF = “interno”; an editor/co-editor = “collaboratore”; sign in/out = “Accedi”/“Esci”, sign-in link = “link di accesso”; double-sided = “fronte-retro”, flip on long/short edge = “capovolgere sul lato lungo/corto”. Decimal comma and metric units (“70 g/m²”, “0,4 pollici”). Lulu option names noted as English-only are left in English.",
+  "terms": {
+    "PDF": "PDF",
+    "Bible": "Bibbia",
+    "design": "progetto",
+    "version": "versione",
+    "translation": "traduzione",
+    "passage": "brano",
+    "booklet": "libretto",
+    "cover": "copertina",
+    "binding": "rilegatura",
+    "picture story": "storia illustrata",
+    "build (Build it)": "generare (“Genera”)",
+    "title page": "pagina di titolo",
+    "heading": "titolo",
+    "gutter": "margine di rilegatura",
+    "bleed": "abbondanza",
+    "line height": "interlinea"
+  }
+}

@@ -1,0 +1,15 @@
+{
+  "notes": "Address the user respectfully as మీరు: full sentences, instructions and messages use polite -ండి forms (సైన్ ఇన్ చేయండి, మళ్లీ ప్రయత్నించండి), and failures are phrased as 'we couldn't' (…చేయలేకపోయాం). Buttons, menu items and short actions use the short verb form common in Telugu software UIs (రద్దు చేయి, సేవ్ చేయి, తొలగించు, సవరించు). Use the everyday tech loanwords Telugu users know in Telugu script (సైన్ ఇన్, సేవ్, ఫాంట్, లింక్, ఈమెయిల్, ఆర్డర్, అప్‌లోడ్) rather than coined Sanskritised terms; print = ముద్రించు/ముద్రణ, copies = ప్రతులు, interior = లోపలి పేజీలు. Latin names stay in Latin with Telugu case suffixes attached directly (Googleతో, Luluలో, {currency}లో). Use “curly” double quotes; option names from English-only sites (Lulu, Google Fonts) stay in English, and printer-dialog options are given in Telugu with the English in brackets (“చిన్న అంచు” (short edge)). Western digits. Pairs and lists join with a comma rather than మరియు where natural. Text printed into books (doc domain) uses the formal written register of Telugu Bibles (అధ్యాయము).",
+  "terms": {
+    "PDF": "PDF",
+    "Bible": "బైబిల్",
+    "design": "డిజైన్",
+    "version": "వెర్షన్",
+    "translation": "అనువాదం",
+    "passage": "వాక్యభాగం",
+    "booklet": "బుక్‌లెట్",
+    "cover": "కవర్",
+    "binding": "బైండింగ్",
+    "picture story": "చిత్ర కథ"
+  }
+}

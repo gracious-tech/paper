@@ -11,7 +11,7 @@ import {readFileSync, writeFileSync, existsSync, mkdirSync} from 'node:fs'
 import {join, dirname} from 'node:path'
 import {fileURLToPath} from 'node:url'
 
-import {DOMAINS, SOURCE_LOCALE, TYPST_DIR, read_meta, read_catalog, locale_path, rel}
+import {DOMAINS, TYPST_DIR, read_meta, read_catalog, locale_path, rel}
     from './lib.ts'
 
 // Where the compiled module goes
@@ -21,7 +21,7 @@ export const DOC_MODULE_PATH = join(TYPST_DIR, 'src', 'generated', 'doc_strings.
 // The module's full source, from the catalogs as they are on disk now
 export function doc_module_source():string {
     const domain = DOMAINS.doc
-    const source = read_catalog(locale_path(domain, SOURCE_LOCALE))
+    const source = read_catalog(locale_path(domain, domain.source))
     const translations:Record<string, Record<string, string>> = {}
     for (const loc of read_meta(domain).targets){
         const catalog = read_catalog(locale_path(domain, loc))
