@@ -352,7 +352,7 @@
   "editor.advanced.footnote_size": "ஆய்வுக் குறிப்பு/அடிக்குறிப்பு அளவு",
   "editor.advanced.footnote_size_note": "முதன்மை உரையின் அளவுடன் ஒப்பிட்டது. இதை எவ்வளவு குறைவாக அமைத்தாலும், படிக்கக்கூடிய குறைந்தபட்ச அளவுக்குக் கீழே குறிப்புகள் சுருக்கப்படாது.",
   "editor.advanced.frame_color": "சட்டகத்தின் நிறம்",
-  "editor.advanced.heading_chapter": "தலைப்பு | அதிகாரம்",
+  "editor.advanced.heading_chapter": "தலைப்பு | அதிகாரம் {n}",
   "editor.advanced.headings": "தலைப்புகள்",
   "editor.advanced.headings_font": "தலைப்புகளுக்கான எழுத்துரு",
   "editor.advanced.hyphenate": "இணைப்புக்குறியுடன் சொற்களைப் பிரி",

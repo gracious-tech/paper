@@ -352,7 +352,7 @@
   "editor.advanced.footnote_size": "अध्ययन टिप्पणी/फ़ुटनोट का आकार",
   "editor.advanced.footnote_size_note": "मुख्य टेक्स्ट के आकार के सापेक्ष। इसे कितना भी कम रखें, टिप्पणियाँ पढ़ने लायक न्यूनतम आकार से छोटी नहीं होंगी।",
   "editor.advanced.frame_color": "फ़्रेम का रंग",
-  "editor.advanced.heading_chapter": "शीर्षक | अध्याय",
+  "editor.advanced.heading_chapter": "शीर्षक | अध्याय {n}",
   "editor.advanced.headings": "शीर्षक",
   "editor.advanced.headings_font": "शीर्षकों का फ़ॉन्ट",
   "editor.advanced.hyphenate": "हाइफ़न से शब्द तोड़ें",

@@ -352,7 +352,7 @@
   "editor.advanced.footnote_size": "Ukuran catatan studi/catatan kaki",
   "editor.advanced.footnote_size_note": "Relatif terhadap ukuran teks utama. Catatan tidak akan pernah diperkecil di bawah ukuran minimum yang masih terbaca, serendah apa pun nilai ini diatur.",
   "editor.advanced.frame_color": "Warna bingkai",
-  "editor.advanced.heading_chapter": "Judul | Pasal",
+  "editor.advanced.heading_chapter": "Judul | Pasal {n}",
   "editor.advanced.headings": "Judul",
   "editor.advanced.headings_font": "Font untuk judul",
   "editor.advanced.hyphenate": "Pemenggalan kata",

@@ -352,7 +352,7 @@
   "editor.advanced.footnote_size": "अभ्यास टिपा/तळटिपांचा आकार",
   "editor.advanced.footnote_size_note": "मुख्य मजकुराच्या आकाराच्या तुलनेत. हे कितीही कमी ठेवले तरी टिपा वाचता येण्याजोग्या किमान आकारापेक्षा लहान केल्या जात नाहीत.",
   "editor.advanced.frame_color": "चौकटीचा रंग",
-  "editor.advanced.heading_chapter": "शीर्षक | अध्याय",
+  "editor.advanced.heading_chapter": "शीर्षक | अध्याय {n}",
   "editor.advanced.headings": "शीर्षके",
   "editor.advanced.headings_font": "शीर्षकांसाठी फॉन्ट",
   "editor.advanced.hyphenate": "हायफन लावा",

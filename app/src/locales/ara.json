@@ -352,7 +352,7 @@
   "editor.advanced.footnote_size": "حجم الملاحظات الدراسية/الحواشي",
   "editor.advanced.footnote_size_note": "نسبةً إلى حجم النص الأساسي. ولا تُصغَّر الملاحظات أبدًا دون حدّ أدنى يضمن وضوح قراءتها، مهما انخفضت قيمة هذا الإعداد.",
   "editor.advanced.frame_color": "لون الإطار",
-  "editor.advanced.heading_chapter": "عنوان | الأصحاح",
+  "editor.advanced.heading_chapter": "عنوان | الأصحاح {n}",
   "editor.advanced.headings": "العناوين",
   "editor.advanced.headings_font": "خط العناوين",
   "editor.advanced.hyphenate": "تقسيم الكلمات بشَرطة",

@@ -352,7 +352,7 @@
   "editor.advanced.footnote_size": "అధ్యయన గమనికలు/పాదసూచికల పరిమాణం",
   "editor.advanced.footnote_size_note": "ప్రధాన అక్షర పరిమాణానికి సాపేక్షంగా. దీనిని ఎంత తక్కువగా సెట్ చేసినా, గమనికలు చదవగలిగే కనీస పరిమాణం కంటే చిన్నవి కావు.",
   "editor.advanced.frame_color": "ఫ్రేమ్ రంగు",
-  "editor.advanced.heading_chapter": "శీర్షిక | అధ్యాయం",
+  "editor.advanced.heading_chapter": "శీర్షిక | {n}వ అధ్యాయము",
   "editor.advanced.headings": "శీర్షికలు",
   "editor.advanced.headings_font": "శీర్షికల ఫాంట్",
   "editor.advanced.hyphenate": "హైఫన్‌తో పదాలను విభజించు",

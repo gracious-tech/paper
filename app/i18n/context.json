@@ -22,6 +22,7 @@
   "doc.copyright.resources": "The heading over the list of Bible translations and other works the book includes, each with its license.",
   "doc.copyright.share": "A licensing statement covering the whole book. Translate precisely: anyone may copy it and share it (but not change it).",
   "doc.copyright.study_notes": "Labels the study-notes row in that list; printed as \"<this> — Tyndale House Publishers\".",
+  "editor.advanced.heading_chapter": "An option in the chapter-number style dropdown: each chapter starts with a heading. After the \"|\" is a sample of that heading for chapter {n} (always 2), so write it the way Bibles in this language print a chapter heading (e.g. \"第{n}章\").",
   "svc.blueprint.service_home": "The chosen printing service when printing at home on your own printer (not a booklet) — shown as a short label in design summaries.",
   "vuetify.close": "Screen-reader label for a close button on an alert or chip.",
   "vuetify.dismiss": "Screen-reader label for a button that dismisses a notice.",

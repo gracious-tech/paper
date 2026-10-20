@@ -352,7 +352,7 @@
   "editor.advanced.footnote_size": "অধ্যয়ন টীকা/পাদটীকার আকার",
   "editor.advanced.footnote_size_note": "মূল লেখার আকারের তুলনায়। এটি যত কমই সেট করা হোক, টীকা কখনও পড়ার উপযোগী ন্যূনতম আকারের চেয়ে ছোট হবে না।",
   "editor.advanced.frame_color": "ফ্রেমের রং",
-  "editor.advanced.heading_chapter": "শিরোনাম | অধ্যায়",
+  "editor.advanced.heading_chapter": "শিরোনাম | অধ্যায় {n}",
   "editor.advanced.headings": "শিরোনাম",
   "editor.advanced.headings_font": "শিরোনামের ফন্ট",
   "editor.advanced.hyphenate": "হাইফেন দিয়ে শব্দ ভাঙুন",

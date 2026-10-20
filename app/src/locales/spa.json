@@ -352,7 +352,7 @@
   "editor.advanced.footnote_size": "Tamaño de notas de estudio y al pie",
   "editor.advanced.footnote_size_note": "Relativo al tamaño del texto principal. Las notas nunca se reducen por debajo de un tamaño mínimo legible, por bajo que sea este valor.",
   "editor.advanced.frame_color": "Color del marco",
-  "editor.advanced.heading_chapter": "Título | Capítulo",
+  "editor.advanced.heading_chapter": "Título | Capítulo {n}",
   "editor.advanced.headings": "Títulos",
   "editor.advanced.headings_font": "Fuente de los títulos",
   "editor.advanced.hyphenate": "Dividir palabras con guiones",

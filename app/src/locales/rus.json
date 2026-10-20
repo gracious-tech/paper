@@ -352,7 +352,7 @@
   "editor.advanced.footnote_size": "Размер комментариев и сносок",
   "editor.advanced.footnote_size_note": "Относительно размера основного текста. Как бы низко ни было установлено значение, примечания не станут меньше минимального читаемого размера.",
   "editor.advanced.frame_color": "Цвет рамки",
-  "editor.advanced.heading_chapter": "Заголовок | Глава",
+  "editor.advanced.heading_chapter": "Заголовок | Глава {n}",
   "editor.advanced.headings": "Заголовки",
   "editor.advanced.headings_font": "Шрифт заголовков",
   "editor.advanced.hyphenate": "Переносы",

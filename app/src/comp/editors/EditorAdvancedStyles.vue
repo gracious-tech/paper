@@ -340,7 +340,7 @@ const gutter_amount = computed(() => {
 const chapter_styles = computed(() => [
     {value: 'divider', title: t("editor.advanced.divider") + " | --- 2 ---"},
     {value: 'float', title: t("editor.advanced.margin_number") + " | 2"},
-    {value: 'heading', title: t("editor.advanced.heading_chapter") + " 2"},
+    {value: 'heading', title: t("editor.advanced.heading_chapter", {n: 2})},
 ])
 
 

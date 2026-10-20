@@ -352,7 +352,7 @@
   "editor.advanced.footnote_size": "Cỡ chú thích/ghi chú học",
   "editor.advanced.footnote_size_note": "So với cỡ chữ chính. Ghi chú không bao giờ bị thu nhỏ dưới mức tối thiểu còn đọc được, dù bạn đặt thấp đến đâu.",
   "editor.advanced.frame_color": "Màu khung",
-  "editor.advanced.heading_chapter": "Tiêu đề | Chương",
+  "editor.advanced.heading_chapter": "Tiêu đề | Chương {n}",
   "editor.advanced.headings": "Tiêu đề",
   "editor.advanced.headings_font": "Phông chữ cho tiêu đề",
   "editor.advanced.hyphenate": "Ngắt từ",

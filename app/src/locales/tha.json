@@ -352,7 +352,7 @@
   "editor.advanced.footnote_size": "ขนาดคำอธิบาย/เชิงอรรถ",
   "editor.advanced.footnote_size_note": "เทียบกับขนาดข้อความหลัก หมายเหตุจะไม่ถูกย่อให้เล็กกว่าขนาดขั้นต่ำที่ยังอ่านออก ไม่ว่าจะตั้งค่าไว้ต่ำเพียงใด",
   "editor.advanced.frame_color": "สีของกรอบ",
-  "editor.advanced.heading_chapter": "หัวเรื่อง | บทที่",
+  "editor.advanced.heading_chapter": "หัวเรื่อง | บทที่ {n}",
   "editor.advanced.headings": "หัวเรื่อง",
   "editor.advanced.headings_font": "ฟอนต์สำหรับหัวเรื่อง",
   "editor.advanced.hyphenate": "ตัดคำด้วยยัติภังค์",

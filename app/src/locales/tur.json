@@ -352,7 +352,7 @@
   "editor.advanced.footnote_size": "Çalışma notu/dipnot boyutu",
   "editor.advanced.footnote_size_note": "Ana metin boyutuna göredir. Bu değer ne kadar düşük ayarlanırsa ayarlansın, notlar asla okunabilir bir alt sınırın altına küçültülmez.",
   "editor.advanced.frame_color": "Çerçeve rengi",
-  "editor.advanced.heading_chapter": "Başlık | Bölüm",
+  "editor.advanced.heading_chapter": "Başlık | {n}. Bölüm",
   "editor.advanced.headings": "Başlıklar",
   "editor.advanced.headings_font": "Başlıkların yazı tipi",
   "editor.advanced.hyphenate": "Tireleme",

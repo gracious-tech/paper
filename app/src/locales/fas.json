@@ -352,7 +352,7 @@
   "editor.advanced.footnote_size": "اندازهٔ یادداشت‌های مطالعاتی/پانویس‌ها",
   "editor.advanced.footnote_size_note": "نسبت به اندازهٔ متن اصلی. یادداشت‌ها هرگز از حداقل اندازهٔ خوانا کوچک‌تر نمی‌شوند، هر قدر هم که این مقدار کم تنظیم شود.",
   "editor.advanced.frame_color": "رنگ قاب",
-  "editor.advanced.heading_chapter": "عنوان | باب",
+  "editor.advanced.heading_chapter": "عنوان | باب {n}",
   "editor.advanced.headings": "عنوان‌ها",
   "editor.advanced.headings_font": "قلم عنوان‌ها",
   "editor.advanced.hyphenate": "خط‌تیره‌گذاری",

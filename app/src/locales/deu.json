@@ -352,7 +352,7 @@
   "editor.advanced.footnote_size": "Größe der Studien-/Fußnoten",
   "editor.advanced.footnote_size_note": "Relativ zur Größe des Haupttextes. Anmerkungen werden nie unter eine lesbare Mindestgröße verkleinert, egal wie niedrig dieser Wert eingestellt ist.",
   "editor.advanced.frame_color": "Farbe des Rahmens",
-  "editor.advanced.heading_chapter": "Überschrift | Kapitel",
+  "editor.advanced.heading_chapter": "Überschrift | Kapitel {n}",
   "editor.advanced.headings": "Überschriften",
   "editor.advanced.headings_font": "Schriftart für Überschriften",
   "editor.advanced.hyphenate": "Silbentrennung",

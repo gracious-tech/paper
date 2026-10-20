@@ -352,7 +352,7 @@
   "editor.advanced.footnote_size": "注解・脚注のサイズ",
   "editor.advanced.footnote_size_note": "本文の文字サイズに対する比率です。どれだけ小さく設定しても、読める最小サイズより小さくはなりません。",
   "editor.advanced.frame_color": "枠の色",
-  "editor.advanced.heading_chapter": "見出し | 章",
+  "editor.advanced.heading_chapter": "見出し | 第{n}章",
   "editor.advanced.headings": "見出し",
   "editor.advanced.headings_font": "見出しのフォント",
   "editor.advanced.hyphenate": "ハイフネーション",

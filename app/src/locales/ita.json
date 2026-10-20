@@ -352,7 +352,7 @@
   "editor.advanced.footnote_size": "Dimensione delle note",
   "editor.advanced.footnote_size_note": "Relativa alla dimensione del testo principale. Le note non vengono mai ridotte sotto una dimensione minima leggibile, per quanto basso sia il valore impostato.",
   "editor.advanced.frame_color": "Colore della cornice",
-  "editor.advanced.heading_chapter": "Intestazione | Capitolo",
+  "editor.advanced.heading_chapter": "Intestazione | Capitolo {n}",
   "editor.advanced.headings": "Titoli",
   "editor.advanced.headings_font": "Font dei titoli",
   "editor.advanced.hyphenate": "Sillabazione",

@@ -352,7 +352,7 @@
   "editor.advanced.footnote_size": "Study/Footnote size",
   "editor.advanced.footnote_size_note": "Relative to the primary text size. Notes are never shrunk below a minimum legible size, however low this is set.",
   "editor.advanced.frame_color": "Color of frame",
-  "editor.advanced.heading_chapter": "Heading | Chapter",
+  "editor.advanced.heading_chapter": "Heading | Chapter {n}",
   "editor.advanced.headings": "Headings",
   "editor.advanced.headings_font": "Font for headings",
   "editor.advanced.hyphenate": "Hyphenate",

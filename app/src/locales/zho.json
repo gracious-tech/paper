@@ -352,7 +352,7 @@
   "editor.advanced.footnote_size": "研读注释/脚注大小",
   "editor.advanced.footnote_size_note": "相对于正文字号。无论设置多小，注释都不会缩小到最低可读大小以下。",
   "editor.advanced.frame_color": "边框颜色",
-  "editor.advanced.heading_chapter": "标题 | 章",
+  "editor.advanced.heading_chapter": "标题 | 第{n}章",
   "editor.advanced.headings": "标题",
   "editor.advanced.headings_font": "标题字体",
   "editor.advanced.hyphenate": "连字符断词",

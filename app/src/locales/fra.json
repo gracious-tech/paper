@@ -352,7 +352,7 @@
   "editor.advanced.footnote_size": "Taille des notes (étude et bas de page)",
   "editor.advanced.footnote_size_note": "Par rapport à la taille du texte principal. Les notes ne sont jamais réduites en dessous d’une taille minimale lisible, quelle que soit la valeur choisie.",
   "editor.advanced.frame_color": "Couleur du cadre",
-  "editor.advanced.heading_chapter": "Titre | Chapitre",
+  "editor.advanced.heading_chapter": "Titre | Chapitre {n}",
   "editor.advanced.headings": "Titres",
   "editor.advanced.headings_font": "Police des titres",
   "editor.advanced.hyphenate": "Césure automatique",

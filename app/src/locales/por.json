@@ -352,7 +352,7 @@
   "editor.advanced.footnote_size": "Tamanho das notas de estudo/rodapé",
   "editor.advanced.footnote_size_note": "Relativo ao tamanho do texto principal. As notas nunca ficam menores que um tamanho mínimo legível, por mais baixo que seja este valor.",
   "editor.advanced.frame_color": "Cor da moldura",
-  "editor.advanced.heading_chapter": "Título | Capítulo",
+  "editor.advanced.heading_chapter": "Título | Capítulo {n}",
   "editor.advanced.headings": "Títulos",
   "editor.advanced.headings_font": "Fonte dos títulos",
   "editor.advanced.hyphenate": "Hifenizar",

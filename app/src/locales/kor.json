@@ -352,7 +352,7 @@
   "editor.advanced.footnote_size": "스터디 노트/각주 크기",
   "editor.advanced.footnote_size_note": "본문 글자 크기에 대한 비율입니다. 아무리 낮게 설정해도 읽을 수 있는 최소 크기보다 작아지지는 않습니다.",
   "editor.advanced.frame_color": "테두리 색상",
-  "editor.advanced.heading_chapter": "제목 | 장",
+  "editor.advanced.heading_chapter": "제목 | 제{n}장",
   "editor.advanced.headings": "소제목",
   "editor.advanced.headings_font": "소제목 글꼴",
   "editor.advanced.hyphenate": "하이픈 넣기",

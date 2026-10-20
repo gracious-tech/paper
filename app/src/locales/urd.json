@@ -352,7 +352,7 @@
   "editor.advanced.footnote_size": "مطالعاتی حواشی/فٹ نوٹس کا سائز",
   "editor.advanced.footnote_size_note": "بنیادی متن کے سائز کے لحاظ سے۔ اسے جتنا بھی کم رکھا جائے، حواشی کبھی بھی پڑھنے کے قابل کم از کم سائز سے چھوٹے نہیں ہوں گے۔",
   "editor.advanced.frame_color": "فریم کا رنگ",
-  "editor.advanced.heading_chapter": "سرخی | باب",
+  "editor.advanced.heading_chapter": "سرخی | باب {n}",
   "editor.advanced.headings": "سرخیاں",
   "editor.advanced.headings_font": "سرخیوں کا فونٹ",
   "editor.advanced.hyphenate": "ہائفن لگائیں",
