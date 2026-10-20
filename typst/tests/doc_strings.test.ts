@@ -39,10 +39,25 @@ describe('doc_language', () => {
         vie_x: {language: 'vie', script: undefined},
         eng_y: {language: 'eng', script: undefined},
         cmn_t: {language: 'cmn', script: 'Hant'},
+        grc_g: {language: 'grc', script: undefined},
+        hbo_h: {language: 'hbo', script: undefined},
     } as unknown as Record<string, GetResourcesItem>
 
     it('is the primary translation\'s language', () => {
         expect(doc_language({bibles: ['vie_x', 'eng_y']}, resources)).toBe('vie')
+    })
+
+    it('passes over a classical language for the first one its readers speak', () => {
+        expect(doc_language({bibles: ['grc_g', 'vie_x', 'eng_y']}, resources)).toBe('vie')
+        expect(doc_language({bibles: ['hbo_h', 'grc_g', 'cmn_t']}, resources)).toBe('cmn-Hant')
+    })
+
+    it('is the first classical language when there is nothing else', () => {
+        expect(doc_language({bibles: ['hbo_h', 'grc_g']}, resources)).toBe('hbo')
+    })
+
+    it('skips an unlisted translation rather than giving up', () => {
+        expect(doc_language({bibles: ['gone_z', 'eng_y']}, resources)).toBe('eng')
     })
 
     it('includes the script when the translation declares one', () => {

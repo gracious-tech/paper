@@ -36,6 +36,9 @@ export interface ExampleDesign {
     books:string[]  // Whole-book passages; canonical order is applied at build regardless of order here
     // Extra translation(s) following the user's own, by fetch.bible resource id
     trans?:[string, ...string[]]
+    // Lead with `trans` instead, for an original-language study edition (whose front matter
+    // still prints in the user's language, since doc_language() passes classical languages over)
+    trans_first?:boolean
     cover:CoverPreset
     cover_overrides?:Record<string, unknown>
     // Builtin background filename, overriding the 'photo' preset's own book-themed pick — not
@@ -100,7 +103,7 @@ export const EXAMPLE_DESIGNS:ExampleDesign[] = [
         },
     },
     {
-        id: 'greek', image: img_greek, books: ['1jn'], trans: ['grc_sr'],
+        id: 'greek', image: img_greek, books: ['1jn'], trans: ['grc_sr'], trans_first: true,
         cover: 'pattern',
         cover_overrides: {
             bg_color: '#ffd4ee', pattern_id: 'diagonal-lines', bg_vector_id: 'church',
@@ -220,9 +223,12 @@ export function build_example_blueprint(example:ExampleDesign, title:string, sub
     }
 
     // The user's translation leads, so the printed copyright page and headings are in their
-    // language; the example's own translation(s) follow, unless it's the one they read already
+    // language; the example's own translation(s) follow (unless `trans_first`), leaving out the
+    // one they read already
     if (example.trans){
-        blueprint.bibles = [bible, ...example.trans.filter(id => id !== bible)]
+        const others = example.trans.filter(id => id !== bible)
+        blueprint.bibles = example.trans_first && others[0]
+            ? [others[0], ...others.slice(1), bible] : [bible, ...others]
     }
     blueprint.font_text = font_default_for_bibles(blueprint.bibles)
 

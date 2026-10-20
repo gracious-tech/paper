@@ -859,7 +859,8 @@ can't mangle, a self-contained job per locale, and a validator between the model
 Two catalog domains share all the tooling: **`ui`** (the app, `app/src/locales/`, by UI locale)
 and **`doc`** (the strings the typst package prints into a book — copyright page, "Chapter N" —
 `typst/locales/`, by the fetch.bible language of the book's primary translation, since a book
-prints in its Bible's language whatever the UI's). The rest of this section is about `ui` unless
+prints in its Bible's language whatever the UI's — passing over classical languages like `grc`/
+`hbo`, so a Greek/English study edition still gets English front matter; see `doc_language()`). The rest of this section is about `ui` unless
 it says otherwise.
 
 - **No i18n library.** `services/i18n.ts` is a small homegrown module: `translate(key,
