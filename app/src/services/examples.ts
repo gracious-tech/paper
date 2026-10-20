@@ -34,8 +34,7 @@ export interface ExampleDesign {
     id:string
     image:string
     books:string[]  // Whole-book passages; canonical order is applied at build regardless of order here
-    // Extra translation(s) beyond the default, by fetch.bible resource id (non-empty tuple so
-    // spreading it into `bibles` preserves Blueprint's non-empty shape)
+    // Extra translation(s) following the user's own, by fetch.bible resource id
     trans?:[string, ...string[]]
     cover:CoverPreset
     cover_overrides?:Record<string, unknown>
@@ -68,6 +67,8 @@ export const EXAMPLE_DESIGNS:ExampleDesign[] = [
             subtitle_size: 3.03, subtitle_color: '#dbfaff', subtitle_margin_top: 1,
             blurb_bg_color: '#dbfaff',
         },
+        // Chinese follows and fits a verse in far less space than most languages, so it's the
+        // larger of the two, keeping the aligned columns roughly the same length
         diff: {
             show_footnotes: false, service_id: 'lulu', font_size2: 1.2, line_height2: 1.1,
             size_id: 'digest',
@@ -218,9 +219,10 @@ export function build_example_blueprint(example:ExampleDesign, title:string, sub
         blueprint.size_id = guess_paper_size()
     }
 
-    // Example's own translation(s) lead, the user's default follows
+    // The user's translation leads, so the printed copyright page and headings are in their
+    // language; the example's own translation(s) follow, unless it's the one they read already
     if (example.trans){
-        blueprint.bibles = [...example.trans, blueprint.bibles[0]]
+        blueprint.bibles = [bible, ...example.trans.filter(id => id !== bible)]
     }
     blueprint.font_text = font_default_for_bibles(blueprint.bibles)
 
