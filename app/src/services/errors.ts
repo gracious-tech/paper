@@ -379,10 +379,12 @@ addEventListener('securitypolicyviolation', event => {
     }
 
     // Ignore what an extension caused, when the browser attributes it: the blocked resource or
-    // the script that triggered the violation lives in an extension. Extensions that inject
-    // inline script into the page itself aren't attributed, so those still arrive, with
-    // `sample` showing what the script was
-    if (extension_url.test(event.blockedURI) || extension_url.test(event.sourceFile)){
+    // the script that triggered the violation lives in an extension. Firefox labels code run in
+    // an extension's sandbox (e.g. a userscript manager's) 'sandbox eval code', which page
+    // script can never produce. Extensions that inject inline script into the page itself
+    // aren't attributed, so those still arrive, with `sample` showing what the script was
+    if (extension_url.test(event.blockedURI) || extension_url.test(event.sourceFile)
+            || event.sourceFile === 'sandbox eval code'){
         return
     }
 

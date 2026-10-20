@@ -193,7 +193,16 @@ export class TypstWorkerClient {
     async set_custom_fonts(fonts:CustomFont[]):Promise<void> {
         // toRaw since Vue reactive proxies can't be structured-cloned across the worker boundary
         this.custom_fonts = toRaw(fonts)
-        await this.send({action: 'set_custom_fonts', fonts: this.custom_fonts})
+        try {
+            await this.send({action: 'set_custom_fonts', fonts: this.custom_fonts})
+        } catch (error){
+            // A compile queued ahead of this trapped and took the worker down with it, failing
+            // this too — but the recycle replays this.custom_fonts, so that's what to wait on
+            if (!(error instanceof FatalWorkerError)){
+                throw error
+            }
+            await this.gate
+        }
     }
 
     // Compile a request to a finished PDF (booklet/alternate/half-blank handled in the worker),
