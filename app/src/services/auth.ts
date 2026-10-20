@@ -77,6 +77,35 @@ export async function ensure_signed_in():Promise<User>{
 }
 
 
+// How long signed_in_user() waits for a user to arrive before signing in as a guest itself
+const USER_WAIT_MS = 3000
+
+
+export async function signed_in_user():Promise<User>{
+    // The signed-in user, for anything that needs a uid after boot. Auth can briefly have none:
+    // another tab signing out on its way to a fresh guest, or iOS 15 Safari dropping a persisted
+    // user. So wait for the next one rather than racing that tab with a guest of our own (see
+    // account.ts), and sign in here only if none arrives
+    if (firebase_auth.currentUser){
+        return firebase_auth.currentUser
+    }
+    const arrived = await new Promise<User|null>(resolve => {
+        const timer = setTimeout(() => {
+            unsubscribe()
+            resolve(null)
+        }, USER_WAIT_MS)
+        const unsubscribe = onIdTokenChanged(firebase_auth, changed => {
+            if (changed){
+                clearTimeout(timer)
+                unsubscribe()
+                resolve(changed)
+            }
+        })
+    })
+    return arrived ?? await ensure_signed_in()
+}
+
+
 export async function sign_out():Promise<User>{
     // Sign out of the current account and start a fresh guest session
     // NOTE Callers must reload user data afterwards (designs/versions belong to the new uid)

@@ -238,7 +238,7 @@ void (async () => {
     start_design_sync()
 
     // Keep the version-viewing history mirrored from Firestore ("Read access" on /designs)
-    start_viewed_sync()
+    await start_viewed_sync()
 
     // Start watchers (don't start earlier or will trigger during initially loading some things)
     start_watchers()

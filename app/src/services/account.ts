@@ -66,7 +66,7 @@ export async function reload_user_data(welcome = true):Promise<void>{
     // Uploaded fonts belong to a design, so opening one loads them — nothing account-wide
     // to restore here
     await init_designs(null, welcome)
-    start_viewed_sync()
+    await start_viewed_sync()
 }
 
 

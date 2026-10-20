@@ -10,7 +10,7 @@ import {split_blueprint_doc, join_blueprint_doc, resolve_design_name, get_cover_
 
 import {firestore} from '@/services/firebase'
 import {api} from '@/services/api'
-import {user} from '@/services/auth'
+import {signed_in_user} from '@/services/auth'
 import {blue, state, health, estimated_pages, welcome_seen} from '@/services/state'
 import {clean_blueprint, gen_content_name, content_preview, get_default_blueprint,
     replace_missing_bibles, set_last_used_bible} from '@/services/blueprints'
@@ -490,7 +490,7 @@ export async function create_design(from?:Blueprint, wizard_draft?:NewDesignDraf
     // design — it stashes the draft so its steps can be reopened/summarised accurately later
     // (see design_wizard above). `simple_mode` only matters when a draft is given, and is only
     // false when copying a design that has already left simple mode
-    const uid = user.value!.uid
+    const uid = (await signed_in_user()).uid
     const id = generate_token()
     const blueprint = clean_blueprint(from ? cloneDeep(from) : undefined)
     await setDoc(doc(firestore, 'designs', id), {
@@ -778,7 +778,7 @@ export async function init_designs(open_id:string|null = null, welcome = true):P
     // link), else the most recent one, else create the user's first design
     // `welcome` allows the caller to rule out the welcome splash regardless of design count —
     // signing out lands on an empty account, but the user plainly doesn't need introducing
-    const uid = user.value!.uid
+    const uid = (await signed_in_user()).uid
     listening_uid = uid
     const designs_query = query(collection(firestore, 'designs'),
         where('editor_uids', 'array-contains', uid), orderBy('modified', 'desc'))
@@ -871,9 +871,9 @@ export function design_sync_uid():string|null{
 }
 
 
-export function start_viewed_sync():void{
+export async function start_viewed_sync():Promise<void>{
     // Keep the "Read access" list (/designs) mirrored from Firestore
-    const uid = user.value!.uid
+    const uid = (await signed_in_user()).uid
     unsub_viewed?.()
     unsub_viewed = onSnapshot(
         query(collection(firestore, 'users', uid, 'viewed'), orderBy('last_viewed', 'desc')),
