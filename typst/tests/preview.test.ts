@@ -52,6 +52,25 @@ describe('truncate_for_preview', () => {
         expect(result.request.content.every(item => item.type === 'passage')).toBe(true)
     })
 
+    it('clips a book with no blank lines at a chapter start', () => {
+        // Poetry (e.g. the KJV's Psalms) separates every line with a single newline, so the
+        // whole book is one paragraph block — the cut must fall back to chapter markers
+        const chapters = []
+        for (let i = 1; i <= 150; i++) {
+            chapters.push(`#ch(${i})\n` + `#q(1)[#vn(1)${'x'.repeat(95)}]\n`.repeat(20))
+        }
+        const book = make_passage({bibles: [{content: chapters.join('')}]})
+        const result = truncate_for_preview(make_request({content: [book]}), 'start')
+
+        const content = (result.request.content[0] as TypstPassage).bibles[0]!.content
+        expect(content.startsWith('#ch(1)\n')).toBe(true)
+        expect(content).not.toContain('#ch(150)')
+        expect(content.length).toBeLessThanOrEqual(PREVIEW_CHAR_LIMIT)
+        // Cut whole chapters only, so the window ends on a complete line
+        expect(content.endsWith(']\n')).toBe(true)
+        expect(result.dropped_after).toBe(true)
+    })
+
     it('never clips the start of a book, even for the middle section', () => {
         // A single over-budget book has nowhere to window to — middle still shows it from
         // its start (clipping the start is the one thing truncation must never do)

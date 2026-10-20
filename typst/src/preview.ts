@@ -59,7 +59,8 @@ function item_weight(item:TypstContentItem):number {
 
 // Keep whole paragraph blocks (split on blank lines) from the start of the markup up to
 // roughly `limit` characters — always from char 0, so a book's opening layout is never
-// disturbed. A block straddling the limit is kept whole, so the result may run slightly past.
+// disturbed. A block straddling the limit is kept up to its last chapter start that fits (see
+// clip_block_chapters), so the result may run slightly past.
 function clip_markup_tail(content:string, limit:number):string {
     const blocks = content.split('\n\n')
     const kept:string[] = []
@@ -68,10 +69,30 @@ function clip_markup_tail(content:string, limit:number):string {
         if (pos >= limit) {
             break
         }
+        if (pos + block.length > limit) {
+            kept.push(clip_block_chapters(block, limit - pos))
+            break
+        }
         kept.push(block)
         pos += block.length + 2  // Account for the removed '\n\n' separator
     }
     return kept.join('\n\n')
+}
+
+
+// Keep whole chapters (split on the #ch(n) marker lines, the same safe cut split_chapters()
+// uses) from the start of one block up to roughly `limit` characters, always keeping the first.
+// Needed because poetry markup separates its lines with single newlines: the KJV's Psalms is
+// one 300k-character block, which kept whole made the "~50 page" window the entire book
+function clip_block_chapters(block:string, limit:number):string {
+    let kept = ''
+    for (const chapter of block.split(/(?=^#ch\(\d+\))/m)) {
+        if (kept && kept.length + chapter.length > limit) {
+            break
+        }
+        kept += chapter
+    }
+    return kept
 }
 
 
