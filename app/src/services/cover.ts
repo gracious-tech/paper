@@ -14,7 +14,7 @@ import {make_blank_form_values, asset_path, BACKGROUNDS_DIR, BG_PREVIEW_DIR, res
     font_families_in_form} from 'bookcover-core'
 import {cover_form_for_render, cover_render_key, doc_has_copyright, gen_copyright_typst,
     COPYRIGHT_MARKER, resolve_reading_trim, convert_unit, COVER_TITLE_KEY, design_assets_prefix,
-    to_version_asset, to_design_asset, asset_basename}
+    to_version_asset, to_design_asset, asset_basename, sniff_image_mime}
     from 'paper-bible-typst'
 
 import {firebase_storage} from '@/services/firebase'
@@ -79,6 +79,16 @@ function bg_mime_for(name:string):string {
     // The content type a background's filename or Storage path implies — needed wherever bytes
     // are handled as a raw buffer rather than a Blob that carries its own type
     return BG_EXT_MIME[name.slice(name.lastIndexOf('.') + 1).toLowerCase()] ?? 'image/jpeg'
+}
+
+
+function bg_mime_of(bytes:Uint8Array, label:string):string {
+    // The content type a background's bytes really are, falling back to what its label (a
+    // browser-supplied type, or a type implied by a path) claims for anything unrecognised.
+    // Applied on load as well as upload, so a mislabelled object already in Storage (a WebP
+    // under a `.jpg` name) still renders
+    const sniffed = sniff_image_mime(bytes)
+    return sniffed && sniffed in BG_MIME_EXT ? sniffed : label
 }
 
 
@@ -342,7 +352,8 @@ export async function load_cover_bg(cover:CoverConfig, quality:CoverQuality)
         // Don't cache failures — a later call should retry the download
         bytes.catch(() => bg_cache.delete(key))
     }
-    return {data: await bytes, type: bg_mime_for(name)}
+    const data = await bytes
+    return {data, type: bg_mime_of(data, bg_mime_for(name))}
 }
 
 
@@ -351,8 +362,8 @@ export async function load_bg_suggestion(path:string):Promise<File> {
     // upload path expects. Named by its content-addressed basename: the widget hands the File
     // straight back byte-for-byte (a guarantee of the embed protocol, which handle_finished's
     // hash check depends on), so the name is display and extension sugar only
-    const bytes = await getBytes(storage_ref(firebase_storage, path))
-    return new File([bytes], asset_basename(path), {type: bg_mime_for(path)})
+    const bytes = new Uint8Array(await getBytes(storage_ref(firebase_storage, path)))
+    return new File([bytes], asset_basename(path), {type: bg_mime_of(bytes, bg_mime_for(path))})
 }
 
 
@@ -365,9 +376,10 @@ export async function hash_bytes(bytes:Uint8Array):Promise<string> {
 
 // Upload a cover bg image into the design's own asset prefix, content-addressed so re-saving a
 // design with an unchanged image is idempotent. Returns the Storage path + hash for the blueprint
-export async function upload_cover_bg(design_id:string, bytes:Uint8Array, mime:string)
+export async function upload_cover_bg(design_id:string, bytes:Uint8Array, label:string)
         :Promise<{path:string, hash:string}> {
     const hash = await hash_bytes(bytes)
+    const mime = bg_mime_of(bytes, label)
     const ext = BG_MIME_EXT[mime] ?? 'jpg'
     const path = `${design_assets_prefix(design_id)}${hash}.${ext}`
     await uploadBytes(storage_ref(firebase_storage, path), bytes, {contentType: mime})

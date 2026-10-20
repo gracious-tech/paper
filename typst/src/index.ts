@@ -67,8 +67,9 @@ export {resolve_trim, resolve_reading_trim, convert_unit, typst_unit, resolve_bi
 export {PATTERNS} from './generated/patterns.js'
 
 // Whether a passage image's url is one a server-side compile may fetch — the content list is
-// client-written, so the compile service checks every url before accepting a version
-export {is_fetchable_image_url, MAX_IMAGE_BYTES} from './image_cache.js'
+// client-written, so the compile service checks every url before accepting a version. Plus the
+// magic-number check that decides an image's real format whatever its name or type says
+export {is_fetchable_image_url, MAX_IMAGE_BYTES, sniff_image_mime} from './image_cache.js'
 
 // Custom-page prose helpers (ProseMirror → Typst + the auto-copyright marker)
 export {prose_to_typst, prose_to_text, doc_has_copyright, replace_copyright_marker,

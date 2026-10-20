@@ -8,7 +8,7 @@ import {LambdaClient, InvokeCommand} from '@aws-sdk/client-lambda'
 import {PDFDocument} from 'pdf-lib'
 import {PDF_LIFETIME_MS, COMPILE_STATS_LIFETIME_MS,
     cover_form_for_render, is_builtin_background, is_known_builtin_background,
-    is_fetchable_image_url, doc_has_copyright,
+    is_fetchable_image_url, sniff_image_mime, doc_has_copyright,
     replace_copyright_marker, gen_copyright_typst, version_assets_prefix,
     migrate_version_blueprint} from 'paper-bible-typst'
 import {compile_pdf_from_blueprint} from 'paper-bible-typst-node'
@@ -91,8 +91,13 @@ async function render_cover(blueprint:Blueprint, custom_fonts:CustomFont[], page
         let images:{background:string}|undefined
         let image_builtin:string|undefined
         if (cover.bg_image?.kind === 'custom'){
-            const ext = cover.bg_image.path.slice(cover.bg_image.path.lastIndexOf('.'))
+            // Named by what the bytes really are, since bookcover-node decodes by extension and
+            // a stored path's extension can be wrong (see sniff_image_mime)
             const [bg_bytes] = await admin_bucket.file(cover.bg_image.path).download()
+            const sniffed = sniff_image_mime(bg_bytes)
+            const ext = sniffed
+                ? `.${sniffed.slice('image/'.length).replace('jpeg', 'jpg')}`
+                : cover.bg_image.path.slice(cover.bg_image.path.lastIndexOf('.'))
             await writeFile(path.join(tmp_dir, `background${ext}`), bg_bytes)
         } else if (cover.bg_image?.kind === 'builtin'){
             // The id is client-controlled and about to become a filesystem path against the

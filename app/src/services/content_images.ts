@@ -10,8 +10,8 @@
 import {ref as storage_ref, uploadBytes} from 'firebase/storage'
 import {cloneDeep} from 'lodash-es'
 import {toRaw} from 'vue'
-import {design_assets_prefix, design_cache_prefix, to_version_asset, asset_basename}
-    from 'paper-bible-typst'
+import {design_assets_prefix, design_cache_prefix, to_version_asset, asset_basename,
+    sniff_image_mime} from 'paper-bible-typst'
 
 import {firebase_storage} from '@/services/firebase'
 import {hash_bytes} from '@/services/cover'
@@ -41,9 +41,12 @@ function mime_for_path(path:string):string {
 
 // Upload a passage image into the design's own asset prefix, content-addressed so re-uploading
 // an unchanged image is idempotent. Returns the ContentPassageImage to store on the content item
-export async function upload_passage_image(design_id:string, bytes:Uint8Array, mime:string)
+export async function upload_passage_image(design_id:string, bytes:Uint8Array, label:string)
         :Promise<ContentPassageImage> {
     const hash = await hash_bytes(bytes)
+    // Stored as what the bytes really are, not what the browser guessed from the file's name
+    const sniffed = sniff_image_mime(bytes)
+    const mime = sniffed && sniffed in IMAGE_MIME_EXT ? sniffed : label
     const ext = IMAGE_MIME_EXT[mime] ?? 'jpg'
     const path = `${design_assets_prefix(design_id)}${hash}.${ext}`
     await uploadBytes(storage_ref(firebase_storage, path), bytes, {contentType: mime})

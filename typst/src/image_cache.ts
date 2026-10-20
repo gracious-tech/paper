@@ -21,6 +21,31 @@ const MIME_EXT:Record<string, string> = {
 }
 
 
+// Which raster format some bytes actually are, from their magic number, or null if none of the
+// above. Labels can't be trusted: a filename's extension (and the type a browser guesses from
+// it) is often wrong, e.g. a WebP saved from the web as `.jpg`, and Typst decodes by the
+// extension it's given, so a mislabelled image fails the whole compile
+export function sniff_image_mime(bytes:Uint8Array):string|null{
+    const starts = (offset:number, ...expected:number[]) =>
+        expected.every((byte, i) => bytes[offset + i] === byte)
+    if (starts(0, 0xff, 0xd8, 0xff)){
+        return 'image/jpeg'
+    }
+    if (starts(0, 0x89, 0x50, 0x4e, 0x47)){
+        return 'image/png'
+    }
+    // RIFF....WEBP
+    if (starts(0, 0x52, 0x49, 0x46, 0x46) && starts(8, 0x57, 0x45, 0x42, 0x50)){
+        return 'image/webp'
+    }
+    // GIF8
+    if (starts(0, 0x47, 0x49, 0x46, 0x38)){
+        return 'image/gif'
+    }
+    return null
+}
+
+
 // Most a single image may weigh before the download is abandoned. Comfortably above any photo
 // worth printing, and low enough that a hostile url can't exhaust a compile instance's memory
 export const MAX_IMAGE_BYTES = 30 * 1024 * 1024
@@ -132,12 +157,15 @@ async function fetch_image_bytes(url:string):Promise<{bytes:Uint8Array, ext:stri
             throw new Error(
                 `Failed to fetch image "${url}": ${response.status} ${response.statusText}`)
         }
+        // The bytes decide the format, the labels only break a tie (see sniff_image_mime)
         const content_type = response.headers.get('content-type')?.split(';')[0]?.trim()
         const url_ext = url.split(/[?#]/)[0]!.split('.').pop()?.toLowerCase()
-        const ext = (content_type && MIME_EXT[content_type])
+        const bytes = await read_capped(response, url, MAX_IMAGE_BYTES)
+        const sniffed = sniff_image_mime(bytes)
+        const ext = (sniffed && MIME_EXT[sniffed])
+            || (content_type && MIME_EXT[content_type])
             || (url_ext && Object.values(MIME_EXT).includes(url_ext) ? url_ext : null)
             || 'jpg'
-        const bytes = await read_capped(response, url, MAX_IMAGE_BYTES)
         return {bytes, ext}
     })()
     in_flight.set(url, promise)
