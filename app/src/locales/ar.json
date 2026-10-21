@@ -387,7 +387,7 @@
   "editor.advanced.text_size": "حجم النص",
   "editor.advanced.title_pages": "صفحات العنوان",
   "editor.advanced.titlepage_blank_back": "إبقاء ظهر صفحات العنوان فارغًا",
-  "editor.advanced.titlepage_blank_back_note": "يمنع ظهور نص الصفحة التالية من خلال الورق، لكنه يضيف صفحة إضافية بعد كل صفحة عنوان.",
+  "editor.advanced.titlepage_blank_back_note": "يمنع ظهور النص الموجود على الوجه الآخر من خلال الورق، لكنه يضيف صفحات فارغة حول صفحات العنوان.",
   "editor.advanced.titlepage_font": "خط صفحات العنوان",
   "editor.advanced.titlepage_side": "ابدأ صفحات العنوان دائمًا على",
   "editor.advanced.workarounds": "حلول بديلة",

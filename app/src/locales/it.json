@@ -387,7 +387,7 @@
   "editor.advanced.text_size": "Dimensione del testo",
   "editor.advanced.title_pages": "Pagine di titolo",
   "editor.advanced.titlepage_blank_back": "Lascia bianco il retro delle pagine di titolo",
-  "editor.advanced.titlepage_blank_back_note": "Evita che il testo della pagina successiva traspaia attraverso la carta, ma aggiunge una pagina in più dopo ogni pagina di titolo.",
+  "editor.advanced.titlepage_blank_back_note": "Evita che il testo sull’altro lato traspaia attraverso la carta, ma aggiunge pagine bianche intorno alle pagine di titolo.",
   "editor.advanced.titlepage_font": "Font delle pagine di titolo",
   "editor.advanced.titlepage_side": "Lato di inizio delle pagine di titolo",
   "editor.advanced.workarounds": "Soluzioni alternative",

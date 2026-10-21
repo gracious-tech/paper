@@ -387,7 +387,7 @@
   "editor.advanced.text_size": "Ukuran teks",
   "editor.advanced.title_pages": "Halaman judul",
   "editor.advanced.titlepage_blank_back": "Biarkan bagian belakang halaman judul kosong",
-  "editor.advanced.titlepage_blank_back_note": "Mencegah teks halaman berikutnya tembus terlihat dari balik kertas, tetapi menambahkan satu halaman ekstra setelah setiap halaman judul.",
+  "editor.advanced.titlepage_blank_back_note": "Mencegah teks di sisi lain tembus terlihat dari balik kertas, tetapi menambahkan halaman kosong di sekitar halaman judul.",
   "editor.advanced.titlepage_font": "Font untuk halaman judul",
   "editor.advanced.titlepage_side": "Selalu mulai halaman judul di",
   "editor.advanced.workarounds": "Solusi alternatif",

@@ -306,7 +306,7 @@ async function assemble_pages(
 
         // Titles never take page numbers. titlepage_always forces every title page to start on
         // the given side — a blank is inserted first if the current page count doesn't already
-        // put the next page on that side (titlepage.blank_back pads after it, see below)
+        // put the next page on that side
         const title_always = item.type === 'title' ? request.titlepage.always : null
         const show_pages = request.running_pages && item.type !== 'title'
 
@@ -319,6 +319,16 @@ async function assemble_pages(
             if (need_blank) {
                 await add_blank()
             }
+        }
+
+        // titlepage.blank_back keeps the other side of a title's leaf blank. A title about to
+        // land verso shares its leaf with the page before it, so unless that's already a blank,
+        // two blanks keep the title verso with an empty recto behind it (a recto title is padded
+        // after instead, see below)
+        const blank_back = item.type === 'title' && request.titlepage.blank_back && booklike
+        if (blank_back && final_doc.getPageCount() % 2 === 1 && !blank_flags.at(-1)) {
+            await add_blank()
+            await add_blank()
         }
 
         // Half-blank passages pin their content to a fixed physical side for the whole run
@@ -355,8 +365,7 @@ async function assemble_pages(
 
         // A title that ended on a recto page shares its leaf with the next page, so a blank
         // there keeps its back clear of anything that would show through the paper
-        if (item.type === 'title' && request.titlepage.blank_back && booklike
-                && final_doc.getPageCount() % 2 === 1) {
+        if (blank_back && final_doc.getPageCount() % 2 === 1) {
             await add_blank()
         }
     }

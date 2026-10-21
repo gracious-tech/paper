@@ -387,7 +387,7 @@
   "editor.advanced.text_size": "मजकुराचा आकार",
   "editor.advanced.title_pages": "शीर्षक पृष्ठे",
   "editor.advanced.titlepage_blank_back": "शीर्षक पृष्ठांची मागची बाजू कोरी ठेवा",
-  "editor.advanced.titlepage_blank_back_note": "पुढच्या पृष्ठावरील मजकूर कागदातून आरपार दिसणे टाळते, पण प्रत्येक शीर्षक पृष्ठानंतर एक जास्तीचे पृष्ठ जोडते.",
+  "editor.advanced.titlepage_blank_back_note": "कागदाच्या दुसऱ्या बाजूचा मजकूर आरपार दिसणे टाळते, पण शीर्षक पृष्ठांच्या आजूबाजूला कोरी पृष्ठे जोडते.",
   "editor.advanced.titlepage_font": "शीर्षक पृष्ठांसाठी फॉन्ट",
   "editor.advanced.titlepage_side": "शीर्षक पृष्ठे नेहमी या बाजूच्या पानावर सुरू करा",
   "editor.advanced.workarounds": "पर्यायी उपाय",

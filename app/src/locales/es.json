@@ -387,7 +387,7 @@
   "editor.advanced.text_size": "Tamaño del texto",
   "editor.advanced.title_pages": "Páginas de título",
   "editor.advanced.titlepage_blank_back": "Dejar en blanco el reverso de las páginas de título",
-  "editor.advanced.titlepage_blank_back_note": "Evita que el texto de la página siguiente se transparente a través del papel, pero añade una página extra después de cada página de título.",
+  "editor.advanced.titlepage_blank_back_note": "Evita que el texto del otro lado se transparente a través del papel, pero añade páginas en blanco alrededor de las páginas de título.",
   "editor.advanced.titlepage_font": "Fuente de las páginas de título",
   "editor.advanced.titlepage_side": "Comenzar siempre las páginas de título en",
   "editor.advanced.workarounds": "Soluciones alternativas",

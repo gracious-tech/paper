@@ -387,7 +387,7 @@
   "editor.advanced.text_size": "글자 크기",
   "editor.advanced.title_pages": "제목 페이지",
   "editor.advanced.titlepage_blank_back": "제목 페이지 뒷면을 비워 두기",
-  "editor.advanced.titlepage_blank_back_note": "다음 페이지의 글자가 종이에 비쳐 보이지 않게 하지만, 제목 페이지마다 페이지가 하나씩 추가됩니다.",
+  "editor.advanced.titlepage_blank_back_note": "종이 반대편의 글자가 비쳐 보이지 않게 하지만, 제목 페이지 앞뒤에 빈 페이지가 추가됩니다.",
   "editor.advanced.titlepage_font": "제목 페이지 글꼴",
   "editor.advanced.titlepage_side": "제목 페이지 시작 위치",
   "editor.advanced.workarounds": "문제 우회 설정",

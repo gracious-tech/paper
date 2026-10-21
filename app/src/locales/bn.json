@@ -387,7 +387,7 @@
   "editor.advanced.text_size": "লেখার আকার",
   "editor.advanced.title_pages": "শিরোনাম পৃষ্ঠা",
   "editor.advanced.titlepage_blank_back": "শিরোনাম পৃষ্ঠার পেছন ফাঁকা রাখুন",
-  "editor.advanced.titlepage_blank_back_note": "কাগজ ভেদ করে পরের পৃষ্ঠার লেখা দেখা যাওয়া আটকায়, তবে প্রতিটি শিরোনাম পৃষ্ঠার পরে একটি বাড়তি পৃষ্ঠা যোগ করে।",
+  "editor.advanced.titlepage_blank_back_note": "কাগজের অন্য পাশের লেখা ভেদ করে দেখা যাওয়া আটকায়, তবে শিরোনাম পৃষ্ঠাগুলোর আশেপাশে ফাঁকা পৃষ্ঠা যোগ করে।",
   "editor.advanced.titlepage_font": "শিরোনাম পৃষ্ঠার ফন্ট",
   "editor.advanced.titlepage_side": "শিরোনাম পৃষ্ঠা সবসময় যে পাশে শুরু হবে",
   "editor.advanced.workarounds": "বিকল্প সমাধান",

@@ -387,7 +387,7 @@
   "editor.advanced.text_size": "متن کا سائز",
   "editor.advanced.title_pages": "عنوانی صفحات",
   "editor.advanced.titlepage_blank_back": "عنوانی صفحات کی پشت خالی رکھیں",
-  "editor.advanced.titlepage_blank_back_note": "اگلے صفحے کی تحریر کو کاغذ کے آر پار نظر آنے سے روکتا ہے، لیکن ہر عنوانی صفحے کے بعد ایک اضافی صفحہ شامل کر دیتا ہے۔",
+  "editor.advanced.titlepage_blank_back_note": "کاغذ کی دوسری طرف کی تحریر کو آر پار نظر آنے سے روکتا ہے، لیکن عنوانی صفحات کے آس پاس خالی صفحات شامل کر دیتا ہے۔",
   "editor.advanced.titlepage_font": "عنوانی صفحات کا فونٹ",
   "editor.advanced.titlepage_side": "عنوانی صفحات ہمیشہ اس طرف سے شروع کریں",
   "editor.advanced.workarounds": "متبادل طریقے",

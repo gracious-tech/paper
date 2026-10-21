@@ -168,8 +168,7 @@ export interface TitlepageConfig {
     icon_size:number            // Size multiplier for the icon (1 = default)
     // Force every title page to start on this side (null = no forcing)
     always:'left'|'right'|null
-    // Pad a blank after each title page so nothing prints on its back (resolved true only for
-    // right-hand title pages, whose back is the following page)
+    // Pad blanks around each title page so nothing prints on the other side of its leaf
     blank_back:boolean
 }
 
@@ -470,7 +469,7 @@ export interface Blueprint {
     titlepage_icon_size:number         // Size multiplier for the icon (1 = default)
     // Force every title page to start on this side; null = no forcing
     titlepage_always:'left'|'right'|null
-    // Keep the back of every title page blank; only applies when titlepage_always is 'right'
+    // Keep the back of every title page blank, whichever side it lands on
     titlepage_blank_back:boolean
 
     // Images (global — applies to every passage image; per-passage content is on ContentPassage)

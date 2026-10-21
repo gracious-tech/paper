@@ -387,7 +387,7 @@
   "editor.advanced.text_size": "Textgröße",
   "editor.advanced.title_pages": "Titelseiten",
   "editor.advanced.titlepage_blank_back": "Rückseite von Titelseiten leer lassen",
-  "editor.advanced.titlepage_blank_back_note": "Verhindert, dass der Text der nächsten Seite durch das Papier scheint, fügt aber nach jeder Titelseite eine zusätzliche Seite ein.",
+  "editor.advanced.titlepage_blank_back_note": "Verhindert, dass Text von der anderen Seite durch das Papier scheint, fügt aber leere Seiten um Titelseiten herum ein.",
   "editor.advanced.titlepage_font": "Schriftart für Titelseiten",
   "editor.advanced.titlepage_side": "Titelseiten immer beginnen auf",
   "editor.advanced.workarounds": "Notlösungen",

@@ -387,7 +387,7 @@
   "editor.advanced.text_size": "文字サイズ",
   "editor.advanced.title_pages": "扉ページ",
   "editor.advanced.titlepage_blank_back": "扉ページの裏を白紙にする",
-  "editor.advanced.titlepage_blank_back_note": "次のページの文字が紙から透けて見えるのを防ぎます。ただし、扉ページごとに1ページ追加されます。",
+  "editor.advanced.titlepage_blank_back_note": "紙の裏側の文字が透けて見えるのを防ぎます。ただし、扉ページの前後に白紙ページが追加されます。",
   "editor.advanced.titlepage_font": "扉ページのフォント",
   "editor.advanced.titlepage_side": "扉ページを常に配置する側",
   "editor.advanced.workarounds": "回避策",

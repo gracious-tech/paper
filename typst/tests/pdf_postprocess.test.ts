@@ -113,6 +113,38 @@ describe('generate_pdf', () => {
         expect(await page_count(await generate_pdf(request, fake_compile))).toBe(5)
     })
 
+    it('pads two blanks before a left-hand title page when blank_back is set', async () => {
+        // passage(1) leaves the next page verso, but its recto has content — so two blanks keep
+        // the title verso with an empty recto behind it: passage + blank + blank + title = 4
+        const request = make_request({
+            arrangement: 'book',
+            content: [make_passage(), make_title()],
+            titlepage: {...TEST_TITLEPAGE, always: 'left', blank_back: true},
+        })
+        expect(await page_count(await generate_pdf(request, fake_compile))).toBe(4)
+    })
+
+    it('reuses the side-forcing blank as the back of a left-hand title page', async () => {
+        // A lone title is forced verso by one leading blank, which is already its back — no more
+        // padding before it, and none after since it isn't recto: blank + title = 2
+        const request = make_request({
+            arrangement: 'book',
+            content: [make_title()],
+            titlepage: {...TEST_TITLEPAGE, always: 'left', blank_back: true},
+        })
+        expect(await page_count(await generate_pdf(request, fake_compile))).toBe(2)
+    })
+
+    it('keeps the back blank whichever side an unforced title page lands on', async () => {
+        // title(1, recto) + blank back(1) + passage(1, recto) + 2 blanks + title(1, verso) = 6
+        const request = make_request({
+            arrangement: 'book',
+            content: [make_title(), make_passage(), make_title()],
+            titlepage: {...TEST_TITLEPAGE, always: null, blank_back: true},
+        })
+        expect(await page_count(await generate_pdf(request, fake_compile))).toBe(6)
+    })
+
     it('skips the blank back when printing single-sided', async () => {
         // 'normal' arrangement has no other side, so neither blank is inserted — title + passage
         const request = make_request({

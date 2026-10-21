@@ -387,7 +387,7 @@
   "editor.advanced.text_size": "Taille du texte",
   "editor.advanced.title_pages": "Pages de titre",
   "editor.advanced.titlepage_blank_back": "Laisser le verso des pages de titre vierge",
-  "editor.advanced.titlepage_blank_back_note": "Évite que le texte de la page suivante transparaisse à travers le papier, mais ajoute une page supplémentaire après chaque page de titre.",
+  "editor.advanced.titlepage_blank_back_note": "Évite que le texte de l’autre côté transparaisse à travers le papier, mais ajoute des pages blanches autour des pages de titre.",
   "editor.advanced.titlepage_font": "Police des pages de titre",
   "editor.advanced.titlepage_side": "Côté de départ des pages de titre",
   "editor.advanced.workarounds": "Solutions de contournement",

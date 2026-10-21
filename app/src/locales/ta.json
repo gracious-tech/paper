@@ -387,7 +387,7 @@
   "editor.advanced.text_size": "உரை அளவு",
   "editor.advanced.title_pages": "தலைப்புப் பக்கங்கள்",
   "editor.advanced.titlepage_blank_back": "தலைப்புப் பக்கங்களின் பின்புறத்தை வெறுமையாக வை",
-  "editor.advanced.titlepage_blank_back_note": "அடுத்த பக்கத்தின் உரை தாளின் வழியே தெரிவதைத் தடுக்கிறது, ஆனால் ஒவ்வொரு தலைப்புப் பக்கத்திற்குப் பிறகும் ஒரு கூடுதல் பக்கத்தைச் சேர்க்கிறது.",
+  "editor.advanced.titlepage_blank_back_note": "தாளின் மறுபக்கத்தில் உள்ள உரை வழியே தெரிவதைத் தடுக்கிறது, ஆனால் தலைப்புப் பக்கங்களைச் சுற்றி வெற்றுப் பக்கங்களைச் சேர்க்கிறது.",
   "editor.advanced.titlepage_font": "தலைப்புப் பக்கங்களுக்கான எழுத்துரு",
   "editor.advanced.titlepage_side": "தலைப்புப் பக்கங்களை எப்போதும் இந்தப் பக்கத்தில் தொடங்கு",
   "editor.advanced.workarounds": "மாற்றுவழிகள்",

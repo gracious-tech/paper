@@ -387,7 +387,7 @@
   "editor.advanced.text_size": "Размер текста",
   "editor.advanced.title_pages": "Титульные страницы",
   "editor.advanced.titlepage_blank_back": "Оставлять оборот титульных страниц пустым",
-  "editor.advanced.titlepage_blank_back_note": "Текст следующей страницы не будет просвечивать сквозь бумагу, но после каждой титульной страницы добавится дополнительная страница.",
+  "editor.advanced.titlepage_blank_back_note": "Текст с другой стороны листа не будет просвечивать сквозь бумагу, но вокруг титульных страниц добавятся пустые страницы.",
   "editor.advanced.titlepage_font": "Шрифт титульных страниц",
   "editor.advanced.titlepage_side": "Всегда начинать титульные страницы",
   "editor.advanced.workarounds": "Обходные решения",

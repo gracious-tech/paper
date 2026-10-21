@@ -387,7 +387,7 @@
   "editor.advanced.text_size": "Cỡ chữ",
   "editor.advanced.title_pages": "Trang tiêu đề",
   "editor.advanced.titlepage_blank_back": "Để trống mặt sau của trang tiêu đề",
-  "editor.advanced.titlepage_blank_back_note": "Tránh để chữ ở trang kế tiếp hiện xuyên qua giấy, nhưng sẽ thêm một trang sau mỗi trang tiêu đề.",
+  "editor.advanced.titlepage_blank_back_note": "Tránh để chữ ở mặt bên kia hiện xuyên qua giấy, nhưng sẽ thêm các trang trắng quanh trang tiêu đề.",
   "editor.advanced.titlepage_font": "Phông chữ cho trang tiêu đề",
   "editor.advanced.titlepage_side": "Luôn bắt đầu trang tiêu đề ở",
   "editor.advanced.workarounds": "Cách khắc phục",

@@ -684,7 +684,7 @@ export class BibleContent {
             text_size: blue.titlepage_text_size,
             icon_size: blue.titlepage_icon_size,
             always: blue.titlepage_always,
-            blank_back: blue.titlepage_always === 'right' && blue.titlepage_blank_back,
+            blank_back: blue.titlepage_blank_back,
         }
     }
 
