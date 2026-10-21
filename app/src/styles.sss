@@ -101,6 +101,10 @@ body
     margin-bottom: 12px
     color: rgba(var(--v-theme-on-surface), var(--v-medium-emphasis-opacity))
 
+// The color above outranks Vuetify's `text-error` utility, so restate it for warning hints
+.hint.text-error
+    color: rgb(var(--v-theme-error))
+
 
 // Vuetify's <v-card-actions> forces `slim` onto every button it wraps (padding: 0 8px via
 // provideDefaults), which leaves dialog action rows looking cramped. Restore normal button
