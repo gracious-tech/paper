@@ -386,6 +386,8 @@
   "editor.advanced.text_color_label": "అక్షరాల రంగు",
   "editor.advanced.text_size": "అక్షర పరిమాణం",
   "editor.advanced.title_pages": "శీర్షిక పేజీలు",
+  "editor.advanced.titlepage_blank_back": "శీర్షిక పేజీల వెనుక వైపు ఖాళీగా ఉంచండి",
+  "editor.advanced.titlepage_blank_back_note": "తర్వాతి పేజీలోని వచనం కాగితం గుండా కనిపించకుండా చేస్తుంది, కానీ ప్రతి శీర్షిక పేజీ తర్వాత ఒక అదనపు పేజీని జోడిస్తుంది.",
   "editor.advanced.titlepage_font": "శీర్షిక పేజీల ఫాంట్",
   "editor.advanced.titlepage_side": "శీర్షిక పేజీలు ఎల్లప్పుడూ ప్రారంభమయ్యే వైపు",
   "editor.advanced.workarounds": "ప్రత్యామ్నాయాలు",

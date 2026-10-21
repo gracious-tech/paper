@@ -386,6 +386,8 @@
   "editor.advanced.text_color_label": "Metin rengi",
   "editor.advanced.text_size": "Metin boyutu",
   "editor.advanced.title_pages": "Başlık sayfaları",
+  "editor.advanced.titlepage_blank_back": "Başlık sayfalarının arka yüzünü boş bırak",
+  "editor.advanced.titlepage_blank_back_note": "Sonraki sayfadaki yazının kâğıdın arkasından görünmesini önler, ancak her başlık sayfasından sonra fazladan bir sayfa ekler.",
   "editor.advanced.titlepage_font": "Başlık sayfalarının yazı tipi",
   "editor.advanced.titlepage_side": "Başlık sayfaları her zaman şu taraftan başlasın",
   "editor.advanced.workarounds": "Geçici çözümler",

@@ -52,6 +52,7 @@ export const TEST_TITLEPAGE:TitlepageConfig = {
     text_size: 1,
     icon_size: 1,
     always: null,
+    blank_back: false,
 }
 
 
@@ -230,6 +231,7 @@ export function make_blueprint(overrides:Partial<Blueprint> = {}):Blueprint {
         titlepage_text_size: 1,
         titlepage_icon_size: 1,
         titlepage_always: 'right',
+        titlepage_blank_back: false,
 
         // Images
         image_style: 'padded',

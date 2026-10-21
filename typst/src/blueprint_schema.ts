@@ -241,6 +241,7 @@ export function make_blueprint_schema(defaults:Blueprint):z.ZodType<Blueprint>{
         titlepage_text_size: z.number().catch(defaults.titlepage_text_size),
         titlepage_icon_size: z.number().catch(defaults.titlepage_icon_size),
         titlepage_always: z.enum(['left', 'right']).nullable().catch(defaults.titlepage_always),
+        titlepage_blank_back: z.boolean().catch(defaults.titlepage_blank_back),
 
         // Images
         image_style: z.enum(['borderless', 'padded', 'painted', 'torn']).catch(defaults.image_style),

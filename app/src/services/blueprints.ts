@@ -136,6 +136,7 @@ export function get_default_blueprint():Blueprint{
         titlepage_text_size: 1,
         titlepage_icon_size: 1,
         titlepage_always: 'right',
+        titlepage_blank_back: false,
 
         // Images
         image_style: 'padded',

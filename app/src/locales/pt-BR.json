@@ -386,6 +386,8 @@
   "editor.advanced.text_color_label": "Cor do texto",
   "editor.advanced.text_size": "Tamanho do texto",
   "editor.advanced.title_pages": "Páginas de título",
+  "editor.advanced.titlepage_blank_back": "Deixar em branco o verso das páginas de título",
+  "editor.advanced.titlepage_blank_back_note": "Evita que o texto da página seguinte apareça através do papel, mas adiciona uma página extra após cada página de título.",
   "editor.advanced.titlepage_font": "Fonte das páginas de título",
   "editor.advanced.titlepage_side": "Lado de início das páginas de título",
   "editor.advanced.workarounds": "Soluções alternativas",

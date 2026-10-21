@@ -306,8 +306,7 @@ async function assemble_pages(
 
         // Titles never take page numbers. titlepage_always forces every title page to start on
         // the given side — a blank is inserted first if the current page count doesn't already
-        // put the next page on that side. Nothing is padded after the item (that's the removed
-        // "ensure other side of page blank" behavior — only the start side is ever forced).
+        // put the next page on that side (titlepage.blank_back pads after it, see below)
         const title_always = item.type === 'title' ? request.titlepage.always : null
         const show_pages = request.running_pages && item.type !== 'title'
 
@@ -352,6 +351,13 @@ async function assemble_pages(
         const page_limit = item.type === 'lines' ? 1 : item_doc.getPageCount()
         for (let p = 0; p < page_limit; p++) {
             await add_page(item_doc, p, show_pages)
+        }
+
+        // A title that ended on a recto page shares its leaf with the next page, so a blank
+        // there keeps its back clear of anything that would show through the paper
+        if (item.type === 'title' && request.titlepage.blank_back && booklike
+                && final_doc.getPageCount() % 2 === 1) {
+            await add_blank()
         }
     }
 

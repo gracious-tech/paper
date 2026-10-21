@@ -386,6 +386,8 @@
   "editor.advanced.text_color_label": "टेक्स्ट का रंग",
   "editor.advanced.text_size": "टेक्स्ट का आकार",
   "editor.advanced.title_pages": "शीर्षक पृष्ठ",
+  "editor.advanced.titlepage_blank_back": "शीर्षक पृष्ठों के पीछे की ओर खाली रखें",
+  "editor.advanced.titlepage_blank_back_note": "अगले पृष्ठ का टेक्स्ट काग़ज़ के आर-पार दिखने से रोकता है, लेकिन हर शीर्षक पृष्ठ के बाद एक अतिरिक्त पृष्ठ जोड़ देता है।",
   "editor.advanced.titlepage_font": "शीर्षक पृष्ठों का फ़ॉन्ट",
   "editor.advanced.titlepage_side": "शीर्षक पृष्ठ हमेशा इस तरफ़ शुरू करें",
   "editor.advanced.workarounds": "वैकल्पिक उपाय",

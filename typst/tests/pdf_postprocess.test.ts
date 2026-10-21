@@ -102,6 +102,27 @@ describe('generate_pdf', () => {
         expect(await page_count(await generate_pdf(request, fake_compile))).toBe(2)
     })
 
+    it('pads a blank after a right-hand title page when blank_back is set', async () => {
+        // passage(1) + forced-right blank(1) + title(1) + blank back(1) + passage(1) = 5, with
+        // the second passage starting recto again
+        const request = make_request({
+            arrangement: 'book',
+            content: [make_passage(), make_title(), make_passage()],
+            titlepage: {...TEST_TITLEPAGE, always: 'right', blank_back: true},
+        })
+        expect(await page_count(await generate_pdf(request, fake_compile))).toBe(5)
+    })
+
+    it('skips the blank back when printing single-sided', async () => {
+        // 'normal' arrangement has no other side, so neither blank is inserted — title + passage
+        const request = make_request({
+            arrangement: 'normal',
+            content: [make_title(), make_passage()],
+            titlepage: {...TEST_TITLEPAGE, always: 'right', blank_back: true},
+        })
+        expect(await page_count(await generate_pdf(request, fake_compile))).toBe(2)
+    })
+
 })
 
 

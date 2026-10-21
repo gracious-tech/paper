@@ -386,6 +386,8 @@
   "editor.advanced.text_color_label": "文字颜色",
   "editor.advanced.text_size": "文字大小",
   "editor.advanced.title_pages": "标题页",
+  "editor.advanced.titlepage_blank_back": "标题页背面留空",
+  "editor.advanced.titlepage_blank_back_note": "可防止下一页的文字透过纸张显现，但每个标题页后都会多出一页。",
   "editor.advanced.titlepage_font": "标题页字体",
   "editor.advanced.titlepage_side": "标题页始终起始于",
   "editor.advanced.workarounds": "变通方案",

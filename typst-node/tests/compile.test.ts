@@ -52,6 +52,7 @@ const TEST_TITLEPAGE:TitlepageConfig = {
     text_size: 1,
     icon_size: 1,
     always: null,
+    blank_back: false,
 }
 
 // Helper to make a minimal request

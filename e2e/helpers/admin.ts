@@ -154,6 +154,7 @@ function blueprint_options():Record<string, unknown>{
         titlepage_text_size: 1,
         titlepage_icon_size: 1,
         titlepage_always: 'right',
+        titlepage_blank_back: false,
         image_style: 'padded',
         margin_unit: 'mm',
         margin_top: 20,

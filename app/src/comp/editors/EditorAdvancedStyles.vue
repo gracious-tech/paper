@@ -148,6 +148,12 @@ v-card-text(class='overflow-y-auto')
     AppOptionToggle(v-model='titlepage_always' :label='$t("editor.advanced.titlepage_side")'
         :items='titlepage_always_items' class='my-6')
 
+    //- Only a right-hand title page's back is the page after it, which is what gets padded
+    template(v-if='blue.titlepage_always === "right"')
+        v-checkbox(v-model='blue.titlepage_blank_back'
+            :label='$t("editor.advanced.titlepage_blank_back")' hide-details)
+        p(class='hint') {{$t("editor.advanced.titlepage_blank_back_note")}}
+
     v-divider(class='my-8')
 
     h2 {{$t("common.images")}}

@@ -386,6 +386,8 @@
   "editor.advanced.text_color_label": "رنگ متن",
   "editor.advanced.text_size": "اندازهٔ متن",
   "editor.advanced.title_pages": "صفحه‌های عنوان",
+  "editor.advanced.titlepage_blank_back": "پشت صفحه‌های عنوان خالی بماند",
+  "editor.advanced.titlepage_blank_back_note": "از دیده شدن متن صفحهٔ بعد از پشت کاغذ جلوگیری می‌کند، اما بعد از هر صفحهٔ عنوان یک صفحهٔ اضافه می‌افزاید.",
   "editor.advanced.titlepage_font": "قلم صفحه‌های عنوان",
   "editor.advanced.titlepage_side": "صفحه‌های عنوان همیشه از این سمت شروع شوند",
   "editor.advanced.workarounds": "راه‌حل‌های جایگزین",

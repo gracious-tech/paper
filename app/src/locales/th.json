@@ -386,6 +386,8 @@
   "editor.advanced.text_color_label": "สีของข้อความ",
   "editor.advanced.text_size": "ขนาดข้อความ",
   "editor.advanced.title_pages": "หน้าชื่อเรื่อง",
+  "editor.advanced.titlepage_blank_back": "เว้นด้านหลังของหน้าชื่อเรื่องให้ว่าง",
+  "editor.advanced.titlepage_blank_back_note": "ป้องกันไม่ให้มองเห็นข้อความของหน้าถัดไปทะลุกระดาษ แต่จะเพิ่มอีกหนึ่งหน้าหลังหน้าชื่อเรื่องทุกหน้า",
   "editor.advanced.titlepage_font": "ฟอนต์สำหรับหน้าชื่อเรื่อง",
   "editor.advanced.titlepage_side": "เริ่มหน้าชื่อเรื่องเสมอที่ด้าน",
   "editor.advanced.workarounds": "วิธีแก้ปัญหาเฉพาะหน้า",
