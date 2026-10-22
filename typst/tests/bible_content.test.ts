@@ -1,7 +1,8 @@
 
 import {describe, it, expect, vi, beforeEach, afterEach} from 'vitest'
 
-import {BibleContent, resolve_declared_cjk_variant} from '../src/bible_content.js'
+import {BibleContent, resolve_declared_cjk_variant, repair_manifest}
+    from '../src/bible_content.js'
 
 import type {BibleCollection, GetResourcesItem} from '@gracious.tech/fetch-client'
 import type {Blueprint, ContentPassage, ContentPictureStory} from '../src/types.js'
@@ -31,6 +32,7 @@ vi.mock('@gracious.tech/fetch-client', async importOriginal => {
         ...original,
         FetchClient: class {
             fetch_collection = fetch_collection
+            requester = {request: () => Promise.resolve('')}
         },
     }
 })
@@ -85,6 +87,28 @@ describe('BibleContent.init collection TTL', () => {
         await content.init()
         expect(fetch_collection).not.toHaveBeenCalled()
         expect(content.collection).toEqual({fake: true})
+    })
+})
+
+
+describe('repair_manifest', () => {
+
+    it('fills a missing language name from the other, else the code', () => {
+        const repaired = JSON.parse(repair_manifest(JSON.stringify({
+            bibles: {tig_mdw: {}},
+            languages: {
+                tig: {english: 'Tigre', pop: 1, direction: 'ltr'},
+                abc: {local: 'Abc', english: ''},
+                xyz: {pop: null},
+                eng: {local: 'English', english: 'English'},
+            },
+        })))
+        expect(repaired.bibles).toEqual({tig_mdw: {}})
+        expect(repaired.languages.tig).toEqual(
+            {local: 'Tigre', english: 'Tigre', pop: 1, direction: 'ltr'})
+        expect(repaired.languages.abc).toMatchObject({local: 'Abc', english: 'Abc'})
+        expect(repaired.languages.xyz).toMatchObject({local: 'xyz', english: 'xyz'})
+        expect(repaired.languages.eng).toMatchObject({local: 'English', english: 'English'})
     })
 })
 

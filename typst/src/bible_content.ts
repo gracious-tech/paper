@@ -101,6 +101,22 @@ function primary_dir(blue:Blueprint, resources:Record<string, GetResourcesItem>)
 }
 
 
+// Fill in language names fetch.bible's manifest promises but has shipped without (`tig` had no
+// `local` in 2026-10), since fetch-client sorts by them unguarded and one bad entry then breaks
+// the whole language list. Falls back to the other name, else the language code
+export function repair_manifest(text:string):string {
+    const manifest = JSON.parse(text) as {languages?:Record<string, Record<string, unknown>>}
+    for (const [code, lang] of Object.entries(manifest.languages ?? {})) {
+        const local = typeof lang['local'] === 'string' && lang['local'] ? lang['local'] : null
+        const english = typeof lang['english'] === 'string' && lang['english']
+            ? lang['english'] : null
+        lang['local'] = local ?? english ?? code
+        lang['english'] = english ?? local ?? code
+    }
+    return JSON.stringify(manifest)
+}
+
+
 // Resolves user Blueprints into TypstRequests, fetching + caching Bible content as needed
 export class BibleContent {
 
@@ -134,6 +150,15 @@ export class BibleContent {
         this.client = this._collection
             ? null
             : new FetchClient({endpoints: [this.endpoint], remember_fetches: false})
+        if (this.client) {
+            // Repair the manifest before fetch-client parses it (see repair_manifest)
+            const requester = this.client.requester
+            const request = requester.request.bind(requester)
+            requester.request = async (url:string) => {
+                const text = await request(url)
+                return url.endsWith('manifest.json') ? repair_manifest(text) : text
+            }
+        }
         this.patterns = opts.patterns ?? PATTERNS
         this.on_progress = opts.on_progress
         this.manifest_ttl_ms = opts.manifest_ttl_ms ?? null
