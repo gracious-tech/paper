@@ -221,6 +221,9 @@ export function build_example_blueprint(example:ExampleDesign, title:string, sub
     if (blueprint.service_id === 'home' && !('size_id' in example.diff)){
         blueprint.size_id = guess_paper_size()
     }
+    // Only home printing folds a booklet, as in the wizard. Settled before the cover is seeded
+    // below, whose defaults are sized from the reading page — which a booklet halves
+    blueprint.booklet = blueprint.service_id === 'home'
 
     // The user's translation leads, so the printed copyright page and headings are in their
     // language; the example's own translation(s) follow (unless `trans_first`), leaving out the
