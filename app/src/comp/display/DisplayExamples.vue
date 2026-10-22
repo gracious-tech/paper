@@ -1,12 +1,13 @@
 
 <template lang='pug'>
 
-div.examples
+div.examples(:class='{inline}')
 
     h2 {{ $t("display.examples.heading") }}
     p.intro {{ $t("display.examples.intro") }}
 
-    div.new
+    //- Inline (within the mobile designs list) the navbar's "New" is already right there
+    div.new(v-if='!inline')
         v-btn(@click='create_new' variant='flat' color='secondary' size='large')
             | {{ $t("display.examples.create_new") }}
 
@@ -34,7 +35,10 @@ import {state, report_failure} from '@/services/state'
 
 // Example designs the empty preview pane offers — clicking one creates and opens a real design
 // pre-filled to match (see services/examples.ts). Shown whenever the designs list itself is
-// showing (not just when it's empty) so existing users can discover them too
+// showing (not just when it's empty) so existing users can discover them too. On mobile, where
+// there's no preview pane, ViewDesigns embeds them `inline` at the bottom of the list instead
+defineProps<{inline?:boolean}>()
+
 const {t, locale} = useI18n()
 const router = useRouter()
 
@@ -153,5 +157,24 @@ h2
 
     @container examples (min-width: 980px)
         flex-basis: calc((100% - 32px) / 3)
+
+// Embedded in the mobile designs list: flows with the list's own scroll rather than filling a
+// pane, and fits two smaller cards per row so a phone shows more than one cover at a time
+.examples.inline
+    height: auto
+    overflow: visible
+    padding: 24px 12px
+    background-color: transparent
+
+    .grid
+        gap: 8px
+
+    .card
+        flex-basis: calc((100% - 8px) / 2)
+        padding: 6px
+
+        .blurb
+            padding: 10px 4px 12px
+            font-size: 1rem
 
 </style>

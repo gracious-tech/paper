@@ -62,6 +62,18 @@ div.cont
             v-btn(@click='state.account = true' variant='flat' color='secondary' size='small' class='ml-2')
                 | {{$t("view.designs.signin_warning_action")}}
 
+    //- Example designs, which desktop shows in the preview pane beside this list. Mobile has no
+    //- such pane (see AppRoot), so they sit at the bottom here, behind a toggle so they don't
+    //- bury the user's own designs
+    template(v-if='is_mobile')
+        div.suggestions_toggle
+            v-btn(@click='toggle_suggestions' variant='tonal' color='secondary')
+                template(#prepend)
+                    app-icon(:name='show_suggestions ? "expand_less" : "expand_more"')
+                | {{ $t(show_suggestions ? 'view.designs.hide_suggestions' : 'view.designs.show_suggestions') }}
+        div(ref='suggestions_el')
+            DisplayExamples(v-if='show_suggestions' inline)
+
     //- LEGACY Remove with app/src/legacy/ once old data no longer needs recovering
     //- WARN Condition is currently INVERTED (!) for testing — flip before shipping
     //- Sits outside the list so searching/filtering can never hide it
@@ -75,11 +87,13 @@ div.cont
 
 <script lang='ts' setup>
 
-import {computed, ref} from 'vue'
+import {computed, ref, nextTick} from 'vue'
 import {useI18n} from '@/services/i18n'
 import {useRouter} from 'vue-router'
 
 import DesignListItem from './assets/DesignListItem.vue'
+import DisplayExamples from '@/comp/display/DisplayExamples.vue'
+import {use_is_mobile} from '@/services/display'
 import {user, is_anonymous} from '@/services/auth'
 import {designs, viewed_designs, rename_category, clear_category} from '@/services/designs'
 // LEGACY Remove with app/src/legacy/ once old data no longer needs recovering
@@ -182,6 +196,25 @@ const has_any_filtered = computed(() => {
 const show_signin_warning = computed(() => is_anonymous.value && has_any_unfiltered.value)
 
 
+// Whether the example designs are revealed at the bottom of the list (mobile only — desktop
+// always shows them in the preview pane). Open from the start when there are no designs yet,
+// since then there's no list for them to bury
+const is_mobile = use_is_mobile()
+const show_suggestions = ref(!has_any_unfiltered.value)
+const suggestions_el = ref<HTMLElement|null>(null)
+
+
+// Reveal or hide the example designs, scrolling them into view when revealed since they open
+// below the fold of a long list
+const toggle_suggestions = async () => {
+    show_suggestions.value = !show_suggestions.value
+    if (show_suggestions.value){
+        await nextTick()
+        suggestions_el.value?.scrollIntoView({behavior: 'smooth', block: 'start'})
+    }
+}
+
+
 const open_viewed = (viewed:ViewedDesign) => {
     void router.push({name: 'design', params: {id: viewed.design_id, version: viewed.last_version_id}})
 }
@@ -233,6 +266,11 @@ const open_viewed = (viewed:ViewedDesign) => {
 
     .v-alert
         line-height: 1.5
+
+.suggestions_toggle
+    display: flex
+    justify-content: center
+    padding: 32px 16px 0
 
 // LEGACY Remove with app/src/legacy/ once old data no longer needs recovering
 .legacy
