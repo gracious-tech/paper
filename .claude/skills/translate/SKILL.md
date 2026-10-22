@@ -33,7 +33,14 @@ run a job for it. They share one style file, keyed by the written language (`sty
 .bin/i18n_apply                   # validates + merges every .out.json, deletes the job files
 .bin/i18n_job vi vie fr fra       # repeat until it says "nothing to translate"
 .bin/i18n_check --allow-missing   # must pass; drop --allow-missing once every locale is complete
+.bin/gen_example_images           # if i18n_check warned that example pictures are out of date
 ```
+
+The example designs' titles (`svc.examples.*_title`/`_subtitle`) are printed on cover pictures,
+so `i18n_check` warns when one changed since its picture was rendered. That's only a warning
+(CI can't render them), but re-render before committing so the pictures match. It needs no dev
+servers, takes about a second per changed picture, and its output is committed with the
+catalogs.
 
 Run `.bin/i18n_job` with no locale to cover every locale with outstanding work, in both
 domains; `--domain ui|doc` restricts it to one. `--only

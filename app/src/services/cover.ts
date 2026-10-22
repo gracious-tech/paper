@@ -498,6 +498,18 @@ export async function render_cover_pdf(blueprint:Blueprint, page_count:number,
 }
 
 
+// The cover's individual panels as SVG text, for building a 3D picture of the book (see
+// app/tools/example_images/). Goes through the same render_cover() as every other cover, at
+// preview quality since the picture is small
+export async function render_cover_panels(blueprint:Blueprint, page_count:number)
+        :Promise<{front:string, back:string, spine?:string}> {
+    const result = await render_cover(blueprint, page_count, undefined,
+        {format: 'svg', quality: 'preview'})
+    return {front: result.front as string, back: result.back as string,
+        ...result.spine !== undefined && {spine: result.spine as string}}
+}
+
+
 // Build the full form preset for a design's first cover: blank widget values with the book's
 // title (or first passage reference), the first included Bible book's icon as the background
 // design, a minimal blurb crediting paper.bible, and the blueprint's own size fields

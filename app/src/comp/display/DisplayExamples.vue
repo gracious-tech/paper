@@ -26,22 +26,24 @@ import {computed, ref} from 'vue'
 import {useI18n} from '@/services/i18n'
 import {useRouter} from 'vue-router'
 
-import {EXAMPLE_DESIGNS, example_label, create_example_design} from '@/services/examples'
+import {create_example_design} from '@/services/examples'
+import {EXAMPLE_DESIGNS, example_label} from '@/services/example_designs'
+import {example_image} from '@/services/example_images'
 import {state, report_failure} from '@/services/state'
 
 
 // Example designs the empty preview pane offers — clicking one creates and opens a real design
 // pre-filled to match (see services/examples.ts). Shown whenever the designs list itself is
 // showing (not just when it's empty) so existing users can discover them too
-const {t} = useI18n()
+const {t, locale} = useI18n()
 const router = useRouter()
 
 
-// The example cards with their translated title/subtitle (baked into the cover image once
-// artwork is supplied) and blurb (shown below it)
+// The example cards: a picture of the cover with its title in the UI's language, and the
+// translated blurb shown below it
 const cards = computed(() => {
-    return EXAMPLE_DESIGNS.map(example => ({id: example.id, image: example.image,
-        ...example_label(example.id, t)}))
+    return EXAMPLE_DESIGNS.map(example => ({id: example.id,
+        image: example_image(example.id, locale.value), ...example_label(example.id, t)}))
 })
 
 

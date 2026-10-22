@@ -1,0 +1,4 @@
+#!/bin/bash
+# Render the example designs' cover pictures, per UI locale — see app/tools/gen_example_images.ts
+cd "$(dirname "$(dirname "$0")")"
+node "app/tools/gen_example_images.ts" "$@"

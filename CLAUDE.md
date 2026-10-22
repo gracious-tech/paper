@@ -183,6 +183,8 @@ paper_bible/
                             #   groups, shortlists and auto-fixes them for review). Syncs the
                             #   site bucket's sourcemaps/ into errors/sourcemaps/ first
     gen_lulu_prices        # Regenerate Lulu's print prices
+    gen_example_images     # Render the example designs' 3D cover pictures, per UI locale (see
+                            #   "Example pictures" in Gotchas) — local only, results committed
     refresh_lulu_prices    # gen_lulu_prices + commit a re-price, if the checked/lulu_prices
                             #   tag is over 30 days old. --due/--commit are the halves CI runs
                             #   in separate jobs
@@ -247,13 +249,18 @@ paper_bible/
         typst_worker.ts    # The worker: WASM compiler via paper-bible-typst-web
         watchers.ts        # Auto-fetch book content as the design changes
         errors.ts          # Error capture/reporting (imported first, before everything)
-        coloris.ts / color_palette.ts / icons.ts / fonts.ts / display.ts / examples.ts /
-          utils.ts         # Pickers, icon + font manifests, breakpoints, examples, tokens
+        example_designs.ts # The example designs (pure data + translated labels)
+        examples.ts        # Building/creating a design from an example
+        example_images.ts  # Each example's pre-rendered cover picture, by UI locale
+        coloris.ts / color_palette.ts / icons.ts / fonts.ts / display.ts /
+          utils.ts         # Pickers, icon + font manifests, breakpoints, tokens
     i18n/                  # Translation tooling (node, own tsconfig; excluded from app tsconfig)
                             #   lib/lint/status/job/apply/check/sync/extract + tests/, plus
                             #   context.json/glossary.json and style/<loc>.json;
                             #   jobs/ is transient (gitignored)
-    tools/                 # Other node tooling (own tsconfig): gen_lulu_prices.ts
+    tools/                 # Other node tooling (own tsconfig): gen_lulu_prices.ts,
+                            #   gen_example_images.ts + example_images_manifest.ts; the
+                            #   browser half, example_images/harness.ts, is app code (app tsconfig)
     tests/                 # Vitest suites for the service logic (vitest.config.mts aliases
                             #   services/content + services/state to stubs/); no component tests
   server/                  # API server (workspace) — one Hono app, three entry points onto it
@@ -831,6 +838,21 @@ After that, every push to `main` deploys itself. The scripts still work by hand
   a Cloud-Run-style min-instances pool, concurrent invocations don't share this cache at all,
   so cold fills happen more often. Acceptable since `/api/compile` is a low-traffic fallback
   (most compiles run client-side), never rely on it for anything that needs to be warm
+- **Example pictures are rendered locally and committed, one set per UI locale**
+  (`app/src/assets/images/examples/<locale>/<id>.webp`), since each cover carries its example's
+  translated title. `.bin/gen_example_images` serves the app through Vite with
+  `USE_PROD_SERVICES`, and drives Chromium from `e2e/browsers/` with WebGL on SwiftShader. Its
+  harness builds each example the way a click does (`build_example_blueprint`), renders the cover
+  through the app's own worker (`render_cover_panels()`), and photographs it with
+  bookcover-3d-web at the bookcover widget's default 3D view (azimuth -30°, elevation 20°, zoom
+  0.75). The harness page is synthesised by a Playwright route, because `vite_plugin_index.mts`
+  replaces *every* HTML page with the app's own index. `manifest.json` keys each picture by a hash
+  of its cover form, background, `RENDER_VERSION` and the harness's `GENERATOR_VERSION`, so only
+  what changed re-renders. A locale identical to English gets no file and the app falls back to
+  English's. Bump `GENERATOR_VERSION` (or pass `--force`) after changing the camera or framing,
+  or after a bookcover-3d-web upgrade worth showing, since neither is in the hash. Each example's
+  `pages` is fixed (from a real compile in English) rather than measured per run, so the
+  spine width never churns every picture when fetch.bible's content shifts
 - **Lulu cost estimates need no credentials, by design** (`print_cost.ts`): a quote is Lulu's
   published print price (`lulu_prices.ts`) plus a live delivery quote from their
   `/shipping-options/` endpoint, which is unauthenticated, CORS-open, and prices purely by
@@ -925,3 +947,7 @@ it says otherwise.
   `app/i18n/context.json` if the call site alone is ambiguous), then run the skill's loop for
   every locale (`.bin/i18n_job` with no arguments). **Rewording English** works the same: the
   locales go stale and the next job carries the old and new English plus the old translation.
+- **The example designs' titles are printed on pictures**, so after their strings
+  (`svc.examples.*_title`/`_subtitle`) change in any locale, run `.bin/gen_example_images` too.
+  `i18n_check` warns (never fails, since CI can't render) about pictures whose titles no longer
+  match their catalog

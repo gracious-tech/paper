@@ -24,6 +24,7 @@
   "doc.copyright.study_notes": "Labels the study-notes row in that list; printed as \"<this> — Tyndale House Publishers\".",
   "editor.advanced.heading_chapter": "An option in the chapter-number style dropdown: each chapter starts with a heading. After the \"|\" is a sample of that heading for chapter {n} (always 2), so write it the way Bibles in this language print a chapter heading (e.g. \"第{n}章\").",
   "svc.blueprint.service_home": "The chosen printing service when printing at home on your own printer (not a booklet) — shown as a short label in design summaries.",
+  "svc.examples.large_print_title": "The title printed on the cover of an example large-print edition of the Bible books 1 Kings and 2 Kings. Write the two book names the way published Bibles in this language name them, joined as compactly as the English \"1 & 2 Kings\".",
   "vuetify.close": "Screen-reader label for a close button on an alert or chip.",
   "vuetify.dismiss": "Screen-reader label for a button that dismisses a notice.",
   "vuetify.input.appendAction": "Screen-reader label for an icon button at the end of a field; {0} is the field's label.",

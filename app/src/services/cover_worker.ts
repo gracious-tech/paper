@@ -38,11 +38,13 @@ export type CoverWorkerAction =
 // panels (a cheap post-process, not a second compile) — the front/back panels are what the
 // "Reading" preview (and the wizard's front-only previews) show, ignoring the spine, since a
 // reader never sees the spine as a page. `data`/`front`/`back` are strings for `format:'svg'`
-// (bookcover-web renders SVG as text), Uint8Array bytes for `format:'pdf'` (the default)
+// (bookcover-web renders SVG as text), Uint8Array bytes for `format:'pdf'` (the default).
+// `spine` is only present for a binding that has one
 export interface CoverRenderResult {
     data:Uint8Array|string
     front:Uint8Array|string
     back:Uint8Array|string
+    spine?:Uint8Array|string
 }
 
 // Every request carries an id, echoed back in the matching response
@@ -128,8 +130,10 @@ async function handle_action(message:CoverWorkerRequest):Promise<CoverRenderResu
         ...message.image_builtin !== undefined && {image_builtin: message.image_builtin},
         ...message.image_max_dpi !== undefined && {image_max_dpi: message.image_max_dpi},
         split: true, custom_fonts: custom_fonts.flatMap(font => font.files)})
-    const split = result.split as {front:Uint8Array|string, back:Uint8Array|string}
-    return {data: result.data, front: split.front, back: split.back}
+    const split = result.split as
+        {front:Uint8Array|string, back:Uint8Array|string, spine?:Uint8Array|string}
+    return {data: result.data, front: split.front, back: split.back,
+        ...split.spine !== undefined && {spine: split.spine}}
 }
 
 
