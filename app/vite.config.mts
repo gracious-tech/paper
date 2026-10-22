@@ -56,6 +56,17 @@ export default defineConfig(({command}) => {
         css: {
             devSourcemap: true,  // Include source map when injecting CSS in JS
         },
+        optimizeDeps: {
+            // Where the dev server's dependency scan starts. It would otherwise crawl
+            // index.html, which is only a placeholder (plugin_index renders index.pug), and so
+            // find nothing — every dependency was then discovered as the browser requested it,
+            // each discovery re-bundling and reloading the page mid-use. The workers are listed
+            // too, since the scan doesn't follow `new Worker(new URL(...))`
+            entries: ['src/init.ts', 'src/services/typst_worker.ts', 'src/services/cover_worker.ts'],
+            // Nor does it see the component imports plugin_vuetify's autoImport writes into
+            // templates as it transforms them, so those are bundled up front as well
+            include: ['vuetify/components/*', 'vuetify/directives'],
+        },
         server: {
             fs: {
                 strict: true,
