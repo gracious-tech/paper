@@ -106,7 +106,7 @@ export const EXAMPLE_DESIGNS:ExampleDesign[] = [
         id: 'greek', image: img_greek, books: ['1jn'], trans: ['grc_sr'], trans_first: true,
         cover: 'pattern',
         cover_overrides: {
-            bg_color: '#ffd4ee', pattern_id: 'diagonal-lines', bg_vector_id: 'church-v2',
+            bg_color: '#f7e7e3', pattern_id: 'diagonal-lines', bg_vector_id: 'church-v2',
         },
         diff: {
             font_size: 9, line_height: 1.2, show_headings: false, show_footnotes: false,
