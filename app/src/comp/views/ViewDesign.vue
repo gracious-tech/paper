@@ -58,11 +58,8 @@ const ready = ref(false)
 watch(id, async new_id => {
     ready.value = false
     state.editor = null
-    state.forced_editor = route.query['edit'] === '1'
-    if (state.forced_editor){
-        // One-shot flag — strip it so it doesn't linger in the address bar
-        void router.replace({name: 'design', params: {id: new_id}})
-    }
+    // Opening another design starts from its own view (?edit=1 is applied by the watch below)
+    state.forced_editor = false
 
     await designs_loaded
     if (id.value !== new_id){
@@ -106,6 +103,18 @@ watch(id, async new_id => {
             void alert_dialog(t("view.design.not_built"))
             await router.replace({name: 'designs'})
         }
+    }
+}, {immediate: true})
+
+
+// ?edit=1 forces the editor open even though the design matches a rendered version (see
+// edit_in_place in DesignVersionItem.vue). Watched apart from `id`, since restoring a version is
+// done from that same design's own version list, so the design doesn't change when it arrives
+watch(() => route.query['edit'], edit => {
+    if (edit === '1'){
+        state.forced_editor = true
+        // One-shot flag — strip it so it doesn't linger in the address bar
+        void router.replace({name: 'design', params: {id: id.value}})
     }
 }, {immediate: true})
 

@@ -249,6 +249,11 @@ void (async () => {
     // location would mount (and side-effect) the app only to swap it straight out for the splash
     app.use(router)
     await router.isReady()
+    // The router's history read the address when router.ts was imported, before the sign-in code
+    // was stripped above, so its first navigation puts the code back — strip it again here
+    if (sign_in_link){
+        await router.replace({...router.currentRoute.value, query: {}})
+    }
     app.mount('#app')
 
     // Deferred from above: a sign-in link opened on a device that never requested it. Now the
