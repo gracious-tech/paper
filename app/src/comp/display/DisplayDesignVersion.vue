@@ -89,11 +89,11 @@ div.version
 
 <script lang='ts' setup>
 
-import {computed, ref, watch, onUnmounted} from 'vue'
+import {computed, ref, watch} from 'vue'
 import {useI18n} from '@/services/i18n'
 
 import {selected_version, get_pdf_url, get_cover_pdf_url, download_version_pdf,
-    version_expired, version_stuck, latest_version, design_needs_editor,
+    version_expired, use_pending_clock, latest_version, design_needs_editor,
     version_debug_ref, version_contact_url, cover_failed as version_cover_failed}
     from '@/services/versions'
 import {regenerate_version, retry_version} from '@/services/version_compile'
@@ -105,14 +105,6 @@ import AnimatedBook from '../reuseable/AnimatedBook.vue'
 
 
 const {t} = useI18n()
-
-
-const time_since_request = ref('')
-let timer_interval:ReturnType<typeof setInterval>|null = null
-
-
-// Ticking wall clock, advanced by the pending timer below so `stuck` re-evaluates as time passes
-const now = ref(Date.now())
 
 
 const status = computed(() => {
@@ -133,12 +125,10 @@ const progress_text = computed(() => {
 })
 
 
-// Whether a pending version has been sitting long enough that its compile was almost certainly
-// abandoned (tab reload/close/crash, killed server instance) — offer a retry, not an endless wait
-const stuck = computed(() => {
-    void now.value
-    return selected_version.value ? version_stuck(selected_version.value) : false
-})
+// Time since the selected version's compile began, and whether it's been sitting long enough
+// that its compile was almost certainly abandoned (tab reload/close/crash, killed server
+// instance) — offer a retry, not an endless wait
+const {elapsed: time_since_request, stuck} = use_pending_clock(() => selected_version.value)
 
 
 // Whether the selected version's PDF has passed its Storage lifetime
@@ -275,48 +265,6 @@ const retry = async () => {
 // Prefilled support-contact link + the bare identifying string shown for the user to quote
 const contact_url = computed(() => version_contact_url(selected_version.value ?? null))
 const debug = computed(() => version_debug_ref(selected_version.value ?? null))
-
-
-watch(selected_version, version => {
-    // Constantly update time since request for selected version
-
-    // Clear any previous interval
-    if (timer_interval){
-        clearInterval(timer_interval)
-    }
-
-    // Only needed if request is pending
-    if (version?.status === 'pending'){
-        timer_interval = setInterval(() => {
-
-            // If request is no longer pending then can stop updating
-            if (version.status !== 'pending'){
-                clearInterval(timer_interval!)
-                return
-            }
-
-            // Advance the shared clock so `stuck` re-evaluates
-            now.value = Date.now()
-
-            // Count from the current compile attempt, not the version's age — a regen or retry
-            // re-stamps compile_started (see version_stuck)
-            const started = version.compile_started ?? version.created
-            const diff = (new Date().getTime() - started.getTime()) / 1000
-            const minutes = Math.floor(diff / 60).toString()
-            const seconds = Math.floor(diff % 60).toString().padStart(2, '0')
-            time_since_request.value = `${minutes}:${seconds}`
-
-        }, 100)  // Update every 1/10th of second for smooth updates
-    }
-}, {immediate: true})
-
-
-onUnmounted(() => {
-    // Clear any running interval
-    if (timer_interval){
-        clearInterval(timer_interval)
-    }
-})
 
 </script>
 

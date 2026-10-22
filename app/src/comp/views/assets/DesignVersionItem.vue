@@ -82,7 +82,7 @@ v-list-item(:active='!is_mobile && version.id === selected_version_id' color='pr
 
 <script lang='ts' setup>
 
-import {computed, ref, watch, onUnmounted} from 'vue'
+import {computed, ref} from 'vue'
 import {useI18n} from '@/services/i18n'
 import {useRouter} from 'vue-router'
 
@@ -93,7 +93,7 @@ import {state, show_toast, confirm_dialog, alert_dialog, run_with_retry, report_
 import {binding_page_issue} from '@/services/binding_advice'
 import {create_design_from_version, restore_version_into_design} from '@/services/designs'
 import {open_version_pdf, delete_version,
-    cover_failed as version_cover_failed, version_expired, version_stuck, share_version,
+    cover_failed as version_cover_failed, version_expired, use_pending_clock, share_version,
     selected_version_id, design_needs_editor, version_contact_url, version_retryable}
     from '@/services/versions'
 import {regenerate_version, regenerate_cover, retry_version}
@@ -121,36 +121,9 @@ const props = defineProps<{version:Version, design_id:string, is_latest?:boolean
 const show_share = ref(false)
 
 
-// Ticking clock so `stuck` re-evaluates while a version sits pending; only runs while it's
-// actually pending (started/stopped by the watcher below)
-const now = ref(Date.now())
-let tick:ReturnType<typeof setInterval>|null = null
-
-watch(() => props.version.status, status => {
-    if (tick){
-        clearInterval(tick)
-        tick = null
-    }
-    if (status === 'pending'){
-        tick = setInterval(() => {
-            now.value = Date.now()
-        }, 5000)
-    }
-}, {immediate: true})
-
-onUnmounted(() => {
-    if (tick){
-        clearInterval(tick)
-    }
-})
-
-
 // Whether this pending version's compile was almost certainly abandoned (see version_stuck) —
 // swaps the spinner for a retry affordance instead of an indefinite one
-const stuck = computed(() => {
-    void now.value
-    return version_stuck(props.version)
-})
+const {stuck} = use_pending_clock(() => props.version)
 
 
 // Options for a retry-style alert_dialog, omitting the action unless the current user owns this

@@ -1,7 +1,8 @@
 
-import {reactive, ref, computed} from 'vue'
+import {reactive, ref, computed, watch, onScopeDispose} from 'vue'
 import {collection, doc, query, where, orderBy, limit, onSnapshot, getDoc, getDocs, setDoc,
     serverTimestamp, Timestamp} from 'firebase/firestore'
+import type {ComputedRef} from 'vue'
 import type {DocumentData, Unsubscribe} from 'firebase/firestore'
 import {ref as storage_ref, getDownloadURL} from 'firebase/storage'
 import {migrate_version_blueprint} from 'paper-bible-typst'
@@ -81,6 +82,56 @@ export function version_stuck(version:Version):boolean{
     }
     const since = (version.compile_started ?? version.created).getTime()
     return Date.now() - since > STUCK_MS
+}
+
+
+export function use_pending_clock(get_version:() => Version|null|undefined)
+        :{elapsed:ComputedRef<string>, stuck:ComputedRef<boolean>}{
+    // A live "m:ss" readout of how long a pending version's current compile attempt has run, and
+    // whether it's stuck (see version_stuck). The clock only ticks while the version is pending.
+    // Must be called from a component's setup() (or another effect scope), which stops the clock
+    const now = ref(Date.now())
+    let timer:ReturnType<typeof setInterval>|null = null
+    const stop = () => {
+        if (timer){
+            clearInterval(timer)
+            timer = null
+        }
+    }
+    watch(() => get_version()?.status === 'pending', pending => {
+        stop()
+        if (pending){
+            now.value = Date.now()
+            // Sub-second ticks keep the seconds digit in step with the real clock
+            timer = setInterval(() => {
+                now.value = Date.now()
+            }, 100)
+        }
+    }, {immediate: true})
+    onScopeDispose(stop)
+
+    // Count from the current compile attempt, not the version's age — a regen or retry re-stamps
+    // compile_started
+    const elapsed = computed(() => {
+        const version = get_version()
+        if (!version){
+            return ''
+        }
+        const started = (version.compile_started ?? version.created).getTime()
+        const diff = Math.max(0, (now.value - started) / 1000)
+        const minutes = Math.floor(diff / 60).toString()
+        const seconds = Math.floor(diff % 60).toString().padStart(2, '0')
+        return `${minutes}:${seconds}`
+    })
+
+    // Re-run version_stuck against the ticking clock so it flips without any other change
+    const stuck = computed(() => {
+        void now.value
+        const version = get_version()
+        return version ? version_stuck(version) : false
+    })
+
+    return {elapsed, stuck}
 }
 
 

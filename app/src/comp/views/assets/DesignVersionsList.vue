@@ -27,8 +27,17 @@ template(v-else)
                 template(#prepend)
                     app-icon(name='print')
                 | {{ service_label }}
-        //- Latest version couldn't be fully generated — either the whole compile failed, or the
-        //- interior compiled and only its wraparound cover render failed (a cover-only retry).
+        //- Latest version still generating. Below 900px AppRoot hides the preview pane and its
+        //- full progress screen, so this compact card carries the same readout there: time
+        //- elapsed, and the current stage while this tab is the one compiling it
+        div.mobile_pending(v-if='latest_pending')
+            div(class='text-title-medium') {{ $t("display.version.preparing") + '…' }}
+            div(class='text-display-small my-2') {{ elapsed }}
+            div(v-if='progress_text') {{ progress_text }}
+            div(class='mt-2 text-body-small') {{ $t("display.version.typical_time") }}
+        //- Latest version couldn't be fully generated — the whole compile failed, it was
+        //- abandoned mid-compile (stuck), or the interior compiled and only its wraparound cover
+        //- render failed (a cover-only retry).
         //- A full alert bar (with its own "Try again") rather than just the row icon, so a
         //- mobile user — who never sees the preview pane's failure screen — can still act.
         //- Older versions get the same message + retry in a click-through dialog.
@@ -97,9 +106,10 @@ import {useI18n, count_phrase} from '@/services/i18n'
 import {PassageReference} from '@gracious.tech/fetch-client'
 
 import {versions, latest_version, version_expired, download_version_pdf,
-    cover_failed as version_cover_failed, version_contact_url, version_retryable}
-    from '@/services/versions'
-import {regenerate_version, regenerate_cover} from '@/services/version_compile'
+    cover_failed as version_cover_failed, version_contact_url, version_retryable,
+    use_pending_clock} from '@/services/versions'
+import {regenerate_version, regenerate_cover, retry_version} from '@/services/version_compile'
+import {version_progress, stage_text} from '@/services/compile_progress'
 import {state, report_failure} from '@/services/state'
 import {format_paper_size, format_service_label, format_pages_label, get_passages}
     from '@/services/blueprints'
@@ -188,6 +198,25 @@ const binding_warning = computed(() => {
 const retrying = ref(false)
 
 
+// Time since the latest version's compile began, and whether it was abandoned mid-compile
+const {elapsed, stuck} = use_pending_clock(() => latest_version.value)
+
+
+// Whether the latest version is still generating (and not abandoned — see stuck)
+const latest_pending = computed(() => {
+    return latest_version.value?.status === 'pending' && !stuck.value
+})
+
+
+// The current in-browser compile stage of the latest version (e.g. "Writing Genesis (1/66)"),
+// null when another tab or the server is compiling it (see version_progress)
+const progress_text = computed(() => {
+    const version = latest_version.value
+    const event = version ? version_progress[version.id] : undefined
+    return event ? stage_text(event, t) : null
+})
+
+
 // Whether the latest version's interior is available but its cover render failed (also gates
 // the mobile "Download cover" button)
 const cover_failed = computed(() => {
@@ -233,8 +262,24 @@ const retry_compile = async () => {
 }
 
 
-// The latest version's failure state, if any — a full compile failure or an interior-compiled
-// / cover-failed one (mutually exclusive: a version is either 'failed' or 'available'). Drives
+// Re-drive the stuck latest version through the compile pipeline (see version_stuck)
+const retry_stuck = async () => {
+    if (!latest_version.value){
+        return
+    }
+    retrying.value = true
+    try {
+        await retry_version(latest_version.value)
+    } catch (error){
+        report_failure(error, t("common.action_failed"))
+    } finally {
+        retrying.value = false
+    }
+}
+
+
+// The latest version's failure state, if any — a full compile failure, an abandoned compile, or
+// an interior-compiled / cover-failed one (mutually exclusive by status). Drives
 // the alert bar's message + which retry it runs. Shown here rather than only in the preview
 // pane so a mobile user, who can't see that pane, still gets the message and a way to act.
 // `retry` is only offered when the current user owns the version — Storage/Firestore rules
@@ -245,6 +290,11 @@ const failure_alert = computed(() => {
     if (latest_version.value?.status === 'failed'){
         return {message: t("view.version_list.compile_error"),
             retry: retryable ? retry_compile : null, loading: retrying.value}
+    }
+    if (stuck.value){
+        return {message: t("display.version.taking_long") + ' '
+                + t("display.version.interrupted"),
+            retry: retryable ? retry_stuck : null, loading: retrying.value}
     }
     if (cover_failed.value){
         return {message: t("view.version_list.cover_failed"),
@@ -353,6 +403,29 @@ const show_estimate_cost = () => {
     justify-content: center
     gap: 8px
     margin-bottom: 24px
+
+
+// Mobile progress card for a generating latest version, in the same moving gradient as the
+// preview pane's progress screen (DisplayDesignVersion.vue). Hidden above 900px, where that
+// screen is visible instead
+.mobile_pending
+    margin-top: 12px
+    padding: 16px
+    border-radius: 8px
+    color: white
+    background: linear-gradient(-45deg, #ee7752, #e73c7e, #23a6d5, #23d5ab)
+    background-size: 400% 400%
+    animation: mobile_pending 20s ease infinite
+    @media (min-width: 901px)
+        display: none
+
+@keyframes mobile_pending
+    0%
+        background-position: 0% 50%
+    50%
+        background-position: 100% 50%
+    100%
+        background-position: 0% 50%
 
 
 // Compile-failure alert: an icon + message row, then a centred row of actions beneath it
