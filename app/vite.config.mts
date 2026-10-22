@@ -74,5 +74,11 @@ export default defineConfig(({command}) => {
             // so end users' browsers never fetch original source
             sourcemap: 'hidden',
         },
+        worker: {
+            // Both workers are module workers (`{type: 'module'}`), so emit ES rather than the
+            // default IIFE, which can't code-split: bookcover-core's lazily imported vector
+            // designs would otherwise all be inlined into the cover worker's one chunk
+            format: 'es',
+        },
     }
 })
