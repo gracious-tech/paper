@@ -19,11 +19,11 @@
     },
     "dependencies": {
         "@gracious.tech/fetch-client": "^2.5.0",
-        "bookcover-core": "^0.22.1",
+        "bookcover-core": "^0.22.2",
         "pdf-lib": "^1.17.1",
         "pm-to-typst": "^0.1.2",
         "printing-services": "^1.5.1",
-        "typst-fonts": "^0.1.3",
+        "typst-fonts": "^0.1.4",
         "typst-utils": "^0.2.1",
         "uqr": "^0.1.3",
         "zod": "^4.4.3"

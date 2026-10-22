@@ -1,37 +1,37 @@
 {
     "en": {
         "study": {
-            "hash": "44998102139c38bc",
+            "hash": "ba8607fbf5a2a2ab",
             "title": "Ephesians",
             "subtitle": "with study notes",
             "file": true
         },
         "bilingual": {
-            "hash": "58580e1aab630cad",
+            "hash": "c42c4f1c969b1910",
             "title": "Mark's Gospel",
             "subtitle": "马可福音",
             "file": true
         },
         "journal": {
-            "hash": "3c4a2cfdb99d02de",
+            "hash": "623eba76e7db9519",
             "title": "Proverbs",
             "subtitle": "Reflection Journal",
             "file": true
         },
         "large_print": {
-            "hash": "e7e6d521101c3840",
+            "hash": "d3f9f999eb2ee271",
             "title": "1 & 2 Kings",
             "subtitle": "Large Print",
             "file": true
         },
         "greek": {
-            "hash": "90a9fd03747ceb95",
+            "hash": "a72405bce64b72e9",
             "title": "1 John",
             "subtitle": "in English and Biblical Greek",
             "file": true
         },
         "nt_reading": {
-            "hash": "abd652eb59173779",
+            "hash": "baec74efea208d06",
             "title": "The New Testament",
             "subtitle": "Reading Edition",
             "file": true
@@ -39,37 +39,37 @@
     },
     "ar": {
         "study": {
-            "hash": "5a99f60121caa599",
+            "hash": "31b2cdcd1039f450",
             "title": "الرسالة إلى أهل أفسس",
             "subtitle": "مع ملاحظات دراسية",
             "file": true
         },
         "bilingual": {
-            "hash": "fb4b588c00df1e91",
+            "hash": "1faba3a8723b3b17",
             "title": "إنجيل مرقس",
             "subtitle": "马可福音",
             "file": true
         },
         "journal": {
-            "hash": "0da7666dcdaac848",
+            "hash": "49db2884ceb981ba",
             "title": "سفر الأمثال",
             "subtitle": "دفتر تأملات",
             "file": true
         },
         "large_print": {
-            "hash": "123747d069ed0c45",
+            "hash": "2dee03345ff1f2a7",
             "title": "الملوك الأول والثاني",
             "subtitle": "طبعة بخط كبير",
             "file": true
         },
         "greek": {
-            "hash": "dd35375594f889a8",
+            "hash": "1a9a06ed75f044ca",
             "title": "رسالة يوحنا الأولى",
             "subtitle": "بالإنجليزية واليونانية الكتابية",
             "file": true
         },
         "nt_reading": {
-            "hash": "da3d0b136fb74b1e",
+            "hash": "bd7f0646adbedb63",
             "title": "العهد الجديد",
             "subtitle": "طبعة للقراءة",
             "file": true
@@ -77,37 +77,37 @@
     },
     "bn": {
         "study": {
-            "hash": "a7481bf15d620bf2",
+            "hash": "06c2c2616c236200",
             "title": "ইফিষীয়",
             "subtitle": "অধ্যয়ন টীকাসহ",
             "file": true
         },
         "bilingual": {
-            "hash": "c460d88a4cc05c5c",
+            "hash": "cf41b8b59e497fdf",
             "title": "মার্ক লিখিত সুসমাচার",
             "subtitle": "马可福音",
             "file": true
         },
         "journal": {
-            "hash": "84aee3e7258db219",
+            "hash": "84ff1026341421a1",
             "title": "হিতোপদেশ",
             "subtitle": "ধ্যান-ডায়েরি",
             "file": true
         },
         "large_print": {
-            "hash": "ac5b600eb34d75bb",
+            "hash": "06dcdee8af07de86",
             "title": "১ ও ২ রাজাবলি",
             "subtitle": "বড় অক্ষরে",
             "file": true
         },
         "greek": {
-            "hash": "0df77e50359e37e1",
+            "hash": "7bf3c8c08d244aaf",
             "title": "1 যোহন",
             "subtitle": "ইংরেজি ও বাইবেলীয় গ্রিক ভাষায়",
             "file": true
         },
         "nt_reading": {
-            "hash": "5398c6f0fac527e4",
+            "hash": "f82f629f1bfd8af1",
             "title": "নতুন নিয়ম",
             "subtitle": "পাঠ সংস্করণ",
             "file": true
@@ -115,37 +115,37 @@
     },
     "de": {
         "study": {
-            "hash": "99864dcaa7652b37",
+            "hash": "a595a91342ca11f5",
             "title": "Epheser",
             "subtitle": "mit Studienanmerkungen",
             "file": true
         },
         "bilingual": {
-            "hash": "2ff5ba00e6d03131",
+            "hash": "828df47917064f30",
             "title": "Markusevangelium",
             "subtitle": "马可福音",
             "file": true
         },
         "journal": {
-            "hash": "68286d41b75a5119",
+            "hash": "2d08c9fd97107ce5",
             "title": "Sprüche",
             "subtitle": "Journal zum Nachdenken",
             "file": true
         },
         "large_print": {
-            "hash": "82f01f5b4024dbeb",
+            "hash": "26e7d3867782ced2",
             "title": "1. & 2. Könige",
             "subtitle": "Großdruck",
             "file": true
         },
         "greek": {
-            "hash": "3321dcada65c6c5a",
+            "hash": "f5513864a0820557",
             "title": "1. Johannes",
             "subtitle": "auf Englisch und in biblischem Griechisch",
             "file": true
         },
         "nt_reading": {
-            "hash": "eed37e71456a0a05",
+            "hash": "4b8be9c47d24e298",
             "title": "Das Neue Testament",
             "subtitle": "Leseausgabe",
             "file": true
@@ -153,37 +153,37 @@
     },
     "es": {
         "study": {
-            "hash": "0351f4f692877f91",
+            "hash": "6e10c16839ac232f",
             "title": "Efesios",
             "subtitle": "con notas de estudio",
             "file": true
         },
         "bilingual": {
-            "hash": "ce3bb3714213a346",
+            "hash": "8ed47a675513b226",
             "title": "El Evangelio de Marcos",
             "subtitle": "马可福音",
             "file": true
         },
         "journal": {
-            "hash": "d683471eb180f046",
+            "hash": "026940741383c790",
             "title": "Proverbios",
             "subtitle": "Diario de reflexión",
             "file": true
         },
         "large_print": {
-            "hash": "b4afe91eccc9891c",
+            "hash": "fadb0285b3bdcf77",
             "title": "1 y 2 Reyes",
             "subtitle": "Letra grande",
             "file": true
         },
         "greek": {
-            "hash": "3baf891abcdc706d",
+            "hash": "63cd1c93421c960f",
             "title": "1 Juan",
             "subtitle": "en inglés y griego bíblico",
             "file": true
         },
         "nt_reading": {
-            "hash": "0b49c9a744ad8f69",
+            "hash": "78746af4e54981b4",
             "title": "El Nuevo Testamento",
             "subtitle": "Edición de lectura",
             "file": true
@@ -191,37 +191,37 @@
     },
     "fa": {
         "study": {
-            "hash": "5300c7d8bce359b5",
+            "hash": "935333f1f034d8ce",
             "title": "افسسیان",
             "subtitle": "همراه با یادداشت‌های مطالعاتی",
             "file": true
         },
         "bilingual": {
-            "hash": "91b03356c75a02e6",
+            "hash": "7e36a9d756764c20",
             "title": "انجیل مرقس",
             "subtitle": "马可福音",
             "file": true
         },
         "journal": {
-            "hash": "3bed511b3fcd4fb9",
+            "hash": "846fb0ab13b14bdf",
             "title": "امثال",
             "subtitle": "دفتر تأمل",
             "file": true
         },
         "large_print": {
-            "hash": "485eb399df98e82b",
+            "hash": "49e985a2f3583911",
             "title": "اول و دوم پادشاهان",
             "subtitle": "چاپ درشت",
             "file": true
         },
         "greek": {
-            "hash": "60fb5924145321d1",
+            "hash": "7fa22743c1efd491",
             "title": "اول یوحنا",
             "subtitle": "به زبان انگلیسی و یونانی کتاب مقدس",
             "file": true
         },
         "nt_reading": {
-            "hash": "30accbb70c798386",
+            "hash": "b3605e52047d5861",
             "title": "عهد جدید",
             "subtitle": "چاپ ویژهٔ خواندن",
             "file": true
@@ -229,37 +229,37 @@
     },
     "fr": {
         "study": {
-            "hash": "ff978a26a6886126",
+            "hash": "fd72c84f21380749",
             "title": "Éphésiens",
             "subtitle": "avec notes d’étude",
             "file": true
         },
         "bilingual": {
-            "hash": "dca373de4a0041e7",
+            "hash": "d841f779e9e1952b",
             "title": "L’Évangile selon Marc",
             "subtitle": "马可福音",
             "file": true
         },
         "journal": {
-            "hash": "7a5fcb7abb27b408",
+            "hash": "f276b0fe38f95e73",
             "title": "Proverbes",
             "subtitle": "Journal de méditation",
             "file": true
         },
         "large_print": {
-            "hash": "5f76c231f9bf2bca",
+            "hash": "f9e60020b4f3def3",
             "title": "1 et 2 Rois",
             "subtitle": "Gros caractères",
             "file": true
         },
         "greek": {
-            "hash": "97ee69912da21922",
+            "hash": "2a98893e7a4c4b34",
             "title": "1 Jean",
             "subtitle": "en anglais et en grec biblique",
             "file": true
         },
         "nt_reading": {
-            "hash": "da80ddeb87367341",
+            "hash": "9e82ca27e9038310",
             "title": "Le Nouveau Testament",
             "subtitle": "Édition de lecture",
             "file": true
@@ -267,37 +267,37 @@
     },
     "hi": {
         "study": {
-            "hash": "cab4f95743e18571",
+            "hash": "92801199690f2546",
             "title": "इफिसियों",
             "subtitle": "अध्ययन टिप्पणियों सहित",
             "file": true
         },
         "bilingual": {
-            "hash": "ad1b9adca51ce518",
+            "hash": "d4d25f1247b79054",
             "title": "मरकुस रचित सुसमाचार",
             "subtitle": "马可福音",
             "file": true
         },
         "journal": {
-            "hash": "eceea393d88bdb3e",
+            "hash": "785ef94670d603cb",
             "title": "नीतिवचन",
             "subtitle": "मनन डायरी",
             "file": true
         },
         "large_print": {
-            "hash": "4cfaa84097537b1b",
+            "hash": "927766370bd2f3c2",
             "title": "1 और 2 राजा",
             "subtitle": "बड़े अक्षरों में",
             "file": true
         },
         "greek": {
-            "hash": "46b9fa826f04b133",
+            "hash": "521f49bed20f7486",
             "title": "1 यूहन्ना",
             "subtitle": "अंग्रेज़ी और बाइबलीय यूनानी में",
             "file": true
         },
         "nt_reading": {
-            "hash": "33777ca8a3abbbbc",
+            "hash": "976b2c3305415f7d",
             "title": "नया नियम",
             "subtitle": "पठन संस्करण",
             "file": true
@@ -305,37 +305,37 @@
     },
     "id": {
         "study": {
-            "hash": "9fe7e97281084922",
+            "hash": "083fc8e784f076af",
             "title": "Efesus",
             "subtitle": "dengan catatan studi",
             "file": true
         },
         "bilingual": {
-            "hash": "7e2ebb6f6ab64cab",
+            "hash": "9355b47f32e0dae5",
             "title": "Injil Markus",
             "subtitle": "马可福音",
             "file": true
         },
         "journal": {
-            "hash": "8408d9b121add6b4",
+            "hash": "60cc330e02338271",
             "title": "Amsal",
             "subtitle": "Jurnal Renungan",
             "file": true
         },
         "large_print": {
-            "hash": "ab0c217e170c03e5",
+            "hash": "e8a0ea83ce1e4648",
             "title": "1 & 2 Raja-raja",
             "subtitle": "Edisi Huruf Besar",
             "file": true
         },
         "greek": {
-            "hash": "3e18aa4f5569a83e",
+            "hash": "69f9d1a8bcb0612c",
             "title": "1 Yohanes",
             "subtitle": "dalam bahasa Inggris dan Yunani Alkitab",
             "file": true
         },
         "nt_reading": {
-            "hash": "ed1f7513e1a0006d",
+            "hash": "e7ec3eb8de5d369e",
             "title": "Perjanjian Baru",
             "subtitle": "Edisi Bacaan",
             "file": true
@@ -343,37 +343,37 @@
     },
     "it": {
         "study": {
-            "hash": "e701e2076b8a3fe9",
+            "hash": "0bf5e41199485bdf",
             "title": "Efesini",
             "subtitle": "con note di studio",
             "file": true
         },
         "bilingual": {
-            "hash": "c0a11233fff214af",
+            "hash": "8506f6471f2ecfb4",
             "title": "Vangelo di Marco",
             "subtitle": "马可福音",
             "file": true
         },
         "journal": {
-            "hash": "6c857d1cb0b03da1",
+            "hash": "7a8e8857a63b977d",
             "title": "Proverbi",
             "subtitle": "Diario di riflessione",
             "file": true
         },
         "large_print": {
-            "hash": "be4e96d33f7dc514",
+            "hash": "8d81e7fec35d81a1",
             "title": "1 e 2 Re",
             "subtitle": "Caratteri grandi",
             "file": true
         },
         "greek": {
-            "hash": "2d0de8202580f8b0",
+            "hash": "b2f016dc87802e6c",
             "title": "1 Giovanni",
             "subtitle": "in inglese e greco biblico",
             "file": true
         },
         "nt_reading": {
-            "hash": "5f3748d4fa8c38de",
+            "hash": "34b6ec302646c14d",
             "title": "Il Nuovo Testamento",
             "subtitle": "Edizione per la lettura",
             "file": true
@@ -381,37 +381,37 @@
     },
     "ja": {
         "study": {
-            "hash": "ab829f58a90934f5",
+            "hash": "3d7892d5016feb23",
             "title": "エペソ人への手紙",
             "subtitle": "注解付き",
             "file": true
         },
         "bilingual": {
-            "hash": "295fb9c6e1512a54",
+            "hash": "7f360e5a3ea66446",
             "title": "マルコの福音書",
             "subtitle": "马可福音",
             "file": true
         },
         "journal": {
-            "hash": "8bf475795f8cb272",
+            "hash": "b224c4929b5d35ae",
             "title": "箴言",
             "subtitle": "黙想ジャーナル",
             "file": true
         },
         "large_print": {
-            "hash": "5ac1a7cde6187712",
+            "hash": "e037fe174f254e27",
             "title": "列王記 上・下",
             "subtitle": "大活字版",
             "file": true
         },
         "greek": {
-            "hash": "6e7f7c6e702f3cfa",
+            "hash": "ece3f0a9dccd6593",
             "title": "ヨハネの手紙第一",
             "subtitle": "英語と聖書ギリシア語",
             "file": true
         },
         "nt_reading": {
-            "hash": "5ba7d646f6a3629a",
+            "hash": "499c57f383f052a3",
             "title": "新約聖書",
             "subtitle": "通読版",
             "file": true
@@ -419,37 +419,37 @@
     },
     "ko": {
         "study": {
-            "hash": "b0794bdd7e221582",
+            "hash": "45e1a60f44f3cb2e",
             "title": "에베소서",
             "subtitle": "스터디 노트 포함",
             "file": true
         },
         "bilingual": {
-            "hash": "24a6877b16cf85f2",
+            "hash": "4eda100c1734124c",
             "title": "마가복음",
             "subtitle": "马可福音",
             "file": true
         },
         "journal": {
-            "hash": "e954c6d0331047fc",
+            "hash": "757bc441d18d14e6",
             "title": "잠언",
             "subtitle": "묵상 노트",
             "file": true
         },
         "large_print": {
-            "hash": "6392c62c29944f23",
+            "hash": "a828e39863e878d4",
             "title": "열왕기 상·하",
             "subtitle": "큰 글씨",
             "file": true
         },
         "greek": {
-            "hash": "30563fc3b4a00886",
+            "hash": "6bc7d5b37a42d8c1",
             "title": "요한일서",
             "subtitle": "영어와 성경 헬라어",
             "file": true
         },
         "nt_reading": {
-            "hash": "5d292ca0dd357414",
+            "hash": "f9aa6e4d7262e264",
             "title": "신약성경",
             "subtitle": "읽기용",
             "file": true
@@ -457,37 +457,37 @@
     },
     "mr": {
         "study": {
-            "hash": "0500849dbd20be2e",
+            "hash": "f1fb5d907a080b91",
             "title": "इफिसकरांस पत्र",
             "subtitle": "अभ्यास टिपांसह",
             "file": true
         },
         "bilingual": {
-            "hash": "f296a6ca0526d484",
+            "hash": "b5be7ee75cd47b7d",
             "title": "मार्ककृत शुभवर्तमान",
             "subtitle": "马可福音",
             "file": true
         },
         "journal": {
-            "hash": "31f943c247eef5aa",
+            "hash": "e68ebdc51f42e7c0",
             "title": "नीतिसूत्रे",
             "subtitle": "मनन वही",
             "file": true
         },
         "large_print": {
-            "hash": "3cdae948e343fc06",
+            "hash": "45e59c2de9ba5077",
             "title": "१ व २ राजे",
             "subtitle": "मोठी अक्षरे",
             "file": true
         },
         "greek": {
-            "hash": "a6cd4f405e3daf1c",
+            "hash": "b75135a7e7df6c66",
             "title": "1 योहान",
             "subtitle": "इंग्रजी आणि बायबलकालीन ग्रीक भाषेत",
             "file": true
         },
         "nt_reading": {
-            "hash": "a07776f5ee4f9b2f",
+            "hash": "dca881099c7f7635",
             "title": "नवा करार",
             "subtitle": "वाचन आवृत्ती",
             "file": true
@@ -495,37 +495,37 @@
     },
     "pt-BR": {
         "study": {
-            "hash": "ece60c8466dca61f",
+            "hash": "7fb132d54f6574b0",
             "title": "Efésios",
             "subtitle": "com notas de estudo",
             "file": true
         },
         "bilingual": {
-            "hash": "94786bb9e6bf9478",
+            "hash": "7b22ccac6eadc465",
             "title": "Evangelho de Marcos",
             "subtitle": "马可福音",
             "file": true
         },
         "journal": {
-            "hash": "0c8591c219d16554",
+            "hash": "515f9687f1926e81",
             "title": "Provérbios",
             "subtitle": "Diário de reflexão",
             "file": true
         },
         "large_print": {
-            "hash": "88e866eb8d6bc760",
+            "hash": "2c53e30425f997c1",
             "title": "1 e 2 Reis",
             "subtitle": "Letra grande",
             "file": true
         },
         "greek": {
-            "hash": "113b2896a6634f2d",
+            "hash": "5cb9534963bc33e6",
             "title": "1 João",
             "subtitle": "em inglês e grego bíblico",
             "file": true
         },
         "nt_reading": {
-            "hash": "cb5363086f132dda",
+            "hash": "e7c25d0c5a2eb718",
             "title": "O Novo Testamento",
             "subtitle": "Edição para leitura",
             "file": true
@@ -533,37 +533,37 @@
     },
     "ru": {
         "study": {
-            "hash": "b98fdd7c2a3d2406",
+            "hash": "45f4f753ce4339d2",
             "title": "Послание к Ефесянам",
             "subtitle": "с комментариями",
             "file": true
         },
         "bilingual": {
-            "hash": "d8c22398a30e8880",
+            "hash": "b38ae10aaee3d9cd",
             "title": "Евангелие от Марка",
             "subtitle": "马可福音",
             "file": true
         },
         "journal": {
-            "hash": "4ed812edc74dbf5f",
+            "hash": "223ebffeb38d157e",
             "title": "Притчи",
             "subtitle": "Дневник размышлений",
             "file": true
         },
         "large_print": {
-            "hash": "373f2ca0397fc0a6",
+            "hash": "21a832d1d2905a6f",
             "title": "3-я и 4-я Царств",
             "subtitle": "Крупный шрифт",
             "file": true
         },
         "greek": {
-            "hash": "e00357342310a1c2",
+            "hash": "d79f1952467b82c5",
             "title": "1-е послание Иоанна",
             "subtitle": "на английском и библейском греческом",
             "file": true
         },
         "nt_reading": {
-            "hash": "f0a6dfc8a703344f",
+            "hash": "b727a93ef130efcd",
             "title": "Новый Завет",
             "subtitle": "Издание для чтения",
             "file": true
@@ -571,37 +571,37 @@
     },
     "ta": {
         "study": {
-            "hash": "156cd329eead88b0",
+            "hash": "f0fb09cd0d5d9b7a",
             "title": "எபேசியர்",
             "subtitle": "ஆய்வுக் குறிப்புகளுடன்",
             "file": true
         },
         "bilingual": {
-            "hash": "72c671882fbeacb9",
+            "hash": "a1060ea788c6cfe5",
             "title": "மாற்கு சுவிசேஷம்",
             "subtitle": "马可福音",
             "file": true
         },
         "journal": {
-            "hash": "44079cc578f3e423",
+            "hash": "4abcdd73993fa8cb",
             "title": "நீதிமொழிகள்",
             "subtitle": "தியானக் குறிப்பேடு",
             "file": true
         },
         "large_print": {
-            "hash": "8b27e9824a0f8c02",
+            "hash": "a4303d4ab1c03c4c",
             "title": "1 & 2 இராஜாக்கள்",
             "subtitle": "பெரிய எழுத்துப் பதிப்பு",
             "file": true
         },
         "greek": {
-            "hash": "bd01093406418015",
+            "hash": "b4690aea68cd4c5a",
             "title": "1 யோவான்",
             "subtitle": "ஆங்கிலத்திலும் விவிலியக் கிரேக்கத்திலும்",
             "file": true
         },
         "nt_reading": {
-            "hash": "5d6084b767a6eed0",
+            "hash": "98a5e84f8e36c008",
             "title": "புதிய ஏற்பாடு",
             "subtitle": "வாசிப்புப் பதிப்பு",
             "file": true
@@ -609,37 +609,37 @@
     },
     "te": {
         "study": {
-            "hash": "5cbb15cc92ce76f9",
+            "hash": "50c3cad0f5a630b5",
             "title": "ఎఫెసీయులకు",
             "subtitle": "అధ్యయన గమనికలతో",
             "file": true
         },
         "bilingual": {
-            "hash": "618f1b7c3bd976c7",
+            "hash": "a52b1488d0cef957",
             "title": "మార్కు సువార్త",
             "subtitle": "马可福音",
             "file": true
         },
         "journal": {
-            "hash": "d846dfa21ef36177",
+            "hash": "42fc6b820fccdabd",
             "title": "సామెతలు",
             "subtitle": "ధ్యాన జర్నల్",
             "file": true
         },
         "large_print": {
-            "hash": "7d4a0bd72f657d89",
+            "hash": "57d6c5e4c057f9f5",
             "title": "1 & 2 రాజులు",
             "subtitle": "పెద్ద అక్షరాలు",
             "file": true
         },
         "greek": {
-            "hash": "26513bcc49d3efb5",
+            "hash": "2427248394a02fba",
             "title": "1 యోహాను",
             "subtitle": "ఆంగ్లం, బైబిల్ గ్రీకు భాషలలో",
             "file": true
         },
         "nt_reading": {
-            "hash": "69a6e7155bd7da9c",
+            "hash": "064ae27579172d96",
             "title": "క్రొత్త నిబంధన",
             "subtitle": "పఠన సంచిక",
             "file": true
@@ -647,37 +647,37 @@
     },
     "th": {
         "study": {
-            "hash": "a194999208548746",
+            "hash": "bbb938a32341268a",
             "title": "เอเฟซัส",
             "subtitle": "พร้อมคำอธิบายเพื่อการศึกษา",
             "file": true
         },
         "bilingual": {
-            "hash": "183d27da6260ab7c",
+            "hash": "b80784a297f810f1",
             "title": "พระกิตติคุณมาระโก",
             "subtitle": "马可福音",
             "file": true
         },
         "journal": {
-            "hash": "96da2fa6e1a2b8c2",
+            "hash": "917afd4cfd70ce7e",
             "title": "สุภาษิต",
             "subtitle": "สมุดบันทึกการใคร่ครวญ",
             "file": true
         },
         "large_print": {
-            "hash": "e0bf18a094d7196a",
+            "hash": "ea686d7449c4627a",
             "title": "1 และ 2 พงศ์กษัตริย์",
             "subtitle": "ฉบับอักษรใหญ่",
             "file": true
         },
         "greek": {
-            "hash": "a2254febeeb71b0d",
+            "hash": "bd21463a861699c8",
             "title": "1 ยอห์น",
             "subtitle": "ภาษาอังกฤษและภาษากรีกพระคัมภีร์",
             "file": true
         },
         "nt_reading": {
-            "hash": "89661a5c6bac2c13",
+            "hash": "e67aa6d7e2012cc9",
             "title": "พันธสัญญาใหม่",
             "subtitle": "ฉบับสำหรับอ่าน",
             "file": true
@@ -685,37 +685,37 @@
     },
     "tr": {
         "study": {
-            "hash": "0e11d4536a37080b",
+            "hash": "406ab401be406962",
             "title": "Efesliler",
             "subtitle": "çalışma notlarıyla",
             "file": true
         },
         "bilingual": {
-            "hash": "ee3aa73175bfb9d4",
+            "hash": "471043b028255803",
             "title": "Markos'a Göre İncil",
             "subtitle": "马可福音",
             "file": true
         },
         "journal": {
-            "hash": "4cbe75dd7bb47302",
+            "hash": "e39df4bde78516d0",
             "title": "Süleyman'ın Özdeyişleri",
             "subtitle": "Tefekkür Günlüğü",
             "file": true
         },
         "large_print": {
-            "hash": "7ebbbdab5a33329b",
+            "hash": "1d4c7c8bbb9860fb",
             "title": "1. ve 2. Krallar",
             "subtitle": "Büyük Puntolu Baskı",
             "file": true
         },
         "greek": {
-            "hash": "d4fe505dad1c9d10",
+            "hash": "6bea76085d10f2db",
             "title": "1. Yuhanna",
             "subtitle": "İngilizce ve Kutsal Kitap Grekçesiyle",
             "file": true
         },
         "nt_reading": {
-            "hash": "c718050b36cfa67a",
+            "hash": "12fa47557998925c",
             "title": "Yeni Antlaşma",
             "subtitle": "Okuma Baskısı",
             "file": true
@@ -723,37 +723,37 @@
     },
     "ur": {
         "study": {
-            "hash": "8a14c84d7894a719",
+            "hash": "f32a17c464a46eb7",
             "title": "افسیوں",
             "subtitle": "مطالعاتی حواشی کے ساتھ",
             "file": true
         },
         "bilingual": {
-            "hash": "7c0ab48734a67e66",
+            "hash": "2137f11afd076f9b",
             "title": "مرقس کی انجیل",
             "subtitle": "马可福音",
             "file": true
         },
         "journal": {
-            "hash": "4944840d2d91e74a",
+            "hash": "a4eea093bb9655ad",
             "title": "امثال",
             "subtitle": "غور و فکر کی ڈائری",
             "file": true
         },
         "large_print": {
-            "hash": "dd60d47e94226311",
+            "hash": "8ad98f43b5585d3e",
             "title": "1 و 2 سلاطین",
             "subtitle": "بڑے حروف",
             "file": true
         },
         "greek": {
-            "hash": "c6f6823bc89bc30f",
+            "hash": "b59b6ea846d74043",
             "title": "1-یوحنا",
             "subtitle": "انگریزی اور بائبلی یونانی میں",
             "file": true
         },
         "nt_reading": {
-            "hash": "dd0224300de4f8cf",
+            "hash": "3d3d119730ddbb4c",
             "title": "عہدِ جدید",
             "subtitle": "پڑھنے کا ایڈیشن",
             "file": true
@@ -761,37 +761,37 @@
     },
     "vi": {
         "study": {
-            "hash": "91a8df90db18edee",
+            "hash": "105bdad700d11f3a",
             "title": "Ê-phê-sô",
             "subtitle": "có ghi chú học Kinh Thánh",
             "file": true
         },
         "bilingual": {
-            "hash": "66b8544b0b1af237",
+            "hash": "2573b610829798ab",
             "title": "Phúc Âm Mác",
             "subtitle": "马可福音",
             "file": true
         },
         "journal": {
-            "hash": "d5b72d4ab18c4d47",
+            "hash": "181d40f05c6c9a12",
             "title": "Châm Ngôn",
             "subtitle": "Sổ suy ngẫm",
             "file": true
         },
         "large_print": {
-            "hash": "c6038f63c78f6be9",
+            "hash": "a129077338224522",
             "title": "1 & 2 Các Vua",
             "subtitle": "Chữ lớn",
             "file": true
         },
         "greek": {
-            "hash": "cfe1a87284f2175f",
+            "hash": "633dea545fa182ff",
             "title": "1 Giăng",
             "subtitle": "bằng tiếng Anh và tiếng Hy Lạp Kinh Thánh",
             "file": true
         },
         "nt_reading": {
-            "hash": "5362e3d43f0ed982",
+            "hash": "bf3b43d3aed30eb0",
             "title": "Tân Ước",
             "subtitle": "Ấn bản để đọc",
             "file": true
@@ -799,37 +799,37 @@
     },
     "zh-Hans": {
         "study": {
-            "hash": "d18550c744d25011",
+            "hash": "a74fec330d379bd9",
             "title": "以弗所书",
             "subtitle": "附研读注释",
             "file": true
         },
         "bilingual": {
-            "hash": "1338677c95164867",
+            "hash": "961454f507137573",
             "title": "马可福音",
             "subtitle": "马可福音",
             "file": true
         },
         "journal": {
-            "hash": "eeea465caf999895",
+            "hash": "a74e627bc7d95a89",
             "title": "箴言",
             "subtitle": "默想笔记本",
             "file": true
         },
         "large_print": {
-            "hash": "37ec3823dbb58f14",
+            "hash": "d755481bfc245da5",
             "title": "列王纪上下",
             "subtitle": "大字版",
             "file": true
         },
         "greek": {
-            "hash": "942c603daeaeeab7",
+            "hash": "e4c4f8b84863b54a",
             "title": "约翰一书",
             "subtitle": "英文与圣经希腊文对照",
             "file": true
         },
         "nt_reading": {
-            "hash": "6e8f1f5f21f7e39f",
+            "hash": "5134e141c1520173",
             "title": "新约",
             "subtitle": "阅读版",
             "file": true

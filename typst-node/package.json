@@ -17,7 +17,7 @@
     },
     "dependencies": {
         "paper-bible-typst": "*",
-        "typst-fonts": "^0.1.3"
+        "typst-fonts": "^0.1.4"
     },
     "devDependencies": {
         "@types/node": "^22.0.0",
