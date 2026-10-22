@@ -76,7 +76,6 @@ div.cont
                 | {{ $t(show_suggestions ? 'view.designs.hide_suggestions' : 'view.designs.show_suggestions') }}
 
     //- LEGACY Remove with app/src/legacy/ once old data no longer needs recovering
-    //- WARN Condition is currently INVERTED (!) for testing — flip before shipping
     //- Sits outside the list so searching/filtering can never hide it
     div.legacy(v-if='legacy.available')
         VBtn(@click='legacy.open = true' color='warning' variant='flat')
