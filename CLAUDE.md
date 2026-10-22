@@ -185,6 +185,8 @@ paper_bible/
     gen_lulu_prices        # Regenerate Lulu's print prices
     gen_example_images     # Render the example designs' 3D cover pictures, per UI locale (see
                             #   "Example pictures" in Gotchas) — local only, results committed
+    gen_type_images        # Render the new-design wizard's type pictures in each UI locale's
+                            #   Bible (see "Type pictures" in Gotchas) — results committed
     refresh_lulu_prices    # gen_lulu_prices + commit a re-price, if the checked/lulu_prices
                             #   tag is over 30 days old. --due/--commit are the halves CI runs
                             #   in separate jobs
@@ -259,6 +261,7 @@ paper_bible/
                             #   context.json/glossary.json and style/<loc>.json;
                             #   jobs/ is transient (gitignored)
     tools/                 # Other node tooling (own tsconfig): gen_lulu_prices.ts,
+                            #   gen_type_images.ts + type_images_manifest.ts,
                             #   gen_example_images.ts + example_images_manifest.ts; the
                             #   browser half, example_images/harness.ts, is app code (app tsconfig)
     tests/                 # Vitest suites for the service logic (vitest.config.mts aliases
@@ -853,6 +856,22 @@ After that, every push to `main` deploys itself. The scripts still work by hand
   or after a bookcover-3d-web upgrade worth showing, since neither is in the hash. Each example's
   `pages` is fixed (from a real compile in English) rather than measured per run, so the
   spine width never churns every picture when fetch.bible's content shifts
+- **Type pictures are rendered, not translated** (`app/src/assets/images/design_types/`). The
+  wizard's first step shows each type as a crop of a printed page: English's are hand-cropped
+  screenshots (`type_<name>.avif`), and every other UI locale gets `<tag>/type_<name>.avif`,
+  Genesis 1 in fetch.bible's preferred translation for its language (else the first in that
+  language with Genesis), compiled through `BibleContent.resolve()` + the Typst CLI by
+  `.bin/gen_type_images` (a few seconds per locale, no dev servers; fonts are cached in the
+  gitignored `app/tools/.cache/`, along with a review sheet per locale). `type_preset_image()`
+  in `new_design.ts` falls back to the screenshots. Each type's settings and crop in `TYPES`
+  were calibrated by overlaying an English render on its screenshot, so they reproduce
+  layouts the app no longer makes exactly (notes borrows the screenshot's dotted lines, since
+  the lines now go on the facing page; study closes up the page's slack above its notes).
+  Replacing a screenshot means recalibrating its entry. Footnotes are always off, the opening
+  chapter numeral is forced on for standard, the bilingual picture pairs the locale's Bible
+  with English, and study notes are English (Tyndale is the only notes resource).
+  Right-to-left locales are cropped from the page's right edge, and a language whose text
+  doesn't fit a layout gets a `LANGUAGE_OVERRIDES` entry (Tamil's long words widen bilingual)
 - **Lulu cost estimates need no credentials, by design** (`print_cost.ts`): a quote is Lulu's
   published print price (`lulu_prices.ts`) plus a live delivery quote from their
   `/shipping-options/` endpoint, which is unauthenticated, CORS-open, and prices purely by
@@ -951,3 +970,6 @@ it says otherwise.
   (`svc.examples.*_title`/`_subtitle`) change in any locale, run `.bin/gen_example_images` too.
   `i18n_check` warns (never fails, since CI can't render) about pictures whose titles no longer
   match their catalog
+- **A new UI locale needs its wizard type pictures rendered**: `.bin/gen_type_images <tag>`
+  (see "Type pictures" in Gotchas; `i18n_check` warns until it's run). Commit its
+  `design_types/<tag>/` and the manifest with the catalog

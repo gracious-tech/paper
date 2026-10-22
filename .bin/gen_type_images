@@ -1,0 +1,4 @@
+#!/bin/bash
+# Render the wizard's type pictures in each UI locale's Bible — see app/tools/gen_type_images.ts
+cd "$(dirname "$(dirname "$0")")"
+node "app/tools/gen_type_images.ts" "$@"

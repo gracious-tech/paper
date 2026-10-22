@@ -14,11 +14,6 @@ import {apply_minimal_cover, render_minimal_cover_preview} from '@/services/mini
 import {generate_token} from '@/services/utils'
 import {fetch_stories, story_to_slides, story_reference_label, story_canonical_cmp}
     from '@/services/stories'
-import img_type_regular from '@/assets/images/design_types/type_standard.avif'
-import img_type_reading from '@/assets/images/design_types/type_reading.avif'
-import img_type_notes from '@/assets/images/design_types/type_notes.avif'
-import img_type_study from '@/assets/images/design_types/type_study.avif'
-import img_type_bilingual from '@/assets/images/design_types/type_bilingual.avif'
 
 import type {Blueprint, ContentPassage, ContentPictureStory} from '@/services/types'
 import type {Translate} from '@/services/i18n'
@@ -172,40 +167,59 @@ export function get_default_draft():NewDesignDraft{
 // The design-type presets: only the fields that differ from the blank default blueprint, so a
 // type is a starting point the user can still edit field by field afterwards. The bilingual
 // preset just turns footnotes off — a second translation is optional and is what actually
-// enables the side-by-side layout. picture_story has no artwork yet
-export const TYPE_PRESETS:{id:NewDesignType, image:string, diff:Partial<Blueprint>}[] = [
-    {id: 'regular', image: img_type_regular, diff: {}},
-    {id: 'reading', image: img_type_reading, diff: {
+// enables the side-by-side layout. `image` names the type's picture (see type_preset_image());
+// picture_story has no artwork yet
+export const TYPE_PRESETS:{id:NewDesignType, image:string|null, diff:Partial<Blueprint>}[] = [
+    {id: 'regular', image: 'standard', diff: {}},
+    {id: 'reading', image: 'reading', diff: {
         columns: false,
         show_headings: false,
         show_chapters: false,
         show_verses: false,
         show_footnotes: false,
     }},
-    {id: 'notes', image: img_type_notes, diff: {
+    {id: 'notes', image: 'notes', diff: {
         // NOTE Haven't increased line height since half_blank will double page size already
         show_footnotes: false,
         half_blank: 'right',
         bibles_layout: 'columns',  // Can't use other half
     }},
-    {id: 'study', image: img_type_study, diff: {
+    {id: 'study', image: 'study', diff: {
         show_footnotes: false,
         notes: 'eng_tyndale',
     }},
-    {id: 'bilingual', image: img_type_bilingual, diff: {
+    {id: 'bilingual', image: 'bilingual', diff: {
         // Twice as much text, so reduce sizes a bit
         font_size: 9,
         line_height: 1.2,
         show_headings: false,  // Often don't align/match
         show_footnotes: false,  // Only one would get them anyway
     }},
-    {id: 'picture_story', image: '/wizard/type_picture_story.webp', diff: {
+    {id: 'picture_story', image: null, diff: {
         hyphenate: false,
         line_height: 2,
         passage_title: 'titlepage',
         titlepage_frame: null,
     }},
 ]
+
+
+// Every type picture's URL, keyed by its path (only URLs are bundled, so a visitor downloads
+// just the pictures their own locale shows)
+const type_images = import.meta.glob<string>('../assets/images/design_types/**/*.avif',
+    {eager: true, query: '?url', import: 'default'})
+
+
+// A type's picture in the given UI locale: Genesis 1 in that language's own Bible, rendered by
+// .bin/gen_type_images, else the English screenshot (a locale not rendered yet, or one whose
+// language fetch.bible has no Bible with Genesis in)
+export function type_preset_image(image:string|null, locale:string):string|undefined{
+    if (!image){
+        return undefined
+    }
+    const dir = '../assets/images/design_types'
+    return type_images[`${dir}/${locale}/type_${image}.avif`] ?? type_images[`${dir}/type_${image}.avif`]
+}
 
 
 // Step ids of the wizard, in order — shared between DialogNewDesign.vue's stepper and the

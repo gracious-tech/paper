@@ -16,7 +16,7 @@ div
 import {computed} from 'vue'
 import {useI18n} from '@/services/i18n'
 
-import {TYPE_PRESETS, wizard_type_label} from '@/services/new_design'
+import {TYPE_PRESETS, type_preset_image, wizard_type_label} from '@/services/new_design'
 import NewDesignCard from '@/comp/dialogs/assets/NewDesignCard.vue'
 
 import type {NewDesignDraft, NewDesignType} from '@/services/new_design'
@@ -27,7 +27,7 @@ const props = defineProps<{draft:NewDesignDraft}>()
 const draft = props.draft
 const emit = defineEmits<{select:[]}>()
 
-const {t} = useI18n()
+const {t, locale} = useI18n()
 
 
 // Set the chosen type and always notify the parent, even if re-selecting the same type
@@ -40,13 +40,13 @@ const select = (id:NewDesignType) => {
 
 
 // Labels/subtitles per type (shared with the simple-mode summary row), joined with each
-// preset's image
+// preset's picture for the current locale
 // NOTE picture_story excluded as not yet published (still a valid/functional type otherwise)
 const types = computed(() => TYPE_PRESETS
     .filter(preset => preset.id !== 'picture_story')
     .map(preset => ({
         id: preset.id,
-        image: preset.image,
+        image: type_preset_image(preset.image, locale.value),
         tint: preset.id === 'picture_story' ? 'yellow' as const : 'blue' as const,
         ...wizard_type_label(preset.id, t),
     })))

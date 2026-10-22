@@ -1,0 +1,65 @@
+{
+    "ar": {
+        "bible": "arb_bib"
+    },
+    "bn": {
+        "bible": "ben_bib"
+    },
+    "de": {
+        "bible": "deu_elbbk"
+    },
+    "es": {
+        "bible": "spa_bll"
+    },
+    "fa": {
+        "bible": "pes_bib"
+    },
+    "fr": {
+        "bible": "fra_ncl"
+    },
+    "hi": {
+        "bible": "hin_bib"
+    },
+    "id": {
+        "bible": "ind_ayt"
+    },
+    "it": {
+        "bible": "ita_riv"
+    },
+    "ja": {
+        "bible": null
+    },
+    "ko": {
+        "bible": "kor_old"
+    },
+    "mr": {
+        "bible": "mar_bib"
+    },
+    "pt-BR": {
+        "bible": "por_bpm"
+    },
+    "ru": {
+        "bible": "rus_syn"
+    },
+    "ta": {
+        "bible": "tam_bib"
+    },
+    "te": {
+        "bible": "tel_bib"
+    },
+    "th": {
+        "bible": "tha_com"
+    },
+    "tr": {
+        "bible": "tur_ytc"
+    },
+    "ur": {
+        "bible": "urd_bib"
+    },
+    "vi": {
+        "bible": "vie_bib"
+    },
+    "zh-Hans": {
+        "bible": "cmn_csbs"
+    }
+}

@@ -20,3 +20,4 @@ node_modules/
 
 # i18n translation jobs (transient: written by .bin/i18n_job, consumed by .bin/i18n_apply)
 /app/i18n/jobs/
+/app/tools/.cache/

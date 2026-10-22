@@ -34,6 +34,7 @@ run a job for it. They share one style file, keyed by the written language (`sty
 .bin/i18n_job vi vie fr fra       # repeat until it says "nothing to translate"
 .bin/i18n_check --allow-missing   # must pass; drop --allow-missing once every locale is complete
 .bin/gen_example_images           # if i18n_check warned that example pictures are out of date
+.bin/gen_type_images              # if it warned that a locale has no wizard type pictures
 ```
 
 The example designs' titles (`svc.examples.*_title`/`_subtitle`) are printed on cover pictures,
@@ -111,6 +112,15 @@ copyright statement printed in someone's Bible is worse than an English one.
    add it to `typst/locales.json` too, so books in it print in it.
 4. The bookcover widget is sent the same tag and matches it against its own catalogs (its own
    repo), falling back to English — nothing to add here when it gains a language.
+5. Render the new-design wizard's type pictures in it: `.bin/gen_type_images <tag>` (a few
+   seconds; `i18n_check` warns until it's done). They show Genesis 1 in fetch.bible's preferred
+   translation for the language, so they're rendered, not translated. Look at the review sheet
+   it prints the path of: each English screenshot beside the new picture. If one is wrong (a
+   word overflowing a column, text cut badly), add a `LANGUAGE_OVERRIDES` entry for that
+   language and type in `app/tools/gen_type_images.ts` and rerun with `--force --types=<type>`.
+   Commit the new `app/src/assets/images/design_types/<tag>/` and `manifest.json`. A language
+   with no Bible containing Genesis is recorded with `bible: null` and keeps the English
+   pictures. Also run `.bin/gen_example_images` for the example covers.
 
 ## Many locales at once
 

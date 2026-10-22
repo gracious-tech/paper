@@ -9,6 +9,7 @@
 //  - typst/src/generated/doc_strings.ts out of date with the document catalogs
 // Also warns, without failing, about example cover pictures whose titles no longer match the
 // catalogs: only .bin/gen_example_images can fix those, and it needs a browser CI doesn't have.
+// Likewise for a UI locale with no wizard type pictures yet (.bin/gen_type_images renders them).
 // Pass --warn-only to report without failing (for local use).
 // Pass --allow-missing to not fail on untranslated keys (for locales still being filled in);
 // everything else still fails.
@@ -24,6 +25,7 @@ import {
 import {find_untranslated} from './lint.ts'
 import {doc_module_current, DOC_MODULE_PATH} from './gen_doc.ts'
 import {example_image_problems} from '../tools/example_images_manifest.ts'
+import {type_image_problems} from '../tools/type_images_manifest.ts'
 
 import type {Domain} from './lib.ts'
 
@@ -52,8 +54,8 @@ if (!doc_module_current()){
     note(`out of date: ${rel(DOC_MODULE_PATH)} (run .bin/i18n_sync)`)
 }
 
-// Report, starting with the example pictures that only need re-rendering
-for (const warning of example_image_problems()){
+// Report, starting with the pictures that only need rendering
+for (const warning of [...example_image_problems(), ...type_image_problems()]){
     console.log(`warning: ${warning}`)
 }
 if (allow_missing && missing_count){
