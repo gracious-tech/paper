@@ -18,6 +18,7 @@ import YouTubeVideo from '@/comp/reuseable/YouTubeVideo.vue'
 // The intro video in other languages, by UI locale (English is hosted on lets.church, which is
 // also the fallback for any locale not listed)
 const YOUTUBE_IDS:Record<string, string> = {
+    'vi': 'tFRIUfIko8s',
 }
 
 const {locale} = useI18n()
