@@ -13,6 +13,7 @@ import {content} from '@/services/content'
 import {designs, current_design_id} from '@/services/designs'
 import {read_wizard_state} from '@/services/new_design'
 import {report_error} from '@/services/errors'
+import {version_progress} from '@/services/compile_progress'
 
 import type {DesignMeta, Version} from '@/services/types'
 
@@ -72,8 +73,10 @@ export const STUCK_MS = 6 * 60 * 1000
 
 export function version_stuck(version:Version):boolean{
     // Whether a pending version has been abandoned mid-compile (see STUCK_MS). Reads the wall
-    // clock directly, so components re-run it against a ticking ref to keep the result current
-    if (version.status !== 'pending'){
+    // clock directly, so components re-run it against a ticking ref to keep the result current.
+    // One this tab is still compiling isn't abandoned however long it takes (a big book on a
+    // slow phone can pass STUCK_MS), and retrying it would only race the attempt in progress
+    if (version.status !== 'pending' || version.id in version_progress){
         return false
     }
     const since = (version.compile_started ?? version.created).getTime()

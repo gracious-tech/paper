@@ -380,9 +380,12 @@ const reported_violations = new Set<string>()
 
 
 addEventListener('securitypolicyviolation', event => {
-    // Ignore Firebase Auth's cleardot.gif tracking pixel, a known benign img-src violation from
-    // Google's own gapi plumbing that isn't worth allowlisting
-    if (event.blockedURI.includes('google.com/images/cleardot.gif')) {
+    // Ignore Firebase Auth's cleardot.gif tracking pixel, a known benign violation from Google's
+    // own gapi plumbing that isn't worth allowlisting. It's also reached by gapi's gen_204 ping,
+    // which redirects to it — a redirected request is reported by its original URL, so that one
+    // is blocked (as connect-src) even though apis.google.com itself is allowed
+    if (event.blockedURI.includes('google.com/images/cleardot.gif')
+            || event.blockedURI.startsWith('https://apis.google.com/js/gen_204')) {
         return
     }
 

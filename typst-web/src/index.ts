@@ -72,8 +72,9 @@ export class TypstWeb {
     // Blob URLs created for the currently-active custom fonts, tracked so they can be revoked
     // once superseded (see ensure_fonts)
     private active_blob_urls:string[] = []
-    // Resolves once the curated font manifest has been fetched (see typst-fonts/web)
-    private fonts_manifest_ready:Promise<void>
+    // Resolves once the curated font manifest has been fetched (see typst-fonts/web); null after
+    // a failed fetch, so the next compile retries it (see manifest_ready)
+    private fonts_manifest_ready:Promise<void>|null
     // User-uploaded fonts, not in the curated manifest — set via set_custom_fonts(). Read fresh
     // each ensure_fonts() call, so a caller can keep passing the same (mutated) array reference
     // rather than re-calling the setter on every upload
@@ -100,7 +101,25 @@ export class TypstWeb {
         this.renderer_wasm_url = renderer_wasm_url
         this.fonts_prefix = `${assets_prefix.replace(/\/+$/, '')}/${FONTS_DIR}`
         this.compiler = compiler
-        this.fonts_manifest_ready = load_fonts_prefix(this.fonts_prefix)
+        this.fonts_manifest_ready = this.load_manifest()
+    }
+
+    // Fetch the curated font manifest, forgetting the attempt if it fails — otherwise one network
+    // blip as the worker starts would fail every compile for the rest of the session
+    private load_manifest():Promise<void> {
+        const loading = load_fonts_prefix(this.fonts_prefix)
+        loading.catch(() => {
+            if (this.fonts_manifest_ready === loading) {
+                this.fonts_manifest_ready = null
+            }
+        })
+        return loading
+    }
+
+    // The manifest fetch in progress or done, starting a fresh one after a failure
+    private manifest_ready():Promise<void> {
+        this.fonts_manifest_ready ??= this.load_manifest()
+        return this.fonts_manifest_ready
     }
 
     // Register the caller's custom (user-uploaded) fonts, made available to future compiles
@@ -190,7 +209,7 @@ export class TypstWeb {
 
     // Reinitialise the compiler only when the set of fonts a request needs changes
     private async ensure_fonts(request:TypstRequest):Promise<void> {
-        await this.fonts_manifest_ready
+        await this.manifest_ready()
         const families = collect_fonts(request)
         const custom_by_family = new Map(this.custom_fonts.map(f => [f.family, f]))
         const cache_key = families.join(',') + '|' + [...custom_by_family.keys()].join(',')
@@ -259,7 +278,7 @@ export class TypstWeb {
     // gets that full ordered font list and returns the Typst source
     async compile_standalone(families:string[], build:(fonts:string[]) => string)
             :Promise<Uint8Array> {
-        await this.fonts_manifest_ready
+        await this.manifest_ready()
         const base = base_font()
         const fonts = [base, ...families.filter(family => family !== base)]
         const cache_key = fonts.join(',')

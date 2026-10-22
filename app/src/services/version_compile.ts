@@ -13,6 +13,7 @@
 import {cloneDeep} from 'lodash-es'
 import {collection, doc, addDoc, getDoc, setDoc, updateDoc, runTransaction, serverTimestamp,
     Timestamp} from 'firebase/firestore'
+import type {DocumentReference} from 'firebase/firestore'
 import {ref as storage_ref, uploadBytes, getDownloadURL} from 'firebase/storage'
 import {SCHEMA_VERSION, PDF_LIFETIME_MS, COMPILE_STATS_LIFETIME_MS} from 'paper-bible-typst'
 import {RENDER_VERSION} from 'bookcover-core'
@@ -242,6 +243,19 @@ async function request_server_compile(id:string, page_estimate:number):Promise<v
 }
 
 
+async function version_settled(doc_ref:DocumentReference):Promise<boolean>{
+    // Whether a failing compile attempt has nothing left to do: the version was deleted, so both
+    // the upload and the server fallback are refused (each needs its doc), or it's no longer
+    // pending because another attempt (in this tab or another) published it first, so this one's
+    // upload was refused by the create-once doc.pdf. False when the doc can't be read
+    const snapshot = await getDoc(doc_ref).catch(() => null)
+    if (!snapshot){
+        return false
+    }
+    return !snapshot.exists() || snapshot.data()['status'] !== 'pending'
+}
+
+
 export async function compile_and_upload(job:VersionCompileJob):Promise<void>{
     // Compile a version's PDF in-browser and upload it, updating the doc's status. If the
     // in-browser compile fails (e.g. device lacks memory for large docs) fall back to compiling
@@ -260,6 +274,10 @@ export async function compile_and_upload(job:VersionCompileJob):Promise<void>{
     // Hardcoded to the real domain (not location.origin) so a dev/preview compile still bakes a
     // working link/QR into the document — mirrors config.app_url on the server (compile.ts)
     const share_url = `https://paper.bible/v/${id}`
+
+    // Mark the version as compiling in this tab from the outset, before any progress arrives, so
+    // it's never offered a retry while this attempt runs (see version_stuck)
+    version_progress[id] = {stage: 'start'}
 
     // Stamp the start of this attempt so a reload/tab-close/crash mid-compile (or a killed
     // server fallback) can be spotted as stuck rather than shown as forever-pending — see
@@ -339,6 +357,11 @@ export async function compile_and_upload(job:VersionCompileJob):Promise<void>{
             await update_latest_summary(design_id, save_token,
                 {'latest_version.status': 'available', 'latest_version.pages': pages})
         } catch (wasm_error){
+            // A refused upload may just mean another attempt got there first (see
+            // version_settled), leaving nothing to fall back for
+            if (await version_settled(doc_ref)){
+                return
+            }
             // In-browser path failed — hand over to the server (status updates then arrive
             // via the versions Firestore sync). Not critical yet as the fallback usually works
             report_error('silent', wasm_error,
@@ -355,10 +378,9 @@ export async function compile_and_upload(job:VersionCompileJob):Promise<void>{
             await request_server_compile(id, page_estimate)
         }
     } catch (error){
-        // A version deleted mid-compile fails both the upload and the server fallback (each
-        // needs its doc), but nothing is left to fail, so it's dropped quietly
-        const snapshot = await getDoc(doc_ref).catch(() => null)
-        if (snapshot && !snapshot.exists()){
+        // Nothing is left to fail if the version was deleted or published meanwhile, and its
+        // status mustn't be clobbered by a loser of the race (see version_settled)
+        if (await version_settled(doc_ref)){
             return
         }
         // Even the server fallback failed (it records its own failures — this catch covers
@@ -366,12 +388,6 @@ export async function compile_and_upload(job:VersionCompileJob):Promise<void>{
         // view can offer a support link containing it
         const error_id = report_error('silent', error,
             {force: true, critical: true, context: {version_id: id, stage: 'compile_fallback'}})
-        // Only clobber the status if this version is still pending — a concurrent winner may
-        // have set it 'available' while this attempt was failing
-        const current = snapshot?.data()?.['status']
-        if (current !== undefined && current !== 'pending'){
-            return
-        }
         // Can't record the failure — the version stays pending until it reads as stuck, which
         // offers the user a retry anyway (see version_stuck)
         await updateDoc(doc_ref, {status: 'failed', error: error_to_string(error), error_id})
@@ -548,8 +564,8 @@ export async function retry_version(version:Version):Promise<void>{
     // Re-drive a version that's been stuck in 'pending' past STUCK_MS back through the compile
     // pipeline (see version_stuck). Unlike regenerate_version this deliberately accepts a pending
     // version — it's the recovery path for one whose original compile never finished (tab
-    // reload/close/crash, killed server instance)
-    if (version.status !== 'pending'){
+    // reload/close/crash, killed server instance). Never one this tab is still compiling
+    if (version.status !== 'pending' || version.id in version_progress){
         return
     }
     // The PDF may already be sitting in Storage (upload landed but the status write didn't) —
