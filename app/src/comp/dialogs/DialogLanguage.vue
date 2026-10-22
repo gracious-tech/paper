@@ -10,10 +10,12 @@ v-dialog(v-model='state.language' max-width='360' scrollable)
         v-card-text(class='px-0')
             v-list
                 //- Each name is in its own language, so marked up as such for screen readers
+                //- Direction goes on an inline span so every name still aligns with the UI's
                 v-list-item(v-for='option of filtered' :key='option.code'
                         :active='option.code === locale' @click='pick(option.code)'
-                        :lang='option.code' :dir='option.dir')
-                    v-list-item-title {{ option.name }}
+                        :lang='option.code')
+                    v-list-item-title
+                        span(:dir='option.dir') {{ option.name }}
         v-card-actions
             v-spacer
             v-btn(@click='state.language = false') {{ $t("common.close") }}
