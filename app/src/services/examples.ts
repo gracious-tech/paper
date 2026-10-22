@@ -11,7 +11,8 @@ import {seed_cover_preset} from '@/services/cover'
 import {generate_token} from '@/services/utils'
 import {locale} from '@/services/i18n'
 import {create_design} from '@/services/designs'
-import {EXAMPLE_DESIGNS, example_label} from '@/services/example_designs'
+import {EXAMPLE_DESIGNS, example_cover_overrides, example_label}
+    from '@/services/example_designs'
 
 import type {Blueprint, ContentCustom, ContentPassage} from '@/services/types'
 import type {Translate} from '@/services/i18n'
@@ -56,9 +57,10 @@ function personal_message_item(t:Translate):ContentCustom{
 // the example's own title/subtitle (there's no wizard title field involved here, so it's staged
 // directly rather than through blueprint.name). `message` is the example's translated opening
 // message page, if it has one. `bible` is the translation the example is read in (beside any
-// of its own, see `trans`)
+// of its own, see `trans`). `ui_locale` is the language the cover is written in, which decides
+// its fonts (see example_cover_overrides)
 export function build_example_blueprint(example:ExampleDesign, title:string, subtitle:string,
-        message:ContentCustom|null, bible:string):Blueprint{
+        message:ContentCustom|null, bible:string, ui_locale:string):Blueprint{
     const blueprint = get_default_blueprint()
     blueprint.bibles = [bible]
     Object.assign(blueprint, example.diff)
@@ -91,7 +93,7 @@ export function build_example_blueprint(example:ExampleDesign, title:string, sub
     // build_new_blueprint() for the same pattern)
     blueprint.name = title
     const cover = seed_cover_preset(example.cover, blueprint)
-    Object.assign(cover.form, example.cover_overrides)
+    Object.assign(cover.form, example_cover_overrides(example, ui_locale))
     if (example.cover_bg_image){
         cover.bg_image = {kind: 'builtin', id: example.cover_bg_image}
     }
@@ -114,5 +116,6 @@ export function create_example_design(id:string, t:Translate):Promise<string>{
     const {title, subtitle} = example_label(id, t)
     const message = example.message ? personal_message_item(t) : null
     const bible = content.collection.get_preferred_resource([locale.value]).id
-    return create_design(build_example_blueprint(example, title, subtitle, message, bible))
+    return create_design(
+        build_example_blueprint(example, title, subtitle, message, bible, locale.value))
 }

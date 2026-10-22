@@ -116,6 +116,34 @@ export const EXAMPLE_DESIGNS:ExampleDesign[] = [
 ]
 
 
+// The Noto family of the same style standing in for each decorative font the examples' covers
+// use, outside English: those fonts cover Latin at best (Dancing Script has no Cyrillic, and
+// Vietnamese mixes faces mid-word), whereas from a Noto family bookcover falls back to the Noto
+// font matching each script the text needs, in the same style
+export const NOTO_STAND_INS:Record<string, string> = {
+    'Caveat': 'Noto Sans',
+    'Dancing Script': 'Noto Serif',
+    'Merriweather': 'Noto Serif',
+}
+
+
+// An example's cover overrides for a UI locale, with its decorative fonts swapped for their Noto
+// stand-ins in any language but English
+export function example_cover_overrides(example:ExampleDesign, locale:string)
+        :Record<string, unknown>{
+    const overrides = {...example.cover_overrides}
+    if (locale.split('-')[0] === 'en'){
+        return overrides
+    }
+    for (const [key, value] of Object.entries(overrides)){
+        if (key.endsWith('_font') && typeof value === 'string' && value in NOTO_STAND_INS){
+            overrides[key] = NOTO_STAND_INS[value]
+        }
+    }
+    return overrides
+}
+
+
 // Display text per example, translated — hoisted out the same way new_design.ts's
 // wizard_type_label() is, so the display component and the blueprint builder below (which needs
 // the title/subtitle to seed the cover) share one source

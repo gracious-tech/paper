@@ -65,7 +65,7 @@ function example_blueprint(id:string, locale:string):Blueprint{
     const example = EXAMPLE_DESIGNS.find(item => item.id === id)!
     const {title, subtitle} = example_label(id, translate)
     const bible = content.collection.get_preferred_resource([locale]).id
-    return clean_blueprint(build_example_blueprint(example, title, subtitle, null, bible))
+    return clean_blueprint(build_example_blueprint(example, title, subtitle, null, bible, locale))
 }
 
 

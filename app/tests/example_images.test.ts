@@ -10,7 +10,8 @@ import {join} from 'node:path'
 import {describe, it, expect} from 'vitest'
 
 import {example_image} from '@/services/example_images'
-import {EXAMPLE_DESIGNS} from '@/services/example_designs'
+import {EXAMPLE_DESIGNS, NOTO_STAND_INS, example_cover_overrides}
+    from '@/services/example_designs'
 
 
 const IMAGES_DIR = join(import.meta.dirname, '..', 'src', 'assets', 'images', 'examples')
@@ -46,5 +47,27 @@ describe('example pictures', () => {
     it("falls back to English's picture", () => {
         const id = EXAMPLE_DESIGNS[0]!.id
         expect(example_image(id, 'xx')).toContain(`/examples/en/${id}.webp`)
+    })
+})
+
+
+describe('example cover fonts', () => {
+
+    // Every font field each example sets, in a locale
+    const fonts = (locale:string) => EXAMPLE_DESIGNS.flatMap(example =>
+        Object.entries(example_cover_overrides(example, locale))
+            .filter(([key]) => key.endsWith('_font'))
+            .map(([, value]) => String(value)))
+
+    it('keeps the designed fonts in English', () => {
+        expect(fonts('en')).toContain('Caveat')
+    })
+
+    it('uses only Noto families in any other language', () => {
+        // A decorative font added to an example without a stand-in would fail here
+        for (const family of fonts('vi')){
+            expect(family, family).toMatch(/^Noto (Sans|Serif)$/)
+        }
+        expect(Object.values(NOTO_STAND_INS).every(f => /^Noto (Sans|Serif)$/.test(f))).toBe(true)
     })
 })
