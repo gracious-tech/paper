@@ -242,7 +242,16 @@ const report_widget_error = (message:WidgetErrorMessage):void => {
     }
     const build = typeof message.build === 'string' && /^[A-Za-z0-9-]{1,50}$/.test(message.build)
         ? message.build : 'unknown'
-    report_error('silent', `Cover widget: ${message.message.slice(0, MAX_WIDGET_ERROR_CHARS)}`,
+
+    // The widget sends "<Type>: <message>\n\n<stack>[\n\n<where>]". The server fingerprints a
+    // report's first three lines, so the stack paragraph gets a label line: otherwise its first
+    // frame would be line 3, and its minified function names would split one bug into a new
+    // fingerprint on every widget deploy
+    const text = message.message.slice(0, MAX_WIDGET_ERROR_CHARS)
+    const split = text.indexOf('\n\n')
+    const formatted = split === -1 ? text
+        : `${text.slice(0, split)}\n\nWidget stack:\n${text.slice(split + 2)}`
+    report_error('silent', `Cover widget: ${formatted}`,
         {context: {source: 'cover_widget', widget_build: build}})
 }
 
