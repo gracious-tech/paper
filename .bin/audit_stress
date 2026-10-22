@@ -7,5 +7,5 @@
 set -euo pipefail
 cd "$(dirname "$0")/.."
 
-.bin/test_e2e stress_wasm.test.ts
+.bin/audit_e2e --project=stress stress_wasm.test.ts
 node e2e/stress_server.ts

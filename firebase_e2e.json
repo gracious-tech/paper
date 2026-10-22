@@ -1,0 +1,45 @@
+{
+    "//": [
+        "Emulator config for the Playwright journeys (e2e/, .bin/audit_e2e), which start these",
+        "emulators themselves — see e2e/playwright.config.ts.",
+        "Separate from firebase.json so a run never touches the dev emulators' persisted",
+        ".emulator_data/, and from firebase_test.json so .bin/audit_unit (which reuses whatever",
+        "is listening on its ports and clears Firestore between cases) can never wipe a journey",
+        "mid-run. Same rules files, no import/export: all data is in-memory and gone on exit."
+    ],
+    "firestore": {
+        "rules": "firestore.rules",
+        "indexes": "firestore.indexes.json"
+    },
+    "storage": {
+        "rules": "firebase_storage.rules"
+    },
+    "//ports": [
+        "Every port here is two below its firebase.json counterpart, hub and logging included,",
+        "for the reason given in firebase_test.json: the hub, logging and Firestore websocket",
+        "ports aren't derived from the emulator ports, and left at their defaults a run would",
+        "take the dev emulators down with it."
+    ],
+    "emulators": {
+        "auth": {
+            "port": 9097
+        },
+        "firestore": {
+            "port": 8078,
+            "websocketPort": 9148
+        },
+        "storage": {
+            "port": 9197
+        },
+        "hub": {
+            "port": 4398
+        },
+        "logging": {
+            "port": 4498
+        },
+        "ui": {
+            "enabled": false
+        },
+        "singleProjectMode": true
+    }
+}

@@ -7,32 +7,15 @@
 // *is* the whole capability: it's an unguessable token, so viewing needs no grant at all, and
 // "keep my own copy" is the only part that needs the server.
 
-import {test, expect} from '@playwright/test'
+import {test, expect, boot, UI_TIMEOUT} from './fixtures'
+import {admin_db, seed_shared_version, new_id} from './helpers/admin'
 
-import {admin_db, browser_uid, seed_shared_version, new_id} from './helpers/admin'
 
-
-// The shared config allows ten minutes a test, because the stress specs legitimately need it.
-// These are UI journeys, so a locator that never resolves should say so promptly rather than
-// waiting out that budget — nothing here takes more than a few seconds when it works
-test.describe.configure({timeout: 120_000})
+test.describe.configure({timeout: UI_TIMEOUT})
 
 
 // The other party in every journey here — a real uid that isn't the browser's
 const OTHER_USER = 'e2e_other_user'
-
-
-// Boot the app and wait for it to mount, returning the browser's anonymous uid.
-// Arrives as a returning visitor — the welcome splash is a first-visit gate that would
-// otherwise sit in front of every dialog these journeys are about (see DisplaySplash.vue)
-async function boot(page:import('@playwright/test').Page):Promise<string>{
-    await page.addInitScript(() => {
-        localStorage.setItem('welcome_seen', 'true')
-    })
-    await page.goto('/')
-    await expect(page.locator('#app *').first()).toBeAttached({timeout: 60_000})
-    return await browser_uid(page)
-}
 
 
 // A design's editor list, straight from Firestore
@@ -61,7 +44,7 @@ test.describe('design invite links', () => {
         // It must not, or it sits on top of these buttons and swallows the clicks
         await expect(page.getByText('Someone shared this document with you.')).toBeHidden()
 
-        await page.getByRole('button', {name: 'Accept'}).click()
+        await page.getByRole('button', {name: 'Accept', exact: true}).click()
 
         await expect.poll(() => editors_of(design_id), {timeout: 30_000})
             .toEqual([OTHER_USER, uid])
@@ -74,7 +57,7 @@ test.describe('design invite links', () => {
         const {design_id, share_token} = await seed_shared_version(OTHER_USER)
 
         await page.goto(`/designs/${design_id}/invite/${share_token}`)
-        await page.getByRole('button', {name: 'Ignore'}).click({timeout: 30_000})
+        await page.getByRole('button', {name: 'Ignore', exact: true}).click({timeout: 30_000})
 
         await expect(page.getByText('You\'ve been granted edit access to this document.'))
             .toBeHidden()
@@ -122,7 +105,7 @@ test.describe('shared versions', () => {
 
         await expect(page.getByText('Someone shared this document with you.'))
             .toBeVisible({timeout: 30_000})
-        await page.getByRole('button', {name: 'View'}).click()
+        await page.getByRole('button', {name: 'View', exact: true}).click()
 
         // Read access is recorded, but membership of the design is untouched
         await expect.poll(async () =>
@@ -148,8 +131,8 @@ test.describe('shared versions', () => {
             const {design_id, version_id} = await seed_shared_version(OTHER_USER)
 
             await page.goto(`/designs/${design_id}/${version_id}`)
-            await page.getByRole('button', {name: 'View'}).click({timeout: 30_000})
-            await page.getByRole('button', {name: 'Keep my own copy'}).click({timeout: 30_000})
+            await page.getByRole('button', {name: 'View', exact: true}).click({timeout: 30_000})
+            await page.getByRole('button', {name: 'Keep my own copy', exact: true}).click({timeout: 30_000})
 
             // A new version of the viewer's own, pointing back at the one they were shown
             const own_versions = async () => await admin_db.collection('versions')

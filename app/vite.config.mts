@@ -1,5 +1,6 @@
 
 import path from 'node:path'
+import {readFileSync} from 'node:fs'
 import {execSync} from 'node:child_process'
 
 import plugin_vue from '@vitejs/plugin-vue'
@@ -25,6 +26,22 @@ function build_commit():string{
 }
 
 
+function emulator_ports():{auth:number, firestore:number, storage:number}{
+    // The emulator ports the app connects to in dev, read from the emulator config the stack was
+    // started with — firebase.json for the dev stack, EMULATOR_CONFIG for anything else (the e2e
+    // journeys run their own emulators on firebase_e2e.json's ports, see e2e/playwright.config.ts)
+    const file = path.resolve(import.meta.dirname, '..',
+        process.env['EMULATOR_CONFIG'] ?? 'firebase.json')
+    const emulators = (JSON.parse(readFileSync(file, 'utf8')) as {emulators:Record<string,
+        {port:number}>}).emulators
+    return {
+        auth: emulators['auth']!.port,
+        firestore: emulators['firestore']!.port,
+        storage: emulators['storage']!.port,
+    }
+}
+
+
 export default defineConfig(({command}) => {
 
     // Whether to use the production fetch.bible, shared assets, cover widget and story images
@@ -38,6 +55,7 @@ export default defineConfig(({command}) => {
             'import.meta.env.USE_PROD_SERVICES': JSON.stringify(use_prod_services),
             'import.meta.env.BUILD_COMMIT': JSON.stringify(
                 command === 'build' ? build_commit() : 'dev'),
+            'import.meta.env.EMULATOR_PORTS': JSON.stringify(emulator_ports()),
         },
         plugins: [
             plugin_index(path.join(import.meta.dirname, 'src/index.pug')),
@@ -72,9 +90,10 @@ export default defineConfig(({command}) => {
                 strict: true,
             },
             // Same-origin path to the local API server (mirrors CloudFront's /api/* cache
-            // behavior in production — see .bin/serve_server)
+            // behavior in production — see .bin/serve_server). API_PORT moves it for a second
+            // stack, as the e2e journeys run
             proxy: {
-                '/api': 'http://localhost:8788',
+                '/api': `http://localhost:${process.env['API_PORT'] ?? 8788}`,
             },
         },
         build: {

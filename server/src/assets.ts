@@ -35,7 +35,9 @@ export function storage_public_url(path:string):string{
     // The public download URL for a Storage object, built deterministically rather than via a
     // signed-url round trip — byte-identical to the app's own storage_public_url(), since both
     // write the `url` a frozen blueprint carries and the compile fetches
-    const base = config.dev ? 'http://localhost:9199' : 'https://firebasestorage.googleapis.com'
+    // In dev, the emulator the Admin SDK itself was pointed at (see .bin/serve_server)
+    const base = config.dev ? `http://${process.env['FIREBASE_STORAGE_EMULATOR_HOST']}`
+        : 'https://firebasestorage.googleapis.com'
     return `${base}/v0/b/${admin_bucket.name}/o/${encodeURIComponent(path)}?alt=media`
 }
 

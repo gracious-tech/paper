@@ -111,7 +111,8 @@ paper_bible/
   .firebaserc              # Project aliases (default/dev/prod)
   .github/workflows/
     deploy.yml             # Every push to main: lulu → lulu_push (price check if due), build
-                            #   (typecheck, audit_unit, plan, build), deploy (what changed) —
+                            #   (typecheck, audit_unit, plan, build) beside e2e (audit_e2e),
+                            #   deploy (what changed) —
                             #   see "Deploys run in GitHub Actions" in Gotchas
   infra/
     github_ci.yml          # The CI stack (paper-bible-ci, deployed once by setup_ci_aws): the
@@ -131,6 +132,7 @@ paper_bible/
                                     #   errors/ (90d) — applied via gcloud, see deploy_firebase_initial
   firebase_test.json       # Emulator config for the test suites only — same rules files, its
                             #   own ports, no import/export (see the Testing section)
+  firebase_e2e.json        # Ditto for the Playwright journeys (e2e/), on ports of their own again
   .bin/                    # All dev/deploy commands (package.json has no scripts)
     setup                  # npm install
     setup_typst            # Download the Typst CLI binary to .bin/typst (gitignored)
@@ -177,7 +179,8 @@ paper_bible/
                             #   see the i18n section and .claude/skills/translate
     audit_unit             # Every unit/integration suite (typst, typst-node, app, rules,
                             #   server, i18n) — starts its own emulators; see the Testing section
-    audit_e2e              # Playwright e2e tests (needs the dev stack running; see e2e/)
+    audit_e2e              # Playwright journeys, desktop + mobile — starts its own stack, runs
+                            #   in CI (see e2e/ and the Testing section)
     audit_stress           # Compile stress ladder, browser (WASM) + server (see e2e/tiers.ts)
     audit_errors           # Move error reports out of the bucket + triage them (TUI; claude
                             #   groups, shortlists and auto-fixes them for review). Syncs the
@@ -306,6 +309,9 @@ paper_bible/
     helpers/          #   emulator.ts (rules test env) + server.ts (Admin SDK fixtures)
     rules/            #   firestore.rules + firebase_storage.rules, asserted from a client
     server/           #   server/src handlers direct, plus routes.test.ts over real HTTP
+  e2e/                # Playwright: one *.test.ts per area of the app (journeys + mobile), the
+                      #   stack Playwright starts (stack.ts, api_server.ts), shared fixtures
+                      #   (fixtures.ts), Admin SDK seeding (helpers/), plus the stress harness
   errors/             # .bin/audit_errors internals: bucket sync, claude clustering + ranking,
                       #   background fixer, triage TUI, triage.ts (the CLI its list-level
                       #   claude session applies decisions with)
@@ -431,14 +437,16 @@ browser's guess and is denied.
 - The server workspace has no build step — node runs `server/src/*.ts` directly
   (erasable-syntax TS; typecheck with `npx tsc -p server/tsconfig.json`)
 - Everything but the Vue components is covered by tests — see the Testing section below
-- **Playwright e2e/stress** lives in `e2e/` (run via `.bin/audit_e2e`, needs the dev stack
-  running). Browsers install into `e2e/browsers/` (gitignored) — keep them inside the
-  repo, apt/system state doesn't persist across dev-container rebuilds. The compile stress
-  harness (`.bin/audit_stress`, results in `e2e/results/`) compiles the same size tiers in
-  the browser (WASM worker) and the server pipeline; `STRESS_BOOKS="psa,pro"` probes a custom
-  book set. A layout-option matrix (`e2e/matrix.ts`) isolates which blueprint options drive
-  Typst memory — run `node e2e/stress_matrix.ts` (server) or `.bin/audit_e2e
-  stress_matrix.test.ts` (browser), filtered via `STRESS_CONFIGS="psa_col1,full_col1"`
+- **Playwright e2e/stress** lives in `e2e/` (journeys via `.bin/audit_e2e`, which needs nothing
+  running — see the Testing section). Browsers install into `e2e/browsers/` (gitignored) — keep
+  them inside the repo, apt/system state doesn't persist across dev-container rebuilds. The
+  compile stress harness (`.bin/audit_stress`, results in `e2e/results/`) compiles the same
+  size tiers in the browser (WASM worker) and the server pipeline, and unlike the journeys does
+  need the dev content (:8430) and bookcover (:5301) servers; `STRESS_BOOKS="psa,pro"` probes a
+  custom book set. A layout-option matrix (`e2e/matrix.ts`) isolates which blueprint options
+  drive Typst memory — run `node e2e/stress_matrix.ts` (server) or `.bin/audit_e2e
+  --project=stress stress_matrix.test.ts` (browser), filtered via
+  `STRESS_CONFIGS="psa_col1,full_col1"`
 
 ### Deployment (per project alias: dev/prod)
 
@@ -476,7 +484,8 @@ After that, every push to `main` deploys itself. The scripts still work by hand
 .bin/audit_unit                 # everything below (~1 min; starts its own emulators)
 .bin/audit_unit app             # one group: typst | typst-node | app | rules | server | i18n
 .bin/audit_unit rules storage   # a group plus a vitest filter
-.bin/audit_e2e                  # Playwright journeys (needs the dev stack running)
+.bin/audit_e2e                  # Playwright journeys, desktop + mobile (starts its own stack)
+.bin/audit_e2e cover.test.ts    # one file (any other playwright test arguments pass through)
 ```
 
 | Suite | Where | Needs |
@@ -485,8 +494,8 @@ After that, every push to `main` deploys itself. The scripts still work by hand
 | app service logic | `app/tests/` | nothing |
 | security rules | `tests/rules/` | the test emulators |
 | server handlers + routes | `tests/server/` | the test emulators |
-| user journeys | `e2e/smoke`, `e2e/sharing` | the dev stack |
-| a real compile | `e2e/compile` | the dev stack + fetch.bible on :8430 |
+| user journeys | `e2e/*.test.ts` (compile and cover included) | nothing — own stack |
+| compile stress | `e2e/stress_*` | the dev content + bookcover servers |
 
 - **Emulator suites use `firebase_test.json`, never the dev emulators.** Own ports, same rules
   files, no import/export. They call `clearFirestore()` between cases, which against
@@ -524,19 +533,29 @@ After that, every push to `main` deploys itself. The scripts still work by hand
 - **e2e seeds the other party with the Admin SDK** (`e2e/helpers/admin.ts`) — the browser can
   only ever be one user, and these journeys are about what someone *else* shared. The browser's
   own uid is read out of Firebase Auth's IndexedDB store, not guessed from recent writes
-- **`e2e/compile.test.ts` is the only journey that renders anything**, and it treats its two
-  outside dev servers differently, because they aren't equally required: no fetch.bible server
-  (:8430) means no scripture, so it skips with a warning; no bookcover server (:5301) only
-  means `load_fonts()` fails its (caught) banner and Typst substitutes, so it warns and
-  compiles anyway. It seeds the design rather than driving the new-design wizard — the subject
-  is the compile, and five wizard steps in front of it would make a Typst failure look like a
-  broken dropdown
-- **Probe a dev server with a TCP connect on both loopback families.** `fetch()` answers through
-  whatever proxy the environment has configured: a dead port came back as a cheerful 403 here,
-  which reads as "up" and skips nothing. And `127.0.0.1` alone isn't enough either — the
-  bookcover dev server binds `::1` only, so an IPv4 probe calls a running server down while the
-  browser (which resolves `localhost` across both) reaches it fine. See `listening()` in
-  `e2e/compile.test.ts`
+- **The journeys start their own stack and run in CI** (the `e2e` job in `deploy.yml`, which
+  gates the deploy beside `build`). Playwright's `webServer` brings up the emulators on
+  `firebase_e2e.json`'s ports, the API server (`e2e/api_server.ts`) and Vite, all on ports of
+  their own (`e2e/stack.ts`), so a run is safe alongside the dev stack — locally it reuses a
+  stack that's already listening on them, CI always starts fresh. Outside content is
+  production's (`USE_PROD_SERVICES`): fetch.bible, assets.paper.bible and the cover widget are
+  public and read-only, so no other repo's dev server is needed. CI retries a failure once, so
+  a hiccup on one of those shows as "flaky" rather than red
+- **Every journey fails if the app filed an error report** (the auto fixture in
+  `e2e/fixtures.ts`). Errors are reported, not shown, so a journey whose clicks all landed can
+  still have thrown along the way. A test that provokes one on purpose declares it with
+  `test.use({expected_reports: [...]})`
+- **Name buttons exactly** (`click_button()`, or `exact: true`): `getByRole` matches
+  substrings, and "OK" is inside the wizard's "Books". A design's name also shows twice on most
+  pages (the navbar's recent-designs tab and the list row), so scope text lookups
+- **`e2e/compile.test.ts` is the main journey that renders anything** (`mobile.test.ts` builds
+  once too, since with no preview pane the page estimate is measured on demand). It seeds the
+  design rather than driving the new-design wizard — the subject is the compile, and five
+  wizard steps in front of it would make a Typst failure look like a broken dropdown
+- **The cover widget has no Cancel button.** Finished saves outright when nothing changed, and
+  otherwise asks "Save changes to cover?": Discard is what posts `cancelled`
+  (`e2e/cover.test.ts`). The widget is cover-widget.paper.bible's production build, so a change
+  there can fail these journeys without a commit here
 - **The stress suites assert only that every tier *resolved*.** A tier failing to compile is the
   measurement `stress_wasm`/`stress_matrix` exist to collect — that's where the server fallback
   takes over — so it records the row and moves on. A tier failing to **resolve** built no
@@ -811,12 +830,12 @@ After that, every push to `main` deploys itself. The scripts still work by hand
     once. A new one-off belongs in one of them (or a new script added to `deploy_plan`), and
     must stay safe to re-run
   - **Order is Firebase → server → app**, so the app never goes live ahead of the rules or API
-    it expects. Tests and typechecks gate the whole run. Run the workflow by hand with "all"
+    it expects. Tests (the e2e journeys included) and typechecks gate the whole run. Run the workflow by hand with "all"
     to redeploy everything
   - **No npm code runs where the credentials are.** A job is GitHub's only isolation boundary:
     every step in a job with `id-token: write` can request the OIDC token, and steps share one
     machine. So `npm ci`, the tests and the builds all run in jobs with no cloud access and a
-    read-only repo token (`lulu`, `build`). The jobs that hold credentials run only deploy
+    read-only repo token (`lulu`, `build`, `e2e`). The jobs that hold credentials run only deploy
     tools on what `build` produced: `deploy` (via artifacts and `--prebuilt`, with
     firebase-tools installed alone, pinned to the lockfile's version, without install scripts),
     and `lulu_push`, which commits the regenerated prices. Keep it that way: a step that needs

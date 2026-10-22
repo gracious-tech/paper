@@ -1,134 +1,25 @@
-
-// The one journey that exercises the render path itself: a design with real scripture in it,
+// The journeys that exercise the render path itself: a design with real scripture in it,
 // compiled to a PDF in the browser by the Typst WASM worker and uploaded to Storage.
 //
-// Two outside dev servers are in play, and they are not equally required. The scripture comes
-// from the fetch.bible dev server, so without it there is nothing to render and these skip. The
-// curated fonts come from the bookcover repo's dev server, and load_fonts() failing is caught
-// and shown as a banner — Typst substitutes and the document still compiles — so that one only
-// warns. Both live in other repos, so either being down is an environment problem rather than a
-// failure of anything here.
+// The scripture comes from production fetch.bible and the fonts and WASM from
+// assets.paper.bible (see stack.ts), so these are also the journeys that notice those services
+// changing shape under the app.
 
-import {connect} from 'node:net'
-
-import {test, expect} from '@playwright/test'
-
-import {admin_db, admin_bucket, browser_uid, seed_own_design, COMPILE_BIBLE, COMPILE_BOOK}
-    from './helpers/admin'
-
-import type {Page} from '@playwright/test'
+import {test, expect, boot, build_version, design_data, versions_of} from './fixtures'
+import {admin_bucket, seed_own_design, COMPILE_BIBLE, COMPILE_BOOK} from './helpers/admin'
+import {storage_url} from './stack'
 
 
-// A real compile is seconds of WASM work on top of starting the worker and loading fonts, so
-// this gets a budget of its own rather than the sharing journeys' two minutes
+// A real compile is seconds of WASM work on top of starting the worker and loading fonts
 test.describe.configure({timeout: 5 * 60 * 1000})
 
 
-// The dev servers this journey depends on (see CLAUDE.md's Development section for how to start
-// them). ASSETS_PREFIX / the content endpoint in the app point at these same ports
-const BOOKCOVER_PORT = 5301
-const CONTENT_PORT = 8430
-
-
-// Whether anything holds this port at this address. A raw TCP connect rather than a request,
-// because an HTTP probe answers through whatever proxy the environment has configured — a dead
-// port came back as a cheerful 403 here, which read as "up" and skipped nothing
-async function connectable(port:number, host:string):Promise<boolean>{
-    return await new Promise(resolve => {
-        const socket = connect({port, host})
-        const done = (result:boolean) => {
-            socket.destroy()
-            resolve(result)
-        }
-        socket.on('connect', () => done(true))
-        socket.on('error', () => done(false))
-        socket.setTimeout(2000, () => done(false))
-    })
-}
-
-
-async function listening(port:number):Promise<boolean>{
-    // Both loopback families, because a dev server that binds only one is still up as far as the
-    // browser is concerned — it resolves 'localhost' across both. Probing 127.0.0.1 alone
-    // reported a live IPv6-only server as down, and the warning that produced was simply false
-    const results = await Promise.all(
-        ['127.0.0.1', '::1'].map(host => connectable(port, host)))
-    return results.includes(true)
-}
-
-
-// Whether the scripture is available at all, worked out once and applied per test — test.skip()
-// is only honoured from beforeEach or a test body, never from beforeAll
-let have_content = false
-
-test.beforeAll(async () => {
-    have_content = await listening(CONTENT_PORT)
-    if (!have_content){
-        console.warn(`\n  SKIPPING the compile journey — the fetch.bible dev server`
-            + ` (localhost:${CONTENT_PORT}) isn't running, so there is no scripture to`
-            + ' render.\n')
-    }
-    // Not fatal: load_fonts() failing is caught and shown as a banner, and Typst substitutes,
-    // so the document still compiles — just not in the curated faces
-    if (!await listening(BOOKCOVER_PORT)){
-        console.warn(`\n  NOTE the bookcover dev server (localhost:${BOOKCOVER_PORT}) isn't`
-            + ' running — this compiles with substituted fonts rather than the curated set.\n')
-    }
-})
-
-test.beforeEach(() => {
-    test.skip(!have_content, 'Needs the fetch.bible dev server, which this repo doesn\'t own')
-})
-
-
-// Boot the app as a returning visitor and return the browser's anonymous uid
-async function boot(page:Page):Promise<string>{
-    await page.addInitScript(() => {
-        localStorage.setItem('welcome_seen', 'true')
-    })
-    await page.goto('/')
-    await expect(page.locator('#app *').first()).toBeAttached({timeout: 60_000})
-    return await browser_uid(page)
-}
-
-
-// A design's versions, as id + fields
-async function versions_of(design_id:string)
-        :Promise<{id:string, data:Record<string, unknown>}[]>{
-    const snap = await admin_db.collection('versions')
-        .where('design_id', '==', design_id).get()
-    return snap.docs.map(item => ({id: item.id, data: item.data()}))
-}
-
-
-// Click Create and wait for the compile to stop being pending, whichever way it went — waiting
-// for 'available' directly would time out with nothing to show when a compile fails, where this
-// lets the caller assert against the version's own error
-async function generate(page:Page, design_id:string):Promise<{id:string,
-        data:Record<string, unknown>}>{
-    // The button stays disabled until the Typst worker has loaded the compiler from the assets
-    // server — the very dependency this file guards on, so a generous wait here distinguishes
-    // "still loading" from "never going to load"
-    const create = page.getByRole('button', {name: 'Create', exact: true})
-    await expect(create).toBeEnabled({timeout: 120_000})
-    await create.click()
-
-    // Two separate waits on purpose. "Not pending" alone would pass the instant it's asked,
-    // before the freeze has even written a doc — undefined is not 'pending' either
-    await expect.poll(async () => (await versions_of(design_id)).length,
-        {timeout: 60_000, intervals: [500]}).toBe(1)
-    await expect.poll(async () => (await versions_of(design_id))[0]!.data['status'],
-        {timeout: 4 * 60 * 1000, intervals: [1000]}).not.toBe('pending')
-    return (await versions_of(design_id))[0]!
-}
-
-
-test('creating a version compiles a real PDF and uploads it', async ({page}) => {
+test('building compiles a real PDF and uploads it', async ({page}) => {
     const uid = await boot(page)
     const design_id = await seed_own_design(uid)
 
     await page.goto(`/designs/${design_id}`)
-    const version = await generate(page, design_id)
+    const version = await build_version(page, design_id)
 
     // Clicking froze the design into a version of the caller's own and navigated to it
     expect(version.data['design_id']).toBe(design_id)
@@ -162,7 +53,7 @@ test('creating a version compiles a real PDF and uploads it', async ({page}) => 
 
     // The design's denormalised summary follows the version it just produced, so the designs
     // list doesn't keep offering to generate what was already generated
-    const design = (await admin_db.doc(`designs/${design_id}`).get()).data()!
+    const design = await design_data(design_id)
     const summary = design['latest_version'] as {status:string, pages:number, save_token:string}
     expect(summary.status).toBe('available')
     expect(summary.pages).toBe(version.data['pages'])
@@ -170,6 +61,10 @@ test('creating a version compiles a real PDF and uploads it', async ({page}) => 
     // unrendered since" — the whole point of freezing it at click time
     expect(summary.save_token).toBe(design['save_token'])
     expect(version.data['save_token']).toBe(design['save_token'])
+
+    // The finished document is shown, ready to download
+    await expect(page.locator('.version .doc iframe')).toBeVisible({timeout: 60_000})
+    await expect(page.getByRole('button', {name: 'Download interior'})).toBeVisible()
 })
 
 
@@ -180,13 +75,48 @@ test('the compiled PDF is readable by version id alone', async ({page, context})
     const design_id = await seed_own_design(uid)
 
     await page.goto(`/designs/${design_id}`)
-    const version = await generate(page, design_id)
+    const version = await build_version(page, design_id)
     expect(version.data['status']).toBe('available')
 
     // Fetched through a plain request carrying none of the app's credentials
-    const url = `http://localhost:9199/v0/b/${admin_bucket.name}/o/`
-        + `${encodeURIComponent(`versions/${version.id}/doc.pdf`)}?alt=media`
-    const response = await context.request.get(url)
+    const response = await context.request.get(storage_url(`versions/${version.id}/doc.pdf`))
     expect(response.status()).toBe(200)
     expect((await response.body()).subarray(0, 5).toString('latin1')).toBe('%PDF-')
+})
+
+
+test('building again after an edit adds a second version', async ({page}) => {
+    const uid = await boot(page)
+    const design_id = await seed_own_design(uid)
+    await page.goto(`/designs/${design_id}`)
+    const first = await build_version(page, design_id)
+
+    // Back to the editor from the latest version, and change something that shows in print
+    await page.locator('.version_list .v-list-item').filter({hasText: 'Latest version'})
+        .getByRole('button', {name: 'Edit', exact: true}).click()
+    await page.getByLabel('Verse numbers').uncheck()
+    await expect.poll(async () => (await design_data(design_id))['save_token'])
+        .not.toBe(first.data['save_token'])
+
+    const second = await build_version(page, design_id, 2)
+    expect(second.id).not.toBe(first.id)
+    expect(second.data['status']).toBe('available')
+    expect((second.data['blueprint'] as {show_verses:boolean}).show_verses).toBe(false)
+    // The earlier version is frozen as it was
+    const earlier = (await versions_of(design_id)).find(version => version.id === first.id)!
+    expect((earlier.data['blueprint'] as {show_verses:boolean}).show_verses).toBe(true)
+
+    // Both are listed, newest as the latest
+    await expect(page.getByText('Previous versions')).toBeVisible()
+})
+
+
+test('a design with no content can\'t be built', async ({page}) => {
+    const uid = await boot(page)
+    const design_id = await seed_own_design(uid, {content_items: {}, content_order: []})
+    await page.goto(`/designs/${design_id}`)
+
+    await expect(page.getByLabel('Name')).toBeVisible({timeout: 60_000})
+    await expect(page.getByRole('button', {name: 'Build it', exact: true}).first())
+        .toBeDisabled()
 })

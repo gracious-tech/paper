@@ -457,8 +457,10 @@ describe('storage_public_url', () => {
     })
 
     it('points at the emulator in dev', () => {
-        // config.dev is derived from FIRESTORE_EMULATOR_HOST, which the suites set
-        expect(storage_public_url('a/b.png').startsWith('http://localhost:9199')).toBe(true)
+        // config.dev is derived from FIRESTORE_EMULATOR_HOST, which the suites set, along with
+        // the Storage emulator's host the URL is built from
+        expect(storage_public_url('a/b.png').startsWith(
+            `http://${process.env['FIREBASE_STORAGE_EMULATOR_HOST']}/`)).toBe(true)
     })
 })
 

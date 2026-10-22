@@ -31,9 +31,11 @@ export const firestore = initializeFirestore(firebase_app, {ignoreUndefinedPrope
 export const firebase_storage = getStorage(firebase_app)
 
 
-// Use the local emulator suite during development (see .bin/serve_emulators)
+// Use the local emulator suite during development (see .bin/serve_emulators), on the ports
+// vite.config.mts read from the emulator config the stack runs with
 if (import.meta.env.DEV){
-    connectAuthEmulator(firebase_auth, 'http://localhost:9099', {disableWarnings: true})
-    connectFirestoreEmulator(firestore, 'localhost', 8080)
-    connectStorageEmulator(firebase_storage, 'localhost', 9199)
+    const ports = import.meta.env.EMULATOR_PORTS
+    connectAuthEmulator(firebase_auth, `http://localhost:${ports.auth}`, {disableWarnings: true})
+    connectFirestoreEmulator(firestore, 'localhost', ports.firestore)
+    connectStorageEmulator(firebase_storage, 'localhost', ports.storage)
 }

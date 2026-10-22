@@ -1,14 +1,28 @@
 #!/usr/bin/env bash
 
-# Run Playwright e2e tests. The dev stack must already be running (.bin/serve_emulators,
-# .bin/serve_server, .bin/serve_app, plus the dev content server on :8430).
-# Browsers are kept inside the repo (e2e/browsers/) so they survive container
-# rebuilds — install them once with:
-#   PLAYWRIGHT_BROWSERS_PATH="$PWD/e2e/browsers" npx playwright install chromium
+# Run the Playwright e2e journeys (desktop + mobile). Playwright starts its own stack — Firebase
+# emulators on firebase_e2e.json's ports, the API server and the app — so nothing else needs to
+# be running, and the dev stack can stay up alongside (see e2e/stack.ts). Outside content comes
+# from production (fetch.bible, assets.paper.bible, cover-widget.paper.bible).
+#
+# Arguments pass through to `playwright test` (file filters, --headed, ...). Without a
+# --project the stress measurements are left out; .bin/audit_stress runs those.
+#
+# Browsers are kept inside the repo (e2e/browsers/) so they survive container rebuilds, and
+# installed here on first use (a no-op once present)
 
 set -euo pipefail
 cd "$(dirname "$0")/.."
 
 export PLAYWRIGHT_BROWSERS_PATH="$PWD/e2e/browsers"
+npx playwright install chromium
 
-npx playwright test --config e2e/playwright.config.ts "$@"
+# The journey projects, unless the caller picked their own
+projects=(--project=journeys --project=mobile)
+for arg in "$@"; do
+    if [[ "$arg" == --project* ]]; then
+        projects=()
+    fi
+done
+
+npx playwright test --config e2e/playwright.config.ts "${projects[@]}" "$@"

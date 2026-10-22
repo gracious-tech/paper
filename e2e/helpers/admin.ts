@@ -1,44 +1,34 @@
 
-// Admin-SDK access to the dev emulators, for seeding the state a journey starts from.
+// Admin-SDK access to the journeys' emulators, for seeding the state a journey starts from and
+// reading back what it did.
 //
-// The journeys below are about what someone *else* has shared with you — an invite link, a
+// Many journeys are about what someone *else* has shared with you — an invite link, a
 // published version — and the browser can only ever be one user. So the other side is written
 // directly here, which is also how the app's own server does it.
 
-import {readFileSync} from 'node:fs'
-import {fileURLToPath} from 'node:url'
 import {randomBytes} from 'node:crypto'
 
 import {initializeApp} from 'firebase-admin/app'
+import {getAuth} from 'firebase-admin/auth'
 import {getFirestore, Timestamp} from 'firebase-admin/firestore'
 import {getStorage} from 'firebase-admin/storage'
+
+import {BUCKET, EMULATOR_PORTS, PROJECT} from '../stack.ts'
 
 import type {Page} from '@playwright/test'
 
 
-// The dev stack's emulator ports, read from firebase.json so they can't drift from it
-const firebase_json = JSON.parse(readFileSync(
-    fileURLToPath(new URL('../../firebase.json', import.meta.url)), 'utf8')) as
-    {emulators:{auth:{port:number}, firestore:{port:number}, storage:{port:number}}}
-
-const PROJECT = 'paper-bible'
-
 process.env['GCLOUD_PROJECT'] = PROJECT
-process.env['FIREBASE_AUTH_EMULATOR_HOST'] =
-    `127.0.0.1:${firebase_json.emulators.auth.port}`
-process.env['FIRESTORE_EMULATOR_HOST'] =
-    `127.0.0.1:${firebase_json.emulators.firestore.port}`
-process.env['FIREBASE_STORAGE_EMULATOR_HOST'] =
-    `127.0.0.1:${firebase_json.emulators.storage.port}`
+process.env['FIREBASE_AUTH_EMULATOR_HOST'] = `127.0.0.1:${EMULATOR_PORTS.auth}`
+process.env['FIRESTORE_EMULATOR_HOST'] = `127.0.0.1:${EMULATOR_PORTS.firestore}`
+process.env['FIREBASE_STORAGE_EMULATOR_HOST'] = `127.0.0.1:${EMULATOR_PORTS.storage}`
 
 
-const app = initializeApp({
-    projectId: PROJECT,
-    storageBucket: `${PROJECT}.firebasestorage.app`,
-})
+const app = initializeApp({projectId: PROJECT, storageBucket: BUCKET})
 
 export const admin_db = getFirestore(app)
 export const admin_bucket = getStorage(app).bucket()
+export const admin_auth = getAuth(app)
 
 
 export function new_id():string{
@@ -224,9 +214,9 @@ export function version_doc(design_id:string, version_id:string, owner:string,
 }
 
 
-// The translation and book the compile journey renders. Philemon is one chapter, which keeps a
-// real end-to-end compile down to a few seconds, and eng_bsb is in the dev content server's
-// manifest — see e2e/compile.test.ts for the check that the server is actually up
+// The translation and book the compile journeys render. Philemon is one chapter, which keeps a
+// real end-to-end compile down to a few seconds, and eng_bsb is public domain, so fetch.bible
+// can be relied on to keep serving it
 export const COMPILE_BIBLE = 'eng_bsb'
 export const COMPILE_BOOK = 'phm'
 

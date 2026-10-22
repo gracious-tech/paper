@@ -205,10 +205,62 @@ jobs:
           retention-days: 1
           compression-level: 0
 
+  # The Playwright journeys (.bin/audit_e2e), beside build rather than inside it since they're
+  # the slow part. Self-contained: Playwright starts the emulators, API server and app itself,
+  # against production's public read-only content services. No cloud access, like build
+  e2e:
+    needs: [lulu, lulu_push]
+    if: ${{ !cancelled() && !failure() }}
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          ref: ${{ needs.lulu_push.outputs.sha || github.sha }}
+          persist-credentials: false
+
+      - uses: actions/setup-node@v7
+        with:
+          node-version: 24
+          cache: npm
+
+      # The Firebase emulators are Java
+      - uses: actions/setup-java@v6
+        with:
+          distribution: temurin
+          java-version: 21
+
+      - uses: actions/cache@v6
+        with:
+          path: .emulator_cache
+          key: emulators-${{ hashFiles('package-lock.json') }}
+
+      # Chromium, kept where .bin/audit_e2e looks for it (installed by it when missing)
+      - uses: actions/cache@v6
+        with:
+          path: e2e/browsers
+          key: playwright-${{ hashFiles('package-lock.json') }}
+
+      - run: npm ci
+
+      # The app imports the local Typst packages from their dist/ output
+      - run: .bin/build_typst
+
+      # Chromium's system libraries, which the cached browser doesn't bring with it
+      - run: npx playwright install-deps chromium
+
+      - run: .bin/audit_e2e
+
+      - uses: actions/upload-artifact@v7
+        if: failure()
+        with:
+          name: e2e_results
+          path: e2e/results
+          retention-days: 7
+
   # Ship what build built. Holds the credentials, so it runs only the deploy tools (aws, gcloud,
   # docker, and firebase-tools installed on its own) and never the project's npm install
   deploy:
-    needs: build
+    needs: [build, e2e]
     if: ${{ !cancelled() && !failure() }}
     runs-on: ubuntu-latest
     permissions:

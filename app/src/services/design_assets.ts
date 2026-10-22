@@ -35,7 +35,8 @@ export function storage_public_url(path:string):string {
     // browsers can load <img src="..."> tags pointed at public Storage objects with no auth).
     // The server builds the identical string — see storage_public_url in server/src/assets.ts
     const base = import.meta.env.DEV
-        ? 'http://localhost:9199' : 'https://firebasestorage.googleapis.com'
+        ? `http://localhost:${import.meta.env.EMULATOR_PORTS.storage}`
+        : 'https://firebasestorage.googleapis.com'
     return `${base}/v0/b/${storage_bucket}/o/${encodeURIComponent(path)}?alt=media`
 }
 
