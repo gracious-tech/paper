@@ -14,24 +14,19 @@ iframe(:src='src' allowfullscreen referrerpolicy='strict-origin'
 
 import {computed} from 'vue'
 
-import {useI18n} from '@/services/i18n'
-
 
 const props = defineProps<{
     id:string
 }>()
 
-const {locale} = useI18n()
-
 // The privacy-enhanced domain (no cookies until playback), related videos limited to the same
-// channel, no annotations, and the player's own UI + captions in the app's UI language
+// channel, and no annotations
+// WARN No hl/cc_lang_pref: either can lead the player to switch captions on by default
 const src = computed(() => {
     const params = new URLSearchParams({
         rel: '0',
         iv_load_policy: '3',
         playsinline: '1',
-        hl: locale.value,
-        cc_lang_pref: locale.value,
     })
     return `https://www.youtube-nocookie.com/embed/${props.id}?${params.toString()}`
 })
