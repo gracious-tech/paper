@@ -64,7 +64,8 @@ v-app.app(v-else)
 div.display(v-if='!show_splash && !is_mobile')
     DisplayPreview(v-if='showing_editor')
     DisplayDesignVersion(v-else-if='route.name === "design"')
-    IntroVideo(v-else-if='route.name === "about"')
+    div.intro(v-else-if='route.name === "about"')
+        IntroVideo.video
     DisplayExamples(v-else-if='route.name === "designs"')
 
 DialogViewedDesign
@@ -313,5 +314,17 @@ const showing_editor = computed(() => {
     > *
         width: 100%
         height: 100%
+
+    // The intro video as the largest 16:9 box that fits the panel, centred
+    .intro
+        display: flex
+        align-items: center
+        justify-content: center
+        container-type: size
+
+        .video
+            width: min(100cqw, 100cqh * 16 / 9)
+            height: auto
+            aspect-ratio: 16 / 9
 
 </style>
