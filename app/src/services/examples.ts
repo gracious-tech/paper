@@ -119,7 +119,7 @@ export const EXAMPLE_DESIGNS:ExampleDesign[] = [
         cover_overrides: {
             title1_font: 'Dancing Script', title1_size: 2.23,
             subtitle_font: 'Noto Sans', subtitle_weight: 400,
-            bg_color: '#402a49', bg_color_gradient: true, bg_vector_id: 'calvary-hill-v2',
+            bg_color: '#f7cfff', bg_color_gradient: true, bg_vector_id: 'calvary-hill-v2',
         },
         diff: {
             columns: false, show_headings: false, show_chapters: false, show_verses: false,
