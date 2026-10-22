@@ -10,7 +10,7 @@ import {firestore, firebase_storage} from '@/services/firebase'
 import {api} from '@/services/api'
 import {user} from '@/services/auth'
 import {content} from '@/services/content'
-import {designs, current_design_id} from '@/services/designs'
+import {designs, current_design_id, until_listed} from '@/services/designs'
 import {read_wizard_state} from '@/services/new_design'
 import {report_error} from '@/services/errors'
 import {version_progress} from '@/services/compile_progress'
@@ -326,8 +326,11 @@ export async function fetch_shared_version(id:string):Promise<Version>{
 export async function copy_version_to_new_design(id:string)
         :Promise<{design_id:string, version_id:string}>{
     // "Keep own copy": duplicate a shared version's design + PDF under the current user,
-    // returning the new design and version ids (both appear in the user's own lists via sync)
-    return await api<{design_id:string, version_id:string}>('/api/copy_version', {version_id: id})
+    // returning the new design and version ids once the new design is in the user's own list
+    const result = await api<{design_id:string, version_id:string}>('/api/copy_version',
+        {version_id: id})
+    await until_listed(result.design_id)
+    return result
 }
 
 

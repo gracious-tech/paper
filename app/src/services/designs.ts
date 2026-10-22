@@ -82,6 +82,36 @@ export const designs_loaded = new Promise<void>(resolve => {
 })
 
 
+// How long until_listed() waits for the designs list to catch up with a server-side change
+const LISTED_TIMEOUT_MS = 10000
+
+
+export function until_listed(id:string):Promise<void>{
+    // Resolve once a design appears in `designs`. Server routes that create a design or grant
+    // access to one return before the list listener hears of it, and ViewDesign.vue decides
+    // whether a design is ours from that list, so navigating any earlier would land on the
+    // read-only "shared with you" view of what is actually the user's own design. Gives up
+    // quietly after a while, leaving the view to decide from what it can see
+    const listed = () => designs.some(item => item.id === id)
+    if (listed()){
+        return Promise.resolve()
+    }
+    return new Promise(resolve => {
+        const stop = watch(listed, now_listed => {
+            if (now_listed){
+                stop()
+                clearTimeout(timer)
+                resolve()
+            }
+        })
+        const timer = setTimeout(() => {
+            stop()
+            resolve()
+        }, LISTED_TIMEOUT_MS)
+    })
+}
+
+
 // Module-level sync state
 // `synced` is the last blueprint state received from (or flushed to) Firestore — the base for
 // both outgoing diffs and three-way application of incoming snapshots
@@ -638,6 +668,7 @@ export async function duplicate_design(id:string):Promise<string>{
     // Server-mediated so the new design gets its own copies of every uploaded asset without
     // the bytes travelling through the browser and back
     const {design_id} = await api<{design_id:string}>('/api/duplicate_design', {design_id: id})
+    await until_listed(design_id)
     await open_design(design_id)
     return design_id
 }
@@ -720,6 +751,7 @@ export async function fetch_design_invite_preview(id:string, token:string):Promi
 export async function redeem_design_share(id:string, token:string):Promise<void>{
     // Become an editor of a shared design via its secret link (server validates the token)
     await api('/api/redeem_design_invite', {design_id: id, token})
+    await until_listed(id)
 }
 
 
