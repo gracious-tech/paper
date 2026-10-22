@@ -42,6 +42,20 @@ import type {CoverConfig} from '@/services/types'
 const {t, locale} = useI18n()
 
 
+// An uncaught error inside the widget, relayed so it lands in this app's error reports (the
+// iframe is cross-origin, so its errors never reach this window's own listeners). `message`
+// carries the stack too; `build` is the widget's own commit, from the bookcover repo
+// TODO Import from bookcover-web once its WidgetMessage union includes it
+interface WidgetErrorMessage {
+    type:'error'
+    message:string
+    build:string|null
+}
+
+// Longest relayed widget error kept (the server caps whole reports at 16k anyway)
+const MAX_WIDGET_ERROR_CHARS = 8000
+
+
 // The widget iframe (only rendered while the overlay is open)
 const frame = ref<HTMLIFrameElement|null>(null)
 
@@ -219,6 +233,20 @@ const handle_finished = async (
 }
 
 
+// Report an error the widget relayed. Silent like any uncaught error, and tagged so triage
+// knows it belongs to the bookcover repo: its stack can't be symbolicated from this app's
+// sourcemaps, nor its fix pinned to one of this repo's commits (see errors/store.ts)
+const report_widget_error = (message:WidgetErrorMessage):void => {
+    if (typeof message.message !== 'string'){
+        return
+    }
+    const build = typeof message.build === 'string' && /^[A-Za-z0-9-]{1,50}$/.test(message.build)
+        ? message.build : 'unknown'
+    report_error('silent', `Cover widget: ${message.message.slice(0, MAX_WIDGET_ERROR_CHARS)}`,
+        {context: {source: 'cover_widget', widget_build: build}})
+}
+
+
 // Handle widget messages — only from the expected origin AND our own iframe (the widget
 // itself doesn't validate parents, so this check is the security boundary)
 const on_message = (event:MessageEvent) => {
@@ -226,7 +254,7 @@ const on_message = (event:MessageEvent) => {
             || event.source !== frame.value.contentWindow){
         return
     }
-    const message = event.data as WidgetMessage
+    const message = event.data as WidgetMessage|WidgetErrorMessage
     if (message.type === 'ready'){
         void send_init()
     } else if (message.type === 'cancelled'){
@@ -236,6 +264,8 @@ const on_message = (event:MessageEvent) => {
         void handle_finished(message)
     } else if (message.type === 'bg_suggestion_selected'){
         void handle_bg_suggestion(message.id)
+    } else if (message.type === 'error'){
+        report_widget_error(message)
     }
     // 'data' messages are ignored — 'finished' carries the complete authoritative state
 }

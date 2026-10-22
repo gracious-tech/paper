@@ -105,9 +105,12 @@ function build_classify_prompt(existing:Record<string, Issue>,
         '',
         'Assign EVERY new fingerprint to exactly one issue (existing or new). For new issues',
         'invent a short kebab-case id, a one-line summary, the likely cause, and any suspected',
-        'files in this repository (inspect the code if helpful). A message\'s trailing',
-        '"Resolved source locations" section, when present, maps a minified stack frame to its',
-        'original source file/line — prefer that over guessing from the minified position.',
+        'files in this repository (inspect the code if helpful). A message starting "Cover',
+        'widget:" comes from the embedded cover editor, whose code is in the separate bookcover',
+        'repo: never group it with an error from this app, and list no files for it.',
+        'A message\'s trailing "Resolved source locations" section, when present, maps a minified',
+        'stack frame to its original source file/line — prefer that over guessing from the',
+        'minified position.',
     ].join('\n')
 }
 
@@ -177,6 +180,7 @@ function describe_candidate(issue:IssueView):string{
     return [
         `### ${issue.id}`,
         `State: ${state}`,
+        issue.cover_widget ? 'Origin: the cover widget (bookcover repo, not fixable here)' : '',
         `Summary: ${issue.summary}`,
         `Likely cause: ${issue.cause || '(unknown)'}`,
         `Suspected files: ${issue.files.join(', ') || '(none)'}`,
@@ -216,7 +220,9 @@ function build_rank_prompt(candidates:IssueView[]):string{
         '',
         'Separately list as noise the issues nothing in this codebase can or should fix:',
         'browser extensions or injected scripts, network blips/offline, devices out of memory,',
-        'ancient or unsupported browsers, crawlers and bots. Never put an issue in both lists;',
+        'ancient or unsupported browsers, crawlers and bots. An issue whose origin is the cover',
+        'widget can be noise but is never shortlisted, since its fix belongs to another repo; one',
+        'that isn\'t noise stays open for the developer. Never put an issue in both lists;',
         'issues in neither stay open for the developer. Use only the ids given above.',
         '',
         'For each shortlisted issue give a reason of at most 20 words (why this one now), the',
@@ -251,7 +257,10 @@ export function rank_issues(issues:IssueView[]):Priorities|null{
     try {
         const answer = claude_structured<Omit<Priorities, 'basis'>>(
             build_rank_prompt(candidates), RANK_SCHEMA)
-        const shortlist = answer.shortlist.filter(item => item.id in basis).slice(0, 3)
+        // The shortlist feeds the fixer, which can't take a widget issue (see cannot_pin())
+        const widget = new Set(candidates.filter(issue => issue.cover_widget).map(issue => issue.id))
+        const shortlist = answer.shortlist.filter(item => item.id in basis && !widget.has(item.id))
+            .slice(0, 3)
         const listed = new Set(shortlist.map(item => item.id))
         const noise = answer.noise.filter(item => item.id in basis && !listed.has(item.id))
         const priorities = {basis, shortlist, noise}

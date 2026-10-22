@@ -679,7 +679,10 @@ After that, every push to `main` deploys itself. The scripts still work by hand
   **The bucket is only an inbox:** `audit_errors` deletes each report once its local copy in
   gitignored `errors/records/` is written and parses, so that directory (triage state
   included) is the *only* copy — back it up, and run the tool from one machine.
-  The boot splash and a failed version show the report id in a gracious.tech/contact link
+  The boot splash and a failed version show the report id in a gracious.tech/contact link.
+  The cover widget's errors are relayed over the embed protocol (`{type: 'error'}`) and reported
+  as `Cover widget: ...` with `context.source = 'cover_widget'`. Triage keeps them out of the
+  fixer and fix-commit pinning, since their code and builds belong to the bookcover repo
 - **Errors are reported, not shown.** An error can't say whether it affected the user, so
   uncaught errors (window, promise, Vue) are reported silently, and the user is told only
   about things known to matter: a failed boot (`report_error('splash')`, the one thing

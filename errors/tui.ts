@@ -1,8 +1,8 @@
 
 import {auto_fix} from './fix.ts'
 import {resolve_commit} from './git.ts'
-import {issue_prompt, list_prompt, write_prompt, update_triage, status_name, needs_attention}
-    from './store.ts'
+import {issue_prompt, list_prompt, write_prompt, update_triage, status_name, needs_attention,
+    cannot_pin} from './store.ts'
 import {make_terminal, print_wrapped, run_attached} from './terminal.ts'
 
 import type {IssueView, Priorities} from './store.ts'
@@ -37,7 +37,8 @@ function print_list(snapshot:Snapshot, show_all:boolean):IssueView[]{
         const columns = `${String(index + 1).padStart(3)}  ${severity}`
             + `  ${ips}ip  ${count}x  ${issue.latest.slice(0, 10)}  `
         // A wrapped summary continues under itself, leaving the number column clear
-        print_wrapped(columns + issue.summary, columns.length)
+        const origin = issue.cover_widget ? '[cover widget] ' : ''
+        print_wrapped(columns + origin + issue.summary, columns.length)
     }
     const hidden = snapshot.issues.length - shown.length
     if (hidden){
@@ -107,6 +108,14 @@ function print_detail(issue:IssueView):void{
     print_wrapped(`Builds: ${[...builds].sort((a, b) => b[1] - a[1]).slice(0, 6)
         .map(([build, count]) => `${build} (${count})`).join(', ')}`, 4)
 
+    // A widget issue's own builds are the bookcover commits, which are what a fix there needs
+    if (issue.cover_widget){
+        const widget_builds = new Set(issue.records.map(record =>
+            String(record.context?.['widget_build'] ?? 'unknown')))
+        print_wrapped(`Origin: cover widget (bookcover repo), widget builds:`
+            + ` ${[...widget_builds].slice(0, 6).join(', ')}`, 4)
+    }
+
     console.log('')
     console.log('Latest report:')
     console.log(JSON.stringify(issue.active[0] ?? issue.records[0], undefined, 4))
@@ -139,6 +148,11 @@ async function detail_loop(term:Terminal, issue:IssueView):Promise<void>{
 
         } else if (answer === 'x'){
             // Pin to a fix made outside this tool
+            const reason = cannot_pin(issue)
+            if (reason){
+                print_wrapped(reason, 0)
+                continue
+            }
             const ref = (await term.ask('Fixed by which commit? [HEAD] ')).trim() || 'HEAD'
             const commit = resolve_commit(ref)
             if (!commit){

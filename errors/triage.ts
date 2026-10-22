@@ -1,6 +1,6 @@
 
 import {ISSUE_STATUSES, load_records, load_issues, load_triage, assemble_issues, issue_prompt,
-    update_triage} from './store.ts'
+    update_triage, cannot_pin} from './store.ts'
 import {build_includes, resolve_commit} from './git.ts'
 
 import type {IssueStatus} from './store.ts'
@@ -47,6 +47,10 @@ if (command === 'show'){
         fail(`Unknown status ${rest[0] ?? '(none)'}`)
     }
     if (status === 'fixed' || status === 'diagnosing'){
+        const reason = cannot_pin(issue)
+        if (reason){
+            fail(reason)
+        }
         const commit = resolve_commit(rest[1] ?? '')
         if (!commit){
             fail(`${rest[1] ?? '(none)'} isn't a commit in this repository`)

@@ -4,7 +4,7 @@ import {createInterface} from 'node:readline'
 import {isAbsolute, relative} from 'node:path'
 
 import {head_commit, tracked_changes, untracked_files, diff_stat} from './git.ts'
-import {issue_prompt, write_prompt, update_triage} from './store.ts'
+import {issue_prompt, write_prompt, update_triage, cannot_pin} from './store.ts'
 import {print_wrapped, run_attached, with_terminal_handed_off} from './terminal.ts'
 
 import type {IssueView} from './store.ts'
@@ -233,7 +233,13 @@ async function accept(term:Terminal, issue:IssueView, result:FixResult, start_he
 
 
 export async function auto_fix(term:Terminal, issue:IssueView):Promise<void>{
-    // Fix one issue in the background, then review the result
+    // Fix one issue in the background, then review the result. Only an issue this repo can fix:
+    // accepting pins it to the commit made here
+    const reason = cannot_pin(issue)
+    if (reason){
+        print_wrapped(reason, 0)
+        return
+    }
     if (tracked_changes().length){
         console.log('Commit or set aside your uncommitted changes first, so the review shows'
             + ' only the fix.')

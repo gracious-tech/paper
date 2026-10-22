@@ -22,6 +22,14 @@ const SYNCED_PATH = join(ERRORS_DIR, 'synced.json')
 // How long an open issue can go unreported before it's hidden from the list
 const QUIET_MS = 30 * 24 * 60 * 60 * 1000
 
+// What the app tags errors relayed from the embedded cover editor with (context.source; see
+// report_widget_error() in DialogCoverEditor.vue). Their code lives in the bookcover repo, so
+// this repo's fixer can't fix them and its commits can't pin them: such an issue just stays
+// open until it stops being reported, which hides it after QUIET_MS like any other
+export const WIDGET_NOTICE = 'This error comes from the embedded cover editor widget, built from'
+    + ' the separate bookcover repo, not this one. Its stack is that build\'s minified code'
+    + ' (context.widget_build is its commit), so it can only be fixed there'
+
 
 // An AI-defined issue grouping one or more message fingerprints (the semantic layer the
 // fingerprint hash deliberately doesn't attempt)
@@ -65,6 +73,7 @@ export interface IssueView {
     note:string
     commit:string|null
     resolution:string
+    cover_widget:boolean  // Relayed from the cover editor widget (see WIDGET_NOTICE)
 }
 
 // Claude's ranking of the open issues, cached until the set of candidates changes
@@ -256,7 +265,17 @@ function make_view(id:string, issue:Issue, records:ErrorRecord[], entry:IssueTri
         note: entry?.note ?? '',
         commit,
         resolution: entry?.resolution ?? '',
+        cover_widget: records.some(record => record.context?.['source'] === 'cover_widget'),
     }
+}
+
+
+export function cannot_pin(issue:IssueView):string|null{
+    // Why an issue can't be pinned to a commit here (fixed/diagnosing), or null if it can
+    return issue.cover_widget
+        ? 'This issue comes from the cover widget (bookcover repo), so no commit here can fix'
+            + ' it. Leave it open: it hides itself once unreported for 30 days'
+        : null
 }
 
 
@@ -319,6 +338,9 @@ export function issue_prompt(issue:IssueView):string{
     // Describe an issue and its reports for claude (shared by the interactive and automatic
     // fix paths)
     const lines = [`Summary: ${issue.summary}`]
+    if (issue.cover_widget){
+        lines.push(`Origin: ${WIDGET_NOTICE}`)
+    }
     if (issue.cause){
         lines.push(`Likely cause: ${issue.cause}`)
     }
@@ -377,6 +399,9 @@ export function list_prompt(issues:IssueView[], priorities:Priorities|null):stri
         '- `node errors/triage.ts note <id> <text>` replaces its triage note',
         'Only change triage when the developer has agreed to that change.',
         '',
+        `Issues marked [cover widget] are not this repo's: ${WIDGET_NOTICE}. They can't be`,
+        'pinned to a commit; leave them open (they hide once unreported for 30 days).',
+        '',
         '## Issues',
         '',
         'id | status | critical | reports needing attention / total | IPs | latest | summary',
@@ -384,7 +409,7 @@ export function list_prompt(issues:IssueView[], priorities:Priorities|null):stri
     for (const issue of issues){
         lines.push([issue.id, status_name(issue), issue.critical ? 'critical' : '-',
             `${issue.active.length}/${issue.records.length}`, issue.ips, issue.latest.slice(0, 10),
-            issue.summary].join(' | '))
+            (issue.cover_widget ? '[cover widget] ' : '') + issue.summary].join(' | '))
         if (issue.note){
             lines.push(`    Note: ${issue.note}`)
         }
