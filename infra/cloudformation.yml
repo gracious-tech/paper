@@ -147,6 +147,7 @@ Resources:
                 - https://api.iconify.design  # Icon thumbnails + SVGs fetched for compiles
                 - https://api.lulu.com  # Shipping quotes for print cost estimates
                 - https://lets.church  # The intro video (IntroVideo.vue)
+                - https://www.youtube-nocookie.com  # The intro video, other languages
 
                 # Firebase and Google. Storage is this project's bucket only, by path, so other
                 # Firebase projects' files are refused (must match storageBucket in
@@ -204,8 +205,10 @@ Resources:
               Value: >-
                 accelerometer=(), bluetooth=(), camera=(), display-capture=(), geolocation=(),
                 gyroscope=(), magnetometer=(), microphone=(), midi=(), payment=(), serial=(),
-                usb=(), fullscreen=(self "https://lets.church"), autoplay=(self
-                "https://lets.church")
+                usb=(), fullscreen=(self "https://lets.church" "https://www.youtube-nocookie.com"),
+                autoplay=(self "https://lets.church"),
+                encrypted-media=(self "https://www.youtube-nocookie.com"),
+                picture-in-picture=(self "https://lets.church" "https://www.youtube-nocookie.com")
 
   # Two origins (site + api), replicating firebase.json's rewrite order: /api/* is checked first,
   # everything else falls through to the SPA (with a 403->index.html fallback for client routes)
