@@ -121,7 +121,7 @@ export const EXAMPLE_DESIGNS:ExampleDesign[] = [
 // Vietnamese mixes faces mid-word), whereas from a Noto family bookcover falls back to the Noto
 // font matching each script the text needs, in the same style
 export const NOTO_STAND_INS:Record<string, string> = {
-    'Caveat': 'Noto Sans',
+    'Caveat': 'Noto Serif',
     'Dancing Script': 'Noto Serif',
     'Merriweather': 'Noto Serif',
 }
