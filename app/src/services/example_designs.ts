@@ -53,10 +53,10 @@ export const EXAMPLE_DESIGNS:ExampleDesign[] = [
         id: 'bilingual', pages: 86, books: ['mrk'], trans: ['cmn_bibs'],
         cover: 'photo',
         cover_overrides: {
-            title1_color: '#dcfaff', title_margin_top: 1,
-            subtitle_size: 3.03, subtitle_color: '#dbfaff', subtitle_margin_top: 1,
+            title_margin_top: 1, subtitle_size: 3.03, subtitle_margin_top: 1,
             blurb_bg_color: '#dbfaff',
         },
+        cover_bg_image: 'awe.jpg',
         // Chinese follows and fits a verse in far less space than most languages, so it's the
         // larger of the two, keeping the aligned columns roughly the same length
         diff: {
