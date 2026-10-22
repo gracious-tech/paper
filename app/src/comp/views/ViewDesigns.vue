@@ -64,15 +64,16 @@ div.cont
 
     //- Example designs, which desktop shows in the preview pane beside this list. Mobile has no
     //- such pane (see AppRoot), so they sit at the bottom here, behind a toggle so they don't
-    //- bury the user's own designs
+    //- bury the user's own designs. The toggle comes after them, so once they're shown "Hide"
+    //- is what's left at the bottom of the page
     template(v-if='is_mobile')
+        div(ref='suggestions_el')
+            DisplayExamples(v-if='show_suggestions' inline)
         div.suggestions_toggle
             v-btn(@click='toggle_suggestions' variant='tonal' color='secondary')
                 template(#prepend)
                     app-icon(:name='show_suggestions ? "expand_less" : "expand_more"')
                 | {{ $t(show_suggestions ? 'view.designs.hide_suggestions' : 'view.designs.show_suggestions') }}
-        div(ref='suggestions_el')
-            DisplayExamples(v-if='show_suggestions' inline)
 
     //- LEGACY Remove with app/src/legacy/ once old data no longer needs recovering
     //- WARN Condition is currently INVERTED (!) for testing — flip before shipping
@@ -270,7 +271,7 @@ const open_viewed = (viewed:ViewedDesign) => {
 .suggestions_toggle
     display: flex
     justify-content: center
-    padding: 32px 16px 0
+    padding: 32px 16px 24px
 
 // LEGACY Remove with app/src/legacy/ once old data no longer needs recovering
 .legacy
