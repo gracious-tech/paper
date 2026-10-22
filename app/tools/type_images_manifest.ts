@@ -15,7 +15,7 @@ export const MANIFEST_PATH = join(IMAGES_DIR, 'manifest.json')
 
 
 // Keyed by UI locale: the translation its pictures were rendered in, or null when fetch.bible
-// has no Bible in that language (the app then shows the English screenshots)
+// has no Bible with Genesis in that language (the app then shows the English screenshots)
 export type TypeImagesManifest = Record<string, {bible:string|null}>
 
 

@@ -10,7 +10,7 @@
 // downloaded on demand from the assets bucket into app/tools/.cache/ (gitignored), and so is a
 // review sheet per locale: each English screenshot beside its new picture.
 //
-// Usage: .bin/gen_type_images [--force] [--types standard,notes] [locale ...]
+// Usage: .bin/gen_type_images [--force] [--types=standard,notes] [locale ...]
 // With no locales, renders every UI locale missing from the manifest (all of them with --force)
 
 import {execFile} from 'node:child_process'
@@ -155,7 +155,8 @@ await content.init()
 for (const loc of locales){
     const bible = choose_bible(loc)
     if (!bible){
-        console.info(`${loc}: no Bible in this language, so it shows the English pictures`)
+        console.info(`${loc}: no Bible with Genesis in this language, so it shows the English`
+            + ' pictures')
         manifest[loc] = {bible: null}
     } else {
         console.info(`${loc}: ${bible.id} (${bible.name_english})`)
