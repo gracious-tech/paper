@@ -91,6 +91,7 @@ describe('BibleContent.init collection TTL', () => {
 })
 
 
+// TODO Temporary: remove with repair_manifest once fetch.bible's manifest is fixed upstream
 describe('repair_manifest', () => {
 
     it('fills a missing language name from the other, else the code', () => {

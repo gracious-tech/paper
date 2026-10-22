@@ -104,6 +104,8 @@ function primary_dir(blue:Blueprint, resources:Record<string, GetResourcesItem>)
 // Fill in language names fetch.bible's manifest promises but has shipped without (`tig` had no
 // `local` in 2026-10), since fetch-client sorts by them unguarded and one bad entry then breaks
 // the whole language list. Falls back to the other name, else the language code
+// TODO Temporary workaround: remove (with its constructor hook and test) once fetch.bible's
+//     manifest is fixed upstream to always include both names
 export function repair_manifest(text:string):string {
     const manifest = JSON.parse(text) as {languages?:Record<string, Record<string, unknown>>}
     for (const [code, lang] of Object.entries(manifest.languages ?? {})) {
@@ -152,6 +154,7 @@ export class BibleContent {
             : new FetchClient({endpoints: [this.endpoint], remember_fetches: false})
         if (this.client) {
             // Repair the manifest before fetch-client parses it (see repair_manifest)
+            // TODO Temporary: remove once fetch.bible's manifest is fixed upstream
             const requester = this.client.requester
             const request = requester.request.bind(requester)
             requester.request = async (url:string) => {
