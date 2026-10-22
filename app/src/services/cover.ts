@@ -575,7 +575,7 @@ function build_cover_preset_form(kind:CoverPreset, blueprint:Blueprint)
     if (kind === 'pattern'){
         // Full-cover cross vector background (no icon overlay — the background carries the
         // motif itself), tinted per the first included passage's book grouping
-        form['bg_vector_id'] = 'cross'
+        form['bg_vector_id'] = 'cross-v2'
         const bg_color = passage && BOOK_BG_COLOR[passage.book]
         if (bg_color){
             form['bg_color'] = bg_color

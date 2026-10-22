@@ -45,12 +45,7 @@ const {t, locale} = useI18n()
 // An uncaught error inside the widget, relayed so it lands in this app's error reports (the
 // iframe is cross-origin, so its errors never reach this window's own listeners). `message`
 // carries the stack too; `build` is the widget's own commit, from the bookcover repo
-// TODO Import from bookcover-web once its WidgetMessage union includes it
-interface WidgetErrorMessage {
-    type:'error'
-    message:string
-    build:string|null
-}
+type WidgetErrorMessage = Extract<WidgetMessage, {type:'error'}>
 
 // Longest relayed widget error kept (the server caps whole reports at 16k anyway)
 const MAX_WIDGET_ERROR_CHARS = 8000
@@ -263,7 +258,7 @@ const on_message = (event:MessageEvent) => {
             || event.source !== frame.value.contentWindow){
         return
     }
-    const message = event.data as WidgetMessage|WidgetErrorMessage
+    const message = event.data as WidgetMessage
     if (message.type === 'ready'){
         void send_init()
     } else if (message.type === 'cancelled'){

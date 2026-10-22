@@ -58,7 +58,7 @@ export const EXAMPLE_DESIGNS:ExampleDesign[] = [
             subtitle_font: 'Noto Sans', subtitle_size: 1.84, subtitle_color: '#ffffff',
             bg_color: '#73b49f', icon_id: 'mdi:shield-cross-outline', icon_mode: 'center',
             icon_size: 1.05, icon_color: '#ffffff', pattern_id: 'texture', pattern_scale: 2.17,
-            bg_vector_id: 'chevron-stack', blurb_bg_color: null,
+            bg_vector_id: 'stripes', blurb_bg_color: null,
         },
         diff: {show_footnotes: false, notes: 'eng_tyndale'},
     },
@@ -106,7 +106,7 @@ export const EXAMPLE_DESIGNS:ExampleDesign[] = [
         id: 'greek', image: img_greek, books: ['1jn'], trans: ['grc_sr'], trans_first: true,
         cover: 'pattern',
         cover_overrides: {
-            bg_color: '#ffd4ee', pattern_id: 'diagonal-lines', bg_vector_id: 'church',
+            bg_color: '#ffd4ee', pattern_id: 'diagonal-lines', bg_vector_id: 'church-v2',
         },
         diff: {
             font_size: 9, line_height: 1.2, show_headings: false, show_footnotes: false,
@@ -119,7 +119,7 @@ export const EXAMPLE_DESIGNS:ExampleDesign[] = [
         cover_overrides: {
             title1_font: 'Dancing Script', title1_size: 2.23,
             subtitle_font: 'Noto Sans', subtitle_weight: 400,
-            bg_color: '#402a49', bg_color_gradient: true, bg_vector_id: 'calvary-hill',
+            bg_color: '#402a49', bg_color_gradient: true, bg_vector_id: 'calvary-hill-v2',
         },
         diff: {
             columns: false, show_headings: false, show_chapters: false, show_verses: false,
