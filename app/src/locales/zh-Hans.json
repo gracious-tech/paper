@@ -570,6 +570,7 @@
   "view.design.build_it": "生成",
   "view.design.copy_limit": "您今天已创建了很多副本，请明天再试",
   "view.design.keep_copy": "保存我自己的副本",
+  "view.design.not_built": "此设计尚未生成文档，或已不存在。生成后，此链接将显示该文档。如需与其所有者一起编辑，请向对方索取邀请链接。",
   "view.design.still_generating": "此文档仍在生成中，请稍后再试",
   "view.design.unapplied_changes": "确认更改",
   "view.design_item.delete_confirm": "要删除此设计吗？此操作无法撤销。",

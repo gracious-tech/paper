@@ -570,6 +570,7 @@
   "view.design.build_it": "Jetzt erstellen",
   "view.design.copy_limit": "Sie haben heute schon sehr viele Kopien erstellt – bitte versuchen Sie es morgen erneut",
   "view.design.keep_copy": "Eigene Kopie behalten",
+  "view.design.not_built": "Aus diesem Entwurf wurde noch kein Dokument erstellt, oder er existiert nicht mehr. Sobald das Dokument erstellt ist, zeigt dieser Link es an. Um den Entwurf gemeinsam mit seinem Eigentümer zu bearbeiten, bitten Sie ihn um einen Einladungslink.",
   "view.design.still_generating": "Dieses Dokument wird noch erstellt – bitte versuchen Sie es gleich noch einmal",
   "view.design.unapplied_changes": "Änderungen übernehmen",
   "view.design_item.delete_confirm": "Diesen Entwurf löschen? Dies kann nicht rückgängig gemacht werden.",

@@ -570,6 +570,7 @@
   "view.design.build_it": "Gerar documento",
   "view.design.copy_limit": "Você já fez muitas cópias hoje — tente novamente amanhã",
   "view.design.keep_copy": "Guardar minha própria cópia",
+  "view.design.not_built": "Este design ainda não foi gerado como documento, ou não existe mais. Quando for gerado, este link vai mostrá-lo. Para editá-lo com o proprietário, peça um link de convite.",
   "view.design.still_generating": "Este documento ainda está sendo gerado — tente novamente daqui a pouco",
   "view.design.unapplied_changes": "Confirmar alterações",
   "view.design_item.delete_confirm": "Excluir este design? Esta ação não pode ser desfeita.",

@@ -570,6 +570,7 @@
   "view.design.build_it": "제작하기",
   "view.design.copy_limit": "오늘 사본을 너무 많이 만들었습니다 — 내일 다시 시도하세요",
   "view.design.keep_copy": "내 사본으로 저장",
+  "view.design.not_built": "이 디자인은 아직 문서로 제작되지 않았거나 더 이상 존재하지 않습니다. 제작되면 이 링크에서 볼 수 있습니다. 소유자와 함께 편집하려면 소유자에게 초대 링크를 요청하세요.",
   "view.design.still_generating": "이 문서는 아직 생성 중입니다 — 잠시 후 다시 시도하세요",
   "view.design.unapplied_changes": "변경사항 확인",
   "view.design_item.delete_confirm": "이 디자인을 삭제하시겠습니까? 되돌릴 수 없습니다.",

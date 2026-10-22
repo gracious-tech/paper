@@ -570,6 +570,7 @@
   "view.design.build_it": "Générer",
   "view.design.copy_limit": "Vous avez fait beaucoup de copies aujourd’hui — veuillez réessayer demain",
   "view.design.keep_copy": "Garder ma propre copie",
+  "view.design.not_built": "Ce projet n’a pas encore été généré en document, ou n’existe plus. Une fois généré, ce lien l’affichera. Pour le modifier avec son propriétaire, demandez-lui un lien d’invitation.",
   "view.design.still_generating": "Ce document est encore en cours de génération — réessayez dans un instant",
   "view.design.unapplied_changes": "Confirmer les modifications",
   "view.design_item.delete_confirm": "Supprimer ce projet ? Cette action est irréversible.",

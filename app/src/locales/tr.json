@@ -570,6 +570,7 @@
   "view.design.build_it": "Oluştur",
   "view.design.copy_limit": "Bugün çok fazla kopya oluşturdunuz — lütfen yarın tekrar deneyin",
   "view.design.keep_copy": "Kendi kopyamı al",
+  "view.design.not_built": "Bu tasarımdan henüz bir belge oluşturulmadı veya tasarım artık mevcut değil. Oluşturulduğunda bu bağlantı onu gösterecek. Sahibiyle birlikte düzenlemek için ondan bir davet bağlantısı isteyin.",
   "view.design.still_generating": "Bu belge hâlâ oluşturuluyor — birazdan tekrar deneyin",
   "view.design.unapplied_changes": "Değişiklikleri onayla",
   "view.design_item.delete_confirm": "Bu tasarım silinsin mi? Bu işlem geri alınamaz.",

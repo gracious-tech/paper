@@ -33,7 +33,7 @@ import TabEditor from './TabEditor.vue'
 import ViewDesignEditor from './ViewDesignEditor.vue'
 import ViewDesignSimple from './ViewDesignSimple.vue'
 import DesignVersionsList from './assets/DesignVersionsList.vue'
-import {state, show_toast, report_failure} from '@/services/state'
+import {state, show_toast, report_failure, alert_dialog} from '@/services/state'
 import {ApiError} from '@/services/api'
 import {designs, designs_loaded, current_design_id, open_design, design_wizard}
     from '@/services/designs'
@@ -100,7 +100,10 @@ watch(id, async new_id => {
             ready.value = true
             void router.replace({name: 'design', params: {id: new_id, version: latest_id}})
         } else {
-            // No rendered version to fall back to — not accessible at all
+            // No rendered version to fall back to — not accessible at all. Say why rather than
+            // silently landing on the list: the usual cause is an editor sharing the address bar
+            // before building, and the rules hide the design doc, so unbuilt and missing look alike
+            void alert_dialog(t("view.design.not_built"))
             await router.replace({name: 'designs'})
         }
     }

@@ -570,6 +570,7 @@
   "view.design.build_it": "生成する",
   "view.design.copy_limit": "本日はすでに多くのコピーを作成しています。明日もう一度お試しください。",
   "view.design.keep_copy": "自分用のコピーを保存",
+  "view.design.not_built": "このデザインはまだドキュメントとして生成されていないか、すでに存在しません。生成されると、このリンクで表示されます。所有者と一緒に編集するには、招待リンクを依頼してください。",
   "view.design.still_generating": "このドキュメントはまだ生成中です。しばらくしてからもう一度お試しください。",
   "view.design.unapplied_changes": "変更を確認",
   "view.design_item.delete_confirm": "このデザインを削除しますか？この操作は元に戻せません。",

@@ -570,6 +570,7 @@
   "view.design.build_it": "Buat sekarang",
   "view.design.copy_limit": "Anda sudah membuat banyak salinan hari ini — silakan coba lagi besok",
   "view.design.keep_copy": "Simpan salinan saya sendiri",
+  "view.design.not_built": "Desain ini belum dibuat menjadi dokumen, atau sudah tidak ada. Setelah dibuat, tautan ini akan menampilkannya. Untuk mengeditnya bersama pemiliknya, mintalah tautan undangan kepadanya.",
   "view.design.still_generating": "Dokumen ini masih sedang dibuat — coba lagi sebentar lagi",
   "view.design.unapplied_changes": "Konfirmasi perubahan",
   "view.design_item.delete_confirm": "Hapus desain ini? Tindakan ini tidak dapat dibatalkan.",

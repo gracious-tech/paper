@@ -570,6 +570,7 @@
   "view.design.build_it": "Genera",
   "view.design.copy_limit": "Oggi hai fatto molte copie — riprova domani",
   "view.design.keep_copy": "Conserva una copia per me",
+  "view.design.not_built": "Da questo progetto non è ancora stato generato un documento, oppure non esiste più. Una volta generato, questo link lo mostrerà. Per modificarlo insieme al proprietario, chiedigli un link di invito.",
   "view.design.still_generating": "Questo documento è ancora in fase di generazione — riprova tra un momento",
   "view.design.unapplied_changes": "Conferma modifiche",
   "view.design_item.delete_confirm": "Eliminare questo progetto? L'operazione non può essere annullata.",

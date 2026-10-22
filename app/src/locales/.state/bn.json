@@ -570,6 +570,7 @@
   "view.design.build_it": "Build it",
   "view.design.copy_limit": "You've made a lot of copies today — please try again tomorrow",
   "view.design.keep_copy": "Keep my own copy",
+  "view.design.not_built": "This design hasn't been built into a document yet, or no longer exists. Once it's built, this link will show it. To edit it with its owner, ask them for an invite link.",
   "view.design.still_generating": "This document is still being generated — try again in a moment",
   "view.design.unapplied_changes": "Confirm changes",
   "view.design_item.delete_confirm": "Delete this design? This cannot be undone.",
