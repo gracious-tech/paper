@@ -27,15 +27,25 @@ function make_notes(overrides:Partial<TypstNotesFile> = {}):TypstNotesFile {
 
 describe('inject_study_notes', () => {
 
-    it('inserts a single-verse note right after its #vn segment, labelled in bold', () => {
+    it('inserts a single-verse note at the end of its #vn segment, labelled in bold', () => {
         const content = '#ch(1)\n#vn(1)In the beginning God created the heavens and the earth.'
             + '\n\n#vn(2)Now the earth was formless and empty.'
         const notes = make_notes({verses: {'1': {'1': 'Note on verse 1'}}})
         const result = inject_study_notes(content, notes, ref)
         expect(result).toBe(
-            '#ch(1)\n#vn(1)In the beginning God created the heavens and the earth.\n\n'
-            + '#studynote[#strong[1:1] Note on verse 1];'
+            '#ch(1)\n#vn(1)In the beginning God created the heavens and the earth.'
+            + '#studynote[#strong[1:1] Note on verse 1];\n\n'
             + '#vn(2)Now the earth was formless and empty.',
+        )
+    })
+
+    it('keeps the space before the next verse number by placing the note ahead of it', () => {
+        // Typst drops a space before a footnote, so the note can't sit between space and #vn
+        const content = '#ch(1)\n#vn(1)Verse one #vn(2)verse two.'
+        const notes = make_notes({verses: {'1': {'1': 'Note'}}})
+        const result = inject_study_notes(content, notes, ref)
+        expect(result).toBe(
+            '#ch(1)\n#vn(1)Verse one#studynote[#strong[1:1] Note]; #vn(2)verse two.',
         )
     })
 

@@ -59,8 +59,8 @@ export function inject_study_notes(
         return content
     }
 
-    // Walk every `#ch(n)`/`#vn(n)` marker in order, tracking the current chapter, and append any
-    // queued note(s) right after the segment for the verse they belong to. Every matched segment
+    // Walk every `#ch(n)`/`#vn(n)` marker in order, tracking the current chapter, and add any
+    // queued note(s) to the end of the segment for the verse they belong to. Every matched segment
     // (both chapter and verse markers) is always emitted verbatim — chapter markers must not be
     // dropped, since they're also what carries section headings in the fetched content
     const matches = Array.from(content.matchAll(/#(ch|vn)\((\d+)\)/g))
@@ -69,16 +69,22 @@ export function inject_study_notes(
     for (let i = 0; i < matches.length; i++) {
         const m = matches[i]!
         const segment = content.slice(m.index, matches[i + 1]?.index ?? content.length)
-        out += segment
         if (m[1] === 'ch') {
             current_chapter = Number(m[2])
-        } else {
-            const notes_for_verse = insertions.get(`${current_chapter}:${m[2]}`)
-            if (notes_for_verse) {
-                // `;` ends each call, so nothing after it can be read as continuing it
-                out += notes_for_verse.map(body => `#studynote[${body}];`).join('')
-            }
         }
+        const notes_for_verse = m[1] === 'vn' && insertions.get(`${current_chapter}:${m[2]}`)
+        if (!notes_for_verse) {
+            out += segment
+            continue
+        }
+        // Notes go before the segment's trailing whitespace: Typst drops a space before a
+        // footnote, so one left in front of the note would vanish and glue the next verse number
+        // to this verse's last word, and a paragraph break would push the note onto the next
+        // paragraph. `;` ends each call, so nothing after it can be read as continuing it
+        const body_end = segment.length - segment.match(/\s*$/)![0].length
+        out += segment.slice(0, body_end)
+            + notes_for_verse.map(body => `#studynote[${body}];`).join('')
+            + segment.slice(body_end)
     }
     return out
 }
