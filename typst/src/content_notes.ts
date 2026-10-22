@@ -75,7 +75,8 @@ export function inject_study_notes(
         } else {
             const notes_for_verse = insertions.get(`${current_chapter}:${m[2]}`)
             if (notes_for_verse) {
-                out += notes_for_verse.map(body => `#studynote[${body}]`).join('')
+                // `;` ends each call, so nothing after it can be read as continuing it
+                out += notes_for_verse.map(body => `#studynote[${body}];`).join('')
             }
         }
     }

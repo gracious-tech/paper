@@ -28,12 +28,12 @@ describe('prose_to_typst', () => {
     it('keeps blank lines when asked', () => {
         const result = prose_to_typst(make_doc('one', undefined, 'two'), true)
         // An empty box draws nothing but still occupies a line, unlike an empty paragraph
-        expect(result).toBe('one\n\n#box()\n\ntwo')
+        expect(result).toBe('one\n\n#box();\n\ntwo')
     })
 
     it('keeps each of several consecutive blank lines', () => {
         const result = prose_to_typst(make_doc('one', undefined, undefined, 'two'), true)
-        expect(result).toBe('one\n\n#box()\n\n#box()\n\ntwo')
+        expect(result).toBe('one\n\n#box();\n\n#box();\n\ntwo')
     })
 
     it('leaves non-empty paragraphs to the base renderer', () => {
@@ -45,7 +45,7 @@ describe('prose_to_typst', () => {
                 content: [{type: 'text', text: 'centred', marks: [{type: 'bold'}]}],
             }],
         }
-        expect(prose_to_typst(doc, true)).toBe('#align(center)[*centred*]')
+        expect(prose_to_typst(doc, true)).toBe('#align(center)[*centred*];')
     })
 
     it('returns empty markup for a missing doc', () => {
@@ -60,12 +60,12 @@ describe('prose_to_typst', () => {
     it('gives a page in the other direction its own scope', () => {
         // The digits-only paragraph has no letter to go by, so it follows the page
         const result = prose_to_typst(make_doc('Introduction', '2026'), false, 'rtl')
-        expect(result).toBe('#[#set text(dir: ltr)\nIntroduction\n\n2026\n]')
+        expect(result).toBe('#[#set text(dir: ltr)\nIntroduction\n\n2026\n];')
     })
 
     it('scopes a single paragraph running against the page', () => {
         const result = prose_to_typst(make_doc('Dedication', 'مقدمة', 'More'), false, 'ltr')
-        expect(result).toBe('Dedication\n\n#[#set text(dir: rtl)\nمقدمة\n]\n\nMore')
+        expect(result).toBe('Dedication\n\n#[#set text(dir: rtl)\nمقدمة\n];\n\nMore')
     })
 
     it('keeps a heading\'s marker at the start of its line', () => {
@@ -73,14 +73,14 @@ describe('prose_to_typst', () => {
             {type: 'paragraph', content: [{type: 'text', text: 'Text'}]},
             {type: 'heading', attrs: {level: 1}, content: [{type: 'text', text: 'כותרת'}]},
         ]}
-        expect(prose_to_typst(doc, false, 'ltr')).toContain('#set text(dir: rtl)\n= כותרת\n]')
+        expect(prose_to_typst(doc, false, 'ltr')).toContain('#set text(dir: rtl)\n= כותרת\n];')
     })
 
     it('spells out a left alignment the user chose for RTL text', () => {
         // pm-to-typst drops 'left' as the default, which only holds in LTR text
         const doc = (text:string):PmDoc => ({type: 'doc', content: [{type: 'paragraph',
             attrs: {textAlign: 'left'}, content: [{type: 'text', text}]}]})
-        expect(prose_to_typst(doc('עברית'), false, 'rtl')).toBe('#align(left)[עברית]')
+        expect(prose_to_typst(doc('עברית'), false, 'rtl')).toBe('#align(left)[עברית];')
         expect(prose_to_typst(doc('English'), false, 'ltr')).toBe('English')
     })
 })

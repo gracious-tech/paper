@@ -149,7 +149,9 @@ export function emphasize_sentences(
         if (args.length && color) {
             args.push(`fill: rgb("${color}")`)
         }
-        const wrapped = args.length ? `#text(${args.join(', ')})[${escaped}]` : escaped
+        // `;` ends the call, since the next chunk can start right after a closing quote with no
+        // space (`“Come!”(he said)`) and would otherwise be read as continuing it
+        const wrapped = args.length ? `#text(${args.join(', ')})[${escaped}];` : escaped
         return escape_typst(lead) + wrapped
     }).join('')
 }

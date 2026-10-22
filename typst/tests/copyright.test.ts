@@ -203,7 +203,7 @@ describe('block structure', () => {
     it('scopes its paragraph overrides to a content block', () => {
         const out = gen_copyright_typst(make_blueprint(), RESOURCES)
         expect(out.startsWith('#[')).toBe(true)
-        expect(out.trimEnd().endsWith(']')).toBe(true)
+        expect(out.trimEnd().endsWith('];')).toBe(true)
         expect(out).toContain('#set par(first-line-indent: 0em')
     })
 
@@ -229,7 +229,7 @@ describe('language', () => {
         const resources = {vie_bd2011: make_resource('vie_bd2011', {language: 'vie'})}
         const out = gen_copyright_typst(make_blueprint({bibles: ['vie_bd2011'], app_link: true}),
             resources)
-        expect(out).toContain('Được tạo bằng #link("https://paper.bible")[/paper.bible/]')
+        expect(out).toContain('Được tạo bằng #link("https://paper.bible")[/paper.bible/];')
     })
 
     it('falls back to English for a language with no translation', () => {

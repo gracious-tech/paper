@@ -119,9 +119,10 @@ export function gen_copyright_typst(
     // Build paragraphs/lists, separated by blank lines
     const parts:string[] = []
     if (data.app_link) {
-        // Escaped as text first, then the placeholder swapped for the link's markup
+        // Escaped as text first, then the placeholder swapped for the link's markup — ended with
+        // `;` so translated text right after it can't be read as continuing the call
         const created = escape_typst(t('doc.copyright.created_with'))
-            .replace('{link}', '#link("https://paper.bible")[/paper.bible/]')
+            .replace('{link}', '#link("https://paper.bible")[/paper.bible/];')
         parts.push(`#align(center)[#text(weight: "bold", size: 1.3em)[${created}]]`)
     }
 
@@ -164,7 +165,8 @@ export function gen_copyright_typst(
 
     // Attribution text — block content so the overrides stay scoped to the copyright block:
     // no first-line indent, and forced 1.5 line/paragraph spacing (leading is the whole
-    // baseline-to-baseline advance here — see the leading note in preamble.ts)
+    // baseline-to-baseline advance here — see the leading note in preamble.ts). Ended with `;`
+    // since it replaces the AUTO-COPYRIGHT marker mid-text, so the user's text may follow it
     return `#[\n#set par(first-line-indent: 0em, leading: 1.5em, spacing: 1.5em)\n\n`
-        + `${parts.filter(Boolean).join('\n\n')}\n]`
+        + `${parts.filter(Boolean).join('\n\n')}\n];`
 }

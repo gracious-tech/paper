@@ -34,7 +34,7 @@ describe('inject_study_notes', () => {
         const result = inject_study_notes(content, notes, ref)
         expect(result).toBe(
             '#ch(1)\n#vn(1)In the beginning God created the heavens and the earth.\n\n'
-            + '#studynote[#strong[1:1] Note on verse 1]'
+            + '#studynote[#strong[1:1] Note on verse 1];'
             + '#vn(2)Now the earth was formless and empty.',
         )
     })
@@ -105,7 +105,7 @@ describe('inject_study_notes', () => {
         const notes = make_notes({verses: {'1': {'1': 'Note'}}})
         const result = inject_study_notes(content, notes, ref)
         expect(result).toBe(
-            '#ch(1)\n== A Section Heading\n#vn(1)Verse one text.#studynote[#strong[1:1] Note]',
+            '#ch(1)\n== A Section Heading\n#vn(1)Verse one text.#studynote[#strong[1:1] Note];',
         )
     })
 })

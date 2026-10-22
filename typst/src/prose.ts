@@ -20,7 +20,12 @@ export const COPYRIGHT_MARKER = 'AUTO-COPYRIGHT'
 // paragraph as nothing at all — and pm_to_typst collapses the blank markup lines it leaves
 // behind — so the line would silently disappear. An empty box draws nothing but still occupies
 // a line of its own, which is exactly one blank line's worth of advance
-const BLANK_LINE = '#box()'
+const BLANK_LINE = '#box();'
+
+
+// Every embedded expression these handlers emit ends in `;`, as pm-to-typst's own do: Typst
+// consumes it without printing it, and without it whatever follows (`(`, `[` or `.ident`) would be
+// read as call arguments or a field access continuing the expression
 
 
 // Replace the copyright marker in already-converted Typst markup with the given block.
@@ -52,10 +57,10 @@ function with_block_dir(handler:NodeHandler, page_dir:TextDir):NodeHandler {
         // RTL block left-aligned by the user needs it spelled out. The editor's own default is no
         // alignment at all, so a stored 'left' is always the user's choice
         if (dir === 'rtl' && node.attrs?.['textAlign'] === 'left') {
-            markup = `#align(left)[${markup}]`
+            markup = `#align(left)[${markup}];`
         }
         // Newline after the set rule so a heading's `=` still opens a line
-        return dir === page_dir ? markup : `#[#set text(dir: ${dir})\n${markup}\n]`
+        return dir === page_dir ? markup : `#[#set text(dir: ${dir})\n${markup}\n];`
     }
 }
 
@@ -88,7 +93,7 @@ export function prose_to_typst(
         paragraph: with_block_dir(paragraph, page_dir),
         heading: with_block_dir(typst_renderer.nodes.heading, page_dir),
     }})
-    return page_dir === inherited ? markup : `#[#set text(dir: ${page_dir})\n${markup}\n]`
+    return page_dir === inherited ? markup : `#[#set text(dir: ${page_dir})\n${markup}\n];`
 }
 
 
