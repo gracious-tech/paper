@@ -15,7 +15,7 @@ export {add_preview_strip, gen_preview_strip_typst, gen_cover_slot_typst, notice
     from './pdf_postprocess.js'
 
 // Preview truncation: cuts an over-long request down to a fast-compiling window of content
-export {truncate_for_preview, PREVIEW_CHAR_LIMIT} from './preview.js'
+export {truncate_for_preview, PREVIEW_CHAR_LIMIT, ESTIMATE_CHAR_LIMIT} from './preview.js'
 export type {PreviewSection, PreviewTruncation} from './preview.js'
 
 // Bundled font manifest helpers (used by the web/node compilers to load fonts). The manifest

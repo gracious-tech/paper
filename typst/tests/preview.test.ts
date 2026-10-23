@@ -1,7 +1,7 @@
 
 import {describe, it, expect} from 'vitest'
 
-import {truncate_for_preview, PREVIEW_CHAR_LIMIT} from '../src/preview.js'
+import {truncate_for_preview, PREVIEW_CHAR_LIMIT, ESTIMATE_CHAR_LIMIT} from '../src/preview.js'
 import {make_request, make_passage, make_title} from './fixtures.js'
 
 import type {TypstPassage} from '../src/types.js'
@@ -192,6 +192,32 @@ describe('truncate_for_preview', () => {
         expect(result.total_chars).toBeGreaterThan(PREVIEW_CHAR_LIMIT)
         expect(result.window_chars).toBeLessThanOrEqual(PREVIEW_CHAR_LIMIT * 1.1)
         expect(result.window_chars).toBeLessThan(result.total_chars)
+    })
+
+    it('honours a smaller budget, as the estimate-only compile uses', () => {
+        const request = make_request({content: [make_book(3000, 'gen')]})
+        const result = truncate_for_preview(request, 'start', ESTIMATE_CHAR_LIMIT)
+        const content = (result.request.content[0] as TypstPassage).bibles[0]!.content
+        expect(content.startsWith('gen-0 ')).toBe(true)
+        expect(result.window_chars).toBeLessThan(ESTIMATE_CHAR_LIMIT * 1.01)
+        expect(result.window_chars).toBeGreaterThan(ESTIMATE_CHAR_LIMIT * 0.9)
+    })
+
+    it('weighs every translation of a bilingual passage, clipping each to its share', () => {
+        // Two equal translations of a book each get about half the budget, since the compile
+        // typesets both in full
+        const one = make_book(3000, 'gen').bibles[0]!
+        const two = make_book(3000, 'deu').bibles[0]!
+        const request = make_request({content: [make_passage({bibles: [one, two]})]})
+        const result = truncate_for_preview(request, 'start')
+
+        const bibles = (result.request.content[0] as TypstPassage).bibles
+        expect(result.total_chars).toBe(one.content.length + two.content.length)
+        expect(result.window_chars).toBeLessThan(PREVIEW_CHAR_LIMIT * 1.01)
+        for (const bible of bibles) {
+            expect(bible.content.length).toBeLessThan(PREVIEW_CHAR_LIMIT / 2 * 1.01)
+            expect(bible.content.length).toBeGreaterThan(PREVIEW_CHAR_LIMIT / 2 * 0.9)
+        }
     })
 
 })

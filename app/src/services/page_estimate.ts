@@ -1,7 +1,7 @@
 
 import {watch, onUnmounted} from 'vue'
 import {debounce} from 'lodash-es'
-import {truncate_for_preview} from 'paper-bible-typst'
+import {truncate_for_preview, ESTIMATE_CHAR_LIMIT} from 'paper-bible-typst'
 
 import {blue, estimated_pages, page_count_guess} from '@/services/state'
 import {content, bible_content} from '@/services/content'
@@ -21,7 +21,7 @@ import type {TypstWorkerClient} from '@/services/typst'
 // open design. On desktop the live preview (DisplayPreview.vue) refreshes it as a side effect of
 // every compile. Mobile has no preview pane, so nothing compiles in the background there:
 // whatever needs the estimate asks for it on demand (ensure_page_estimate), and it's computed
-// then, from the same window compile minus the PDF display
+// then, from a smaller window (ESTIMATE_CHAR_LIMIT) whose PDF is never displayed
 
 
 // What a preview-window compile produced
@@ -55,9 +55,10 @@ export function render_signature():string{
 
 
 export async function compile_preview_window(generator:TypstWorkerClient, section:PreviewSection,
-        on_progress?:ProgressFn, cover_label?:string):Promise<PreviewWindow>{
-    // Compile the preview-sized window of the open design, and estimate the full page count
-    // from it. `cover_label` marks the gray inside-of-cover slot when a cover precedes it
+        limit:number, on_progress?:ProgressFn, cover_label?:string):Promise<PreviewWindow>{
+    // Compile a window of the open design of at most `limit` characters (PREVIEW_CHAR_LIMIT for
+    // the preview, ESTIMATE_CHAR_LIMIT when only the page count is wanted), and estimate the full
+    // page count from it. `cover_label` marks the gray inside-of-cover slot when a cover precedes it
     const signature = render_signature()
 
     // Swap in painted/torn variants of any images before resolving (a no-op for the plain
@@ -83,10 +84,10 @@ export async function compile_preview_window(generator:TypstWorkerClient, sectio
         {...blue, content: styled_content}, get_custom_font_styles(), on_progress, share_url,
         page_count_guess())
 
-    // Large documents are trimmed to a fast-compiling ~50 page window (positioned by `section`)
-    // — whole books are dropped and only the last kept book's tail is ever cut, never a book's
-    // start, so kept pages lay out exactly as in the real document
-    const truncation = truncate_for_preview(request, section)
+    // Large documents are trimmed to a fast-compiling window (positioned by `section`) — whole
+    // books are dropped and only the last kept book's tail is ever cut, never a book's start, so
+    // kept pages lay out exactly as in the real document
+    const truncation = truncate_for_preview(request, section, limit)
 
     // The front cover is only shown when the preview window reaches the start of the
     // document — a Middle or End window drops it
@@ -138,7 +139,7 @@ export function ensure_page_estimate():Promise<void>{
 
     const promise = (async () => {
         try {
-            const result = await compile_preview_window(generator, 'start')
+            const result = await compile_preview_window(generator, 'start', ESTIMATE_CHAR_LIMIT)
             // Only kept if the design wasn't edited or switched while compiling — an estimate of
             // something else would pass the freshness check above for the wrong content
             if (render_signature() === result.signature){

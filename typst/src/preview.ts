@@ -20,6 +20,12 @@ const ROUGH_PAGE_CHARS = 3000
 // render in full; anything larger keeps a window of whole items (see truncate_for_preview)
 export const PREVIEW_CHAR_LIMIT = ROUGH_PAGE_CHARS * 50
 
+// Smaller budget for a window compiled only to estimate the page count (mobile, where no preview
+// is shown), since memory and time are what old phones run out of. Not smaller: each kept book's
+// fixed overhead (title page, chapter-1 layout) is scaled up with the window, and at ~20 pages
+// that overestimated Genesis by 13% where ~30 pages comes within 2%
+export const ESTIMATE_CHAR_LIMIT = ROUGH_PAGE_CHARS * 30
+
 
 // Which portion of an over-long document the preview window should show
 export type PreviewSection = 'start'|'middle'|'end'
@@ -43,12 +49,12 @@ export interface PreviewTruncation {
 }
 
 
-// Rough size of one content item in characters. Passages count their largest translation
-// (multiple translations lay out side-by-side/interleaved, so the longest one drives page
-// count); title and lines pages count as about a page's worth.
+// Rough size of one content item in characters. Passages count every translation, since each
+// one is typeset in full whatever the layout, so a bilingual window costs the compile about what
+// a monolingual one does; title and lines pages count as about a page's worth.
 function item_weight(item:TypstContentItem):number {
     if (item.type === 'passage') {
-        return Math.max(0, ...item.bibles.map(bible => bible.content.length))
+        return item.bibles.reduce((sum, bible) => sum + bible.content.length, 0)
     }
     if (item.type === 'custom') {
         return item.content.length
@@ -181,8 +187,10 @@ function grow_backward(weights:number[], end:number, budget:number):number {
 // midpoint — with only the last kept passage ever tail-clipped to hit the budget. The result's
 // dropped_before/dropped_after flags say which sides lost content; the app renders each as a
 // short strip at the front/back of the preview (no page is added inside the compiled PDF).
+// `limit` is the character budget (PREVIEW_CHAR_LIMIT, or ESTIMATE_CHAR_LIMIT for an
+// estimate-only compile).
 export function truncate_for_preview(
-    request:TypstRequest, section:PreviewSection,
+    request:TypstRequest, section:PreviewSection, limit = PREVIEW_CHAR_LIMIT,
 ):PreviewTruncation {
 
     const content = request.content
@@ -191,7 +199,7 @@ export function truncate_for_preview(
     const total = weights.reduce((sum, weight) => sum + weight, 0)
 
     // Whole document fits the budget — nothing to do
-    if (total <= PREVIEW_CHAR_LIMIT) {
+    if (total <= limit) {
         return {
             request, truncated: false, dropped_before: false, dropped_after: false,
             total_chars: total, window_chars: total,
@@ -205,7 +213,7 @@ export function truncate_for_preview(
 
     if (section === 'end') {
         // Trailing whole items only — the first kept item's start must stay intact
-        lo = grow_backward(weights, count, PREVIEW_CHAR_LIMIT)
+        lo = grow_backward(weights, count, limit)
         hi = count
         clip_last = false
     } else {
@@ -228,7 +236,7 @@ export function truncate_for_preview(
             }
         }
         lo = anchor
-        const grown = grow_forward(content, weights, anchor, PREVIEW_CHAR_LIMIT)
+        const grown = grow_forward(content, weights, anchor, limit)
         hi = grown.end
         clip_last = grown.clip_last
     }
@@ -236,7 +244,7 @@ export function truncate_for_preview(
     // Assemble the kept slice, tail-clipping the final passage if needed. clip_markup_tail
     // always keeps from char 0, so the clipped book's opening pages are untouched.
     const budget_before_last = weights.slice(lo, hi - 1).reduce((sum, weight) => sum + weight, 0)
-    const tail_room = Math.max(0, PREVIEW_CHAR_LIMIT - budget_before_last)
+    const tail_room = Math.max(0, limit - budget_before_last)
     const kept:TypstContentItem[] = content.slice(lo, hi).map((item, index) => {
         const is_last = index === hi - lo - 1
         if (!is_last || !clip_last || item.type !== 'passage') {

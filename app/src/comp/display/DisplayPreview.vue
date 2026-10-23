@@ -60,6 +60,7 @@ import {report_error} from '@/services/errors'
 import {stage_text} from '@/services/compile_progress'
 import {compile_preview_window, set_page_estimate, render_signature}
     from '@/services/page_estimate'
+import {PREVIEW_CHAR_LIMIT} from 'paper-bible-typst'
 
 import type {PreviewSection} from 'paper-bible-typst'
 import type {CompileProgress} from '@/services/compile_progress'
@@ -180,7 +181,7 @@ async function compile(){
         // front cover" gray slot on the first spread so it's clear it's not a missing/blank page.
         // The dropped_before/dropped_after flags drive the start/end strips added below
         const preview = await compile_preview_window(generator, effective_section.value,
-            on_progress, t("display.preview.inside_cover"))
+            PREVIEW_CHAR_LIMIT, on_progress, t("display.preview.inside_cover"))
         const {truncation, show_front_cover, share_url, page_estimate} = preview
         let bytes = preview.bytes
 
