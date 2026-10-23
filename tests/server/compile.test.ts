@@ -80,6 +80,28 @@ describe('handle_compile', () => {
         expect(result).toEqual({status: 409, body: {error: 'not_pending'}})
     })
 
+    it('takes a cover-only compile only for a published version handed over for its cover',
+            async () => {
+        // Still compiling its interior, or a cover that's already settled: nothing to hand over
+        for (const fields of [{status: 'pending', cover_status: null},
+                {status: 'available', cover_status: 'available'},
+                {status: 'available', cover_status: 'failed'}]){
+            const id = await make_pending(fields)
+            expect(await handle_compile({...job(id), cover_only: true})).toEqual(
+                {status: 409, body: {error: 'not_pending'}})
+        }
+        // And never a full compile of one that's already published
+        const id = await make_pending({status: 'available', cover_status: 'pending'})
+        expect(await handle_compile(job(id))).toEqual(
+            {status: 409, body: {error: 'not_pending'}})
+    })
+
+    it('refuses a cover-only compile of a version without a cover', async () => {
+        const id = await make_pending({status: 'available', cover_status: 'pending'})
+        expect(await handle_compile({...job(id), cover_only: true})).toEqual(
+            {status: 400, body: {error: 'no_cover'}})
+    })
+
     it('refuses once over the daily quota, without keeping the lock', async () => {
         const id = await make_pending()
         await admin_db.doc(`${QUOTA_COMPILE}/${OWNER}`).set({

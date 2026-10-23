@@ -19,3 +19,9 @@ export function use_is_mobile():ComputedRef<boolean>{
     return computed(() => width.value <= MOBILE_MAX_WIDTH)
 }
 
+
+export function is_mobile_now():boolean{
+    // As use_is_mobile(), for code outside a component: whether the viewport is mobile-width now
+    return window.innerWidth <= MOBILE_MAX_WIDTH
+}
+

@@ -321,6 +321,7 @@
   "display.version.include_code": "Укажите этот код в своём письме:",
   "display.version.interrupted": "Вероятно, создание было прервано. Его можно запустить заново.",
   "display.version.not_latest": "Это не последняя версия этого макета",
+  "display.version.on_server": "Для вашего устройства это слишком большая задача, поэтому её завершают наши серверы",
   "display.version.or": "или",
   "display.version.pdf_expired": "Срок хранения PDF этого документа истёк",
   "display.version.preparing": "Готовим хорошие новости",

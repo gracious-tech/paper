@@ -14,7 +14,7 @@ import {content} from '@/services/content'
 import {designs, current_design_id, until_listed} from '@/services/designs'
 import {read_wizard_state} from '@/services/new_design'
 import {report_error} from '@/services/errors'
-import {version_progress} from '@/services/compile_progress'
+import {version_progress, build_requests} from '@/services/compile_progress'
 
 import type {DesignMeta, Version} from '@/services/types'
 
@@ -59,7 +59,7 @@ export function design_needs_version(design:DesignMeta):boolean{
 
 // A pending version is treated as stuck once it's sat this long past its latest compile attempt.
 // That's beyond any compile that can still finish: the server fallback stamps a fresh attempt
-// when it starts and is capped at 5 min by the compile Lambda's configured timeout
+// (server_started) when it starts and is capped at 5 min by the compile Lambda's configured timeout
 // (infra/cloudformation.yml), so this must stay above that — below it, a slow server compile
 // still running would be offered a retry and compiled twice. The server's per-user compile lock
 // (COMPILE_LOCK_MS in server/src/quota.ts) lapses no later than this, so a retry offered here is
@@ -72,6 +72,22 @@ export function design_needs_version(design:DesignMeta):boolean{
 export const STUCK_MS = 6 * 60 * 1000
 
 
+function attempt_started(version:Version):number{
+    // When the latest attempt at the version (or its pending cover) began, in this browser or on
+    // the server — whichever came last, since either may be the one that died
+    const browser = (version.compile_started ?? version.created).getTime()
+    return Math.max(browser, version.server_started?.getTime() ?? 0)
+}
+
+
+export function compiling_on_server(version:Version):boolean{
+    // Whether the server took over the version's latest attempt (a browser retry since restamps
+    // compile_started, ending it)
+    return !!version.server_started
+        && version.server_started >= (version.compile_started ?? version.created)
+}
+
+
 export function version_stuck(version:Version):boolean{
     // Whether a pending version has been abandoned mid-compile (see STUCK_MS). Reads the wall
     // clock directly, so components re-run it against a ticking ref to keep the result current.
@@ -80,15 +96,58 @@ export function version_stuck(version:Version):boolean{
     if (version.status !== 'pending' || version.id in version_progress){
         return false
     }
-    const since = (version.compile_started ?? version.created).getTime()
-    return Date.now() - since > STUCK_MS
+    return Date.now() - attempt_started(version) > STUCK_MS
 }
 
 
-export function use_pending_clock(get_version:() => Version|null|undefined)
+// The wall clock for checks that flip with time alone (see cover_stuck), ticking every few
+// seconds once anything has read it
+const coarse_now = ref(Date.now())
+let coarse_timer:ReturnType<typeof setInterval>|null = null
+function read_coarse_now():number{
+    coarse_timer ??= setInterval(() => {
+        coarse_now.value = Date.now()
+    }, 5000)
+    return coarse_now.value
+}
+
+
+function cover_stuck(version:Version):boolean{
+    // Whether a cover handed to the server was abandoned (see STUCK_MS), so it reads as failed
+    // and is offered a retry rather than spinning forever. Reactive to the passing of time
+    return version.cover_status === 'pending'
+        && read_coarse_now() - attempt_started(version) > STUCK_MS
+}
+
+
+export function cover_pending(version:Version):boolean{
+    // Whether the version's interior is available and the server is still rendering its cover
+    return version.status === 'available' && version.cover_status === 'pending'
+        && !cover_stuck(version)
+}
+
+
+export function preparing_version(design_id:string):{id:string, clicked:number}|null{
+    // The open design's version that Build it was clicked for in this tab but whose doc hasn't
+    // arrived yet, if any (see build_requests). Only while that build is still in progress here,
+    // so a version deleted after its build never reads as on its way
+    for (const [id, request] of Object.entries(build_requests)){
+        if (request.design_id === design_id && id in version_progress
+                && !versions.some(item => item.id === id)){
+            return {id, clicked: request.clicked}
+        }
+    }
+    return null
+}
+
+
+export function use_pending_clock(get_version:() => Version|null|undefined,
+        get_preparing:() => number|null = () => null)
         :{elapsed:ComputedRef<string>, stuck:ComputedRef<boolean>}{
     // A live "m:ss" readout of how long a pending version's current compile attempt has run, and
-    // whether it's stuck (see version_stuck). The clock only ticks while the version is pending.
+    // whether it's stuck (see version_stuck). get_preparing gives when Build it was clicked for
+    // a version that has no doc yet (see preparing_version), which is timed instead while there's
+    // no pending version. The clock only ticks while one of the two is waiting.
     // Must be called from a component's setup() (or another effect scope), which stops the clock
     const now = ref(Date.now())
     let timer:ReturnType<typeof setInterval>|null = null
@@ -98,7 +157,19 @@ export function use_pending_clock(get_version:() => Version|null|undefined)
             timer = null
         }
     }
-    watch(() => get_version()?.status === 'pending', pending => {
+    // When the wait being timed began, or null when nothing is waiting. Counted from the current
+    // attempt, not the version's age — a regen or retry restamps compile_started — except that a
+    // build clicked in this tab counts from the click, which came before the doc existed
+    const started_at = ():number|null => {
+        const version = get_version()
+        if (version?.status === 'pending'){
+            return build_requests[version.id]?.clicked
+                ?? (version.compile_started ?? version.created).getTime()
+        }
+        return get_preparing()
+    }
+
+    watch(() => started_at() !== null, pending => {
         stop()
         if (pending){
             now.value = Date.now()
@@ -110,14 +181,11 @@ export function use_pending_clock(get_version:() => Version|null|undefined)
     }, {immediate: true})
     onScopeDispose(stop)
 
-    // Count from the current compile attempt, not the version's age — a regen or retry re-stamps
-    // compile_started
     const elapsed = computed(() => {
-        const version = get_version()
-        if (!version){
+        const started = started_at()
+        if (started === null){
             return ''
         }
-        const started = (version.compile_started ?? version.created).getTime()
         const diff = Math.max(0, (now.value - started) / 1000)
         const minutes = Math.floor(diff / 60).toString()
         const seconds = Math.floor(diff % 60).toString().padStart(2, '0')
@@ -146,6 +214,7 @@ function version_from_doc(id:string, data:DocumentData):Version{
         owner: data['owner'] as string,
         created: ((data['created'] ?? Timestamp.now()) as Timestamp).toDate(),
         compile_started: ((data['compile_started'] ?? null) as Timestamp|null)?.toDate() ?? null,
+        server_started: ((data['server_started'] ?? null) as Timestamp|null)?.toDate() ?? null,
         title: data['title'] as string,
         // Migrated to the current schema here, at the single point every consumer reads a
         // version's blueprint through — regeneration, cover re-render, "keep a copy" and
@@ -238,8 +307,10 @@ export function version_contact_url(version:Version|null):string{
 export function cover_failed(version:Version):boolean{
     // Whether the version's interior is available but its wraparound cover failed to render —
     // the interior PDF can still be viewed/downloaded, the cover can't (and can be regenerated
-    // on its own via regenerate_cover in version_compile.ts)
-    return version.cover_status === 'failed' && version.status === 'available'
+    // on its own via regenerate_cover in version_compile.ts). A server render that was
+    // abandoned counts as failed
+    return version.status === 'available'
+        && (version.cover_status === 'failed' || cover_stuck(version))
 }
 
 
@@ -291,6 +362,7 @@ export async function get_cover_pdf_url(version:Version):Promise<string|null>{
     // version has no cover, the cover render failed (cover_status), the version isn't available,
     // or the PDF expired (covers share doc.pdf's lifecycle — both under the same versions/ prefix)
     if (!version.blueprint.cover || version.cover_status === 'failed'
+            || version.cover_status === 'pending'
             || version.status !== 'available' || version_expired(version)){
         return null
     }

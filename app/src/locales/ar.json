@@ -321,6 +321,7 @@
   "display.version.include_code": "يُرجى تضمين هذا الرمز في رسالتك:",
   "display.version.interrupted": "يبدو أن إنشاءه قد انقطع. يمكن البدء فيه من جديد.",
   "display.version.not_latest": "هذا ليس أحدث إصدار من هذا التصميم",
+  "display.version.on_server": "هذه مهمة كبيرة على جهازك، لذا تتولّى خوادمنا إكمالها",
   "display.version.or": "أو",
   "display.version.pdf_expired": "انتهت صلاحية ملف PDF لهذا المستند",
   "display.version.preparing": "نجهّز لك أخبارًا سارّة",

@@ -321,6 +321,7 @@
   "display.version.include_code": "请在邮件中附上此代码：",
   "display.version.interrupted": "生成过程可能已中断，可以重新开始。",
   "display.version.not_latest": "这不是此设计的最新版本",
+  "display.version.on_server": "这项任务对您的设备来说较重，因此由我们的服务器来完成",
   "display.version.or": "或",
   "display.version.pdf_expired": "此文档的 PDF 已过期",
   "display.version.preparing": "正在准备好消息",

@@ -53,13 +53,18 @@ export interface Version extends WizardState {
     design_id:string
     owner:string
     created:Date
-    compile_started:Date|null  // Start of the latest compile attempt (stuck-pending detection)
+    // When this browser (or another) started the latest attempt: what the user's wait is timed
+    // from. The server stamps its own attempts in server_started, so taking over never restarts
+    // the clock (see attempt_started for stuck detection, which counts from either)
+    compile_started:Date|null
+    server_started:Date|null
     title:string
     blueprint:Blueprint
     status:'pending'|'failed'|'available'
     // Cover render outcome, tracked separately from `status` so an interior that compiled fine
-    // still publishes when only the wraparound cover failed. null = no cover configured
-    cover_status:'available'|'failed'|null
+    // still publishes when only the wraparound cover failed. 'pending' while the server renders
+    // a cover the browser couldn't (see finish_cover_on_server). null = no cover configured
+    cover_status:'available'|'failed'|'pending'|null
     // bookcover's RENDER_VERSION at freeze time (null = no cover). A regeneration under a
     // different value is a cover that may not match the PDF the user originally got
     cover_render_version:number|null

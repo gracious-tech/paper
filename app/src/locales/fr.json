@@ -321,6 +321,7 @@
   "display.version.include_code": "Veuillez indiquer ce code dans votre e-mail :",
   "display.version.interrupted": "Sa génération a probablement été interrompue. Elle peut être relancée.",
   "display.version.not_latest": "Ceci n’est pas la dernière version de ce projet",
+  "display.version.on_server": "C’est une lourde tâche pour votre appareil, nos serveurs prennent donc le relais pour la terminer",
   "display.version.or": "ou",
   "display.version.pdf_expired": "Le PDF de ce document a expiré",
   "display.version.preparing": "Une bonne nouvelle se prépare",

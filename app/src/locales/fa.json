@@ -321,6 +321,7 @@
   "display.version.include_code": "لطفاً این کد را در ایمیل خود بنویسید:",
   "display.version.interrupted": "احتمالاً تولید آن قطع شده است. می‌توان آن را دوباره شروع کرد.",
   "display.version.not_latest": "این آخرین نسخهٔ این طرح نیست",
+  "display.version.on_server": "این کار برای دستگاه شما سنگین است، برای همین سرورهای ما آن را تمام می‌کنند",
   "display.version.or": "یا",
   "display.version.pdf_expired": "PDF این سند منقضی شده است",
   "display.version.preparing": "در حال آماده کردن یک خبر خوش",

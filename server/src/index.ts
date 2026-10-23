@@ -89,7 +89,9 @@ if (config.roles.includes('light')){
             : undefined
         return await handle_compile({uid, version_id, client_ip: get_client_ip(context),
             user_agent: context.req.header('User-Agent') ?? null,
-            ...page_count !== undefined && {page_count}})
+            ...page_count !== undefined && {page_count},
+            // Just the cover of a published version, whose cover the browser couldn't render
+            ...body['cover_only'] === true && {cover_only: true}})
     })
 
     // Receive an error report from the browser and store it in the bucket — no auth required

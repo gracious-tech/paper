@@ -61,7 +61,7 @@ v-list-item(:active='!is_mobile && version.id === selected_version_id' color='pr
                         :disabled='version.status !== "available" || expired')
                     v-list-item-title {{$t("view.version.open_interior")}}
                 v-list-item(v-if='version.blueprint.cover' @click='download_cover'
-                        :disabled='version.status !== "available" || expired || cover_failed')
+                        :disabled='version.status !== "available" || expired || cover_failed || version.cover_status === "pending"')
                     v-list-item-title {{$t("view.version.open_cover")}}
                 template(v-if='editable')
                     //- Expired / stuck / failed all retry via their status-icon dialog (see

@@ -21,13 +21,14 @@ import {blue, print_service_warning_dialog, report_failure} from '@/services/sta
 import {current_design_id, flush_changes} from '@/services/designs'
 import {selected_version_id, latest_version} from '@/services/versions'
 import {create_pending_version, compile_and_upload} from '@/services/version_compile'
-import {hold_page} from '@/services/compile_progress'
+import {hold_page, build_requests, version_progress} from '@/services/compile_progress'
 import {has_seen_print_service_warning, record_seen_print_service_warning}
     from '@/services/user_prefs'
 import {typst_generator} from '@/services/typst'
 import {collect_passage_books, has_missing_books} from '@/services/blueprints'
 import {resolve_content_for_style} from '@/services/content_images'
 import {ensure_page_estimate} from '@/services/page_estimate'
+import {generate_token} from '@/services/utils'
 
 
 const router = useRouter()
@@ -60,12 +61,26 @@ const generate = async () => {
         return
     }
 
-    // Shown as loading from here on — style resolution below can take a moment the first time a
-    // painted/torn image needs processing, same as the compile step already did
+    // Shown as loading from here on, until the version's page is showing it
     generating.value = true
+
+    // Go straight to the version's page, under the id it's about to be created with, rather
+    // than leaving the user on a spinning button while the steps before the freeze run (the page
+    // estimate alone is a whole compile on mobile). The page shows it as preparing until its doc
+    // arrives (see build_requests)
+    const design_id = current_design_id.value
+    const version_id = generate_token()
+    build_requests[version_id] = {design_id, clicked: Date.now()}
+    version_progress[version_id] = {stage: 'start'}
+    let version_created = false
+
     // Set once the freeze starts (after any print-service warning, which is only a wait on the user)
     let release_page:(() => void)|null = null
     try {
+        selected_version_id.value = version_id
+        await router.push({name: 'design', params: {id: design_id, version: version_id}})
+        generating.value = false
+
         // Bring the page-count estimate up to date first (mobile has no live preview keeping it
         // current), and let its watchers settle — simple mode derives the binding from it, which
         // has to land in the design before it's flushed and frozen
@@ -77,11 +92,17 @@ const generate = async () => {
         // click-time)
         await flush_changes()
 
+        // The user is free to leave the version's page meanwhile, and `blue` is whichever design
+        // is open, so a build whose design was switched away from is abandoned rather than
+        // freezing another design under this one
+        if (current_design_id.value !== design_id){
+            return
+        }
+
         // Freeze the current design into an immutable pending version (a deep clone, so later
         // edits to `blue` won't affect this in-flight version). Painted/torn images are swapped
         // for their processed variant here — before the version doc is written, since Firestore
         // rules forbid ever patching `blueprint` afterwards (see content_images.ts)
-        const design_id = current_design_id.value
         const styled_content = await resolve_content_for_style(design_id, blue.content,
             blue.image_style)
         const blueprint = {...blue, content: styled_content}
@@ -97,11 +118,8 @@ const generate = async () => {
         // Warn before leaving the page from the freeze onwards — compile_and_upload takes its own
         // hold synchronously when called, so handing over to it leaves no gap between the two
         release_page = hold_page()
-        const job = await create_pending_version(design_id, blueprint)
-
-        // Switch to the version view
-        selected_version_id.value = job.id
-        await router.push({name: 'design', params: {id: design_id, version: job.id}})
+        const job = await create_pending_version(design_id, blueprint, version_id)
+        version_created = true
 
         // Compile the final PDF in-browser via Typst and upload it (status updates arrive via the
         // versions Firestore sync). The job carries everything the compile needs from this
@@ -112,11 +130,20 @@ const generate = async () => {
     } catch (error){
         // compile_and_upload handles its own failures; this covers the steps before it (freeze,
         // asset snapshotting, navigation) so a throw there surfaces to the user instead of
-        // silently leaving them on the editor with a half-created version
+        // silently leaving them on a version that will never arrive
         report_failure(error, t("view.design.build_failed"))
+        if (!version_created && router.currentRoute.value.params['version'] === version_id){
+            await router.replace({name: 'design', params: {id: design_id}})
+        }
     } finally {
         release_page?.()
         generating.value = false
+        // Kept once the version exists, to keep timing it from the click through any server
+        // fallback (a retry or regeneration starts its own clock, see build_requests)
+        if (!version_created){
+            delete build_requests[version_id]
+            delete version_progress[version_id]
+        }
     }
 }
 

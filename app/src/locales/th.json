@@ -321,6 +321,7 @@
   "display.version.include_code": "โปรดแนบรหัสนี้ในอีเมลของคุณ:",
   "display.version.interrupted": "การสร้างอาจถูกขัดจังหวะ คุณสามารถเริ่มใหม่ได้",
   "display.version.not_latest": "นี่ไม่ใช่เวอร์ชันล่าสุดของงานออกแบบนี้",
+  "display.version.on_server": "งานนี้หนักเกินไปสำหรับอุปกรณ์ของคุณ เซิร์ฟเวอร์ของเราจึงกำลังทำให้เสร็จ",
   "display.version.or": "หรือ",
   "display.version.pdf_expired": "ไฟล์ PDF ของเอกสารนี้หมดอายุแล้ว",
   "display.version.preparing": "กำลังเตรียมข่าวดีให้คุณ",

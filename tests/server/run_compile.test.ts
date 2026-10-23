@@ -19,7 +19,7 @@ import {describe, it, expect, beforeEach, afterEach, vi} from 'vitest'
 
 import {PDF_LIFETIME_MS} from 'paper-bible-typst'
 import {compile_pdf_from_blueprint} from 'paper-bible-typst-node'
-import {generate as generate_cover} from 'bookcover-node'
+import {generate as generate_cover, build_schema} from 'bookcover-node'
 
 import {handle_compile, run_compile} from '../../server/src/compile.ts'
 import {claim_compile_lock} from '../../server/src/quota.ts'
@@ -343,6 +343,67 @@ describe('run_compile', () => {
 })
 
 
+describe('run_compile, cover only', () => {
+
+    // A published version whose cover the browser couldn't render, handed over for its cover
+    async function make_cover_pending(bg_image:unknown = null)
+            :Promise<{id:string, design_id:string}>{
+        return await make_pending({version: {status: 'available', cover_status: 'pending',
+            pages: 48, blueprint: with_cover(bg_image)}})
+    }
+
+    // A cover-only compile job
+    function cover_job(version_id:string):CompileJob{
+        return {...job(version_id), cover_only: true}
+    }
+
+    it('publishes the cover from the interior\'s page count, leaving the interior alone',
+            async () => {
+        const {id} = await make_cover_pending()
+        await admin_bucket.file(`versions/${id}/doc.pdf`).save(Buffer.from('the interior'))
+        await claim_compile_lock(OWNER, id)
+
+        await run_compile(cover_job(id))
+
+        expect(await version(id)).toMatchObject({status: 'available', cover_status: 'available',
+            pages: 48})
+        expect((await version(id))['server_started']).toBeTruthy()
+        const [cover] = await admin_bucket.file(`versions/${id}/cover.pdf`).download()
+        expect(cover.subarray(0, 5).toString('latin1')).toBe('%PDF-')
+        const [interior] = await admin_bucket.file(`versions/${id}/doc.pdf`).download()
+        expect(interior.toString()).toBe('the interior')
+        expect(compile_mock).not.toHaveBeenCalled()
+        // The spine is sized from the published interior
+        expect(vi.mocked(build_schema).mock.calls[0]![0]).toMatchObject({page_count: 48})
+        expect(await lock_free()).toBe(true)
+    })
+
+    it('a cover the server can\'t render either is failed, and reported as critical',
+            async () => {
+        const {id} = await make_cover_pending()
+        cover_mock.mockRejectedValue(new Error('bookcover could not lay out the spine'))
+
+        await run_compile(cover_job(id))
+
+        expect(await version(id)).toMatchObject({status: 'available', cover_status: 'failed'})
+        const reports = await error_reports()
+        expect(reports).toHaveLength(1)
+        expect(reports[0]).toMatchObject({severity: 'critical',
+            context: {version_id: id, stage: 'cover_render'}})
+        expect(await lock_free()).toBe(true)
+    })
+
+    it('a failed asset sync fails the cover rather than leaving it pending', async () => {
+        const {id} = await make_cover_pending()
+        await run_compile(cover_job(id), async () => {
+            throw new Error('S3 unreachable')
+        })
+        expect(await version(id)).toMatchObject({status: 'available', cover_status: 'failed'})
+        expect(cover_mock).not.toHaveBeenCalled()
+    })
+})
+
+
 describe('handle_compile, once accepted', () => {
 
     it('hands the job to the compile function and answers 202', async () => {
@@ -357,9 +418,10 @@ describe('handle_compile, once accepted', () => {
             InvocationType: 'Event'})
         expect(JSON.parse(new TextDecoder().decode(command.input['Payload'] as Uint8Array)))
             .toEqual(job(id))
-        // The attempt is stamped (so a dropped job reads as stuck), and the lock stays held
-        // for the compile to release
-        expect((await version(id))['compile_started']).toBeTruthy()
+        // The server's attempt is stamped (so a dropped job reads as stuck) apart from when the
+        // user's wait began, and the lock stays held for the compile to release
+        expect((await version(id))['server_started']).toBeTruthy()
+        expect((await version(id))['compile_started']).toBeUndefined()
         expect(await claim_compile_lock(OWNER, 'another_version')).toBe('other_version')
         expect(compile_mock).not.toHaveBeenCalled()
     })

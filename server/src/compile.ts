@@ -3,7 +3,7 @@ import path from 'node:path'
 import {tmpdir} from 'node:os'
 import {mkdtemp, writeFile, readFile, rm} from 'node:fs/promises'
 
-import {Timestamp} from 'firebase-admin/firestore'
+import {Timestamp, FieldValue} from 'firebase-admin/firestore'
 import {LambdaClient, InvokeCommand} from '@aws-sdk/client-lambda'
 import {PDFDocument} from 'pdf-lib'
 import {PDF_LIFETIME_MS, COMPILE_STATS_LIFETIME_MS,
@@ -40,6 +40,9 @@ export interface CompileJob {
     user_agent:string|null
     // Advisory page-count estimate for the auto binding-gutter (see margin_gutter_auto)
     page_count?:number
+    // Render only the cover, for a published version whose cover the browser couldn't render
+    // (it hands those over as cover_status 'pending')
+    cover_only?:boolean
 }
 
 
@@ -163,7 +166,7 @@ async function record_compile_stat(fields:{version_id:string, design_id:string, 
 }
 
 
-async function check_version(uid:string, version_id:string)
+async function check_version(uid:string, version_id:string, cover_only = false)
         :Promise<{ok:true, version:CheckedVersion}|{ok:false, refusal:HandlerResult}>{
     // Validate a version for a server compile and the caller's right to it. Run twice: by the
     // route before it accepts the job, so a refusal reaches the client, and again by the compile
@@ -182,7 +185,12 @@ async function check_version(uid:string, version_id:string)
     if (data['owner'] !== uid){
         return refuse(403, 'not_owner')
     }
-    if (data['status'] !== 'pending'){
+    // A cover-only compile is for a published interior whose cover was handed over as
+    // 'pending'. Either way, anything else means another attempt already settled it
+    const awaiting = cover_only
+        ? data['status'] === 'available' && data['cover_status'] === 'pending'
+        : data['status'] === 'pending'
+    if (!awaiting){
         return refuse(409, 'not_pending')
     }
 
@@ -207,6 +215,9 @@ async function check_version(uid:string, version_id:string)
     // clones, so the version's stored blueprint stays exactly as it was published (see
     // migrate.ts). Everything below, validation included, works on the migrated shape
     const blueprint = migrate_version_blueprint(data)
+    if (cover_only && !blueprint.cover){
+        return refuse(400, 'no_cover')
+    }
     const bg_image = (blueprint.cover?.bg_image ?? null) as unknown
     if (bg_image !== null){
         if (typeof bg_image !== 'object'){
@@ -269,12 +280,13 @@ async function dispatch_compile(job:CompileJob):Promise<void>{
 
 export async function handle_compile(job:CompileJob):Promise<HandlerResult>{
     // Accept a pending version for a server compile (fallback for devices whose in-browser
-    // compile failed, and regeneration of expired PDFs): run every check that can refuse it, then
+    // compile failed, and regeneration of expired PDFs), or a published one for its cover alone
+    // (see CompileJob.cover_only): run every check that can refuse it, then
     // hand it to the compile function and answer 202 straight away. A compile can outlast any
     // request API Gateway will hold open (30s), so its outcome is only ever recorded on the
     // version doc, which the client already syncs
-    const {uid, version_id} = job
-    const checked = await check_version(uid, version_id)
+    const {uid, version_id, cover_only} = job
+    const checked = await check_version(uid, version_id, cover_only)
     if (!checked.ok){
         return checked.refusal
     }
@@ -294,9 +306,10 @@ export async function handle_compile(job:CompileJob):Promise<HandlerResult>{
         return {status: 429, body: {error: 'quota_exceeded'}}
     }
 
-    // Stamp the attempt start, so a job that never runs (dropped from Lambda's queue) reads as
-    // stuck on the client rather than forever-pending — see version_stuck() in the app
-    await checked.version.doc_ref.update({compile_started: Timestamp.now()})
+    // Stamp the server's attempt, so a job that never runs (dropped from Lambda's queue) reads
+    // as stuck on the client rather than forever-pending — see attempt_started() in the app. A
+    // field of its own, since compile_started is when the user's wait began (the app's clock)
+    await checked.version.doc_ref.update({server_started: FieldValue.serverTimestamp()})
         .catch(() => undefined)
 
     try {
@@ -315,10 +328,10 @@ export async function run_compile(job:CompileJob, prepare?:() => Promise<void>):
     // on its doc — nothing waits on this but the client's sync of that doc. `prepare` is the
     // compile function's cold-start asset sync (see lambda.ts), run inside the failure handling
     // below so a sync that fails marks the version failed rather than leaving it pending
-    const {uid, version_id} = job
+    const {uid, version_id, cover_only} = job
     try {
         // A concurrent compile may have finished the version while this job was queued
-        const checked = await check_version(uid, version_id)
+        const checked = await check_version(uid, version_id, cover_only)
         if (!checked.ok){
             console.warn(`Compile of ${version_id} skipped:`, checked.refusal.body)
             return
@@ -326,11 +339,86 @@ export async function run_compile(job:CompileJob, prepare?:() => Promise<void>):
         // Best-effort: failing it only risks the lock lapsing mid-compile, which beats leaving a
         // compile that's ready to run with nothing to record its outcome
         await extend_compile_lock(uid, version_id).catch(error => console.error(error))
-        await compile_version(job, checked.version, prepare)
+        if (cover_only){
+            await compile_cover(job, checked.version, prepare)
+        } else {
+            await compile_version(job, checked.version, prepare)
+        }
     } finally {
         // Best-effort: a lock left behind lapses on its own (see COMPILE_LOCK_MS)
         await release_compile_lock(uid, version_id).catch(error => console.error(error))
     }
+}
+
+
+async function download_fonts(fonts_meta:CheckedVersion['fonts_meta']):Promise<CustomFont[]>{
+    // Download a version's snapshotted custom fonts (usually none)
+    return await Promise.all(
+        fonts_meta.map(
+            async meta => ({
+                family: meta.family,
+                style: meta.style,
+                files: await Promise.all(meta.files.map(async path => {
+                    return new Uint8Array((await admin_bucket.file(path).download())[0])
+                })),
+            })))
+}
+
+
+async function publish_cover(version_id:string, blueprint:Blueprint, custom_fonts:CustomFont[],
+        pages:number, share_url:string):Promise<void>{
+    // Render a version's cover and publish it beside the interior (shown inline, like doc.pdf)
+    const cover_bytes = await render_cover(blueprint, custom_fonts, pages, share_url)
+    await admin_bucket.file(`versions/${version_id}/cover.pdf`).save(
+        Buffer.from(cover_bytes),
+        {contentType: 'application/pdf', metadata: {contentDisposition: 'inline'}})
+}
+
+
+async function report_cover_failure(job:CompileJob, error:unknown,
+        severity:'silent'|'critical'):Promise<void>{
+    // Save a report of a failed cover render (best-effort: the cover_status the caller records
+    // is what tells the user)
+    await save_error({
+        id: generate_error_id(),
+        source: 'server',
+        severity,
+        message: error instanceof Error ? error.stack ?? error.message : String(error),
+        ip: job.client_ip,
+        uid: job.uid,
+        url: '/api/compile',
+        user_agent: null,
+        language: null,
+        runtime_ms: null,
+        context: {version_id: job.version_id, stage: 'cover_render'},
+    }).catch(() => undefined)
+}
+
+
+async function compile_cover(job:CompileJob, version:CheckedVersion,
+        prepare?:() => Promise<void>):Promise<void>{
+    // Render just the cover of a published version whose cover the browser couldn't (see
+    // check_version), from the page count its interior already has. The interior is untouched
+    const {version_id} = job
+    const {doc_ref, data, blueprint, fonts_meta} = version
+    let cover_status:'available'|'failed'
+    try {
+        // Stamped like a full compile's attempt, so a killed render reads as stuck
+        await doc_ref.update({server_started: FieldValue.serverTimestamp()})
+            .catch(() => undefined)
+        await prepare?.()
+        const custom_fonts = await download_fonts(fonts_meta)
+        await publish_cover(version_id, blueprint, custom_fonts, (data['pages'] ?? 0) as number,
+            `${config.app_url}/v/${version_id}`)
+        cover_status = 'available'
+    } catch (error){
+        console.error(error)
+        cover_status = 'failed'
+        // Critical, unlike a cover failing beside a full compile: this was the last resort
+        // after the browser had already failed, so the user is now left without a cover
+        await report_cover_failure(job, error, 'critical')
+    }
+    await doc_ref.update({cover_status})
 }
 
 
@@ -366,24 +454,17 @@ async function compile_version(job:CompileJob, version:CheckedVersion,
     let interior_start:number|null = null
 
     try {
-        // Re-stamp the attempt start so a compile killed here (timeout, OOM on the largest docs)
-        // reads as stuck rather than forever-pending on the client — see version_stuck() in the
-        // app. Restarts the count the route began, which may have been spent in Lambda's queue
-        await doc_ref.update({compile_started: Timestamp.now()}).catch(() => undefined)
+        // Re-stamp the server's attempt so a compile killed here (timeout, OOM on the largest
+        // docs) reads as stuck rather than forever-pending on the client — see attempt_started()
+        // in the app. Restarts the count the route began, which may have been spent in Lambda's
+        // queue
+        await doc_ref.update({server_started: FieldValue.serverTimestamp()})
+            .catch(() => undefined)
 
         // Make sure the fonts/backgrounds the compile reads are in place
         await prepare?.()
 
-        // Download the version's snapshotted custom fonts (usually none)
-        const custom_fonts:CustomFont[] = await Promise.all(
-            fonts_meta.map(
-                async meta => ({
-                    family: meta.family,
-                    style: meta.style,
-                    files: await Promise.all(meta.files.map(async path => {
-                        return new Uint8Array((await admin_bucket.file(path).download())[0])
-                    })),
-                })))
+        const custom_fonts = await download_fonts(fonts_meta)
 
         // Compile straight from the frozen blueprint (Bible content comes via the instance-wide
         // shared cache — see content.ts)
@@ -423,28 +504,12 @@ async function compile_version(job:CompileJob, version:CheckedVersion,
         let cover_status:'available'|'failed'|null = null
         if (blueprint.cover){
             try {
-                const cover_bytes = await render_cover(blueprint, custom_fonts, pages, share_url)
-                await admin_bucket.file(`versions/${version_id}/cover.pdf`).save(
-                    Buffer.from(cover_bytes),
-                    {contentType: 'application/pdf', metadata: {contentDisposition: 'inline'}})
+                await publish_cover(version_id, blueprint, custom_fonts, pages, share_url)
                 cover_status = 'available'
             } catch (cover_error){
                 console.error(cover_error)
                 cover_status = 'failed'
-                await save_error({
-                    id: generate_error_id(),
-                    source: 'server',
-                    severity: 'silent',
-                    message: cover_error instanceof Error
-                        ? cover_error.stack ?? cover_error.message : String(cover_error),
-                    ip: client_ip,
-                    uid,
-                    url: '/api/compile',
-                    user_agent: null,
-                    language: null,
-                    runtime_ms: null,
-                    context: {version_id, stage: 'cover_render'},
-                }).catch(() => undefined)
+                await report_cover_failure(job, cover_error, 'silent')
             }
         }
 

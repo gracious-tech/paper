@@ -321,6 +321,7 @@
   "display.version.include_code": "Lütfen e-postanıza bu kodu ekleyin:",
   "display.version.interrupted": "Oluşturma işlemi büyük olasılıkla yarıda kesildi. Yeniden başlatılabilir.",
   "display.version.not_latest": "Bu, bu tasarımın en son sürümü değil",
+  "display.version.on_server": "Bu, cihazınız için büyük bir iş, bu yüzden sunucularımız tamamlıyor",
   "display.version.or": "veya",
   "display.version.pdf_expired": "Bu belgenin PDF dosyasının süresi doldu",
   "display.version.preparing": "Güzel bir şey hazırlanıyor",

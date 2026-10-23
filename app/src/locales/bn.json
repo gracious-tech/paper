@@ -321,6 +321,7 @@
   "display.version.include_code": "অনুগ্রহ করে আপনার ইমেলে এই কোডটি যুক্ত করুন:",
   "display.version.interrupted": "সম্ভবত এটি তৈরির প্রক্রিয়া মাঝপথে থেমে গেছে। এটি আবার শুরু করা যায়।",
   "display.version.not_latest": "এটি এই ডিজাইনের সর্বশেষ সংস্করণ নয়",
+  "display.version.on_server": "এটি আপনার ডিভাইসের জন্য বড় কাজ, তাই আমাদের সার্ভার এটি শেষ করছে",
   "display.version.or": "অথবা",
   "display.version.pdf_expired": "এই ডকুমেন্টের PDF-এর মেয়াদ শেষ হয়ে গেছে",
   "display.version.preparing": "কিছু সুসমাচার প্রস্তুত হচ্ছে",

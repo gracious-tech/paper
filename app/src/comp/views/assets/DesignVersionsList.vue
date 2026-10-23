@@ -1,12 +1,14 @@
 
 <template lang='pug'>
 
-div(v-if='!versions.length' class='pa-4 pt-10 text-center') {{$t("view.version_list.none_yet")}}
+div(v-if='!versions.length && !preparing' class='pa-4 pt-10 text-center')
+    | {{$t("view.version_list.none_yet")}}
 
 template(v-else)
     div.summary
-        h2.summary_title {{ latest_version?.title }}
-        div.summary_pills
+        //- Describes the latest version, so not while a newer one is on its way
+        h2.summary_title(v-if='!preparing') {{ latest_version?.title }}
+        div.summary_pills(v-if='latest_version && !preparing')
             v-chip(size='small' variant='tonal' color='primary')
                 template(#prepend)
                     app-icon(name='straighten')
@@ -29,11 +31,13 @@ template(v-else)
                 | {{ service_label }}
         //- Latest version still generating. Below 900px AppRoot hides the preview pane and its
         //- full progress screen, so this compact card carries the same readout there: time
-        //- elapsed, and the current stage while this tab is the one compiling it
-        div.mobile_pending(v-if='latest_pending')
+        //- elapsed, and the current stage while this tab is the one compiling it. Also a build
+        //- clicked here whose version doc hasn't arrived yet (see build_requests)
+        div.mobile_pending(v-if='latest_pending || preparing')
             div(class='text-title-medium') {{ $t("display.version.preparing") + '…' }}
             div(class='text-display-small my-2') {{ elapsed }}
             div(v-if='progress_text') {{ progress_text }}
+            div(v-else-if='on_server') {{ $t("display.version.on_server") }}
             div(class='mt-2 text-body-small') {{ $t("display.version.typical_time") }}
         //- Latest version couldn't be fully generated — the whole compile failed, it was
         //- abandoned mid-compile (stuck), or the interior compiled and only its wraparound cover
@@ -41,7 +45,7 @@ template(v-else)
         //- A full alert bar (with its own "Try again") rather than just the row icon, so a
         //- mobile user — who never sees the preview pane's failure screen — can still act.
         //- Older versions get the same message + retry in a click-through dialog.
-        v-alert(v-if='failure_alert' class='mt-3 text-left bg-error-lighten-2')
+        v-alert(v-if='failure_alert && !preparing' class='mt-3 text-left bg-error-lighten-2')
             div.compile_error
                 app-icon.compile_error_icon(name='error')
                 span {{ failure_alert.message }}
@@ -57,13 +61,13 @@ template(v-else)
         //- showing, so it's fine for it to be hidden with the whole preview pane below 900px —
         //- but a finished document that broke its binding's page limit can't be printed as
         //- designed, which a mobile user needs to see just as much as a desktop one.
-        v-alert(v-if='binding_warning' density='compact' type='error'
+        v-alert(v-if='binding_warning && !preparing' density='compact' type='error'
                 class='mt-3 text-left bg-error-lighten-2')
             div {{ binding_warning.text }}
             div(v-if='binding_warning.too_many' class='text-right')
                 v-btn(@click='state.page_suggestions = true' size='small' variant='flat'
                     class='mt-2' color='error') {{ $t("page_suggestions.button") }}
-        v-alert(v-if='sheets_warning' :color='sheets_warning.color' type='warning' density='compact'
+        v-alert(v-if='sheets_warning && !preparing' :color='sheets_warning.color' type='warning' density='compact'
                 class='mt-3 text-left')
             div {{ sheets_warning.text }}
             div(class='text-right')
@@ -73,11 +77,12 @@ template(v-else)
     //- Download + printing actions, shown only where the preview toolbar isn't (below 900px,
     //- where AppRoot hides the whole preview pane). Same controls as the preview toolbar in
     //- DisplayDesignVersion.vue — one centred row above the latest version card
-    div.mobile_actions(v-if='downloads_ready')
+    div.mobile_actions(v-if='downloads_ready && !preparing')
         v-btn(@click='download_interior' variant='tonal' color='secondary-darken-1')
             | {{ $t("display.version.download_interior") }}
         v-btn(v-if='has_cover' @click='download_cover' variant='tonal'
-                color='secondary-darken-1' :disabled='cover_failed')
+                color='secondary-darken-1' :disabled='cover_failed || cover_pending'
+                :loading='cover_pending')
             | {{ $t("display.version.download_cover") }}
         v-btn(v-if='quotable' variant='tonal' color='' @click='show_estimate_cost')
             | {{ $t("display.version.estimate_cost") }}
@@ -105,9 +110,10 @@ import {computed, ref} from 'vue'
 import {useI18n, count_phrase} from '@/services/i18n'
 import {PassageReference} from '@gracious.tech/fetch-client'
 
-import {versions, latest_version, version_expired, download_version_pdf,
-    cover_failed as version_cover_failed, version_contact_url, version_retryable,
-    use_pending_clock} from '@/services/versions'
+import {versions, latest_version, version_expired, download_version_pdf, preparing_version,
+    cover_failed as version_cover_failed, cover_pending as version_cover_pending,
+    version_contact_url, version_retryable, use_pending_clock, compiling_on_server}
+    from '@/services/versions'
 import {regenerate_version, regenerate_cover, retry_version} from '@/services/version_compile'
 import {version_progress, stage_text} from '@/services/compile_progress'
 import {state, report_failure} from '@/services/state'
@@ -122,7 +128,11 @@ import DesignVersionItem from './DesignVersionItem.vue'
 const {t} = useI18n()
 
 
-defineProps<{design_id:string, editable:boolean}>()
+const props = defineProps<{design_id:string, editable:boolean}>()
+
+
+// The version Build it was clicked for here, while its doc is still on its way
+const preparing = computed(() => preparing_version(props.design_id))
 
 
 // Paper size pill, e.g. "A4 (210 × 297 mm)", resolved from the latest rendered version (never
@@ -199,7 +209,8 @@ const retrying = ref(false)
 
 
 // Time since the latest version's compile began, and whether it was abandoned mid-compile
-const {elapsed, stuck} = use_pending_clock(() => latest_version.value)
+const {elapsed, stuck} = use_pending_clock(() => latest_version.value,
+    () => preparing.value?.clicked ?? null)
 
 
 // Whether the latest version is still generating (and not abandoned — see stuck)
@@ -211,8 +222,8 @@ const latest_pending = computed(() => {
 // The current in-browser compile stage of the latest version (e.g. "Writing Genesis (1/66)"),
 // null when another tab or the server is compiling it (see version_progress)
 const progress_text = computed(() => {
-    const version = latest_version.value
-    const event = version ? version_progress[version.id] : undefined
+    const id = preparing.value?.id ?? latest_version.value?.id
+    const event = id ? version_progress[id] : undefined
     return event ? stage_text(event, t) : null
 })
 
@@ -221,6 +232,18 @@ const progress_text = computed(() => {
 // the mobile "Download cover" button)
 const cover_failed = computed(() => {
     return !!latest_version.value && version_cover_failed(latest_version.value)
+})
+
+
+// Whether the latest version's interior is available while the server renders its cover
+const cover_pending = computed(() => {
+    return !!latest_version.value && version_cover_pending(latest_version.value)
+})
+
+
+// Whether the server has taken over the latest version's compile
+const on_server = computed(() => {
+    return !!latest_version.value && compiling_on_server(latest_version.value)
 })
 
 

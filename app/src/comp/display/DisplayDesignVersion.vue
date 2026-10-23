@@ -8,11 +8,12 @@ div.version
         //- Left: switch the frame between the interior pages and the wraparound cover — only
         //- shown when this version actually has a cover
         //- Cover toggle / download stay visible but disabled when the cover render failed
-        //- (cover_failed) — the interior compiled and is unaffected
-        v-btn-toggle.mode(v-if='cover_src || cover_failed' v-model='view_mode'
+        //- (cover_failed) or the server is still rendering it (cover_pending) — the interior
+        //- compiled and is unaffected
+        v-btn-toggle.mode(v-if='cover_src || cover_failed || cover_pending' v-model='view_mode'
                 color='primary-light' divided mandatory)
             v-btn(value='interior' size='small') {{ $t("display.version.show_interior") }}
-            v-btn(value='cover' size='small' :disabled='!cover_src')
+            v-btn(value='cover' size='small' :disabled='!cover_src' :loading='cover_pending')
                 | {{ $t("display.version.show_cover") }}
         //- Middle: download the print-ready PDF(s) — same weight/colour as the preview
         //- toolbar's Create button
@@ -21,8 +22,9 @@ div.version
                 template(#prepend)
                     app-icon(name='download')
                 | {{ $t("display.version.download_interior") }}
-            v-btn(v-if='cover_src || cover_failed' @click='download_cover' variant='elevated'
-                    color='secondary-darken-1' :disabled='!cover_src')
+            v-btn(v-if='cover_src || cover_failed || cover_pending' @click='download_cover'
+                    variant='elevated' color='secondary-darken-1' :disabled='!cover_src'
+                    :loading='cover_pending')
                 template(#prepend)
                     app-icon(name='download')
                 | {{ $t("display.version.download_cover") }}
@@ -52,8 +54,8 @@ div.version
 
     div.doc(v-if='iframe_src')
         iframe(:src='current_src')
-    div.explain(v-else :class='{pending: status === "pending" && !stuck}')
-        template(v-if='status === undefined')
+    div.explain(v-else :class='{pending: (status === "pending" && !stuck) || preparing}')
+        template(v-if='status === undefined && !preparing')
         template(v-else-if='status === "pending" && stuck')
             h3(class='mb-6') {{$t("display.version.taking_long")}}
             p(class='mb-6') {{$t("display.version.interrupted")}}
@@ -61,11 +63,13 @@ div.version
                 v-btn(@click='retry' color='secondary' :loading='retrying') {{$t("common.try_again")}}
             div
                 v-btn(:href='contact_url' target='_blank' variant='text') {{$t("display.version.contact")}}
-        template(v-else-if='status === "pending"')
+        //- Also a build clicked here whose version doc hasn't arrived yet (see build_requests)
+        template(v-else-if='status === "pending" || preparing')
             h3(class='text-headline-large') {{$t("display.version.preparing") + '...'}}
             AnimatedBook
             h1(class='mt-5 text-display-large') {{ time_since_request }}
             p(v-if='progress_text' class='mt-4 progress_text') {{ progress_text }}
+            p(v-else-if='on_server' class='mt-4 progress_text') {{$t("display.version.on_server")}}
             div(class='my-10')
                 | {{$t("display.version.typical_time")}}
         template(v-else-if='status === "failed"')
@@ -92,15 +96,15 @@ div.version
 import {computed, ref, watch} from 'vue'
 import {useI18n} from '@/services/i18n'
 
-import {selected_version, get_pdf_url, get_cover_pdf_url, download_version_pdf,
+import {selected_version, selected_version_id, get_pdf_url, get_cover_pdf_url, download_version_pdf,
     version_expired, use_pending_clock, latest_version, design_needs_editor,
-    version_debug_ref, version_contact_url, cover_failed as version_cover_failed}
-    from '@/services/versions'
+    version_debug_ref, version_contact_url, cover_failed as version_cover_failed,
+    cover_pending as version_cover_pending, compiling_on_server} from '@/services/versions'
 import {regenerate_version, retry_version} from '@/services/version_compile'
 import {designs, current_design_id} from '@/services/designs'
 import {state, report_failure} from '@/services/state'
 import {lulu_pod_package_id} from '@/services/print_cost'
-import {version_progress, stage_text} from '@/services/compile_progress'
+import {version_progress, build_requests, stage_text} from '@/services/compile_progress'
 import AnimatedBook from '../reuseable/AnimatedBook.vue'
 
 
@@ -112,23 +116,36 @@ const status = computed(() => {
 })
 
 
+// When Build it was clicked for the selected version, while its doc is still on its way (see
+// build_requests), else null
+const preparing = computed(() => {
+    const id = selected_version_id.value
+    return id && !selected_version.value ? build_requests[id]?.clicked ?? null : null
+})
+
+
 // Readout of the current in-browser compile stage (e.g. "Writing Genesis (1/66)"), mirroring
 // DisplayPreview.vue's overlay — null once the compile is handed off to the server, since only
 // the browser path reports progress (see version_progress in compile_progress.ts)
 const progress_text = computed(() => {
-    const version = selected_version.value
-    if (!version){
-        return null
-    }
-    const event = version_progress[version.id]
+    const id = selected_version_id.value
+    const event = id ? version_progress[id] : undefined
     return event ? stage_text(event, t) : null
+})
+
+
+// Whether the server has taken over the selected version's compile (said so, so the wait
+// doesn't look like a fault)
+const on_server = computed(() => {
+    return !!selected_version.value && compiling_on_server(selected_version.value)
 })
 
 
 // Time since the selected version's compile began, and whether it's been sitting long enough
 // that its compile was almost certainly abandoned (tab reload/close/crash, killed server
 // instance) — offer a retry, not an endless wait
-const {elapsed: time_since_request, stuck} = use_pending_clock(() => selected_version.value)
+const {elapsed: time_since_request, stuck} = use_pending_clock(() => selected_version.value,
+    () => preparing.value)
 
 
 // Whether the selected version's PDF has passed its Storage lifetime
@@ -156,6 +173,12 @@ const show_estimate_cost = () => {
 // Whether the selected version's interior is available but its cover render failed
 const cover_failed = computed(() => {
     return selected_version.value ? version_cover_failed(selected_version.value) : false
+})
+
+
+// Whether the selected version's interior is available while the server renders its cover
+const cover_pending = computed(() => {
+    return selected_version.value ? version_cover_pending(selected_version.value) : false
 })
 
 
@@ -191,11 +214,11 @@ const version_warning = computed(() => {
 const view_mode = ref<'interior'|'cover'>('interior')
 
 // Download URLs of the stored interior + cover PDFs (resolved async whenever the selected
-// version changes); cover_src stays null for versions without a cover
+// version changes, or its cover arrives); cover_src stays null for versions without a cover
 const iframe_src = ref(null as string|null)
 const cover_src = ref(null as string|null)
 let resolve_count = 0
-watch([selected_version, status], async () => {
+watch([selected_version, status, () => selected_version.value?.cover_status], async () => {
     const version = selected_version.value
     const this_resolve = ++resolve_count
     // Reset to the interior view whenever the selected version changes

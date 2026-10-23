@@ -138,6 +138,17 @@ export class TypstWorkerClient {
         await fonts_done
     }
 
+    // Hand the compiler's accumulated memory back to the browser ahead of something else
+    // memory-hungry (the cover worker's own compiler, on a phone), by recycling the worker as
+    // soon as no requests are in flight
+    release_memory():void {
+        if (this.pending.size){
+            this.recycle_needed = true
+        } else {
+            this.gate = this.gate.then(() => this.recycle())
+        }
+    }
+
     // Post one request to the current worker and await its matching result. on_progress, if
     // given, is called for every progress update the worker reports before the result arrives
     private post(action:WorkerAction, on_progress?:ProgressFn):Promise<ActionOutcome> {

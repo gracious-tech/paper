@@ -52,7 +52,8 @@ Live at [paper.bible](https://paper.bible). MIT No Attribution license.
 5. If the in-browser (WASM) compile fails, the client calls `POST /api/compile`, which answers
    `202` once it has accepted the job; the compile Lambda then compiles the same frozen
    blueprint with the Typst CLI and records the outcome on the version doc (see the
-   async-compile gotcha)
+   async-compile gotcha). A cover that fails in the browser alone goes the same way with
+   `cover_only` (the interior is published first, its cover `pending`)
 6. PDFs live in Storage for 1 year (GCS lifecycle rule); *only the PDFs expire* — the
    metadata and the design's frozen `version_assets/` snapshots stay, so the PDF can be
    regenerated (same hybrid path) afterwards
@@ -354,10 +355,14 @@ designs/{design_id}           # editable, multi-user
 
 versions/{version_id}         # immutable once created, publicly readable by id (no share_token)
     schema, design_id         # FK to the parent design (not a subcollection — see below)
-    owner, created, compile_started, title
+    owner, created, compile_started, server_started|null, title   # the user's wait is timed
+                               #   from compile_started; the server stamps only its own field,
+                               #   so a fallback never restarts the clock (attempt_started())
     status: pending|available|failed, pages, error|null, error_id|null
     blueprint (frozen), pdf_path, pdf_expires
-    cover_status: available|failed|null, cover_render_version|null  # bookcover RENDER_VERSION
+    cover_status: available|failed|pending|null, cover_render_version|null  # bookcover RENDER_VERSION
+                               #   pending = a published interior whose cover the browser couldn't
+                               #   render, handed to /api/compile with cover_only
     copied_from|null, save_token   # copied verbatim from the parent design at freeze time
     custom_fonts:[{family, style, files:[version_assets/{design_id}/... paths]}]
     wizard_draft|null, simple_mode   # frozen from the design, same field names (WizardState)

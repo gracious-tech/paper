@@ -22,6 +22,15 @@ export type CompileProgress = ProgressEvent | {stage:'cover'}
 export const version_progress = reactive<Record<string, CompileProgress>>({})
 
 
+// Versions Build it was clicked for in this tab, by the id they'll be created under, with their
+// design and when it was clicked. The click goes straight to the version's page while the page
+// estimate and the freeze still run, so the version views show it as preparing until its doc
+// arrives, and time the wait from the click rather than the doc's own stamp (which would restart
+// the clock). Removed when a build fails before its version exists, or when a retry or
+// regeneration of the version starts an attempt of its own
+export const build_requests = reactive<Record<string, {design_id:string, clicked:number}>>({})
+
+
 // How many generations currently depend on this tab staying open — work done here in the browser
 // that nothing else would pick up if the page went away (once a compile is handed to the server
 // it no longer counts, since the server finishes it regardless). A plain count rather than a set

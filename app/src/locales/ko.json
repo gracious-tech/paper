@@ -321,6 +321,7 @@
   "display.version.include_code": "이메일에 이 코드를 함께 적어 주세요:",
   "display.version.interrupted": "생성이 중단된 것 같습니다. 다시 시작할 수 있습니다.",
   "display.version.not_latest": "이 디자인의 최신 버전이 아닙니다",
+  "display.version.on_server": "기기에서 처리하기에는 큰 작업이라 저희 서버에서 마무리하고 있습니다",
   "display.version.or": "또는",
   "display.version.pdf_expired": "이 문서의 PDF가 만료되었습니다",
   "display.version.preparing": "기쁜 소식을 준비하는 중",

@@ -321,6 +321,7 @@
   "display.version.include_code": "メールに次のコードを記載してください：",
   "display.version.interrupted": "生成が中断された可能性があります。もう一度開始できます。",
   "display.version.not_latest": "これはこのデザインの最新バージョンではありません",
+  "display.version.on_server": "お使いの端末には負荷が大きいため、サーバーで仕上げています",
   "display.version.or": "または",
   "display.version.pdf_expired": "このドキュメントのPDFは有効期限が切れています",
   "display.version.preparing": "まもなく完成します",

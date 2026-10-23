@@ -24,6 +24,7 @@ import {user} from '@/services/auth'
 import {design_display_name, current_design_id} from '@/services/designs'
 import {bible_content} from '@/services/content'
 import {typst_generator} from '@/services/typst'
+import {is_mobile_now} from '@/services/display'
 import {plan_version_fonts, fonts_for_blueprint, load_font_from_meta}
     from '@/services/custom_fonts'
 import {apply_asset_copies} from '@/services/design_assets'
@@ -35,7 +36,7 @@ import {version_missing_bibles} from '@/services/versions'
 import {page_count_guess, DEFAULT_PAGE_GUESS, alert_dialog} from '@/services/state'
 import {translate} from '@/services/i18n'
 import {report_error, error_to_string} from '@/services/errors'
-import {version_progress, hold_page} from '@/services/compile_progress'
+import {version_progress, build_requests, hold_page} from '@/services/compile_progress'
 
 import type {CustomFont} from 'typst-fonts'
 import type {Blueprint, Version} from '@/services/types'
@@ -64,16 +65,16 @@ export interface VersionCompileJob {
 }
 
 
-export async function create_pending_version(design_id:string, blueprint:Blueprint)
-        :Promise<VersionCompileJob>{
-    // Freeze a blueprint into a new pending version doc and return the job that compiles it
-    // (pass it straight to compile_and_upload). Every uploaded asset it references is
+export async function create_pending_version(design_id:string, blueprint:Blueprint,
+        version_id = generate_token()):Promise<VersionCompileJob>{
+    // Freeze a blueprint into a new pending version doc (under version_id, when the caller
+    // already showed the user that id) and return the job that compiles it (pass it straight to
+    // compile_and_upload). Every uploaded asset it references is
     // snapshotted into the design's append-only version_assets prefix, so regeneration never
     // depends on what the live design still happens to reference. Reads the parent design's
     // save_token directly (rather than trusting the `designs` list's own listener to have caught
     // up yet) so the freshly-created version's save_token is always the exact one the caller
     // just flushed
-    const version_id = generate_token()
 
     // Everything read from the open design's live state is captured before the first await, while
     // it's still certainly this design that's open (see VersionCompileJob)
@@ -208,14 +209,18 @@ const SERVER_BUSY_WAIT_MS = 3 * 60 * 1000
 const SERVER_BUSY_RETRY_MS = 10 * 1000
 
 
-async function request_server_compile(id:string, page_estimate:number):Promise<void>{
-    // Hand a pending version over to the server compile. The server answers as soon as it has
-    // accepted the job, and the compile records its outcome on the version doc itself (it arrives
-    // here via the versions sync). Only throws when the server couldn't be got to take the job
+async function request_server_compile(id:string, page_estimate:number|null, cover_only = false)
+        :Promise<void>{
+    // Hand a pending version over to the server compile (or, cover_only, a published version's
+    // pending cover). The server answers as soon as it has accepted the job, and the compile
+    // records its outcome on the version doc itself (it arrives here via the versions sync).
+    // Only throws when the server couldn't be got to take the job
     const give_up_at = Date.now() + SERVER_BUSY_WAIT_MS
     while (true){
         try {
-            await api('/api/compile', {version_id: id, page_count: page_estimate})
+            await api('/api/compile', {version_id: id,
+                ...page_estimate !== null && {page_count: page_estimate},
+                ...cover_only && {cover_only}})
             return
         } catch (error){
             if (!(error instanceof ApiError)){
@@ -239,6 +244,60 @@ async function request_server_compile(id:string, page_estimate:number):Promise<v
 
             throw error
         }
+    }
+}
+
+
+async function render_cover_here(id:string, blueprint:Blueprint, pages:number,
+        load_fonts:() => Promise<CustomFont[]>, stage:string):Promise<'available'|'pending'>{
+    // Render a version's cover in this browser (with the custom fonts load_fonts gives) and
+    // publish it. When that fails it's reported and 'pending' returned, for the caller to record
+    // before handing the cover to the server (see finish_cover_on_server)
+
+    // A phone may not hold the cover's compiler beside the book's, which still has the whole
+    // interior in memory, so free that first (it respawns lean for the next compile)
+    if (is_mobile_now()){
+        typst_generator.value?.release_memory()
+    }
+    try {
+        const cover_bytes = await render_cover_pdf(blueprint, pages, 'final', await load_fonts(),
+            `https://paper.bible/v/${id}`)
+        await uploadBytes(storage_ref(firebase_storage, `versions/${id}/cover.pdf`),
+            cover_bytes, {contentType: 'application/pdf', contentDisposition: 'inline'})
+        return 'available'
+    } catch (error){
+        report_error('silent', error, {context: {version_id: id, stage}})
+        return 'pending'
+    }
+}
+
+
+// The doc fields that record a cover handed to the server. compile_started is restamped so the
+// handover is timed from now (see cover_stuck), not from the interior compile before it
+function cover_status_fields(status:'available'|'pending'):Record<string, unknown>{
+    return status === 'pending'
+        ? {cover_status: 'pending', compile_started: serverTimestamp()}
+        : {cover_status: 'available'}
+}
+
+
+async function load_version_fonts(version:Version):Promise<CustomFont[]>{
+    // Load a version's snapshotted custom fonts (usually none)
+    return await Promise.all(version.custom_fonts.map(meta => load_font_from_meta(meta)))
+}
+
+
+async function finish_cover_on_server(id:string):Promise<void>{
+    // Have the server render a published version's cover, after the browser couldn't (the doc
+    // already says cover_status 'pending'). The server records its own outcome, so only failing
+    // to reach it at all is recorded here
+    try {
+        await request_server_compile(id, null, true)
+    } catch (error){
+        report_error('silent', error,
+            {critical: true, context: {version_id: id, stage: 'cover_fallback'}})
+        await updateDoc(doc(firestore, 'versions', id), {cover_status: 'failed'})
+            .catch(() => undefined)
     }
 }
 
@@ -328,34 +387,27 @@ export async function compile_and_upload(job:VersionCompileJob):Promise<void>{
             // Render + publish the cover as its own separate PDF (a wraparound cover is a
             // different page size and print services take it as its own file). Rendered after
             // the interior deliberately — its spine width derives from the actual page count
-            // just compiled. A cover failure is non-fatal: the interior is already compiled and
-            // uploaded, so record cover_status 'failed' and still publish the version (the UI
-            // disables just the cover's view/download, and offers a cover-only regen)
-            let cover_status:Version['cover_status'] = null
+            // just compiled. A cover failure doesn't hold up the interior: the version is
+            // published with its cover 'pending', which the server then renders
+            let cover:'available'|'pending'|null = null
             if (blueprint.cover){
                 on_progress({stage: 'cover'})
-                try {
-                    const cover_bytes = await render_cover_pdf(blueprint, pages, 'final', fonts,
-                        share_url)
-                    await uploadBytes(storage_ref(firebase_storage, `versions/${id}/cover.pdf`),
-                        cover_bytes, {contentType: 'application/pdf', contentDisposition: 'inline'})
-                    cover_status = 'available'
-                } catch (cover_error){
-                    report_error('silent', cover_error,
-                        {context: {version_id: id, stage: 'cover_render'}})
-                    cover_status = 'failed'
-                }
+                cover = await render_cover_here(id, blueprint, pages, async () => fonts,
+                    'cover_render')
             }
 
             await updateDoc(doc_ref, {
                 status: 'available',
-                cover_status,
+                ...cover ? cover_status_fields(cover) : {cover_status: null},
                 pages,
                 pdf_expires: Timestamp.fromMillis(Date.now() + PDF_LIFETIME_MS),
                 error: null,
             })
             await update_latest_summary(design_id, save_token,
                 {'latest_version.status': 'available', 'latest_version.pages': pages})
+            if (cover === 'pending'){
+                await finish_cover_on_server(id)
+            }
         } catch (wasm_error){
             // A refused upload may just mean another attempt got there first (see
             // version_settled), leaving nothing to fall back for
@@ -445,8 +497,10 @@ export async function regenerate_version(version:Version):Promise<void>{
     if (version.status === 'pending' || await refuse_missing_bibles(version)){
         return
     }
-    const fonts = await Promise.all(version.custom_fonts.map(meta => load_font_from_meta(meta)))
+    const fonts = await load_version_fonts(version)
     const job = recompile_job(version, fonts)
+    // A new attempt, timed from its own start rather than the original build's click
+    delete build_requests[version.id]
     await updateDoc(doc(firestore, 'versions', version.id), {status: 'pending', error: null})
     await update_latest_summary(version.design_id, version.save_token,
         {'latest_version.status': 'pending'})
@@ -457,7 +511,8 @@ export async function regenerate_version(version:Version):Promise<void>{
 export async function regenerate_cover(version:Version):Promise<void>{
     // Re-render just the cover for a version whose interior succeeded but whose cover failed.
     // Far cheaper than regenerate_version (no interior recompile) and it sidesteps the
-    // create-once doc.pdf a full recompile would 403 on — only the absent cover.pdf is produced
+    // create-once doc.pdf a full recompile would 403 on — only the absent cover.pdf is produced.
+    // Tried in this browser first, then handed to the server like a fresh build's cover
     if (!version.blueprint.cover || version.status !== 'available'){
         return
     }
@@ -466,25 +521,25 @@ export async function regenerate_cover(version:Version):Promise<void>{
         return
     }
     const doc_ref = doc(firestore, 'versions', version.id)
-    // Rendered entirely in this tab, so warn before leaving until it's done
+    // Rendered in this tab until handed over, so warn before leaving until then
     const release_page = hold_page()
     try {
-        const fonts = await Promise.all(
-            version.custom_fonts.map(meta => load_font_from_meta(meta)))
-        const share_url = `https://paper.bible/v/${version.id}`
-        const cover_bytes = await render_cover_pdf(version.blueprint, version.pages ?? 0,
-            'final', fonts, share_url)
-        await uploadBytes(storage_ref(firebase_storage, `versions/${version.id}/cover.pdf`),
-            cover_bytes, {contentType: 'application/pdf', contentDisposition: 'inline'})
-        await updateDoc(doc_ref, {cover_status: 'available'})
+        const cover = await render_cover_here(version.id, version.blueprint,
+            version.pages ?? 0, () => load_version_fonts(version), 'cover_regen')
+        await updateDoc(doc_ref, cover_status_fields(cover))
+        if (cover === 'available'){
+            return
+        }
     } catch (error){
         // The failed cover status is what tells the user (with its own retry)
         report_error('silent', error,
             {critical: true, context: {version_id: version.id, stage: 'cover_regen'}})
         await updateDoc(doc_ref, {cover_status: 'failed'}).catch(() => undefined)
+        return
     } finally {
         release_page()
     }
+    await finish_cover_on_server(version.id)
 }
 
 
@@ -514,9 +569,9 @@ async function adopt_pending_pdf(version:Version):Promise<boolean>{
 
     // The cover PDF is uploaded after the interior, so it can be missing even when doc.pdf isn't
     // — render + upload just the cover in that case (cover.pdf is also create-once, but absent).
-    // A cover failure here is non-fatal, same as the main compile path: adopt the interior and
-    // record cover_status 'failed'
-    let cover_status:Version['cover_status'] = null
+    // A cover failure here doesn't hold up the interior, same as the main compile path: adopt
+    // the interior and hand the cover to the server
+    let cover:'available'|'pending'|null = null
     if (version.blueprint.cover){
         let cover_missing = false
         try {
@@ -528,34 +583,25 @@ async function adopt_pending_pdf(version:Version):Promise<boolean>{
             }
             cover_missing = true
         }
-        cover_status = 'available'
+        cover = 'available'
         if (cover_missing){
-            try {
-                const fonts = await Promise.all(
-                    version.custom_fonts.map(meta => load_font_from_meta(meta)))
-                const share_url = `https://paper.bible/v/${version.id}`
-                const cover_bytes = await render_cover_pdf(
-                    version.blueprint, pages, 'final', fonts, share_url)
-                await uploadBytes(
-                    storage_ref(firebase_storage, `versions/${version.id}/cover.pdf`),
-                    cover_bytes, {contentType: 'application/pdf', contentDisposition: 'inline'})
-            } catch (cover_error){
-                report_error('silent', cover_error,
-                    {context: {version_id: version.id, stage: 'cover_render'}})
-                cover_status = 'failed'
-            }
+            cover = await render_cover_here(version.id, version.blueprint, pages,
+                () => load_version_fonts(version), 'cover_render')
         }
     }
 
     await updateDoc(doc(firestore, 'versions', version.id), {
         status: 'available',
-        cover_status,
+        ...cover ? cover_status_fields(cover) : {cover_status: null},
         pages,
         pdf_expires: Timestamp.fromMillis(Date.now() + PDF_LIFETIME_MS),
         error: null,
     })
     await update_latest_summary(version.design_id, version.save_token,
         {'latest_version.status': 'available', 'latest_version.pages': pages})
+    if (cover === 'pending'){
+        await finish_cover_on_server(version.id)
+    }
     return true
 }
 
@@ -582,7 +628,9 @@ export async function retry_version(version:Version):Promise<void>{
     if (await refuse_missing_bibles(version)){
         return
     }
-    const fonts = await Promise.all(version.custom_fonts.map(meta => load_font_from_meta(meta)))
+    const fonts = await load_version_fonts(version)
+    // A new attempt, timed from its own start rather than the original build's click
+    delete build_requests[version.id]
     await updateDoc(doc(firestore, 'versions', version.id), {error: null})
     await compile_and_upload(recompile_job(version, fonts))
 }
