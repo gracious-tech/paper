@@ -19,7 +19,8 @@ import {useRouter} from 'vue-router'
 import {useI18n} from '@/services/i18n'
 import {blue, print_service_warning_dialog, report_failure} from '@/services/state'
 import {current_design_id, flush_changes} from '@/services/designs'
-import {selected_version_id, latest_version} from '@/services/versions'
+import {selected_version_id, latest_version, until_version_settled} from '@/services/versions'
+import {report_error} from '@/services/errors'
 import {create_pending_version, compile_and_upload} from '@/services/version_compile'
 import {hold_page, build_requests, version_progress} from '@/services/compile_progress'
 import {has_seen_print_service_warning, record_seen_print_service_warning}
@@ -54,6 +55,26 @@ const view_versions = async () => {
     }
 }
 
+const warn_before_printing = async (service_id:string, version_id:string) => {
+    // Real printing services (i.e. not printing at home) need a physical print run the user
+    // can't easily undo, so once this account's first such version has a PDF to look through,
+    // ask them to review it before ordering copies (once per account). Waits out a server
+    // fallback too, and stays quiet if the build failed, as there's nothing to review yet
+    try {
+        if (service_id === 'home' || await has_seen_print_service_warning()){
+            return
+        }
+        if (await until_version_settled(version_id) !== 'available'){
+            return
+        }
+        await print_service_warning_dialog()
+        await record_seen_print_service_warning()
+    } catch (error){
+        // The build itself succeeded, so a failure here is no reason to tell the user anything
+        report_error('silent', error)
+    }
+}
+
 const generate = async () => {
 
     // Compiler must be ready (the button is disabled until it is, but guard anyway)
@@ -74,7 +95,7 @@ const generate = async () => {
     version_progress[version_id] = {stage: 'start'}
     let version_created = false
 
-    // Set once the freeze starts (after any print-service warning, which is only a wait on the user)
+    // Set once the freeze starts
     let release_page:(() => void)|null = null
     try {
         selected_version_id.value = version_id
@@ -107,14 +128,6 @@ const generate = async () => {
             blue.image_style)
         const blueprint = {...blue, content: styled_content}
 
-        // Real printing services (i.e. not printing at home) need a physical print run the
-        // user can't easily undo, so warn once, the first time this account creates such a
-        // version, and require them to acknowledge it before continuing
-        if (blueprint.service_id !== 'home' && !await has_seen_print_service_warning()){
-            await print_service_warning_dialog()
-            await record_seen_print_service_warning()
-        }
-
         // Warn before leaving the page from the freeze onwards — compile_and_upload takes its own
         // hold synchronously when called, so handing over to it leaves no gap between the two
         release_page = hold_page()
@@ -127,6 +140,7 @@ const generate = async () => {
         const compiling = compile_and_upload(job)
         release_page()
         await compiling
+        void warn_before_printing(blueprint.service_id, version_id)
     } catch (error){
         // compile_and_upload handles its own failures; this covers the steps before it (freeze,
         // asset snapshotting, navigation) so a throw there surfaces to the user instead of

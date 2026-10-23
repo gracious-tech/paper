@@ -92,7 +92,7 @@ export const state = reactive({
     // Pending "review before printing" warning, rendered by DialogPrintServiceWarning — null
     // hides it (see print_service_warning_dialog()). Unlike the other dialogs above this one
     // has no cancel path: it's persistent and only resolves once the required checkbox is
-    // ticked, since BtnGenerate.vue awaits it before creating the version
+    // ticked. BtnGenerate.vue shows it once the account's first version has a PDF to review
     print_service_warning: null as null|{resolve:() => void},
 })
 

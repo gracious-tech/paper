@@ -286,6 +286,30 @@ export async function fetch_latest_version_id(design_id:string):Promise<string|n
 }
 
 
+export function until_version_settled(id:string):Promise<Version['status']|null>{
+    // Resolve with a version's status once it leaves `pending` — whichever engine compiled it,
+    // since a server fallback only ever reports back through the doc. Gives up as still pending
+    // after STUCK_MS (a compile that died never settles), and null if the doc is gone
+    return new Promise(resolve => {
+        let unsub:Unsubscribe|null = null
+        const settle = (status:Version['status']|null) => {
+            clearTimeout(timer)
+            unsub?.()
+            resolve(status)
+        }
+        const timer = setTimeout(() => settle('pending'), STUCK_MS)
+        unsub = onSnapshot(doc(firestore, 'versions', id),
+            snap => {
+                const status = snap.exists() ? (snap.data()['status'] as Version['status']) : null
+                if (status !== 'pending'){
+                    settle(status)
+                }
+            },
+            () => settle(null))
+    })
+}
+
+
 // --- Status helpers -------------------------------------------------------------------------
 
 
