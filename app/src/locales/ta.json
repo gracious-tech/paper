@@ -668,5 +668,6 @@
   "wizard.print.small": "சிறியது",
   "wizard.stories.choose_predefined": "அதற்குப் பதிலாக முன்தொகுக்கப்பட்ட கதைகளைத் தேர்ந்தெடு",
   "wizard.stories.question": "சேர்க்க விரும்பும் பைபிள் கதைகளைத் தேர்ந்தெடுக்கவும் — ஒவ்வொன்றும் அதற்கான படங்களுடன் வரும்.",
+  "wizard.type.coming": "{date} இல் வருகிறது",
   "wizard.type.question": "இது எப்படித் தோன்ற வேண்டும்?"
 }

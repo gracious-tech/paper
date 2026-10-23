@@ -668,5 +668,6 @@
   "wizard.print.small": "کوچک",
   "wizard.stories.choose_predefined": "به‌جای آن، داستان‌های ازپیش‌تعیین‌شده را انتخاب کنید",
   "wizard.stories.question": "داستان‌های کتاب مقدس موردنظر خود را انتخاب کنید — هر کدام تصاویر مخصوص خود را دارد.",
+  "wizard.type.coming": "به‌زودی در {date}",
   "wizard.type.question": "می‌خواهید چه شکلی داشته باشد؟"
 }

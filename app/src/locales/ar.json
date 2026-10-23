@@ -668,5 +668,6 @@
   "wizard.print.small": "صغير",
   "wizard.stories.choose_predefined": "اختيار قصص جاهزة بدلًا من ذلك",
   "wizard.stories.question": "اختر قصص الكتاب المقدس التي تريد تضمينها — لكل قصة رسومها التوضيحية الخاصة.",
+  "wizard.type.coming": "قريبًا في {date}",
   "wizard.type.question": "كيف تريد أن يبدو؟"
 }

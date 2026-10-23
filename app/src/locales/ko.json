@@ -668,5 +668,6 @@
   "wizard.print.small": "소형",
   "wizard.stories.choose_predefined": "대신 준비된 이야기 선택하기",
   "wizard.stories.question": "포함할 성경 이야기를 선택하세요 — 이야기마다 고유한 삽화가 함께 제공됩니다.",
+  "wizard.type.coming": "{date} 출시 예정",
   "wizard.type.question": "어떤 모습으로 만드시겠습니까?"
 }

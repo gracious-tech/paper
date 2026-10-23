@@ -668,5 +668,6 @@
   "wizard.print.small": "小",
   "wizard.stories.choose_predefined": "代わりに用意された物語から選ぶ",
   "wizard.stories.question": "含めたい聖書の物語を選んでください。それぞれに専用のイラストが付いています。",
+  "wizard.type.coming": "{date}公開予定",
   "wizard.type.question": "どのような見た目にしますか？"
 }

@@ -668,5 +668,6 @@
   "wizard.print.small": "ছোট",
   "wizard.stories.choose_predefined": "এর বদলে আগে থেকে তৈরি গল্প বেছে নিন",
   "wizard.stories.question": "আপনি যে বাইবেলের গল্পগুলো অন্তর্ভুক্ত করতে চান সেগুলো বেছে নিন — প্রতিটির সঙ্গে নিজস্ব ছবি রয়েছে।",
+  "wizard.type.coming": "{date}-এ আসছে",
   "wizard.type.question": "এটি কেমন দেখাতে চান?"
 }

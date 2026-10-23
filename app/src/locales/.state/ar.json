@@ -668,5 +668,6 @@
   "wizard.print.small": "Small",
   "wizard.stories.choose_predefined": "Choose predefined stories instead",
   "wizard.stories.question": "Choose the Bible stories you want included — each comes with its own illustrations.",
+  "wizard.type.coming": "Coming {date}",
   "wizard.type.question": "What do you want it to look like?"
 }

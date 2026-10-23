@@ -668,5 +668,6 @@
   "wizard.print.small": "छोटा",
   "wizard.stories.choose_predefined": "इसके बजाय पहले से तैयार कहानियाँ चुनें",
   "wizard.stories.question": "वे बाइबल कहानियाँ चुनें जिन्हें आप शामिल करना चाहते हैं — हर कहानी के साथ उसके अपने चित्र आते हैं।",
+  "wizard.type.coming": "{date} में आ रहा है",
   "wizard.type.question": "आप इसे कैसा दिखाना चाहते हैं?"
 }

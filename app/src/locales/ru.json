@@ -668,5 +668,6 @@
   "wizard.print.small": "Маленький",
   "wizard.stories.choose_predefined": "Вместо этого выбрать готовые истории",
   "wizard.stories.question": "Выберите библейские истории, которые нужно включить, — к каждой прилагаются свои иллюстрации.",
+  "wizard.type.coming": "Скоро: {date}",
   "wizard.type.question": "Как должна выглядеть книга?"
 }

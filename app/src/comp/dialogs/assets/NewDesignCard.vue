@@ -1,7 +1,8 @@
 
 <template lang='pug'>
 
-v-card(:class='{selected, square}' variant='outlined' @click='emit("select")')
+v-card(:class='{selected, square}' variant='outlined' :disabled='disabled'
+        @click='emit("select")')
     img(v-if='image' :src='image' alt=''
         :style='ratio ? {aspectRatio: String(ratio)} : undefined')
     //- No preview yet — still rendering, or its render failed
@@ -26,9 +27,11 @@ v-card(:class='{selected, square}' variant='outlined' @click='emit("select")')
 // though it's ignored while there's no image to speak for itself. `image` is optional for the
 // same reason: the cover step renders its previews live, so there's a moment before the first
 // one arrives — and no static stand-in, which would only ever show a cover that isn't theirs.
-// `square` removes the corner rounding (cover step only — a book cover has square corners)
+// `square` removes the corner rounding (cover step only — a book cover has square corners).
+// `disabled` shows a choice that can't be picked yet (e.g. a type not yet released)
 defineProps<{image?:string|undefined, label:string, subtitle?:string, selected:boolean,
-    tint?:'blue'|'yellow', ratio?:number|undefined, hide_label?:boolean, square?:boolean}>()
+    tint?:'blue'|'yellow', ratio?:number|undefined, hide_label?:boolean, square?:boolean,
+    disabled?:boolean}>()
 const emit = defineEmits<{(e:'select'):void}>()
 
 
@@ -63,6 +66,10 @@ const emit = defineEmits<{(e:'select'):void}>()
     .pending
         background-color: rgba(var(--v-theme-primary), 0.08)
         animation: pending_pulse 1.6s ease-in-out infinite
+
+    // A disabled card's empty box isn't on its way, so it shouldn't pulse as if it were
+    &.v-card--disabled .pending
+        animation: none
 
     .text
         padding: 8px 12px 10px 12px

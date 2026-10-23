@@ -668,5 +668,6 @@
   "wizard.print.small": "Kecil",
   "wizard.stories.choose_predefined": "Pilih cerita yang sudah tersedia saja",
   "wizard.stories.question": "Pilih cerita Alkitab yang ingin Anda sertakan — masing-masing dilengkapi ilustrasinya sendiri.",
+  "wizard.type.coming": "Hadir {date}",
   "wizard.type.question": "Seperti apa tampilan yang Anda inginkan?"
 }

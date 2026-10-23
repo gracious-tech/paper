@@ -668,5 +668,6 @@
   "wizard.print.small": "小",
   "wizard.stories.choose_predefined": "改为选择预设故事",
   "wizard.stories.question": "请选择要包含的圣经故事，每个故事都配有专属插图。",
+  "wizard.type.coming": "{date}推出",
   "wizard.type.question": "您希望它是什么样子？"
 }

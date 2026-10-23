@@ -32,5 +32,6 @@
   "vuetify.input.prependAction": "Screen-reader label for an icon button at the start of a field; {0} is the field's label.",
   "vuetify.loading": "Screen-reader label for a loading spinner.",
   "vuetify.noDataText": "Shown inside a dropdown list that has no items to choose from.",
-  "vuetify.open": "Screen-reader label for the button that opens a dropdown list."
+  "vuetify.open": "Screen-reader label for the button that opens a dropdown list.",
+  "wizard.type.coming": "Subtitle on a not-yet-available design type card in the new-design wizard. {date} is a short month and year already formatted in the UI language, e.g. \"Dec 2026\"."
 }

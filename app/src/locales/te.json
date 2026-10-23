@@ -668,5 +668,6 @@
   "wizard.print.small": "చిన్నది",
   "wizard.stories.choose_predefined": "బదులుగా ముందే సిద్ధం చేసిన కథలను ఎంచుకోండి",
   "wizard.stories.question": "మీరు చేర్చాలనుకుంటున్న బైబిల్ కథలను ఎంచుకోండి — ప్రతి కథకు దాని సొంత చిత్రాలు ఉంటాయి.",
+  "wizard.type.coming": "{date}లో వస్తోంది",
   "wizard.type.question": "ఇది ఎలా కనిపించాలని మీరు కోరుకుంటున్నారు?"
 }

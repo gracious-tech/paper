@@ -668,5 +668,6 @@
   "wizard.print.small": "เล็ก",
   "wizard.stories.choose_predefined": "เลือกเรื่องราวที่เตรียมไว้แทน",
   "wizard.stories.question": "เลือกเรื่องราวในพระคัมภีร์ที่ต้องการ แต่ละเรื่องมาพร้อมภาพประกอบของตัวเอง",
+  "wizard.type.coming": "เปิดให้ใช้ {date}",
   "wizard.type.question": "คุณต้องการให้ออกมาเป็นแบบไหน?"
 }

@@ -668,5 +668,6 @@
   "wizard.print.small": "Pequeño",
   "wizard.stories.choose_predefined": "Elegir historias predefinidas en su lugar",
   "wizard.stories.question": "Elige las historias bíblicas que quieres incluir; cada una viene con sus propias ilustraciones.",
+  "wizard.type.coming": "Disponible en {date}",
   "wizard.type.question": "¿Cómo quieres que se vea?"
 }

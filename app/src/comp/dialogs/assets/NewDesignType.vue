@@ -6,7 +6,7 @@ div
     div.grid
         NewDesignCard(v-for='item of types' :key='item.id' :image='item.image' :label='item.label'
             :subtitle='item.subtitle' :selected='draft.type === item.id' :tint='item.tint'
-            @select='select(item.id)')
+            :disabled='item.disabled' @select='select(item.id)')
 
 </template>
 
@@ -15,6 +15,7 @@ div
 
 import {computed} from 'vue'
 import {useI18n} from '@/services/i18n'
+import {intl_tag} from '@/services/locale'
 
 import {TYPE_PRESETS, type_preset_image, wizard_type_label} from '@/services/new_design'
 import NewDesignCard from '@/comp/dialogs/assets/NewDesignCard.vue'
@@ -39,17 +40,30 @@ const select = (id:NewDesignType) => {
 }
 
 
+// Month the picture_story type is due to be published (shown, but not selectable, until then)
+const PICTURE_STORY_RELEASE = new Date(2026, 11)
+
+
 // Labels/subtitles per type (shared with the simple-mode summary row), joined with each
 // preset's picture for the current locale
-// NOTE picture_story excluded as not yet published (still a valid/functional type otherwise)
-const types = computed(() => TYPE_PRESETS
-    .filter(preset => preset.id !== 'picture_story')
-    .map(preset => ({
+// NOTE picture_story is disabled as not yet published (still a valid/functional type otherwise)
+const types = computed(() => TYPE_PRESETS.map(preset => {
+    const unreleased = preset.id === 'picture_story'
+    const label = wizard_type_label(preset.id, t)
+    return {
         id: preset.id,
         image: type_preset_image(preset.image, locale.value),
         tint: preset.id === 'picture_story' ? 'yellow' as const : 'blue' as const,
-        ...wizard_type_label(preset.id, t),
-    })))
+        disabled: unreleased,
+        label: label.label,
+        subtitle: unreleased ? t("wizard.type.coming", {date: release_month()}) : label.subtitle,
+    }
+}))
+
+
+// The picture_story release month in the UI's language (e.g. "Dec 2026")
+const release_month = () => PICTURE_STORY_RELEASE.toLocaleDateString(intl_tag(locale.value),
+    {month: 'short', year: 'numeric'})
 
 
 </script>

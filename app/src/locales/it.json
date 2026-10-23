@@ -668,5 +668,6 @@
   "wizard.print.small": "Piccolo",
   "wizard.stories.choose_predefined": "Scegli invece storie predefinite",
   "wizard.stories.question": "Scegli le storie bibliche da includere — ognuna ha le sue illustrazioni.",
+  "wizard.type.coming": "Disponibile da {date}",
   "wizard.type.question": "Che aspetto vuoi che abbia?"
 }

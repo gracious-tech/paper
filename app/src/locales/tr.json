@@ -668,5 +668,6 @@
   "wizard.print.small": "Küçük",
   "wizard.stories.choose_predefined": "Bunun yerine hazır hikâyeleri seç",
   "wizard.stories.question": "Dahil etmek istediğiniz Kutsal Kitap hikâyelerini seçin — her birinin kendi resimleri vardır.",
+  "wizard.type.coming": "Çok yakında: {date}",
   "wizard.type.question": "Nasıl görünmesini istersiniz?"
 }

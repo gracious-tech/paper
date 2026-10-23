@@ -668,5 +668,6 @@
   "wizard.print.small": "Nhỏ",
   "wizard.stories.choose_predefined": "Chọn các câu chuyện có sẵn thay vào đó",
   "wizard.stories.question": "Chọn các câu chuyện Kinh Thánh bạn muốn đưa vào — mỗi câu chuyện đều có hình minh họa riêng.",
+  "wizard.type.coming": "Ra mắt {date}",
   "wizard.type.question": "Bạn muốn nó trông như thế nào?"
 }
