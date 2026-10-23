@@ -187,7 +187,9 @@ paper_bible/
                             #   merged into one report (see coverage/ and the Testing section)
     audit_errors           # Move error reports out of the bucket + triage them (TUI; claude
                             #   groups, shortlists and auto-fixes them for review). Syncs the
-                            #   site bucket's sourcemaps/ into errors/sourcemaps/ first
+                            #   site bucket's sourcemaps/ into errors/sourcemaps/ first.
+                            #   --headless skips the TUI and prints the issue list's path, for
+                            #   an AI session to triage with `node errors/triage.ts`
     gen_lulu_prices        # Regenerate Lulu's print prices
     gen_example_images     # Render the example designs' 3D cover pictures, per UI locale (see
                             #   "Example pictures" in Gotchas) — local only, results committed
