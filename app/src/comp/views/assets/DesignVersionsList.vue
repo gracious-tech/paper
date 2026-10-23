@@ -3,6 +3,10 @@
 
 div(v-if='!versions.length && !preparing' class='pa-4 pt-10 text-center')
     | {{$t("view.version_list.none_yet")}}
+    //- Reached via a version link whose build never got as far as creating it (e.g. the tab
+    //- was reloaded mid-build), so there's no version row and its Edit button to go back with
+    div(v-if='editable' class='mt-6')
+        v-btn(@click='open_editor' variant='flat' color='secondary') {{ $t("common.edit") }}
 
 template(v-else)
     div.summary
@@ -39,6 +43,10 @@ template(v-else)
             div(v-if='progress_text') {{ progress_text }}
             div(v-else-if='on_server') {{ $t("display.version.on_server") }}
             div(class='mt-2 text-body-small') {{ $t("display.version.typical_time") }}
+        //- A design's first build, before its version doc exists: with no version row (and so
+        //- no row Edit button) yet, this is the only way back to the editor while it prepares
+        div(v-if='preparing && !latest_version && editable' class='mt-4')
+            v-btn(@click='open_editor' variant='flat' color='secondary') {{ $t("common.edit") }}
         //- Latest version couldn't be fully generated — the whole compile failed, it was
         //- abandoned mid-compile (stuck), or the interior compiled and only its wraparound cover
         //- render failed (a cover-only retry).
@@ -108,6 +116,7 @@ template(v-else)
 <script lang='ts' setup>
 
 import {computed, ref} from 'vue'
+import {useRouter} from 'vue-router'
 import {useI18n, count_phrase} from '@/services/i18n'
 import {PassageReference} from '@gracious.tech/fetch-client'
 
@@ -127,9 +136,18 @@ import DesignVersionItem from './DesignVersionItem.vue'
 
 
 const {t} = useI18n()
+const router = useRouter()
 
 
 const props = defineProps<{design_id:string, editable:boolean}>()
+
+
+// Open the design's editor (forced open even when the design matches a rendered version) —
+// mirrors view_changes in DesignVersionItem.vue, for when there's no version row to hold it
+const open_editor = () => {
+    state.forced_editor = true
+    void router.push({name: 'design', params: {id: props.design_id}})
+}
 
 
 // The version Build it was clicked for here, while its doc is still on its way
