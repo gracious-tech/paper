@@ -2,7 +2,9 @@
 # Move the app's error reports out of the Storage bucket (deleted there once stored locally),
 # have claude group them and shortlist what to fix next, then triage — or auto-fix one with
 # claude in the background and review its diff (needs a clean tree; committing stays manual)
-# Usage: errors [gcp-project-id]  (defaults to .firebaserc's default project)
+# Usage: errors [--headless] [gcp-project-id]  (defaults to .firebaserc's default project)
+# --headless skips the TUI: it syncs, classifies and ranks, then prints the path of the issue
+# list for an AI session to triage with errors/triage.ts
 # Requires `gcloud auth login` creds; set STORAGE_EMULATOR_HOST=localhost:9199 to target the
 # local emulator instead. Triage state lives in gitignored errors/records/
 set -euo pipefail
@@ -23,4 +25,9 @@ else
     echo "(Couldn't reach the sourcemap archive, so only local sourcemaps will be used)" >&2
 fi
 
-node errors/cli.ts "$@"
+if [ "${1:-}" = "--headless" ]; then
+    shift
+    node errors/headless.ts "$@"
+else
+    node errors/cli.ts "$@"
+fi
