@@ -57,26 +57,61 @@ function item_weight(item:TypstContentItem):number {
 }
 
 
-// Keep whole paragraph blocks (split on blank lines) from the start of the markup up to
+// Net count of content brackets opened by a piece of markup. Escaped brackets (`\[`, `\]`) are
+// text, not delimiters, so the character after a backslash is skipped
+function bracket_depth(text:string):number {
+    let depth = 0
+    for (let i = 0; i < text.length; i++) {
+        const char = text[i]
+        if (char === '\\') {
+            i += 1
+        } else if (char === '[') {
+            depth += 1
+        } else if (char === ']') {
+            depth -= 1
+        }
+    }
+    return depth
+}
+
+
+// Split markup at each match of `separator` (which must be zero-width, so the pieces concatenate
+// back to the original), but only where every `[` opened before the cut has closed. Study notes
+// span blank lines (`#studynote[...\n\n]`), so a cut at any blank line could otherwise end the
+// markup inside one, failing the compile with "unclosed delimiter"
+function split_balanced(content:string, separator:RegExp):string[] {
+    const pieces:string[] = []
+    let depth = 0
+    for (const part of content.split(separator)) {
+        if (depth > 0 && pieces.length) {
+            pieces[pieces.length - 1] += part
+        } else {
+            pieces.push(part)
+        }
+        depth += bracket_depth(part)
+    }
+    return pieces
+}
+
+
+// Keep whole paragraph blocks (split after blank lines) from the start of the markup up to
 // roughly `limit` characters — always from char 0, so a book's opening layout is never
 // disturbed. A block straddling the limit is kept up to its last chapter start that fits (see
 // clip_block_chapters), so the result may run slightly past.
 function clip_markup_tail(content:string, limit:number):string {
-    const blocks = content.split('\n\n')
-    const kept:string[] = []
-    let pos = 0
-    for (const block of blocks) {
-        if (pos >= limit) {
+    let kept = ''
+    for (const block of split_balanced(content, /(?<=\n\n)/)) {
+        if (kept.length >= limit) {
             break
         }
-        if (pos + block.length > limit) {
-            kept.push(clip_block_chapters(block, limit - pos))
+        if (kept.length + block.length > limit) {
+            kept += clip_block_chapters(block, limit - kept.length)
             break
         }
-        kept.push(block)
-        pos += block.length + 2  // Account for the removed '\n\n' separator
+        kept += block
     }
-    return kept.join('\n\n')
+    // Blocks carry the blank line that followed them, which the clipped tail doesn't need
+    return kept.replace(/\n\n$/, '')
 }
 
 
@@ -86,7 +121,7 @@ function clip_markup_tail(content:string, limit:number):string {
 // one 300k-character block, which kept whole made the "~50 page" window the entire book
 function clip_block_chapters(block:string, limit:number):string {
     let kept = ''
-    for (const chapter of block.split(/(?=^#ch\(\d+\))/m)) {
+    for (const chapter of split_balanced(block, /(?=^#ch\(\d+\))/m)) {
         if (kept && kept.length + chapter.length > limit) {
             break
         }

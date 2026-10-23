@@ -71,6 +71,26 @@ describe('truncate_for_preview', () => {
         expect(result.dropped_after).toBe(true)
     })
 
+    it('never cuts inside a study note that spans a blank line', () => {
+        // Tyndale's notes end with a blank line before their closing bracket, so a cut at
+        // every blank line could end the window inside one ("unclosed delimiter")
+        // Where the budget falls depends on the lengths, so try enough of them to land a cut
+        // on either side of a note's blank line
+        for (let filler = 40; filler < 60; filler++) {
+            const verses = []
+            for (let i = 1; i <= 2000; i++) {
+                verses.push(`#vn(${i})${'x'.repeat(filler)}#studynote[#strong[1:${i}] `
+                    + `${'y'.repeat(40)}\n\n]; escaped \\[ text`)
+            }
+            const book = make_passage({bibles: [{content: verses.join('\n\n')}]})
+            const result = truncate_for_preview(make_request({content: [book]}), 'start')
+
+            const content = (result.request.content[0] as TypstPassage).bibles[0]!.content
+            expect(content).not.toContain('#vn(2000)')
+            expect(content.endsWith('escaped \\[ text')).toBe(true)
+        }
+    })
+
     it('never clips the start of a book, even for the middle section', () => {
         // A single over-budget book has nowhere to window to — middle still shows it from
         // its start (clipping the start is the one thing truncation must never do)
