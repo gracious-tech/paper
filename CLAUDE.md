@@ -53,7 +53,10 @@ Live at [paper.bible](https://paper.bible). MIT No Attribution license.
    `202` once it has accepted the job; the compile Lambda then compiles the same frozen
    blueprint with the Typst CLI and records the outcome on the version doc (see the
    async-compile gotcha). A cover that fails in the browser alone goes the same way with
-   `cover_only` (the interior is published first, its cover `pending`)
+   `cover_only` (the interior is published first, its cover `pending`). A tab that dies
+   mid-compile throws nothing to fall back from (iOS reloads a page that runs out of memory),
+   so opening a design hands the user's pending versions the server hasn't started to it
+   (`resume_abandoned_versions()`), and a stuck version's Retry always goes to the server
 6. PDFs live in Storage for 1 year (GCS lifecycle rule); *only the PDFs expire* — the
    metadata and the design's frozen `version_assets/` snapshots stay, so the PDF can be
    regenerated (same hybrid path) afterwards

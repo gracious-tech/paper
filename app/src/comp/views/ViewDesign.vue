@@ -39,6 +39,7 @@ import {designs, designs_loaded, current_design_id, open_design, design_wizard}
     from '@/services/designs'
 import {start_versions_sync, selected_version_id, latest_version, design_needs_editor,
     fetch_latest_version_id, copy_version_to_new_design} from '@/services/versions'
+import {resume_abandoned_versions} from '@/services/version_compile'
 
 
 const route = useRoute()
@@ -74,7 +75,8 @@ watch(id, async new_id => {
                 return  // Stale
             }
         }
-        start_versions_sync(new_id)
+        // Any of the user's versions left mid-compile by a tab that died go to the server
+        start_versions_sync(new_id, resume_abandoned_versions)
         ready.value = true
     } else if (version_param.value){
         // Not an editor of this design — a public version link, show the read-only landing

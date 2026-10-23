@@ -32,7 +32,8 @@ import {plan_version_cover, render_cover_pdf} from '@/services/cover'
 import {plan_version_images} from '@/services/content_images'
 import {read_wizard_state} from '@/services/new_design'
 import {generate_token} from '@/services/utils'
-import {version_missing_bibles} from '@/services/versions'
+import {version_missing_bibles, version_retryable, compiling_on_server}
+    from '@/services/versions'
 import {page_count_guess, DEFAULT_PAGE_GUESS, alert_dialog} from '@/services/state'
 import {translate} from '@/services/i18n'
 import {report_error, error_to_string} from '@/services/errors'
@@ -651,5 +652,57 @@ export async function retry_version(version:Version):Promise<void>{
         await request_server_compile(version.id, recompile_page_estimate(version))
     } catch (error){
         await record_server_unreachable(doc_ref, version.design_id, version.save_token, error)
+    }
+}
+
+
+// Versions resume_abandoned_versions has already looked at during this page load, so each is
+// handed over at most once however often its design is reopened
+const resume_considered = new Set<string>()
+
+
+export function resume_abandoned_versions(loaded:Version[]):void{
+    // Hand the server any of the user's versions that were pending without a server compile when
+    // their design was opened (`loaded` is the versions list's first snapshot). Their browser
+    // compile has most likely died: iOS kills and reloads a page that runs out of memory with no
+    // error to catch, and reloading or closing the tab mid-compile ends it too. The doc can't
+    // tell a dead compile from one still running in another tab or device, so that case gets
+    // compiled on the server as well — harmless, as whichever finishes second either overwrites
+    // the same PDF (server) or has its upload refused (browser, see version_settled)
+    for (const version of loaded){
+        if (resume_considered.has(version.id)){
+            continue
+        }
+        resume_considered.add(version.id)
+        // Only the user's own (the server compiles for the owner alone), never one this tab is
+        // building or built, and never one the server already took over. A withdrawn translation
+        // is left for the version's own retry to explain
+        if (version.status !== 'pending' || !version_retryable(version)
+                || version.id in version_progress || version.id in build_requests
+                || compiling_on_server(version) || version_missing_bibles(version).length){
+            continue
+        }
+        void resume_on_server(version)
+    }
+}
+
+
+async function resume_on_server(version:Version):Promise<void>{
+    // Ask the server once to compile an abandoned version (see resume_abandoned_versions). Any
+    // refusal leaves the version as it was, where it's offered a retry at STUCK_MS as before
+    try {
+        // A new attempt, so it isn't read as stuck while the server's job waits to start
+        await updateDoc(doc(firestore, 'versions', version.id),
+            {compile_started: serverTimestamp()})
+        await api('/api/compile',
+            {version_id: version.id, page_count: recompile_page_estimate(version)})
+    } catch (error){
+        // Already published, or already compiling on the server, means nothing was abandoned
+        const expected = error instanceof ApiError
+            && (error.code === 'not_pending' || error.code === 'compile_in_progress')
+        if (!expected){
+            report_error('silent', error,
+                {context: {version_id: version.id, stage: 'compile_resume'}})
+        }
     }
 }

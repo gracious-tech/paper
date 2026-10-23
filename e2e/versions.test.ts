@@ -161,3 +161,47 @@ test('printing guidance for a home-printed booklet', async ({page}) => {
     // Booklets are printed double-sided and folded, so that's what the walkthrough is about
     await expect(dialog).toContainText(/fold/i)
 })
+
+
+test('opening a design hands its abandoned compiles to the server', async ({page}) => {
+    // A browser compile that died with its tab (iOS reloads a page that runs out of memory)
+    // leaves its version pending with nothing driving it, so opening the design asks the server
+    const uid = await boot(page)
+    const {design_id} = await seed_versions(uid)
+    const minute_ago = Timestamp.fromMillis(Date.now() - 60 * 1000)
+    const pending = (owner:string, overrides:Record<string, unknown> = {}) => {
+        return {status: 'pending', pages: null, pdf_expires: null, compile_started: minute_ago,
+            ...overrides}
+    }
+    const abandoned = new_id()
+    const on_server = new_id()
+    const not_mine = new_id()
+    await admin_db.doc(`versions/${abandoned}`).set(
+        version_doc(design_id, abandoned, uid, pending(uid)))
+    // The server already took this one over, and a co-editor's isn't ours to compile
+    await admin_db.doc(`versions/${on_server}`).set(version_doc(design_id, on_server, uid,
+        pending(uid, {server_started: Timestamp.now()})))
+    await admin_db.doc(`versions/${not_mine}`).set(
+        version_doc(design_id, not_mine, 'a_co_editor', pending('a_co_editor')))
+
+    // Accept every compile without running one (no journey compiles on the server)
+    const requested:string[] = []
+    await page.route('**/api/compile', async route => {
+        requested.push((route.request().postDataJSON() as {version_id:string}).version_id)
+        await route.fulfill({status: 202, contentType: 'application/json', body: '{}'})
+    })
+
+    await page.goto(`/designs/${design_id}`)
+    await expect.poll(() => requested, {timeout: 60_000}).toEqual([abandoned])
+    // Timed as a new attempt, so it isn't read as stuck while the server's job waits to start
+    const data = (await admin_db.doc(`versions/${abandoned}`).get()).data()!
+    expect((data['compile_started'] as Timestamp).toMillis()).toBeGreaterThan(minute_ago.toMillis())
+
+    // Only once per page load, however often the design is reopened (in-app, via the navbar)
+    await page.locator('.navbar .tab_btn').first().click()
+    await expect(page).toHaveURL(/\/designs$/)
+    await page.locator('.navbar .design_btn').filter({hasText: 'A shared document'}).click()
+    await expect(page).toHaveURL(new RegExp(`/designs/${design_id}`))
+    await page.waitForTimeout(2000)
+    expect(requested).toEqual([abandoned])
+})

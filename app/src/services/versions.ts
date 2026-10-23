@@ -248,12 +248,14 @@ export function stop_versions_sync():void{
 }
 
 
-export function start_versions_sync(design_id:string):void{
+export function start_versions_sync(design_id:string,
+        on_loaded:(loaded:Version[]) => void = () => undefined):void{
     // Keep the reactive `versions` list mirrored from Firestore, scoped to one design (most
     // recent first) — re-subscribes (tearing down the previous listener) as the open design
-    // changes
+    // changes. on_loaded gets the list as it was when the design was opened (the first snapshot)
     unsub_list?.()
     versions.splice(0, versions.length)
+    let first = true
     unsub_list = onSnapshot(
         query(collection(firestore, 'versions'),
             where('design_id', '==', design_id), orderBy('created', 'desc')),
@@ -261,6 +263,10 @@ export function start_versions_sync(design_id:string):void{
             versions.splice(0, versions.length, ...snap.docs.map(item => {
                 return version_from_doc(item.id, item.data({serverTimestamps: 'estimate'}))
             }))
+            if (first){
+                first = false
+                on_loaded([...versions])
+            }
         },
         error => {
             // Silent, as a stale list costs nothing until the next load
