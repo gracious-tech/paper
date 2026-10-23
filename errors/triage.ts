@@ -16,6 +16,7 @@ const USAGE = [
     '  node errors/triage.ts set <id> new|ignored',
     '  node errors/triage.ts set <id> fixed|diagnosing <commit>',
     '  node errors/triage.ts note <id> <text>',
+    '  node errors/triage.ts clear <id>',
 ].join('\n')
 
 
@@ -66,6 +67,12 @@ if (command === 'show'){
     const note = rest.join(' ').trim()
     update_triage(id, {note})
     console.log(`${id}: note ${note ? 'set' : 'cleared'}`)
+
+} else if (command === 'clear'){
+    // File every report so far as history, keeping the issue's status: only a recurrence
+    // brings it back
+    update_triage(id, {cleared: new Date().toISOString()})
+    console.log(`${id}: ${issue.active.length} report(s) cleared`)
 
 } else {
     fail(`Unknown command ${command}`)

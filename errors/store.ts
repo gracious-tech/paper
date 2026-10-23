@@ -53,6 +53,7 @@ export interface IssueTriage {
     commit?:string  // Full hash, for 'fixed'/'diagnosing'
     resolved?:string  // ISO date the commit was recorded
     resolution?:string  // What the fix did, when made by the automatic fixer
+    cleared?:string  // ISO time before which reports are history: only later ones need attention
 }
 
 // An issue assembled with its records for display in the TUI
@@ -64,8 +65,10 @@ export interface IssueView {
     fingerprints:string[]
     records:ErrorRecord[]  // All of them, newest first
     // The records still needing attention: all of them for an open issue, only those from
-    // builds that include the commit for a fixed/diagnosing one, none for an ignored one
+    // builds that include the commit for a fixed/diagnosing one, none for an ignored one — and
+    // of those, only the ones reported after it was cleared
     active:ErrorRecord[]
+    cleared:string|null
     ips:number  // Distinct reporting IPs among active records (all records when none are)
     latest:string
     critical:boolean
@@ -226,9 +229,10 @@ export function is_returned(issue:IssueView):boolean{
 
 export function needs_attention(issue:IssueView):boolean{
     // Whether an issue belongs in the default list view (and the ranking): open, and reported
-    // within QUIET_MS — one that has stopped recurring isn't worth a decision yet
+    // within QUIET_MS — one that has stopped recurring isn't worth a decision yet — and not
+    // cleared since its last report
     const recent = Date.now() - new Date(issue.latest).getTime() < QUIET_MS
-    return recent && (issue.status === 'new' || is_returned(issue))
+    return recent && issue.active.length > 0 && (issue.status === 'new' || is_returned(issue))
 }
 
 
@@ -252,6 +256,11 @@ function make_view(id:string, issue:Issue, records:ErrorRecord[], entry:IssueTri
     } else if (commit && (status === 'fixed' || status === 'diagnosing')){
         active = records.filter(record => includes(record.build, commit))
     }
+    // Reports from before the issue was cleared are history, whatever its status
+    const cleared = entry?.cleared ?? null
+    if (cleared){
+        active = active.filter(record => record.timestamp > cleared)
+    }
     const counted = active.length ? active : records
     return {
         id,
@@ -262,6 +271,7 @@ function make_view(id:string, issue:Issue, records:ErrorRecord[], entry:IssueTri
         latest: counted[0]!.timestamp,
         critical: counted.some(record => record.severity === 'critical'),
         status,
+        cleared,
         note: entry?.note ?? '',
         commit,
         resolution: entry?.resolution ?? '',
@@ -361,6 +371,10 @@ export function issue_prompt(issue:IssueView):string{
             : `\nDiagnostics were added for this in commit ${issue.commit}${what}. The reports`
                 + ' below come from builds that include them, so use the extra detail they carry.')
     }
+    if (issue.cleared && issue.active.length){
+        lines.push(`\nEarlier reports were cleared as history on ${issue.cleared.slice(0, 10)},`
+            + ' so the reports below are recurrences since then.')
+    }
 
     const reports = issue.active.length ? issue.active : issue.records
     lines.push(`\nOccurrences: ${reports.length} from ${issue.ips} IP(s)`
@@ -397,6 +411,8 @@ export function list_prompt(issues:IssueView[], priorities:Priorities|null):stri
         '- `node errors/triage.ts set <id> fixed|diagnosing <commit>` pins an issue to the',
         '  commit that fixed it or added diagnostics to it',
         '- `node errors/triage.ts note <id> <text>` replaces its triage note',
+        '- `node errors/triage.ts clear <id>` files its reports so far as history, so it only',
+        '  needs attention again if it recurs',
         'Only change triage when the developer has agreed to that change.',
         '',
         `Issues marked [cover widget] are not this repo's: ${WIDGET_NOTICE}. They can't be`,
