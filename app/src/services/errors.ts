@@ -35,8 +35,9 @@ const ignore_errors = [
 // Crawler user agents, whose failures are never actionable (e.g. Googlebot's renderer doesn't
 // complete the anonymous sign-in request, so boot fails every time it indexes a page). Matched on
 // a versioned `bot/` token (Googlebot/2.1, bingbot/2.0, AhrefsBot/7.0...) or the `+http` info
-// link most crawlers carry — not a bare "bot", which also matches phone brands like Cubot
-const crawler_ua = /bot\/|crawler|spider|\+https?:\/\//i
+// link most crawlers carry — not a bare "bot", which also matches phone brands like Cubot.
+// Lighthouse (PageSpeed Insights' auditor) isn't a crawler, but has no person behind it either
+const crawler_ua = /bot\/|crawler|spider|lighthouse|\+https?:\/\//i
 
 
 // STATE
@@ -346,6 +347,12 @@ addEventListener('error', (event:ErrorEvent):void => {
     // Ignore "Script error.", which is all a browser reveals of an error thrown by a cross-origin
     // script. The app's own scripts are all same-origin, so these come from injected ones
     if (!event.error && event.message === 'Script error.'){
+        return
+    }
+
+    // Ignore errors from inline script, whose source is the page itself. The app has none and
+    // the CSP forbids them, so these are scripts a browser injects past it (Brave's wallet shim)
+    if (event.filename && event.filename.split('#')[0] === location.href.split('#')[0]){
         return
     }
 
