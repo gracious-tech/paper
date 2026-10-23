@@ -81,6 +81,13 @@ describe('cut_at_verses', () => {
         expect(chunks[1]).toBe('== A Section\n#vn(2)Two.')
     })
 
+    it('carries the headings\' reference ranges along with them', () => {
+        const text = '#vn(1)One.\n\n= Major\n#mr[(Chapters 2-3)]\n== A Section\n#sr[2:1-8]\n#vn(2)Two.'
+        const chunks = cut_at_verses(text, [1, 2])
+        expect(chunks[0]).toBe('#vn(1)One.\n\n')
+        expect(chunks[1]).toBe('= Major\n#mr[(Chapters 2-3)]\n== A Section\n#sr[2:1-8]\n#vn(2)Two.')
+    })
+
     it('gives trailing prose to a missing boundary past the last verse, not the row before', () => {
         const text = '#vn(13)Thirteen. #vn(14)Fourteen.\n\nPeace to you.\n\nA closing line.\n\n'
         const chunks = cut_at_verses(text, [13, 15])

@@ -74,14 +74,15 @@ function end_of_last_verse_block(text:string):number {
 
 
 // Pull a cut position back over any heading line(s) (`==`, `===`, …) that directly precede it,
-// so a section heading travels into the row of the verses it introduces rather than being
-// stranded at the foot of the previous row. Both sides cut this way — the primary translation
-// when chunking by verse, the second when its breaks are forced to match.
+// along with the reference range line (#mr/#sr) beneath one, so a section heading travels into
+// the row of the verses it introduces rather than being stranded at the foot of the previous row.
+// Both sides cut this way — the primary translation when chunking by verse, the second when its
+// breaks are forced to match.
 function widen_cut_over_headings(text:string, pos:number):number {
     let cut = pos
     while (cut > 0 && text[cut - 1] === '\n') {
         const line_start = text.lastIndexOf('\n', cut - 2) + 1
-        if (!/^\s*={1,6}\s+\S/.test(text.slice(line_start, cut - 1))) {
+        if (!/^\s*(={1,6}\s+\S|#[ms]r\[)/.test(text.slice(line_start, cut - 1))) {
             break
         }
         cut = line_start

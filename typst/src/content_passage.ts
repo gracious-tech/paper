@@ -383,8 +383,8 @@ const HEADING_FIRST = /^\s*(#ch(?:_quiet)?\(\d+\)\s*)?={1,6}\s/
 // line_height) — heading margins scale with it, see HEADING_MARGIN_LINES.
 function gen_heading_rules(passage:TypstPassage, font_size:string, line_height:number):string {
     // User-configurable subheading styling — bold/italic apply to all levels, while size is a
-    // multiplier relative to the body text (1 = same as text). Level 2 (== Section: s, s1-4, sr)
-    // is the reference size, level 1 (= Title: ms, mr) renders slightly larger and level 3
+    // multiplier relative to the body text (1 = same as text). Level 2 (== Section: s, s1-4)
+    // is the reference size, level 1 (= Title: ms) renders slightly larger and level 3
     // (=== Minor: sp, qa, superscriptions) slightly smaller.
     const weight = passage.headings_bold ? '"bold"' : '"regular"'
     const style = passage.headings_italic ? '"italic"' : '"normal"'
@@ -436,7 +436,10 @@ function gen_heading_rules(passage:TypstPassage, font_size:string, line_height:n
     // sticky, but this full show-rule replacement would otherwise drop that, letting a heading
     // be stranded at the foot of a page/column with its passage text starting overleaf. It
     // binds to the following text block in the flow (the trailing `v()` gap doesn't break it).
-    const lead = (before:number, mult:number) => `it => context {
+    //
+    // Major headings (level 1) are centred; the rest stay at the start of the line. Centring
+    // needs the full width, since a block of inline content otherwise shrinks to fit it.
+    const lead = (before:number, mult:number, centre:boolean) => `it => context {
     let open = state("ch-float-open", false).get()
     state("ch-float-open", false).update(false)
     let cell_top = state("bilingual-cell-top", false).get()
@@ -445,19 +448,37 @@ function gen_heading_rules(passage:TypstPassage, font_size:string, line_height:n
     state("heading-tight", false).update(false)
     let flatten = cell_top or (tight and not open)
     if not open and not cell_top and not tight { v(${gap(before)}) }
-    block(above: 0pt, sticky: true, {
+    block(above: 0pt, sticky: true${centre ? ', width: 100%' : ''}, {
         set par(justify: false)
         set text(hyphenate: false)
-        set text(top-edge: 0pt) if flatten
+        set text(top-edge: 0pt) if flatten${centre ? '\n        set align(center)' : ''}
         text(weight: ${weight}, style: ${style}, size: ${size(mult)}, it.body)
     })`
     // The `v()` before (via lead()) and after each heading are its top and bottom margins —
     // enough space that a subheading reads as a clear break from the preceding text and as
     // attached to (not crammed against) the text it introduces
     const m = HEADING_MARGIN_LINES
-    const rule = (level:number, margins:{before:number, after:number}, mult:number) =>
-        `#show heading.where(level: ${level}): ${lead(margins.before, mult)}
+    const rule = (level:number, margins:{before:number, after:number}, mult:number,
+            centre = false) =>
+        `#show heading.where(level: ${level}): ${lead(margins.before, mult, centre)}
     v(${gap(margins.after)})
+}`
+
+    // The reference range fetch.bible emits on the line after a heading — #mr (USFM \mr) under a
+    // major heading, #sr (\sr) under a section heading — reads as that heading's subtitle: italic
+    // at body size and aligned like it. It takes back the heading's gap below, so only the heading
+    // element's own `below` (Typst's default 0.54em) separates the two, then repeats the heading's
+    // gap and `below` beneath itself, so the text that follows sits as far from the pair as it
+    // would from the heading alone. Sticky like the heading, so neither is stranded at the foot of
+    // a page/column apart from the text it introduces
+    const range = (name:string, level:1|2, centre:boolean) => `#let ${name}(c, ..rest) = {
+    v(-${gap(m[level].after)})
+    block(above: 0pt, below: 0.54em, width: 100%, sticky: true, {
+        set par(justify: false)
+        set text(hyphenate: false)${centre ? '\n        set align(center)' : ''}
+        emph(c)
+    })
+    v(${gap(m[level].after)})
 }`
 
     // Reset the base size for every heading, then style the 'heading' chapter style's own level
@@ -467,15 +488,18 @@ function gen_heading_rules(passage:TypstPassage, font_size:string, line_height:n
     const rules = [`#show heading: set text(size: ${font_size})`]
     rules.push(rule(CHAPTER_HEADING_LEVEL, m[1], 1.2))
 
-    // With section headings off, hide only the levels the fetched content itself uses
+    // With section headings off, hide only the levels the fetched content itself uses, and the
+    // reference ranges that belong to them
     if (!passage.show_headings) {
         for (const level of SECTION_HEADING_LEVELS) {
             rules.push(`#show heading.where(level: ${level}): none`)
         }
+        rules.push('#let mr(..rest) = none', '#let sr(..rest) = none')
         return rules.join('\n')
     }
 
-    rules.push(rule(1, m[1], 1.2), rule(2, m[2], 1), rule(3, m[3], 0.9))
+    rules.push(rule(1, m[1], 1.2, true), rule(2, m[2], 1), rule(3, m[3], 0.9))
+    rules.push(range('mr', 1, true), range('sr', 2, false))
     return rules.join('\n')
 }
 

@@ -76,6 +76,32 @@ describe('gen_passage', () => {
             expect(level2_match).not.toBeNull()
         })
 
+        it('centres major headings only', () => {
+            const result = call(make_passage({show_headings: true}))
+            const level1 = result.match(/#show heading\.where\(level: 1\)[\s\S]*?\n}/)?.[0]
+            const level2 = result.match(/#show heading\.where\(level: 2\)[\s\S]*?\n}/)?.[0]
+            expect(level1).toContain('set align(center)')
+            expect(level2).not.toContain('align')
+        })
+
+        it('defines the reference ranges under headings, aligned like their heading', () => {
+            // fetch.bible emits #mr/#sr on the line after a heading; leaving either undefined
+            // fails the whole compile
+            const result = call(make_passage({show_headings: true}))
+            const mr = result.match(/#let mr\(c, \.\.rest\) = \{[\s\S]*?\n}/)?.[0]
+            const sr = result.match(/#let sr\(c, \.\.rest\) = \{[\s\S]*?\n}/)?.[0]
+            expect(mr).toContain('emph(c)')
+            expect(mr).toContain('set align(center)')
+            expect(sr).toContain('emph(c)')
+            expect(sr).not.toContain('align')
+        })
+
+        it('hides the reference ranges along with the headings', () => {
+            const result = call(make_passage({show_headings: false}))
+            expect(result).toContain('#let mr(..rest) = none')
+            expect(result).toContain('#let sr(..rest) = none')
+        })
+
         it('drops heading leading space at a float chapter, cell top, or tight flag', () => {
             // A heading immediately after a 'float' #ch, first in a side-by-side grid cell, or
             // flagged as tight (opening the passage / following a chapter divider) reads the
