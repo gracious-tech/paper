@@ -87,6 +87,9 @@ h2
     font-size: 14px
 
 .video
+    // Never shrink with the column: older Safari (iOS 15/16) lets a flex item squash below its
+    // aspect-ratio height when the splash overflows the screen, distorting the video
+    flex: 0 0 auto
     width: 100%
     max-width: 1000px
     aspect-ratio: 16 / 9
