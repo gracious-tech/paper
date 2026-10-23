@@ -26,7 +26,7 @@ test('there is no preview pane', async ({page}) => {
 })
 
 
-test('building from the simple editor, then downloading', async ({page}) => {
+test('building from the simple editor, then opening the PDF', async ({page}) => {
     // A real compile, like compile.test.ts's, so it gets that suite's budget
     test.setTimeout(5 * 60 * 1000)
     const uid = await boot(page)
@@ -40,11 +40,17 @@ test('building from the simple editor, then downloading', async ({page}) => {
     expect(version.data['status']).toBe('available')
     expect(version.data['pages']).toBeGreaterThanOrEqual(1)
 
-    // The downloads the desktop shows in the preview toolbar are in the versions list instead
+    // The PDFs the desktop shows in the preview toolbar are in the versions list instead, and
+    // open in a new tab since there's no preview pane to view them in
     await expect(page).toHaveURL(new RegExp(`/designs/${design_id}/${version.id}$`))
-    const downloading = page.waitForEvent('download')
-    await click_button(page.locator('.mobile_actions'), 'Download interior')
-    expect((await downloading).suggestedFilename()).toMatch(/\.pdf$/)
+    // (headless Chromium has no PDF viewer, so the tab's navigation aborts into a download —
+    // the navigation request itself is what shows the tab was pointed at the PDF)
+    const opening = page.context().waitForEvent('page')
+    const navigating = page.context().waitForEvent('request',
+        request => request.isNavigationRequest() && request.url().includes('doc.pdf'))
+    await click_button(page.locator('.mobile_actions'), 'Open interior')
+    const tab = await opening
+    expect((await navigating).frame().page()).toBe(tab)
 })
 
 
