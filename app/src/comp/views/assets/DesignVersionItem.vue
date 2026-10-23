@@ -274,8 +274,8 @@ const regen = async () => {
 }
 
 const retry = async () => {
-    // Re-drive a version stuck in 'pending' (its original compile never finished) back through
-    // the pipeline — see version_stuck / retry_version
+    // Hand a version stuck in 'pending' (its original compile never finished) to the server
+    // compile — see version_stuck / retry_version
     try {
         await retry_version(props.version)
     } catch (error){

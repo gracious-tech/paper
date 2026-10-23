@@ -269,7 +269,7 @@ const regen = () => {
 const retrying = ref(false)
 
 
-// Re-drive a stuck pending version through the compile pipeline (see version_stuck / retry_version)
+// Hand a stuck pending version to the server compile (see version_stuck / retry_version)
 const retry = async () => {
     if (!selected_version.value){
         return

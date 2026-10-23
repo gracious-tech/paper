@@ -286,7 +286,7 @@ const retry_compile = async () => {
 }
 
 
-// Re-drive the stuck latest version through the compile pipeline (see version_stuck)
+// Hand the stuck latest version to the server compile (see version_stuck / retry_version)
 const retry_stuck = async () => {
     if (!latest_version.value){
         return

@@ -315,6 +315,29 @@ async function version_settled(doc_ref:DocumentReference):Promise<boolean>{
 }
 
 
+async function record_server_unreachable(doc_ref:DocumentReference, design_id:string,
+        save_token:string, error:unknown):Promise<void>{
+    // Mark a version failed when the server compile couldn't be reached at all (the server
+    // records its own failures)
+    // Nothing is left to fail if the version was deleted or published meanwhile, and its
+    // status mustn't be clobbered by a loser of the race (see version_settled)
+    if (await version_settled(doc_ref)){
+        return
+    }
+    // Record the report's id on the doc so the failed view can offer a support link containing it
+    const error_id = report_error('silent', error, {force: true, critical: true,
+        context: {version_id: doc_ref.id, stage: 'compile_fallback'}})
+    // Can't record the failure — the version stays pending until it reads as stuck, which
+    // offers the user a retry anyway (see version_stuck)
+    await updateDoc(doc_ref, {status: 'failed', error: error_to_string(error), error_id})
+        .catch((update_error:unknown) => {
+            report_error('silent', update_error,
+                {context: {version_id: doc_ref.id, stage: 'compile_fallback_status'}})
+        })
+    await update_latest_summary(design_id, save_token, {'latest_version.status': 'failed'})
+}
+
+
 export async function compile_and_upload(job:VersionCompileJob):Promise<void>{
     // Compile a version's PDF in-browser and upload it, updating the doc's status. If the
     // in-browser compile fails (e.g. device lacks memory for large docs) fall back to compiling
@@ -430,24 +453,7 @@ export async function compile_and_upload(job:VersionCompileJob):Promise<void>{
             await request_server_compile(id, page_estimate)
         }
     } catch (error){
-        // Nothing is left to fail if the version was deleted or published meanwhile, and its
-        // status mustn't be clobbered by a loser of the race (see version_settled)
-        if (await version_settled(doc_ref)){
-            return
-        }
-        // Even the server fallback failed (it records its own failures — this catch covers
-        // not being able to reach it at all). Record the report's id on the doc so the failed
-        // view can offer a support link containing it
-        const error_id = report_error('silent', error,
-            {force: true, critical: true, context: {version_id: id, stage: 'compile_fallback'}})
-        // Can't record the failure — the version stays pending until it reads as stuck, which
-        // offers the user a retry anyway (see version_stuck)
-        await updateDoc(doc_ref, {status: 'failed', error: error_to_string(error), error_id})
-            .catch((update_error:unknown) => {
-                report_error('silent', update_error,
-                    {context: {version_id: id, stage: 'compile_fallback_status'}})
-            })
-        await update_latest_summary(design_id, save_token, {'latest_version.status': 'failed'})
+        await record_server_unreachable(doc_ref, design_id, save_token, error)
     } finally {
         // No more in-browser progress to show once this attempt is over, whether it succeeded,
         // was handed off to the server, or failed outright
@@ -458,20 +464,25 @@ export async function compile_and_upload(job:VersionCompileJob):Promise<void>{
 
 
 
-function recompile_job(version:Version, fonts:CustomFont[]):VersionCompileJob {
-    // Describe a recompile of an existing version from its frozen blueprint and font snapshot.
-    // A version that compiled before knows its real page count; one that never did can only
-    // borrow the preview's estimate, and only when the design open now is its own (the estimate
-    // belongs to whichever design was last previewed)
+function recompile_page_estimate(version:Version):number{
+    // The page count to size a recompile's preliminaries by. A version that compiled before knows
+    // its real page count; one that never did can only borrow the preview's estimate, and only
+    // when the design open now is its own (the estimate belongs to whichever design was last
+    // previewed)
     const own_design_open = current_design_id.value === version.design_id
+    return version.pages ?? (own_design_open ? page_count_guess() : DEFAULT_PAGE_GUESS)
+}
+
+
+function recompile_job(version:Version, fonts:CustomFont[]):VersionCompileJob {
+    // Describe a recompile of an existing version from its frozen blueprint and font snapshot
     return {
         id: version.id,
         design_id: version.design_id,
         blueprint: version.blueprint,
         save_token: version.save_token,
         fonts,
-        page_estimate: version.pages
-            ?? (own_design_open ? page_count_guess() : DEFAULT_PAGE_GUESS),
+        page_estimate: recompile_page_estimate(version),
         title: version.title,
     }
 }
@@ -607,16 +618,19 @@ async function adopt_pending_pdf(version:Version):Promise<boolean>{
 
 
 export async function retry_version(version:Version):Promise<void>{
-    // Re-drive a version that's been stuck in 'pending' past STUCK_MS back through the compile
-    // pipeline (see version_stuck). Unlike regenerate_version this deliberately accepts a pending
-    // version — it's the recovery path for one whose original compile never finished (tab
-    // reload/close/crash, killed server instance). Never one this tab is still compiling
+    // Hand a version that's been stuck in 'pending' past STUCK_MS to the server compile (see
+    // version_stuck). Unlike regenerate_version this deliberately accepts a pending version —
+    // it's the recovery path for one whose original compile never finished (tab reload/close/
+    // crash, killed server instance). Never one this tab is still compiling.
+    // Always the server, never this browser: the likeliest reason a compile's driver vanished is
+    // the browser itself running out of memory, which on iOS kills and reloads the page with no
+    // error to catch, so retrying here would just crash the same way again
     if (version.status !== 'pending' || version.id in version_progress){
         return
     }
     // The PDF may already be sitting in Storage (upload landed but the status write didn't) —
     // adopt it instead of recompiling (which may render + upload a missing cover in this tab, so
-    // leaving is warned about meanwhile — compile_and_upload holds the page on its own below)
+    // leaving is warned about meanwhile)
     const release_page = hold_page()
     try {
         if (await adopt_pending_pdf(version)){
@@ -628,9 +642,14 @@ export async function retry_version(version:Version):Promise<void>{
     if (await refuse_missing_bibles(version)){
         return
     }
-    const fonts = await load_version_fonts(version)
-    // A new attempt, timed from its own start rather than the original build's click
+    // A new attempt, timed from its own start rather than the original build's click, so it
+    // isn't read as stuck again while the server's job waits to start
     delete build_requests[version.id]
-    await updateDoc(doc(firestore, 'versions', version.id), {error: null})
-    await compile_and_upload(recompile_job(version, fonts))
+    const doc_ref = doc(firestore, 'versions', version.id)
+    await updateDoc(doc_ref, {error: null, compile_started: serverTimestamp()})
+    try {
+        await request_server_compile(version.id, recompile_page_estimate(version))
+    } catch (error){
+        await record_server_unreachable(doc_ref, version.design_id, version.save_token, error)
+    }
 }
