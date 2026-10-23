@@ -168,7 +168,7 @@ export function get_default_draft():NewDesignDraft{
 // type is a starting point the user can still edit field by field afterwards. The bilingual
 // preset just turns footnotes off — a second translation is optional and is what actually
 // enables the side-by-side layout. `image` names the type's picture (see type_preset_image());
-// picture_story has no artwork yet
+// picture_story's is an illustration with no text, so it has no per-locale renders
 export const TYPE_PRESETS:{id:NewDesignType, image:string|null, diff:Partial<Blueprint>}[] = [
     {id: 'regular', image: 'standard', diff: {}},
     {id: 'reading', image: 'reading', diff: {
@@ -195,7 +195,7 @@ export const TYPE_PRESETS:{id:NewDesignType, image:string|null, diff:Partial<Blu
         show_headings: false,  // Often don't align/match
         show_footnotes: false,  // Only one would get them anyway
     }},
-    {id: 'picture_story', image: null, diff: {
+    {id: 'picture_story', image: 'picture_story', diff: {
         hyphenate: false,
         line_height: 2,
         passage_title: 'titlepage',
