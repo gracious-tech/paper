@@ -18,7 +18,7 @@
         "test": "vitest run"
     },
     "dependencies": {
-        "@gracious.tech/fetch-client": "^2.5.0",
+        "@gracious.tech/fetch-client": "^2.5.1",
         "bookcover-core": "^0.22.2",
         "pdf-lib": "^1.17.1",
         "pm-to-typst": "^0.1.2",
