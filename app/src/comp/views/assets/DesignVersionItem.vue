@@ -19,8 +19,10 @@ v-list-item(:active='!is_mobile && version.id === selected_version_id' color='pr
             | {{ design_needs_editor ? $t("view.design.unapplied_changes") : $t("common.edit") }}
     template(#append)
         div.status
-            v-progress-circular(v-if='version.status === "pending" && !stuck' indeterminate
-                size='32' color='secondary')
+            //- Also while the server finishes a cover the browser couldn't render: the interior
+            //- is already available then, but the version isn't done yet
+            v-progress-circular(v-if='(version.status === "pending" && !stuck) || cover_pending'
+                indeterminate size='32' color='secondary')
             //- A pending compile that almost certainly never finished (see version_stuck):
             //- clicking opens the "taking longer than expected" message + "Retry" in a dialog.
             v-btn(v-else-if='stuck' icon variant='text' size='small' color='error'
@@ -92,8 +94,8 @@ import {state, show_toast, confirm_dialog, alert_dialog, run_with_retry, report_
     from '@/services/state'
 import {binding_page_issue} from '@/services/binding_advice'
 import {create_design_from_version, restore_version_into_design} from '@/services/designs'
-import {open_version_pdf, delete_version,
-    cover_failed as version_cover_failed, version_expired, use_pending_clock, share_version,
+import {open_version_pdf, delete_version, cover_failed as version_cover_failed,
+    cover_pending as version_cover_pending, version_expired, use_pending_clock, share_version,
     selected_version_id, design_needs_editor, version_contact_url, version_retryable}
     from '@/services/versions'
 import {regenerate_version, regenerate_cover, retry_version}
@@ -198,6 +200,10 @@ const show_compile_error = async () => {
 // Whether this version's interior is available but its wraparound cover render failed — the
 // interior stays viewable/downloadable, the cover doesn't (and gets a cover-only retry)
 const cover_failed = computed(() => version_cover_failed(props.version))
+
+
+// Whether this version's interior is available while the server still renders its cover
+const cover_pending = computed(() => version_cover_pending(props.version))
 
 
 // Show the cover-failure message in a dialog with "Try again" (mirrors the alert bar the latest

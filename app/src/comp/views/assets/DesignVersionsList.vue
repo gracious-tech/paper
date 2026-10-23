@@ -43,10 +43,6 @@ template(v-else)
             div(v-if='progress_text') {{ progress_text }}
             div(v-else-if='on_server') {{ $t("display.version.on_server") }}
             div(class='mt-2 text-body-small') {{ $t("display.version.typical_time") }}
-        //- A design's first build, before its version doc exists: with no version row (and so
-        //- no row Edit button) yet, this is the only way back to the editor while it prepares
-        div(v-if='preparing && !latest_version && editable' class='mt-4')
-            v-btn(@click='open_editor' variant='flat' color='secondary') {{ $t("common.edit") }}
         //- Latest version couldn't be fully generated — the whole compile failed, it was
         //- abandoned mid-compile (stuck), or the interior compiled and only its wraparound cover
         //- render failed (a cover-only retry).
@@ -99,15 +95,31 @@ template(v-else)
             | {{ $t("display.version.how_to_print") }}
 
     v-list(bg-color='transparent' class='version_list flex-grow-1')
-        DesignVersionItem(v-if='latest_version' :version='latest_version' :design_id='design_id'
-            :is_latest='true' :editable='editable' class='latest_version')
+        //- A build clicked here whose version doc hasn't arrived yet is the newest, so it holds
+        //- the latest row (and its Edit button, the way back to the editor meanwhile) while the
+        //- progress card above times it, and the previous latest moves down among the older ones
+        v-list-item.latest_version(v-if='preparing')
+            div.title_row
+                div
+                    v-list-item-title
+                        strong {{ $t("view.version.latest") }}
+                    v-list-item-subtitle {{ preparing_relative }}
+                v-btn(v-if='editable' @click.stop='open_editor' variant='flat' size='small'
+                    color='secondary') {{ $t("common.edit") }}
+            template(#append)
+                div.status
+                    v-progress-circular(indeterminate size='32' color='secondary')
+                //- Where a version row has its menu, so the spinner lines up with theirs
+                div.menu_space
+        DesignVersionItem(v-else-if='latest_version' :version='latest_version'
+            :design_id='design_id' :is_latest='true' :editable='editable' class='latest_version')
         //- Non-editors get a "keep a copy" action here; for editors the changes button now
         //- lives inside the latest version row (its colour signals unrendered changes)
         div.after_latest(v-if='!editable')
             slot(name='after-latest')
-        template(v-if='versions.length > 1')
+        template(v-if='older_versions.length')
             v-list-subheader {{$t("view.version_list.previous")}}
-            DesignVersionItem(v-for='version of versions.slice(1)' :key='version.id'
+            DesignVersionItem(v-for='version of older_versions' :key='version.id'
                 :version='version' :design_id='design_id' :editable='editable')
 
 </template>
@@ -132,6 +144,7 @@ import {format_paper_size, format_service_label, format_pages_label, get_passage
 import {binding_page_issue} from '@/services/binding_advice'
 import {content} from '@/services/content'
 import {lulu_pod_package_id} from '@/services/print_cost'
+import {format_relative_time} from '@/services/utils'
 import DesignVersionItem from './DesignVersionItem.vue'
 
 
@@ -152,6 +165,17 @@ const open_editor = () => {
 
 // The version Build it was clicked for here, while its doc is still on its way
 const preparing = computed(() => preparing_version(props.design_id))
+
+
+// When that build was clicked, as the placeholder row's "just now"
+const preparing_relative = computed(() => {
+    return preparing.value ? format_relative_time(new Date(preparing.value.clicked)) : ''
+})
+
+
+// The versions listed under "Previous versions": all but the latest, or every one of them while
+// a newer build is on its way (it holds the latest row)
+const older_versions = computed(() => preparing.value ? versions : versions.slice(1))
 
 
 // Paper size pill, e.g. "A4 (210 × 297 mm)", resolved from the latest rendered version (never
@@ -509,6 +533,24 @@ const show_estimate_cost = () => {
     border-radius: 8px
     background-color: rgba(var(--v-theme-primary), 0.04)
     margin-bottom: 8px
+
+// The preparing build's placeholder row, laid out like a DesignVersionItem's
+.title_row
+    display: flex
+    align-items: center
+    gap: 12px
+
+.status
+    width: 48px
+    display: inline-flex
+    justify-content: center
+    align-items: center
+
+    .v-progress-circular
+        margin: 8px
+
+.menu_space
+    width: 48px
 
 .after_latest
     display: flex
