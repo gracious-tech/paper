@@ -304,6 +304,7 @@
   "display.preview.missing_books": "บางฉบับแปลไม่มีหนังสือที่เลือก",
   "display.preview.preparing_cover": "กำลังเตรียมปก",
   "display.preview.start_of_preview": "จุดเริ่มต้นของตัวอย่าง",
+  "display.preview.waiting_online": "กำลังรอการเชื่อมต่ออินเทอร์เน็ต",
   "display.preview.waiting_previous": "กำลังรอให้การสร้างครั้งก่อนเสร็จ",
   "display.preview.writing": "กำลังเขียน {label} ({i}/{total})",
   "display.splash.beta": "แอปนี้อยู่ในช่วงเบต้า เชิญสำรวจได้ตามสบาย และแจ้งให้เราทราบหากพบสิ่งผิดปกติ",

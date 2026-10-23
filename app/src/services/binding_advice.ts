@@ -65,6 +65,15 @@ function binding_preference(blueprint:Blueprint):BindingTypeId[]{
 }
 
 
+// Whether auto_binding chooses anything for a design printed by this service: the home and custom
+// modes have no service to ask, so their binding is left as it is, and so is one for a service
+// that no longer exists
+export function auto_binding_applies(service_id:string):boolean{
+    return service_id !== 'home' && service_id !== 'custom'
+        && !!get_service(service_id as Parameters<typeof get_service>[0])
+}
+
+
 // The binding that suits a document of `pages` pages: the first preference the chosen service
 // actually supports at that length.
 // `pages` is the preview's estimate, which can undercount the printed document by a page or two
@@ -77,13 +86,10 @@ function binding_preference(blueprint:Blueprint):BindingTypeId[]{
 // short — the wizard offers Lulu as its only printing service (see NewDesignPrint.vue), and
 // home/custom modes have no service to ask, so their binding is left untouched
 export function auto_binding(blueprint:Blueprint, pages:number|null):string{
-    if (blueprint.service_id === 'home' || blueprint.service_id === 'custom'){
+    if (!auto_binding_applies(blueprint.service_id)){
         return blueprint.binding_type
     }
-    const service = get_service(blueprint.service_id as Parameters<typeof get_service>[0])
-    if (!service){
-        return blueprint.binding_type
-    }
+    const service = get_service(blueprint.service_id as Parameters<typeof get_service>[0])!
     const preference = binding_preference(blueprint)
 
     // Page count not known yet (nothing compiled since the design was opened) — assume a book of

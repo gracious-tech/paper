@@ -304,6 +304,7 @@
   "display.preview.missing_books": "अनुवादों में चुनी गई पुस्तकें नहीं हैं",
   "display.preview.preparing_cover": "कवर तैयार किया जा रहा है",
   "display.preview.start_of_preview": "पूर्वावलोकन की शुरुआत",
+  "display.preview.waiting_online": "इंटरनेट कनेक्शन का इंतज़ार हो रहा है",
   "display.preview.waiting_previous": "आपके पिछले दस्तावेज़ के बनने का इंतज़ार हो रहा है",
   "display.preview.writing": "लिखा जा रहा है: {label} ({i}/{total})",
   "display.splash.beta": "यह ऐप बीटा में है। इसे आज़माएँ, और कुछ गड़बड़ लगे तो हमें बताएँ।",

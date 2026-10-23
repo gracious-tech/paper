@@ -304,6 +304,7 @@
   "display.preview.missing_books": "部分译本缺少所选书卷",
   "display.preview.preparing_cover": "正在准备封面",
   "display.preview.start_of_preview": "预览开头",
+  "display.preview.waiting_online": "正在等待网络连接",
   "display.preview.waiting_previous": "正在等待上一次生成完成",
   "display.preview.writing": "正在排版 {label}（{i}/{total}）",
   "display.splash.beta": "本应用目前处于测试阶段。欢迎随意探索，如发现任何问题，请告诉我们。",

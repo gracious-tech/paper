@@ -304,6 +304,7 @@
   "display.preview.missing_books": "निवडलेली पुस्तके नसलेली भाषांतरे",
   "display.preview.preparing_cover": "कव्हर तयार होत आहे",
   "display.preview.start_of_preview": "पूर्वावलोकनाची सुरुवात",
+  "display.preview.waiting_online": "इंटरनेट कनेक्शनची वाट पाहत आहोत",
   "display.preview.waiting_previous": "तुमचा आधीचा दस्तऐवज तयार होण्याची वाट पाहत आहोत",
   "display.preview.writing": "{label} लिहिले जात आहे ({i}/{total})",
   "display.splash.beta": "हे ॲप बीटा टप्प्यात आहे. कृपया वापरून पहा, आणि काही चुकीचे आढळल्यास आम्हाला कळवा.",

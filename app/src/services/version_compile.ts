@@ -19,9 +19,9 @@ import {SCHEMA_VERSION, PDF_LIFETIME_MS, COMPILE_STATS_LIFETIME_MS} from 'paper-
 import {RENDER_VERSION} from 'bookcover-core'
 
 import {firestore, firebase_storage} from '@/services/firebase'
-import {api, ApiError} from '@/services/api'
+import {api, ApiError, ApiOfflineError} from '@/services/api'
 import {user} from '@/services/auth'
-import {design_display_name, current_design_id} from '@/services/designs'
+import {design_display_name, current_design_id, gen_name_auto} from '@/services/designs'
 import {bible_content} from '@/services/content'
 import {typst_generator} from '@/services/typst'
 import {is_mobile_now} from '@/services/display'
@@ -31,7 +31,6 @@ import {apply_asset_copies} from '@/services/design_assets'
 import {plan_version_cover, render_cover_pdf} from '@/services/cover'
 import {plan_version_images} from '@/services/content_images'
 import {read_wizard_state} from '@/services/new_design'
-import {generate_token} from '@/services/utils'
 import {version_missing_bibles, version_retryable, compiling_on_server}
     from '@/services/versions'
 import {page_count_guess, DEFAULT_PAGE_GUESS, alert_dialog} from '@/services/state'
@@ -39,6 +38,7 @@ import {translate} from '@/services/i18n'
 import {report_error, error_to_string} from '@/services/errors'
 import {version_progress, build_requests, hold_page, claim_compile_turn, compiling_here}
     from '@/services/compile_progress'
+import {retry_network} from '@/services/network_retry'
 
 import type {CustomFont} from 'typst-fonts'
 import type {Blueprint, Version} from '@/services/types'
@@ -60,23 +60,27 @@ export interface VersionCompileJob {
     // The only custom fonts the compile sees: the live ones the version froze, or its snapshot
     // when regenerating
     fonts:CustomFont[]
-    // Page-count guess for the auto binding-gutter (see margin_gutter_auto)
-    page_estimate:number
+    // Page-count guess for the auto binding-gutter (see margin_gutter_auto), or how to work one
+    // out once the compile's turn comes (see claim_compile_turn), since that's a compile too
+    page_estimate:number|(() => Promise<number>)
     // The version's frozen display name, embedded as PDF metadata
     title:string
 }
 
 
 export async function create_pending_version(design_id:string, blueprint:Blueprint,
-        version_id = generate_token()):Promise<VersionCompileJob>{
-    // Freeze a blueprint into a new pending version doc (under version_id, when the caller
-    // already showed the user that id) and return the job that compiles it (pass it straight to
+        version_id:string, page_estimate:VersionCompileJob['page_estimate'],
+        save_token:string|null):Promise<VersionCompileJob>{
+    // Freeze a blueprint into a new pending version doc (under version_id, which the caller
+    // already showed the user) and return the job that compiles it (pass it straight to
     // compile_and_upload). Every uploaded asset it references is
     // snapshotted into the design's append-only version_assets prefix, so regeneration never
-    // depends on what the live design still happens to reference. Reads the parent design's
-    // save_token directly (rather than trusting the `designs` list's own listener to have caught
-    // up yet) so the freshly-created version's save_token is always the exact one the caller
-    // just flushed
+    // depends on what the live design still happens to reference.
+    // save_token is null when the blueprint is the design as it's persisted now: the version then
+    // takes the design's own, read from its doc directly (rather than trusting the `designs`
+    // list's own listener to have caught up yet) so it's always the exact one the caller just
+    // flushed. A blueprint the design has since moved on from is given one of its own instead,
+    // which no state of the design matches (see design_needs_editor)
 
     // Everything read from the open design's live state is captured before the first await, while
     // it's still certainly this design that's open (see VersionCompileJob)
@@ -89,19 +93,21 @@ export async function create_pending_version(design_id:string, blueprint:Bluepri
     // Same snapshotting for any uploaded passage images referenced in the content list
     const images = plan_version_images(design_id, blueprint)
     const compile_fonts = fonts_for_blueprint(blueprint)
-    const page_estimate = page_count_guess()
 
     const design_snap = await getDoc(doc(firestore, 'designs', design_id))
-    const save_token = design_snap.data()?.['save_token'] as string
+    const own_state = save_token === null
+    save_token ??= design_snap.data()?.['save_token'] as string
     // The design's wizard state is frozen alongside the blueprint, from the same doc read and
     // under the same field names, so copying this version later can restore a simple design as
     // simple (see WizardState)
     const wizard = read_wizard_state(design_snap.data() ?? {})
     // The design's *resolved* name, frozen — a version is a snapshot of what was rendered, and
     // its name must not shift later when the design is renamed or its content changes.
-    // name_auto comes from the same doc read as save_token above
-    const title = design_display_name(
-        blueprint, (design_snap.data()?.['name_auto'] ?? '') as string)
+    // name_auto comes from the same doc read as save_token above, while it describes the
+    // blueprint being frozen
+    const name_auto = own_state ? (design_snap.data()?.['name_auto'] ?? '') as string
+        : gen_name_auto(blueprint)
+    const title = design_display_name(blueprint, name_auto)
 
     // Uploads first, doc second. Storage rules authorise version_assets writes against the
     // *design* doc, so nothing here depends on the version existing yet — and failing before
@@ -205,6 +211,36 @@ async function record_compile_stat(fields:{version_id:string, design_id:string, 
 }
 
 
+function api_unreachable(error:unknown):boolean{
+    // Whether an API call failed without the server deciding anything: it never got there, or
+    // the gateway/server couldn't take it just then (a failed dispatch releases its lock first,
+    // and a repeat of a request that did get through is answered `not_pending`)
+    return error instanceof ApiOfflineError
+        || (error instanceof ApiError && [500, 502, 503, 504].includes(error.status))
+}
+
+
+function upload_unreachable(error:unknown):boolean{
+    // Whether an upload failed for want of a connection. The Storage SDK already retries those
+    // itself for maxUploadRetryTime (10 min) before giving up with this code; anything else
+    // (above all a refused create-once object) is final
+    return (error as {code?:string}).code === 'storage/retry-limit-exceeded' || !navigator.onLine
+}
+
+
+async function upload_pdf(version_id:string, name:'doc'|'cover', bytes:Uint8Array)
+        :Promise<void>{
+    // Publish one of a version's PDFs, waiting out a lost connection rather than losing the
+    // compiled bytes (contentDisposition 'inline' so the iframe preview displays it rather than
+    // triggering a download — the Storage emulator defaults to 'attachment' when it's left unset,
+    // unlike production)
+    const target = storage_ref(firebase_storage, `versions/${version_id}/${name}.pdf`)
+    await retry_network(() => uploadBytes(target, bytes,
+        {contentType: 'application/pdf', contentDisposition: 'inline'}),
+        upload_unreachable, version_id)
+}
+
+
 // How long to keep asking for a server compile while the server is busy with another of this
 // user's compiles, and how long to wait between asks
 const SERVER_BUSY_WAIT_MS = 3 * 60 * 1000
@@ -216,13 +252,14 @@ async function request_server_compile(id:string, page_estimate:number|null, cove
     // Hand a pending version over to the server compile (or, cover_only, a published version's
     // pending cover). The server answers as soon as it has accepted the job, and the compile
     // records its outcome on the version doc itself (it arrives here via the versions sync).
-    // Only throws when the server couldn't be got to take the job
+    // Only throws when the server couldn't be got to take the job, a lost connection included
+    // only once it's been given every chance to come back (see retry_network)
     const give_up_at = Date.now() + SERVER_BUSY_WAIT_MS
     while (true){
         try {
-            await api('/api/compile', {version_id: id,
+            await retry_network(() => api('/api/compile', {version_id: id,
                 ...page_estimate !== null && {page_count: page_estimate},
-                ...cover_only && {cover_only}})
+                ...cover_only && {cover_only}}), api_unreachable, id)
             return
         } catch (error){
             if (!(error instanceof ApiError)){
@@ -264,8 +301,7 @@ async function render_cover_here(id:string, blueprint:Blueprint, pages:number,
     try {
         const cover_bytes = await render_cover_pdf(blueprint, pages, 'final', await load_fonts(),
             `https://paper.bible/v/${id}`)
-        await uploadBytes(storage_ref(firebase_storage, `versions/${id}/cover.pdf`),
-            cover_bytes, {contentType: 'application/pdf', contentDisposition: 'inline'})
+        await upload_pdf(id, 'cover', cover_bytes)
         return 'available'
     } catch (error){
         report_error('silent', error, {context: {version_id: id, stage}})
@@ -346,7 +382,7 @@ export async function compile_and_upload(job:VersionCompileJob,
     // in-browser compile fails (e.g. device lacks memory for large docs) fall back to compiling
     // server-side, which updates the doc itself. Waits for this tab's compiler to be free first
     // (see claim_compile_turn), unless the caller already holds that turn and hands it over
-    const {id, design_id, blueprint, save_token, fonts, page_estimate} = job
+    const {id, design_id, blueprint, save_token, fonts} = job
 
     // Warn before leaving the page until the in-browser part is over (released early on handing
     // off to the server, which finishes the compile whether or not this tab stays open)
@@ -372,6 +408,8 @@ export async function compile_and_upload(job:VersionCompileJob,
 
     // Released as soon as the browser's part is over, like release_page
     const release_turn = held_turn ?? await claim_compile_turn()
+    const page_estimate = typeof job.page_estimate === 'number' ? job.page_estimate
+        : await job.page_estimate()
 
     // Wall-clock of the interior compile (content resolve + Typst render), stamped for the
     // compile_stats telemetry — mirrors what the server times around compile_pdf_from_blueprint.
@@ -408,11 +446,8 @@ export async function compile_and_upload(job:VersionCompileJob,
                 version_id: id, design_id, engine: 'browser', interior_ms, pages, ok: true,
                 estimated_pages: page_estimate, gutter_auto: blueprint.margin_gutter_auto})
 
-            // Publish the PDF, then mark the version available (contentDisposition: 'inline' so
-            // the iframe preview displays it rather than triggering a download — the Storage
-            // emulator defaults to 'attachment' when it's left unset, unlike production)
-            await uploadBytes(storage_ref(firebase_storage, `versions/${id}/doc.pdf`),
-                bytes, {contentType: 'application/pdf', contentDisposition: 'inline'})
+            // Publish the PDF, then mark the version available
+            await upload_pdf(id, 'doc', bytes)
 
             // Render + publish the cover as its own separate PDF (a wraparound cover is a
             // different page size and print services take it as its own file). Rendered after

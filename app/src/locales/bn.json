@@ -304,6 +304,7 @@
   "display.preview.missing_books": "যেসব অনুবাদে নির্বাচিত পুস্তকগুলো নেই",
   "display.preview.preparing_cover": "প্রচ্ছদ প্রস্তুত হচ্ছে",
   "display.preview.start_of_preview": "প্রিভিউয়ের শুরু",
+  "display.preview.waiting_online": "ইন্টারনেট সংযোগের অপেক্ষায়",
   "display.preview.waiting_previous": "আগের তৈরির কাজ শেষ হওয়ার অপেক্ষায়",
   "display.preview.writing": "{label} লেখা হচ্ছে ({i}/{total})",
   "display.splash.beta": "এই অ্যাপটি বেটা পর্যায়ে আছে। ঘুরে দেখুন, এবং কোনো গরমিল চোখে পড়লে আমাদের জানান।",

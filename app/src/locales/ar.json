@@ -304,6 +304,7 @@
   "display.preview.missing_books": "ترجمات تنقصها الأسفار المختارة",
   "display.preview.preparing_cover": "جارٍ تجهيز الغلاف",
   "display.preview.start_of_preview": "بداية المعاينة",
+  "display.preview.waiting_online": "في انتظار الاتصال بالإنترنت",
   "display.preview.waiting_previous": "في انتظار انتهاء الإنشاء السابق",
   "display.preview.writing": "جارٍ كتابة {label} ({i}/{total})",
   "display.splash.beta": "هذا التطبيق في مرحلة تجريبية. استكشفه، وأخبرنا إن لاحظت أي خلل.",

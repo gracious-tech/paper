@@ -45,10 +45,12 @@ Live at [paper.bible](https://paper.bible). MIT No Attribution license.
    currently open Firestore `designs/{id}` doc (`designs.ts` syncs both directions, debounced
    field-level writes so co-editors don't clobber each other)
 3. `DisplayPreview.vue` compiles a truncated preview in the browser as they edit
-4. On "Build it" (`BtnGenerate.vue`), the design is force-flushed then frozen into an
-   immutable `versions/{id}` doc (blueprint + custom-font snapshot + the design's current
-   `save_token`), then compiled in the browser and uploaded to Storage
-   (`versions.ts: compile_and_upload`)
+4. On "Build it" (`BtnGenerate.vue`), the design as it is at the click is snapshotted, the
+   design force-flushed, and the snapshot frozen into an immutable `versions/{id}` doc (blueprint
+   + custom-font snapshot + a `save_token`), then compiled in the browser and uploaded to Storage
+   (`version_compile.ts: compile_and_upload`). A tab compiles one build at a time
+   (`claim_compile_turn()`), and a lost connection is waited out rather than costing the work
+   done (`network_retry.ts`)
 5. If the in-browser (WASM) compile fails, the client calls `POST /api/compile`, which answers
    `202` once it has accepted the job; the compile Lambda then compiles the same frozen
    blueprint with the Typst CLI and records the outcome on the version doc (see the
@@ -233,6 +235,7 @@ paper_bible/
         version_compile.ts # The write side: freeze, compile+upload, regen, cover regen,
                             #   stuck-compile retry, compile_stats (imports versions.ts, not
                             #   the reverse)
+        network_retry.ts   # Waiting out a lost connection mid-compile (retry_network)
         user_prefs.ts      # Account-wide prefs on users/{uid} (print-service warning seen)
         new_design.ts      # The creation wizard: NewDesignDraft + WizardState, type presets,
                             #   step validation, build_new_blueprint()
@@ -657,10 +660,13 @@ After that, every push to `main` deploys itself. The scripts still work by hand
   the basenames that version *references*: a design's `version_assets/` prefix is shared by
   every version it ever had, so copying it wholesale would hand the recipient images from
   versions never shared with them
-- **`generate()` (`ViewDesignEditor.vue`) must force-flush before freezing** — it calls the
-  exported `flush_changes()` from `designs.ts` immediately before cloning `blue`, so the
-  `save_token` written to the new version always matches what the design was just persisted
-  with (the debounced autosave alone can't guarantee this at click-time)
+- **A build freezes the click-time snapshot, not `blue`** (`generate()` in `BtnGenerate.vue`):
+  the user can go back to editing while it waits for its turn or measures its length. It
+  force-flushes (`flush_changes()`) before freezing, and the version takes the design's own
+  `save_token` only if the design still renders the same as the snapshot, else a fresh one, so
+  edits made meanwhile read as unbuilt. The snapshot is frozen at once unless the page estimate
+  decides part of it (a simple design's binding, when the estimate is stale); then it waits for
+  the turn and the estimate first, the one window where a dying tab still loses the build
 - **Lambda-era leftovers** live under `.private/generator/` — dead code, ignore
 - **WASM memory:** the Typst worker leaks per unique source; `TypstWorkerClient`
   recycles worn workers automatically (see `typst.ts`)

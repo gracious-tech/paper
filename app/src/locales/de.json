@@ -304,6 +304,7 @@
   "display.preview.missing_books": "Übersetzungen ohne die gewählten Bücher",
   "display.preview.preparing_cover": "Umschlag wird vorbereitet",
   "display.preview.start_of_preview": "Anfang der Vorschau",
+  "display.preview.waiting_online": "Warten auf eine Internetverbindung",
   "display.preview.waiting_previous": "Warten, bis Ihre vorherige Erstellung abgeschlossen ist",
   "display.preview.writing": "{label} wird gesetzt ({i}/{total})",
   "display.splash.beta": "Diese App befindet sich in der Beta-Phase. Probieren Sie alles aus und sagen Sie uns Bescheid, wenn etwas nicht stimmt.",

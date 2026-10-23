@@ -304,6 +304,7 @@
   "display.preview.missing_books": "Terjemahan yang tidak memuat kitab yang dipilih",
   "display.preview.preparing_cover": "Menyiapkan sampul",
   "display.preview.start_of_preview": "Awal pratinjau",
+  "display.preview.waiting_online": "Menunggu koneksi internet",
   "display.preview.waiting_previous": "Menunggu pembuatan Anda sebelumnya selesai",
   "display.preview.writing": "Menulis {label} ({i}/{total})",
   "display.splash.beta": "Aplikasi ini masih dalam tahap beta. Silakan jelajahi, dan beri tahu kami jika ada yang tidak beres.",
