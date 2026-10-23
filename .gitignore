@@ -14,6 +14,7 @@ node_modules/
 /app/.env.*.local
 /e2e/browsers/
 /e2e/results/
+/coverage/reports/
 /errors/records/
 /errors/sourcemaps/
 /server/deploy/

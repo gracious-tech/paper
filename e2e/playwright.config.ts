@@ -6,9 +6,14 @@
 import {defineConfig, devices} from '@playwright/test'
 
 import {API_PORT, APP_PORT, APP_URL, EMULATOR_CONFIG, PROJECT, ROOT} from './stack.ts'
+import {child_coverage_env} from '../coverage/scope.ts'
 
 
 const CI = !!process.env['CI']
+
+// A stack already listening can be reused, except by a coverage run: its API server wouldn't be
+// collecting any
+const REUSE = !CI && process.env['COVERAGE'] !== '1'
 
 
 export default defineConfig({
@@ -21,6 +26,8 @@ export default defineConfig({
     // more go before calling it — a flake then shows as "flaky" in the report rather than red
     retries: CI ? 1 : 0,
     forbidOnly: CI,
+    // On a coverage run, turns what every worker collected into one raw export (coverage/e2e.ts)
+    globalTeardown: '../coverage/e2e.ts',
     reporter: CI ? [['list'], ['html', {open: 'never', outputFolder: './results/report'}]]
         : [['list']],
     use: {
@@ -64,8 +71,9 @@ export default defineConfig({
                 + ` --project ${PROJECT} --only auth,firestore,storage 'node e2e/api_server.ts'`,
             cwd: ROOT,
             url: `http://localhost:${API_PORT}/api/health`,
-            env: {FIREBASE_EMULATORS_PATH: `${ROOT}.emulator_cache`},
-            reuseExistingServer: !CI,
+            // The server's coverage too, on a coverage run (the browser's is the fixtures')
+            env: {FIREBASE_EMULATORS_PATH: `${ROOT}.emulator_cache`, ...child_coverage_env()},
+            reuseExistingServer: REUSE,
             timeout: 3 * 60 * 1000,
             // Lets the emulators shut their Java processes down rather than orphaning them
             gracefulShutdown: {signal: 'SIGINT', timeout: 15_000},
@@ -82,7 +90,7 @@ export default defineConfig({
                 EMULATOR_CONFIG,
                 API_PORT: String(API_PORT),
             },
-            reuseExistingServer: !CI,
+            reuseExistingServer: REUSE,
             timeout: 2 * 60 * 1000,
             stdout: 'ignore',
             stderr: 'pipe',

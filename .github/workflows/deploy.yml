@@ -170,6 +170,7 @@ jobs:
           (cd app && npx vue-tsc --noEmit -p tsconfig.json)
           npx tsc -p server/tsconfig.json
           npx tsc -p e2e/tsconfig.json
+          npx tsc -p coverage/tsconfig.json
 
       - run: .bin/audit_unit
 

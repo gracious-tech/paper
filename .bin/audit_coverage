@@ -1,0 +1,28 @@
+#!/usr/bin/env bash
+
+# Line/branch/function coverage of the product's code (coverage/scope.ts) across every suite:
+# the unit groups (.bin/audit_unit), the Playwright journeys (.bin/audit_e2e) — in the browser
+# and in the API server they talk to — and the servers the route tests spawn, merged into one
+# report by coverage/merge.ts. Prints the summary; the full report is
+# coverage/reports/merged/index.html, and coverage/reports/merged/files.txt lists every file by
+# how much of it nothing ran.
+#
+# Takes a few minutes: it's both test runs, plus the merge. Both run even if one fails, since
+# what the other covered still counts; any failure still makes this exit non-zero.
+
+set -uo pipefail
+cd "$(dirname "$0")/.."
+
+export COVERAGE=1
+rm -rf coverage/reports
+
+status=0
+.bin/audit_unit || status=1
+.bin/audit_e2e || status=1
+
+# Every run that should have contributed, so a run that silently collected nothing is an error
+# rather than a smaller total
+node --disable-warning=ExperimentalWarning coverage/merge.ts \
+    typst typst-node app emulators e2e node || status=1
+
+exit $status

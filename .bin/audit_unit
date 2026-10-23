@@ -22,6 +22,10 @@
 #   .bin/audit_unit typst           just that group (typst | typst-node | app | rules | server |
 #                                   i18n)
 #   .bin/audit_unit rules storage   a group, plus a filter passed through to vitest
+#
+# With COVERAGE=1 each vitest run also exports raw V8 coverage, under its group name, for
+# .bin/audit_coverage to merge (see coverage/mcr.unit.ts). The i18n tooling is outside the
+# measured scope (coverage/scope.ts), so its run collects none
 
 set -euo pipefail
 cd "$(dirname "$0")/.."
@@ -36,12 +40,25 @@ FILTER=("$@")
 # Ports from firebase_test.json, so there is one place to change them
 FIRESTORE_PORT="$(node -p "require('./firebase_test.json').emulators.firestore.port")"
 
+# The vitest flags that switch coverage on, when asked for
+COVERAGE_ARGS=""
+if [ "${COVERAGE:-}" = "1" ]; then
+    COVERAGE_ARGS="--coverage.enabled --coverage.provider=custom"
+    COVERAGE_ARGS+=" --coverage.customProviderModule=vitest-monocart-coverage"
+    COVERAGE_ARGS+=" --coverage.coverageReportOptions=$PWD/coverage/mcr.unit.ts"
+fi
+
 run_group(){
-    # Run one vitest root, echoing which group it is
-    local name="$1" root="$2"
+    # Run one vitest root, echoing which group it is. A third argument of no_coverage keeps a
+    # group outside the measured scope from collecting any
+    local name="$1" root="$2" coverage="$COVERAGE_ARGS"
+    if [ "${3:-}" = "no_coverage" ]; then
+        coverage=""
+    fi
     echo
     echo "── $name ─────────────────────────────────────────"
-    npx vitest run --root "$root" "${FILTER[@]}"
+    # shellcheck disable=SC2086  # the coverage flags are meant to split
+    COVERAGE_GROUP="$name" npx vitest run --root "$root" $coverage "${FILTER[@]}"
 }
 
 emulators_up(){
@@ -61,7 +78,8 @@ run_emulator_suites(){
     if [ ${#FILTER[@]} -gt 0 ]; then
         filter_args=" ${FILTER[*]}"
     fi
-    local command="npx vitest run --root tests${1:+ $1}${filter_args}"
+    local command="COVERAGE_GROUP=emulators npx vitest run --root tests${1:+ $1}"
+    command+="${COVERAGE_ARGS:+ $COVERAGE_ARGS}${filter_args}"
     if emulators_up; then
         echo "(reusing the test emulators already on :$FIRESTORE_PORT)"
         eval "$command"
@@ -76,7 +94,7 @@ run_emulator_suites(){
 
 run_i18n(){
     # The translation tooling's own tests, then the gate it implements (see app/i18n/check.ts)
-    run_group "i18n" app/i18n
+    run_group "i18n" app/i18n no_coverage
     .bin/i18n_check --allow-missing
 }
 

@@ -1,0 +1,9 @@
+{
+    "//": [
+        "Not a workspace — this only marks the coverage tooling as ESM,",
+        "so node loads its .ts files natively rather than reparsing them."
+    ],
+    "name": "paper-bible-coverage",
+    "private": true,
+    "type": "module"
+}

@@ -182,6 +182,8 @@ paper_bible/
     audit_e2e              # Playwright journeys, desktop + mobile — starts its own stack, runs
                             #   in CI (see e2e/ and the Testing section)
     audit_stress           # Compile stress ladder, browser (WASM) + server (see e2e/tiers.ts)
+    audit_coverage         # Coverage across every suite (unit + journeys + spawned servers),
+                            #   merged into one report (see coverage/ and the Testing section)
     audit_errors           # Move error reports out of the bucket + triage them (TUI; claude
                             #   groups, shortlists and auto-fixes them for review). Syncs the
                             #   site bucket's sourcemaps/ into errors/sourcemaps/ first
@@ -315,6 +317,9 @@ paper_bible/
   errors/             # .bin/audit_errors internals: bucket sync, claude clustering + ranking,
                       #   background fixer, triage TUI, triage.ts (the CLI its list-level
                       #   claude session applies decisions with)
+  coverage/           # .bin/audit_coverage internals: scope.ts (what counts, path normalising),
+                      #   mcr.unit.ts (the unit groups' MCR config), e2e.ts (browser collection),
+                      #   node_flush.ts (preload for spawned Node), merge.ts; reports/ is output
   branding/           # Source icon/social/splash artwork
   typst/                   # paper-bible-typst: core (Blueprint→TypstRequest, typst gen,
                             #   split_blueprint_doc/join_blueprint_doc for Firestore doc shape)
@@ -486,6 +491,7 @@ After that, every push to `main` deploys itself. The scripts still work by hand
 .bin/audit_unit rules storage   # a group plus a vitest filter
 .bin/audit_e2e                  # Playwright journeys, desktop + mobile (starts its own stack)
 .bin/audit_e2e cover.test.ts    # one file (any other playwright test arguments pass through)
+.bin/audit_coverage             # both of the above with coverage, merged (a few minutes)
 ```
 
 | Suite | Where | Needs |
@@ -515,7 +521,34 @@ After that, every push to `main` deploys itself. The scripts still work by hand
   written in code and are the only thing enforcing them
 - **`tests/server/routes.test.ts` spawns the real entry point** (twice, once per `SERVER_ROLES`
   value) and talks HTTP to it. It's the only way to see `authed_post()`'s token + field checks
-  and the role gating, which are invisible when handlers are called directly
+  and the role gating, which are invisible when handlers are called directly. The production
+  entry point (`lambda.ts`) and its S3 asset sync have suites of their own (`lambda.test.ts`,
+  `lambda_bootstrap.test.ts`), and `run_compile.test.ts` takes an accepted server compile through
+  to its outcome with only the two renderers stubbed (Typst's and bookcover's)
+- **Coverage is V8 data all the way to the merge** (monocart-coverage-reports, `coverage/`). The
+  unit groups collect through vitest's MCR provider (`COVERAGE=1 .bin/audit_unit`), the journeys
+  through Chromium's own coverage of every page (an auto fixture in `e2e/fixtures.ts`), and the
+  Node processes those spawn (the journeys' API server, the route tests' servers) through
+  `NODE_V8_COVERAGE` plus a preload, `coverage/node_flush.ts`, given to children only
+  (`child_coverage_env()`). Keeping it all V8 is the point: the same file reached by different
+  runs is merged by byte range in its *original* source, where per-tool Istanbul statement maps
+  never line up. The scope (`coverage/scope.ts`) is the product's own `src/` trees; tests,
+  vendored code, generated files and dev tooling are out. Three things that aren't obvious:
+  - **Every collector must name a file the same way, or it counts twice.** Sources arrive as
+    Vite dev-server URLs, `file://` paths, vitest-root-relative or `dist/`-relative sourcemap
+    paths; `resolve_source()` turns them all into one repo-relative path. And MCR merges a file
+    by path *plus content*, which is why the preload gives each type-stripped server module an
+    identity sourcemap back to its original TypeScript: without it the server's files appeared
+    twice, once per run. If the merged total ever jumps, look for duplicate paths in `files.txt`
+  - **The preload only takes over signals in this repo's own entry points.** It reaches every
+    Node process between the runner and the server (the Firebase CLI starts the journeys' API
+    server), and the CLI exiting straight away on SIGINT orphaned its Java emulators, which then
+    held the e2e ports until killed
+  - **What it can't see:** Web Workers (the Typst compiler, the cover renderer) aren't reported
+    by `page.coverage`, so their code counts only as far as the unit suites reach it; a Vue
+    component's template and styles are compiled requests with no map back to Pug/SugarSS, so
+    only its `<script>` is measured (a script-less component isn't counted at all, nor is a
+    `.vue` file no journey loads — only `.ts` can be added as untested)
 - **`at_later_time()`** (`tests/helpers/server.ts`) fakes only `Date`, never timers — the
   Firestore/Storage clients need real ones. It's what lets the 10-minute `SWEEP_GRACE_MS` in
   `assets.ts` be tested from both sides

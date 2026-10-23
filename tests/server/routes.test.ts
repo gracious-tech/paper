@@ -15,6 +15,7 @@ import {describe, it, expect, beforeAll, afterAll} from 'vitest'
 
 import {reset_firestore, reset_auth, make_anon_user, admin_bucket, list_paths}
     from '../helpers/server.ts'
+import {child_coverage_env} from '../../coverage/scope.ts'
 
 import type {ChildProcess} from 'node:child_process'
 
@@ -44,6 +45,8 @@ async function start_server(roles:string, port:number):Promise<Server>{
             // The compile runs in-process here, but no test in this file gets as far as one, so
             // an unused assets path is fine
             ASSETS_DIR: `${REPO_ROOT}assets`,
+            // Its coverage, when this is a coverage run (it runs outside vitest's own collection)
+            ...child_coverage_env(),
         },
         stdio: ['ignore', 'pipe', 'pipe'],
     })
@@ -70,8 +73,9 @@ async function start_server(roles:string, port:number):Promise<Server>{
 
 
 async function stop_server(server:Server):Promise<void>{
-    // Shut a server process down and wait for it to actually exit
-    server.process.kill('SIGKILL')
+    // Shut a server process down and wait for it to actually exit. SIGTERM rather than SIGKILL,
+    // so a coverage run's server gets to write its coverage on the way out
+    server.process.kill('SIGTERM')
     await new Promise(resolve => server.process.once('exit', resolve))
 }
 

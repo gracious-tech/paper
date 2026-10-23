@@ -11,6 +11,7 @@
 import {test as base, expect} from '@playwright/test'
 
 import {admin_db, browser_uid} from './helpers/admin'
+import {COLLECTING, record_context} from '../coverage/e2e.ts'
 
 import type {Page, Locator} from '@playwright/test'
 
@@ -26,7 +27,8 @@ interface ErrorReport {
 }
 
 
-export const test = base.extend<{expected_reports:RegExp[], error_reports:ErrorReport[]}>({
+export const test = base.extend<{expected_reports:RegExp[], error_reports:ErrorReport[],
+        browser_coverage:void}>({
 
     // Messages a test expects its pages to report, so they don't fail it
     expected_reports: [[], {option: true}],
@@ -44,6 +46,18 @@ export const test = base.extend<{expected_reports:RegExp[], error_reports:ErrorR
         const unexpected = reports.filter(report =>
             !expected_reports.some(pattern => pattern.test(report.message)))
         expect(unexpected, 'error reports the app filed during this test').toEqual([])
+    }, {auto: true}],
+
+    // On a coverage run, what the test's pages ran (see coverage/e2e.ts). Collected even when
+    // the test fails, since the code it reached still ran
+    browser_coverage: [async ({context}, use) => {
+        if (!COLLECTING){
+            await use()
+            return
+        }
+        const collect = await record_context(context)
+        await use()
+        await collect()
     }, {auto: true}],
 })
 
