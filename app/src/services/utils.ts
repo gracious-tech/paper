@@ -37,13 +37,6 @@ export function generate_token(bytes=15):string{
 }
 
 
-export async function compress(buffer:ArrayBuffer):Promise<ArrayBuffer>{
-    // Compress binary data using gzip
-    let stream = new Blob([buffer]).stream().pipeThrough(new CompressionStream('gzip'))
-    return await new Response(stream).arrayBuffer()
-}
-
-
 export function string_to_utf8(text:string):ArrayBuffer{
     // Convert a string to a UTF8 ArrayBuffer
     return new TextEncoder().encode(text).buffer

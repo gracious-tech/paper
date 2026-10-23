@@ -67,7 +67,7 @@ function gc_objects(doc:PDFDocument):number {
 }
 
 
-// Flate-compress sizeable uncompressed streams via the standard CompressionStream API
+// Flate-compress sizeable uncompressed streams
 async function compress_streams(doc:PDFDocument):Promise<number> {
     const ctx = doc.context
     let compressed = 0
@@ -79,7 +79,7 @@ async function compress_streams(doc:PDFDocument):Promise<number> {
         if (raw.length < 256) {
             continue  // Not worth the dict overhead
         }
-        const packed = await deflate(raw)
+        const packed = await deflate(doc, raw)
         if (packed.length >= raw.length) {
             continue
         }
@@ -93,7 +93,12 @@ async function compress_streams(doc:PDFDocument):Promise<number> {
 
 
 // Compress bytes as zlib deflate (the format PDF's FlateDecode filter expects)
-async function deflate(data:Uint8Array):Promise<Uint8Array> {
+async function deflate(doc:PDFDocument, data:Uint8Array):Promise<Uint8Array> {
+    // Safari only has CompressionStream from 16.4, so older iPhones use pdf-lib's own deflate
+    // (the pako it bundles anyway), which is slower but produces the same zlib bytes
+    if (typeof CompressionStream === 'undefined') {
+        return doc.context.flateStream(data).getContents()
+    }
     const stream = new Blob([data as Uint8Array<ArrayBuffer>]).stream()
         .pipeThrough(new CompressionStream('deflate'))
     return new Uint8Array(await new Response(stream).arrayBuffer())
