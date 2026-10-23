@@ -328,7 +328,7 @@
   "display.version.show_cover": "表紙",
   "display.version.show_interior": "本文",
   "display.version.taking_long": "予想より時間がかかっています",
-  "display.version.typical_time": "ほとんどのドキュメントは1分以内に完成します",
+  "display.version.typical_time": "小さなドキュメントは1分以内に完成します",
   "editor.advanced.alt_image_side": "画像の位置を交互にする",
   "editor.advanced.alt_image_side_note": "画像を常に同じ側に配置するのではなく、聖書箇所ごとに左右を入れ替えます。",
   "editor.advanced.app_link": "「Created with /paper.bible/」を含める",

@@ -328,7 +328,7 @@
   "display.version.show_cover": "Cubierta",
   "display.version.show_interior": "Interior",
   "display.version.taking_long": "Esto está tardando más de lo esperado",
-  "display.version.typical_time": "La mayoría de los documentos tardan menos de un minuto",
+  "display.version.typical_time": "Los documentos pequeños tardan menos de un minuto",
   "editor.advanced.alt_image_side": "Alternar el lado de la imagen",
   "editor.advanced.alt_image_side_note": "Cambia el lado en el que aparece la imagen de un pasaje al siguiente, en lugar de usar siempre el mismo.",
   "editor.advanced.app_link": "Incluir “Creado con /paper.bible/”",

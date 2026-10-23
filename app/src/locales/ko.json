@@ -328,7 +328,7 @@
   "display.version.show_cover": "표지",
   "display.version.show_interior": "내지",
   "display.version.taking_long": "예상보다 오래 걸리고 있습니다",
-  "display.version.typical_time": "대부분의 문서는 1분 이내에 완료됩니다",
+  "display.version.typical_time": "작은 문서는 1분 이내에 완료됩니다",
   "editor.advanced.alt_image_side": "이미지 위치 번갈아 배치",
   "editor.advanced.alt_image_side_note": "이미지를 항상 같은 쪽에 두지 않고, 본문마다 번갈아 반대쪽에 배치합니다.",
   "editor.advanced.app_link": "\"Created with /paper.bible/\" 문구 넣기",

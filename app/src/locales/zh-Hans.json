@@ -328,7 +328,7 @@
   "display.version.show_cover": "封面",
   "display.version.show_interior": "内页",
   "display.version.taking_long": "所用时间比预期长",
-  "display.version.typical_time": "大多数文档不到一分钟即可完成",
+  "display.version.typical_time": "小型文档不到一分钟即可完成",
   "editor.advanced.alt_image_side": "图片左右交替",
   "editor.advanced.alt_image_side_note": "每段经文的图片在左右两侧交替出现，而不是总在同一侧。",
   "editor.advanced.app_link": "包含“由 /paper.bible/ 制作”",
