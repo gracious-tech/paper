@@ -37,7 +37,8 @@ import {version_missing_bibles, version_retryable, compiling_on_server}
 import {page_count_guess, DEFAULT_PAGE_GUESS, alert_dialog} from '@/services/state'
 import {translate} from '@/services/i18n'
 import {report_error, error_to_string} from '@/services/errors'
-import {version_progress, build_requests, hold_page} from '@/services/compile_progress'
+import {version_progress, build_requests, hold_page, claim_compile_turn, compiling_here}
+    from '@/services/compile_progress'
 
 import type {CustomFont} from 'typst-fonts'
 import type {Blueprint, Version} from '@/services/types'
@@ -339,10 +340,12 @@ async function record_server_unreachable(doc_ref:DocumentReference, design_id:st
 }
 
 
-export async function compile_and_upload(job:VersionCompileJob):Promise<void>{
+export async function compile_and_upload(job:VersionCompileJob,
+        held_turn:(() => void)|null = null):Promise<void>{
     // Compile a version's PDF in-browser and upload it, updating the doc's status. If the
     // in-browser compile fails (e.g. device lacks memory for large docs) fall back to compiling
-    // server-side, which updates the doc itself
+    // server-side, which updates the doc itself. Waits for this tab's compiler to be free first
+    // (see claim_compile_turn), unless the caller already holds that turn and hands it over
     const {id, design_id, blueprint, save_token, fonts, page_estimate} = job
 
     // Warn before leaving the page until the in-browser part is over (released early on handing
@@ -360,12 +363,15 @@ export async function compile_and_upload(job:VersionCompileJob):Promise<void>{
 
     // Mark the version as compiling in this tab from the outset, before any progress arrives, so
     // it's never offered a retry while this attempt runs (see version_stuck)
-    version_progress[id] = {stage: 'start'}
+    version_progress[id] = {stage: held_turn || !compiling_here.value ? 'start' : 'queued'}
 
     // Stamp the start of this attempt so a reload/tab-close/crash mid-compile (or a killed
     // server fallback) can be spotted as stuck rather than shown as forever-pending — see
     // version_stuck(). Best-effort: a failed stamp write just means the older timestamp is used
     await updateDoc(doc_ref, {compile_started: serverTimestamp()}).catch(() => undefined)
+
+    // Released as soon as the browser's part is over, like release_page
+    const release_turn = held_turn ?? await claim_compile_turn()
 
     // Wall-clock of the interior compile (content resolve + Typst render), stamped for the
     // compile_stats telemetry — mirrors what the server times around compile_pdf_from_blueprint.
@@ -430,6 +436,7 @@ export async function compile_and_upload(job:VersionCompileJob):Promise<void>{
             await update_latest_summary(design_id, save_token,
                 {'latest_version.status': 'available', 'latest_version.pages': pages})
             if (cover === 'pending'){
+                release_turn()
                 await finish_cover_on_server(id)
             }
         } catch (wasm_error){
@@ -451,6 +458,7 @@ export async function compile_and_upload(job:VersionCompileJob):Promise<void>{
                     estimated_pages: page_estimate, gutter_auto: blueprint.margin_gutter_auto})
             }
             release_page()
+            release_turn()
             await request_server_compile(id, page_estimate)
         }
     } catch (error){
@@ -460,6 +468,7 @@ export async function compile_and_upload(job:VersionCompileJob):Promise<void>{
         // was handed off to the server, or failed outright
         delete version_progress[id]
         release_page()
+        release_turn()
     }
 }
 
@@ -533,8 +542,10 @@ export async function regenerate_cover(version:Version):Promise<void>{
         return
     }
     const doc_ref = doc(firestore, 'versions', version.id)
-    // Rendered in this tab until handed over, so warn before leaving until then
+    // Rendered in this tab until handed over, so warn before leaving until then, and once any
+    // build compiling here has finished (see claim_compile_turn)
     const release_page = hold_page()
+    const release_turn = await claim_compile_turn()
     try {
         const cover = await render_cover_here(version.id, version.blueprint,
             version.pages ?? 0, () => load_version_fonts(version), 'cover_regen')
@@ -549,6 +560,7 @@ export async function regenerate_cover(version:Version):Promise<void>{
         await updateDoc(doc_ref, {cover_status: 'failed'}).catch(() => undefined)
         return
     } finally {
+        release_turn()
         release_page()
     }
     await finish_cover_on_server(version.id)
@@ -631,13 +643,15 @@ export async function retry_version(version:Version):Promise<void>{
     }
     // The PDF may already be sitting in Storage (upload landed but the status write didn't) —
     // adopt it instead of recompiling (which may render + upload a missing cover in this tab, so
-    // leaving is warned about meanwhile)
+    // leaving is warned about meanwhile, and waits for any build compiling here to finish first)
     const release_page = hold_page()
+    const release_turn = await claim_compile_turn()
     try {
         if (await adopt_pending_pdf(version)){
             return
         }
     } finally {
+        release_turn()
         release_page()
     }
     if (await refuse_missing_bibles(version)){

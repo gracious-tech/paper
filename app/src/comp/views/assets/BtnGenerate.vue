@@ -22,7 +22,8 @@ import {current_design_id, flush_changes} from '@/services/designs'
 import {selected_version_id, latest_version, until_version_settled} from '@/services/versions'
 import {report_error} from '@/services/errors'
 import {create_pending_version, compile_and_upload} from '@/services/version_compile'
-import {hold_page, build_requests, version_progress} from '@/services/compile_progress'
+import {hold_page, build_requests, version_progress, claim_compile_turn, compiling_here}
+    from '@/services/compile_progress'
 import {has_seen_print_service_warning, record_seen_print_service_warning}
     from '@/services/user_prefs'
 import {typst_generator} from '@/services/typst'
@@ -92,15 +93,21 @@ const generate = async () => {
     const design_id = current_design_id.value
     const version_id = generate_token()
     build_requests[version_id] = {design_id, clicked: Date.now()}
-    version_progress[version_id] = {stage: 'start'}
+    version_progress[version_id] = {stage: compiling_here.value ? 'queued' : 'start'}
     let version_created = false
 
-    // Set once the freeze starts
+    // Set once the freeze starts, and once this build's turn at the compiler comes
     let release_page:(() => void)|null = null
+    let release_turn:(() => void)|null = null
     try {
         selected_version_id.value = version_id
         await router.push({name: 'design', params: {id: design_id, version: version_id}})
         generating.value = false
+
+        // Builds in this tab take turns at the compiler (see claim_compile_turn), so an earlier
+        // one still compiling here finishes before this one's page estimate, itself a compile
+        release_turn = await claim_compile_turn()
+        version_progress[version_id] = {stage: 'start'}
 
         // Bring the page-count estimate up to date first (mobile has no live preview keeping it
         // current), and let its watchers settle — simple mode derives the binding from it, which
@@ -136,8 +143,9 @@ const generate = async () => {
 
         // Compile the final PDF in-browser via Typst and upload it (status updates arrive via the
         // versions Firestore sync). The job carries everything the compile needs from this
-        // design, so it's unaffected by the user opening another design meanwhile
-        const compiling = compile_and_upload(job)
+        // design, so it's unaffected by the user opening another design meanwhile. It takes over
+        // this build's turn at the compiler, releasing it once the browser's part is done
+        const compiling = compile_and_upload(job, release_turn)
         release_page()
         await compiling
         void warn_before_printing(blueprint.service_id, version_id)
@@ -151,6 +159,7 @@ const generate = async () => {
         }
     } finally {
         release_page?.()
+        release_turn?.()
         generating.value = false
         // Kept once the version exists, to keep timing it from the click through any server
         // fallback (a retry or regeneration starts its own clock, see build_requests)

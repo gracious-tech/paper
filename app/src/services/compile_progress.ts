@@ -11,9 +11,10 @@ import type {ProgressEvent} from 'paper-bible-typst'
 import type {Translate} from '@/services/i18n'
 
 
-// A progress event from the interior compile, or the app's own 'cover' stage — the cover is
-// rendered by bookcover after the interior (see cover.ts), so paper-bible-typst never emits it
-export type CompileProgress = ProgressEvent | {stage:'cover'}
+// A progress event from the interior compile, or one of the app's own stages: 'cover' (rendered
+// by bookcover after the interior, see cover.ts, so paper-bible-typst never emits it) and
+// 'queued' (waiting for this tab's previous build, see claim_compile_turn)
+export type CompileProgress = ProgressEvent | {stage:'cover'} | {stage:'queued'}
 
 
 // Latest progress event for a version currently compiling in this browser, keyed by version id.
@@ -73,6 +74,41 @@ export function hold_page():() => void {
 }
 
 
+// The tail of this tab's queue of version compiles, resolving once every turn claimed so far has
+// been released, and how many turns are held or waiting. Builds run in the browser one at a time:
+// a phone can't hold two documents' compilers at once, nor a cover's beside a book's, and a second
+// build started mid-compile (edit, then build again) would otherwise push the first one's cover
+// onto the server for want of memory
+let compile_queue:Promise<void> = Promise.resolve()
+const compile_turns = ref(0)
+
+
+// Whether a version compile is running (or waiting to) in this tab
+export const compiling_here = computed(() => compile_turns.value > 0)
+
+
+export function claim_compile_turn():Promise<() => void> {
+    // Wait for every earlier turn to be released, then hold the browser's compiler until the
+    // returned function is called. Releasing twice is harmless, like hold_page's release
+    let release_queue!:() => void
+    const released = new Promise<void>(resolve => {
+        release_queue = resolve
+    })
+    const turn = compile_queue.then(() => undefined)
+    compile_queue = turn.then(() => released)
+    compile_turns.value += 1
+    let done = false
+    const release = () => {
+        if (!done){
+            done = true
+            compile_turns.value -= 1
+            release_queue()
+        }
+    }
+    return turn.then(() => release)
+}
+
+
 // Map a coarse progress event to translated display text. Only a handful of stages are
 // meaningful to a user watching a compile progress; the rest (e.g. 'arrange', the booklet/spread
 // imposition step) return null so the caller just keeps showing whatever it last showed rather
@@ -80,6 +116,9 @@ export function hold_page():() => void {
 export function stage_text(event:CompileProgress, t:Translate):string|null {
     if (event.stage === 'cover'){
         return t("display.preview.preparing_cover") + "…"
+    }
+    if (event.stage === 'queued'){
+        return t("display.preview.waiting_previous") + "…"
     }
     if (event.stage === 'start'){
         return t("display.preview.getting_started") + "…"

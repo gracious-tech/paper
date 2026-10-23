@@ -14,6 +14,7 @@
   "dialog.how_to_print.lulu_paper_80": "The exact name of an option on Lulu's English-only website (80 lb paper). Keep it as Lulu shows it.",
   "dialog.how_to_print.lulu_paper_cream": "The exact name of an option on Lulu's English-only website, which the user has to find there. Keep it in English as Lulu shows it.",
   "dialog.how_to_print.lulu_paper_white": "The exact name of an option on Lulu's English-only website, which the user has to find there. Keep it in English as Lulu shows it.",
+  "display.preview.waiting_previous": "Progress text under a timer while a book being built waits for the user's previous build, still being made on their device, to finish first. 'Build' is the act of making the printable PDF.",
   "doc.chapter": "The heading printed above each chapter when the 'heading' chapter style is chosen; {n} is the chapter number. Use the word published Bibles in this language use for a chapter, and put {n} where it goes (some languages put the number first or wrap it, e.g. \"第{n}章\").",
   "doc.copyright.created_with": "A bold line at the top of the copyright page; {link} becomes the link \"/paper.bible/\" (the app's name, styled as a URL).",
   "doc.copyright.customize": "Bold text beside a QR code on the copyright page, inviting the reader to scan it to open this book's design, customise it and print their own copy.",

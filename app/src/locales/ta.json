@@ -304,6 +304,7 @@
   "display.preview.missing_books": "தேர்ந்தெடுத்த புத்தகங்கள் இல்லாத மொழிபெயர்ப்புகள்",
   "display.preview.preparing_cover": "அட்டை தயாராகிறது",
   "display.preview.start_of_preview": "முன்னோட்டத்தின் தொடக்கம்",
+  "display.preview.waiting_previous": "உங்கள் முந்தைய உருவாக்கம் முடியும் வரை காத்திருக்கிறது",
   "display.preview.writing": "{label} எழுதப்படுகிறது ({i}/{total})",
   "display.splash.beta": "இந்தப் பயன்பாடு பீட்டா நிலையில் உள்ளது. தயங்காமல் ஆராய்ந்து பார்க்கவும்; ஏதேனும் தவறாக இருந்தால் எங்களுக்குத் தெரிவிக்கவும்.",
   "display.splash.get_started": "உருவாக்கத் தொடங்கு",

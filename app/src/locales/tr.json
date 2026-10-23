@@ -304,6 +304,7 @@
   "display.preview.missing_books": "Çevirilerde seçilen kitaplar eksik",
   "display.preview.preparing_cover": "Kapak hazırlanıyor",
   "display.preview.start_of_preview": "Önizlemenin başı",
+  "display.preview.waiting_previous": "Önceki oluşturma işleminizin bitmesi bekleniyor",
   "display.preview.writing": "Hazırlanıyor: {label} ({i}/{total})",
   "display.splash.beta": "Bu uygulama beta aşamasındadır. Lütfen keşfedin ve bir sorun görürseniz bize bildirin.",
   "display.splash.get_started": "Oluşturmaya başla",

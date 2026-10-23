@@ -304,6 +304,7 @@
   "display.preview.missing_books": "Faltan libros elegidos en algunas traducciones",
   "display.preview.preparing_cover": "Preparando la cubierta",
   "display.preview.start_of_preview": "Inicio de la vista previa",
+  "display.preview.waiting_previous": "Esperando a que termine tu generación anterior",
   "display.preview.writing": "Componiendo {label} ({i}/{total})",
   "display.splash.beta": "Esta aplicación está en fase beta. Explórala y avísanos si algo no está bien.",
   "display.splash.get_started": "Empezar a crear",

@@ -304,6 +304,7 @@
   "display.preview.missing_books": "Translations missing chosen books",
   "display.preview.preparing_cover": "Preparing cover",
   "display.preview.start_of_preview": "Start of preview",
+  "display.preview.waiting_previous": "Waiting for your previous build to finish",
   "display.preview.writing": "Writing {label} ({i}/{total})",
   "display.splash.beta": "This app is in beta. Please explore, and let us know if anything is amiss.",
   "display.splash.get_started": "Start Creating",

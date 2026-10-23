@@ -304,6 +304,7 @@
   "display.preview.missing_books": "جن تراجم میں منتخب کتابیں موجود نہیں",
   "display.preview.preparing_cover": "سرورق تیار ہو رہا ہے",
   "display.preview.start_of_preview": "پیش منظر کا آغاز",
+  "display.preview.waiting_previous": "آپ کی پچھلی دستاویز بننے کا انتظار ہو رہا ہے",
   "display.preview.writing": "تحریر جاری ہے: {label} ({i}/{total})",
   "display.splash.beta": "یہ ایپ ابھی بیٹا مرحلے میں ہے۔ براہِ کرم اسے آزمائیں، اور اگر کچھ غلط لگے تو ہمیں بتائیں۔",
   "display.splash.get_started": "بنانا شروع کریں",

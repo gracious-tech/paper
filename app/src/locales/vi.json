@@ -304,6 +304,7 @@
   "display.preview.missing_books": "Bản dịch thiếu các sách đã chọn",
   "display.preview.preparing_cover": "Đang chuẩn bị bìa",
   "display.preview.start_of_preview": "Đầu bản xem trước",
+  "display.preview.waiting_previous": "Đang chờ bản in trước của bạn tạo xong",
   "display.preview.writing": "Đang dàn trang {label} ({i}/{total})",
   "display.splash.beta": "Ứng dụng này đang ở giai đoạn thử nghiệm (beta). Hãy khám phá, và cho chúng tôi biết nếu có gì chưa ổn.",
   "display.splash.get_started": "Bắt đầu tạo",

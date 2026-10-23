@@ -304,6 +304,7 @@
   "display.preview.missing_books": "ترجمه‌هایی که کتاب‌های انتخاب‌شده را ندارند",
   "display.preview.preparing_cover": "در حال آماده‌سازی جلد",
   "display.preview.start_of_preview": "ابتدای پیش‌نمایش",
+  "display.preview.waiting_previous": "در انتظار پایان ساخت قبلی شما",
   "display.preview.writing": "در حال حروف‌چینی {label} ({i}/{total})",
   "display.splash.beta": "این برنامه در مرحلهٔ بتا است. لطفاً آن را بررسی کنید و اگر مشکلی دیدید به ما اطلاع دهید.",
   "display.splash.get_started": "شروع کنید",

@@ -12,6 +12,7 @@ import {get_custom_font_styles} from '@/services/custom_fonts'
 import {resolve_content_for_style} from '@/services/content_images'
 import {report_error} from '@/services/errors'
 import {use_is_mobile} from '@/services/display'
+import {compiling_here} from '@/services/compile_progress'
 
 import type {PreviewSection, PreviewTruncation, ProgressFn} from 'paper-bible-typst'
 import type {TypstWorkerClient} from '@/services/typst'
@@ -161,15 +162,17 @@ export function ensure_page_estimate():Promise<void>{
 export function use_page_estimate_while_mounted():void{
     // Keep the estimate current while the calling component is on screen, for panels that show
     // something derived from it. Only needed on mobile, where no preview is doing so already.
+    // Waits while a build compiles in this tab, since a phone can't hold both (see
+    // claim_compile_turn), and catches up once it's done.
     // Must be called from a component's setup()
     const is_mobile = use_is_mobile()
     const refresh = debounce(() => {
-        if (is_mobile.value){
+        if (is_mobile.value && !compiling_here.value){
             void ensure_page_estimate()
         }
     }, 1000)
-    watch([render_signature, () => typst_generator.value, () => content.loaded, is_mobile],
-        refresh, {immediate: true, deep: true})
+    watch([render_signature, () => typst_generator.value, () => content.loaded, is_mobile,
+        compiling_here], refresh, {immediate: true, deep: true})
     onUnmounted(() => {
         refresh.cancel()
     })

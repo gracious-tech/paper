@@ -304,6 +304,7 @@
   "display.preview.missing_books": "선택한 책이 없는 번역본",
   "display.preview.preparing_cover": "표지 준비 중",
   "display.preview.start_of_preview": "미리보기 시작",
+  "display.preview.waiting_previous": "이전 제작이 끝나기를 기다리는 중",
   "display.preview.writing": "{label} 조판 중 ({i}/{total})",
   "display.splash.beta": "이 앱은 베타 버전입니다. 자유롭게 둘러보시고 이상한 점이 있으면 알려 주세요.",
   "display.splash.get_started": "만들기 시작",

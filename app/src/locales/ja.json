@@ -304,6 +304,7 @@
   "display.preview.missing_books": "選択した書巻を含まない翻訳があります",
   "display.preview.preparing_cover": "表紙を準備中",
   "display.preview.start_of_preview": "プレビューの始まり",
+  "display.preview.waiting_previous": "前回の生成が終わるのを待っています",
   "display.preview.writing": "{label}を作成中（{i}/{total}）",
   "display.splash.beta": "このアプリはベータ版です。ぜひお試しいただき、問題があればお知らせください。",
   "display.splash.get_started": "作成を始める",

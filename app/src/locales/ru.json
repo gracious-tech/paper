@@ -304,6 +304,7 @@
   "display.preview.missing_books": "В переводах нет выбранных книг",
   "display.preview.preparing_cover": "Подготовка обложки",
   "display.preview.start_of_preview": "Начало предпросмотра",
+  "display.preview.waiting_previous": "Ждём окончания предыдущей сборки",
   "display.preview.writing": "Набор текста: {label} ({i}/{total})",
   "display.splash.beta": "Приложение проходит бета-тестирование. Осваивайтесь и сообщайте нам, если что-то не так.",
   "display.splash.get_started": "Начать",
