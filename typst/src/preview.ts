@@ -102,14 +102,36 @@ function bracket_depth(text:string):number {
 }
 
 
-// Split markup at each match of `separator` (which must be zero-width, so the pieces concatenate
-// back to the original), but only where every `[` opened before the cut has closed. Study notes
-// span blank lines (`#studynote[...\n\n]`), so a cut at any blank line could otherwise end the
-// markup inside one, failing the compile with "unclosed delimiter"
-function split_balanced(content:string, separator:RegExp):string[] {
+// Split markup after each blank line, so every piece keeps the blank line that ended it. Done by
+// hand because a lookbehind (`/(?<=\n\n)/`) is a syntax error in Safari before 16.4, which
+// fails to parse the whole bundle and leaves older iPhones on the loading screen
+function split_after_blank_lines(content:string):string[] {
+    const parts:string[] = []
+    let start = 0
+    let blank = content.indexOf('\n\n')
+    while (blank !== -1) {
+        // Cut after this blank line's second newline, never at the very end (as split() doesn't)
+        const cut = blank + 2
+        if (cut >= content.length) {
+            break
+        }
+        parts.push(content.slice(start, cut))
+        start = cut
+        blank = content.indexOf('\n\n', blank + 1)
+    }
+    parts.push(content.slice(start))
+    return parts
+}
+
+
+// Rejoin consecutive parts (which concatenate back to the original markup) so that a cut
+// remains only where every `[` opened before it has closed. Study notes span blank lines
+// (`#studynote[...\n\n]`), so a cut at any blank line could otherwise end the markup inside
+// one, failing the compile with "unclosed delimiter"
+function split_balanced(parts:string[]):string[] {
     const pieces:string[] = []
     let depth = 0
-    for (const part of content.split(separator)) {
+    for (const part of parts) {
         if (depth > 0 && pieces.length) {
             pieces[pieces.length - 1] += part
         } else {
@@ -127,7 +149,7 @@ function split_balanced(content:string, separator:RegExp):string[] {
 // clip_block_chapters), so the result may run slightly past.
 function clip_markup_tail(content:string, limit:number):string {
     let kept = ''
-    for (const block of split_balanced(content, /(?<=\n\n)/)) {
+    for (const block of split_balanced(split_after_blank_lines(content))) {
         if (kept.length >= limit) {
             break
         }
@@ -148,7 +170,7 @@ function clip_markup_tail(content:string, limit:number):string {
 // one 300k-character block, which kept whole made the "~50 page" window the entire book
 function clip_block_chapters(block:string, limit:number):string {
     let kept = ''
-    for (const chapter of split_balanced(block, /(?=^#ch\(\d+\))/m)) {
+    for (const chapter of split_balanced(block.split(/(?=^#ch\(\d+\))/m))) {
         if (kept && kept.length + chapter.length > limit) {
             break
         }
