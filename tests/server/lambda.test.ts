@@ -9,6 +9,7 @@
 import {describe, it, expect, afterEach, vi} from 'vitest'
 
 import type {CompileJob} from '../../server/src/compile.ts'
+import type {PreviewJob} from '../../server/src/preview.ts'
 
 
 // The compile and its asset sync, which the compile handler only has to wire together (each has
@@ -16,6 +17,10 @@ import type {CompileJob} from '../../server/src/compile.ts'
 vi.mock('../../server/src/compile.ts', async original => ({
     ...await original<typeof import('../../server/src/compile.ts')>(),
     run_compile: vi.fn(),
+}))
+vi.mock('../../server/src/preview.ts', async original => ({
+    ...await original<typeof import('../../server/src/preview.ts')>(),
+    run_preview: vi.fn(),
 }))
 vi.mock('../../server/src/lambda_bootstrap.ts', () => ({
     ensure_assets_synced: vi.fn(),
@@ -28,9 +33,11 @@ async function load(roles:string){
     process.env['SERVER_ROLES'] = roles
     const {handler} = await import('../../server/src/lambda.ts')
     const {run_compile} = await import('../../server/src/compile.ts')
+    const {run_preview} = await import('../../server/src/preview.ts')
     const {ensure_assets_synced} = await import('../../server/src/lambda_bootstrap.ts')
     return {handler: handler as (event:unknown) => Promise<unknown>,
-        run_compile: vi.mocked(run_compile), ensure_assets_synced}
+        run_compile: vi.mocked(run_compile), run_preview: vi.mocked(run_preview),
+        ensure_assets_synced}
 }
 
 
@@ -74,6 +81,18 @@ describe('the compile function', () => {
         // the version failed instead of leaving it pending (see run_compile)
         expect(run_compile).toHaveBeenCalledExactlyOnceWith(job, ensure_assets_synced)
         expect(ensure_assets_synced).not.toHaveBeenCalled()
+    })
+
+    it('tells a preview job apart by its kind', async () => {
+        const {handler, run_compile, run_preview, ensure_assets_synced} = await load('compile')
+        const job:PreviewJob = {kind: 'preview', uid: 'uid_owner', preview_id: 'preview_id',
+            design_id: 'design_id', client_ip: null, user_agent: null, format: 'svg',
+            section: 'start'}
+
+        await handler(job)
+
+        expect(run_preview).toHaveBeenCalledExactlyOnceWith(job, ensure_assets_synced)
+        expect(run_compile).not.toHaveBeenCalled()
     })
 })
 

@@ -231,8 +231,8 @@ async function check_version(uid:string, version_id:string, cover_only = false)
 }
 
 
-export function check_assets(blueprint:Blueprint, fonts_meta:StoredFontMeta[], assets_prefix:string)
-        :string|null{
+export function check_assets(blueprint:Blueprint, fonts_meta:StoredFontMeta[],
+        assets_prefix:string):string|null{
     // Why a blueprint's asset references can't be compiled from, or null if they can. Every one
     // comes off a client-written doc (a version, or a design any co-editor writes), so the Admin
     // SDK must never be pointed at a path or address the doc names unless it's under the

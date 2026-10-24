@@ -109,5 +109,17 @@ service cloud.firestore {
         match /compile_stats/{stat_id} {
             allow create: if signed_in() && request.resource.data.owner == request.auth.uid;
         }
+
+        // A preview the server made for a device that can't compile in its browser (see
+        // server/src/preview.ts). Written only by the server (Admin SDK); readable by the user
+        // who asked for it, who listens for its outcome. A missing doc reads as allowed for the
+        // same reason as designs above: the listener may attach before the doc is visible, and
+        // an unguessable id names nothing anyone else could learn from. Rows carry an `expires`
+        // field and a TTL policy drops them after a day. Got by id only, never listed
+        match /previews/{preview_id} {
+            allow get: if signed_in()
+                && (resource == null || resource.data.owner == request.auth.uid);
+            allow write: if false;
+        }
     }
 }

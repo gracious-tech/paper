@@ -186,6 +186,14 @@ describe('user records', () => {
         expect(theirs.empty).toBe(false)
     })
 
+    it('removes the server previews made for the user', async () => {
+        await admin_db.doc('previews/mine').set({owner: user, status: 'available'})
+        await admin_db.doc('previews/theirs').set({owner: EDITOR, status: 'available'})
+        await handle_delete_account(user)
+        expect((await admin_db.doc('previews/mine').get()).exists).toBe(false)
+        expect((await admin_db.doc('previews/theirs').get()).exists).toBe(true)
+    })
+
     it('leaves error reports alone — they are keyed by fingerprint, not by uid', async () => {
         await put_object('errors/abc123/report.json', 'application/json')
         await handle_delete_account(user)

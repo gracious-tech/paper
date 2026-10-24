@@ -4,7 +4,7 @@
 // the client never hears from the compile itself, only from the version doc it updates.
 //
 // No test here reaches an accepted compile — from source that runs in-process (see
-// dispatch_compile), which would be a real Typst render rather than a check of the route.
+// dispatch_job), which would be a real Typst render rather than a check of the route.
 
 import {describe, it, expect, beforeEach} from 'vitest'
 

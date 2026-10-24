@@ -6,7 +6,7 @@
 import {describe, it, expect, beforeEach} from 'vitest'
 
 import {quota_allows, claim_compile_lock, extend_compile_lock, release_compile_lock,
-    QUOTA_COMPILE, QUOTA_COPY, COMPILE_LOCK, QUOTA_COLLECTIONS, COMPILE_LOCK_MS,
+    QUOTA_COMPILE, QUOTA_COPY, QUOTA_PREVIEW, COMPILE_LOCK, QUOTA_COLLECTIONS, COMPILE_LOCK_MS,
     DAILY_COMPILE_LIMIT, DAILY_COPY_LIMIT} from '../../server/src/quota.ts'
 import {admin_db, reset_firestore, at_later_time, OWNER, STRANGER} from '../helpers/server.ts'
 
@@ -167,6 +167,7 @@ describe('quota collection registry', () => {
     it('lists every collection the module defines', () => {
         expect(QUOTA_COLLECTIONS).toContain(QUOTA_COMPILE)
         expect(QUOTA_COLLECTIONS).toContain(QUOTA_COPY)
+        expect(QUOTA_COLLECTIONS).toContain(QUOTA_PREVIEW)
         expect(QUOTA_COLLECTIONS).toContain(COMPILE_LOCK)
     })
 

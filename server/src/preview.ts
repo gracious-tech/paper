@@ -13,7 +13,7 @@ import {gzipSync} from 'node:zlib'
 
 import {Timestamp, FieldValue} from 'firebase-admin/firestore'
 import {PDFDocument} from 'pdf-lib'
-import {join_blueprint_doc, design_assets_prefix, design_cache_prefix, truncate_for_preview,
+import {design_assets_prefix, design_cache_prefix, truncate_for_preview,
     ESTIMATE_CHAR_LIMIT, PREVIEW_CHAR_LIMIT, svg_page_markup, gen_cover_slot_typst,
     gen_preview_strip_typst, notice_fonts, add_preview_strip, prepend_cover, cover_page_geometry,
     COMPILE_STATS_LIFETIME_MS} from 'paper-bible-typst'
@@ -24,7 +24,7 @@ import {admin_db, admin_bucket} from './firebase.ts'
 import {config} from './config.ts'
 import {quota_allows, QUOTA_PREVIEW, DAILY_PREVIEW_LIMIT} from './quota.ts'
 import {check_assets, download_fonts, render_cover, render_cover_front_svg} from './compile.ts'
-import {storage_public_url} from './assets.ts'
+import {storage_public_url, join_design_blueprint} from './assets.ts'
 import {shared_content} from './content.ts'
 import {dispatch_job} from './dispatch.ts'
 import {new_id} from './designs.ts'
@@ -112,7 +112,10 @@ export function parse_preview_body(body:Record<string, unknown>)
             || (dir !== 'ltr' && dir !== 'rtl')){
         return null
     }
-    const labels = Object.fromEntries(keys.map(key => [key, raw[key]])) as PreviewLabels
+    const labels = {} as PreviewLabels
+    for (const key of keys){
+        labels[key] = raw[key] as string
+    }
     return {format, section, labels, locale, dir, ...page_count !== undefined && {page_count}}
 }
 
@@ -131,14 +134,7 @@ async function check_design(uid:string, design_id:string)
     if (!(data['editor_uids'] as string[]|undefined)?.includes(uid)){
         return refuse(403, 'not_editor')
     }
-    const blueprint = join_blueprint_doc({
-        blueprint: (data['blueprint'] ?? {}) as Record<string, unknown>,
-        content_items: (data['content_items'] ?? {}) as Parameters<
-            typeof join_blueprint_doc>[0]['content_items'],
-        content_order: (data['content_order'] ?? []) as string[],
-        name: (data['name'] ?? '') as string,
-        schema: (data['schema'] ?? 0) as number,
-    })
+    const blueprint = join_design_blueprint(data)
     // The design's uploaded fonts, a map keyed by font id (see custom_fonts.ts in the app)
     const fonts_meta = Object.values((data['fonts'] ?? {}) as Record<string, StoredFontMeta>)
     const bad_asset = check_assets(blueprint, fonts_meta, design_assets_prefix(design_id))
@@ -244,7 +240,8 @@ export async function run_preview(job:PreviewJob, prepare?:() => Promise<void>):
 
         // Stored gzipped (served with Content-Encoding, which browsers undo themselves), as a
         // phone may be fetching it over a slow connection
-        const path = `${design_cache_prefix(job.design_id)}preview_${job.preview_id}.${output.ext}`
+        const path =
+            `${design_cache_prefix(job.design_id)}preview_${job.preview_id}.${output.ext}`
         await admin_bucket.file(path).save(output.bytes, {
             contentType: output.content_type,
             metadata: {contentEncoding: 'gzip', contentDisposition: 'inline'},

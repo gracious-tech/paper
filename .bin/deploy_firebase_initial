@@ -54,5 +54,12 @@ gcloud firestore fields ttls update expires \
     --collection-group=copy_quota --enable-ttl --project "$PROJECT" --quiet
 gcloud firestore fields ttls update expires \
     --collection-group=compile_lock --enable-ttl --project "$PROJECT" --quiet
+gcloud firestore fields ttls update expires \
+    --collection-group=preview_quota --enable-ttl --project "$PROJECT" --quiet
+
+# Server previews' docs are only looked at straight after they're made (PREVIEW_DOC_LIFETIME_MS
+# in server/src/preview.ts)
+gcloud firestore fields ttls update expires \
+    --collection-group=previews --enable-ttl --project "$PROJECT" --quiet
 
 echo "Done. Now run .bin/deploy_aws"
