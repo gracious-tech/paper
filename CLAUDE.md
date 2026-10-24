@@ -839,6 +839,11 @@ After that, every push to `main` deploys itself. The scripts still work by hand
   gitignored `errors/records/` is written and parses, so that directory (triage state
   included) is the *only* copy — back it up, and run the tool from one machine.
   The boot splash and a failed version show the report id in a gracious.tech/contact link.
+  A bundle that never starts (syntax an old browser can't parse, a chunk that failed to load)
+  can't report itself, so `app/public/boot_check.js` (ES5, outside the bundle) does: if
+  `errors.ts` hasn't flagged itself by `DOMContentLoaded`, it shows a splash and files a
+  `Boot check: ...` report. Safari may give no `SyntaxError` for a module that fails to parse
+  (as far as is known, only the `<script>` element's own error event), so don't rely on one
   The cover widget's errors are relayed over the embed protocol (`{type: 'error'}`) and reported
   as `Cover widget: ...` with `context.source = 'cover_widget'`. Triage keeps them out of the
   fixer and fix-commit pinning, since their code and builds belong to the bookcover repo

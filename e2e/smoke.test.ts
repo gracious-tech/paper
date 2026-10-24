@@ -27,6 +27,39 @@ test('the app boots, signed in as a guest', async ({page}) => {
 })
 
 
+test.describe('a bundle that never starts', () => {
+
+    // public/boot_check.js reports these itself, since errors.ts never ran
+    test.use({expected_reports: [/^Boot check: /]})
+
+    // The app's entry module, as index.pug asks the dev server for it
+    const ENTRY = /\/src\/init\.ts(\?|$)/
+
+    test('says the browser is too old when it can\'t parse the bundle', async ({page}) => {
+        // Chromium reports a module's SyntaxError to window.onerror, as regex lookbehind did on
+        // iOS 15 (which Chromium itself parses, so the syntax error here is a stand-in)
+        await page.route(ENTRY, route => route.fulfill(
+            {contentType: 'application/javascript', body: 'let let = 1'}))
+        const report = page.waitForRequest(/\/api\/report_error$/)
+        await page.goto('/')
+        await expect(page.getByText('Sorry, your browser is too old')).toBeVisible()
+        expect((await report).postDataJSON().message).toMatch(/^Boot check: SyntaxError/)
+    })
+
+    test('offers a reload when the bundle fails without a SyntaxError', async ({page}) => {
+        // A failed fetch only fires the <script> element's own error event, which may also be
+        // all Safari gives for a parse error, so this is the path that has to catch it there
+        await page.route(ENTRY, route => route.abort())
+        const report = page.waitForRequest(/\/api\/report_error$/)
+        await page.goto('/')
+        await expect(page.getByText('Sorry, Paper Bible couldn\'t start')).toBeVisible()
+        await expect(page.getByRole('button', {name: 'Reload', exact: true})).toBeVisible()
+        expect((await report).postDataJSON().message)
+            .toMatch(/^Boot check: the bundle never started \(failed: .*\/src\/init\.ts/)
+    })
+})
+
+
 test('a first visit is welcomed, once', async ({page}) => {
     await boot(page, '/', {first_visit: true})
 
