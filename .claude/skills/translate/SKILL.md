@@ -168,4 +168,5 @@ edit that doesn't change the meaning (typo, punctuation), skip retranslating wit
 - Escape for Typst first, then swap a placeholder for markup (see "Created with {link}" in
   `copyright.ts`).
 - Never draw text with pdf-lib's built-in fonts: they only encode WinAnsi, so most languages
-  throw. Typeset it — see `compile_standalone()` in typst-web for UI-language notices.
+  throw. Typeset it, or (for UI-language notices around a preview) show it as HTML — see
+  `DisplayPreviewPages.vue`.

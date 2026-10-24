@@ -4,10 +4,9 @@ import {createTypstRenderer} from '@myriaddreamin/typst.ts/renderer'
 import {loadFonts} from '@myriaddreamin/typst.ts'
 
 import {load_fonts_prefix, font_urls_for, fonts_to_blob_urls, revoke_blob_urls} from 'typst-fonts/web'
-import {base_font} from 'typst-fonts'
 
-import {generate_pdf, generate_pdf_spread_preview, generate_svg_preview, split_typst_svg,
-    generate_typst, collect_fonts, gen_cover_slot_typst, notice_fonts} from 'paper-bible-typst'
+import {generate_pdf, generate_svg_preview, split_typst_svg, generate_typst, collect_fonts}
+    from 'paper-bible-typst'
 
 import type {TypstCompiler} from '@myriaddreamin/typst.ts/compiler'
 import type {TypstRenderer} from '@myriaddreamin/typst.ts/renderer'
@@ -80,11 +79,6 @@ export class TypstWeb {
     // each ensure_fonts() call, so a caller can keep passing the same (mutated) array reference
     // rather than re-calling the setter on every upload
     private custom_fonts:CustomFont[] = []
-    // A second compiler for small standalone pages in the UI's language (see compile_standalone),
-    // created on first use and kept while their fonts stay the same, so they never displace the
-    // main compiler's fonts — reinitialising that one means reloading every font a book uses
-    private standalone_compiler:TypstCompiler|null = null
-    private standalone_fonts = ''
     // Cumulative Typst source bytes compiled in this realm. The WASM compiler permanently
     // accumulates module-global state for every unique source it compiles (measured at roughly
     // 60x the source size): the wasm-bindgen module is a once-per-realm singleton, so no
@@ -277,55 +271,12 @@ export class TypstWeb {
         return generate_pdf(request, this.make_compile_fn(), on_progress, preview)
     }
 
-    // Compile a request to a preview PDF laid out as facing-page book spreads, as if the
-    // book were opened: a blank left page beside page 1 on the right, then 2|3, 4|5, etc.,
-    // including every blank/note page exactly as printed. For on-screen preview only.
-    async compile_pdf_preview(request:TypstRequest, on_progress?:ProgressFn):Promise<Uint8Array> {
-        await this.ensure_fonts(request)
-        // The labelled "inside of the front cover" slot, typeset in the UI's language
-        const label = request.preview_cover_label
-        const cover_slot = label
-            ? await this.compile_standalone(notice_fonts(label),
-                fonts => gen_cover_slot_typst(request.page, label, fonts))
-            : undefined
-        return generate_pdf_spread_preview(request, this.make_compile_fn(), on_progress,
-            cover_slot)
-    }
-
-    // Compile a request to its pages in reading order, one standalone SVG each, for a phone's
-    // preview (see generate_svg_preview) — the same pages print assembles, without the PDF
+    // Compile a request to its pages in reading order, one standalone SVG each, for the preview
+    // (see generate_svg_preview) — the same pages print assembles, without the PDF
     async compile_svg_preview(request:TypstRequest, on_progress?:ProgressFn):Promise<SvgPage[]> {
         const renderer = await this.ensure_renderer()
         await this.ensure_fonts(request)
         return generate_svg_preview(request, this.make_svg_compile_fn(renderer), on_progress)
-    }
-
-    // Compile a small standalone page — a preview notice in the UI's language, rather than part
-    // of the book — on a second compiler loaded with only the curated base font plus
-    // `families` (e.g. the Noto fallbacks its text's script needs; see notice_fonts). `build`
-    // gets that full ordered font list and returns the Typst source
-    async compile_standalone(families:string[], build:(fonts:string[]) => string)
-            :Promise<Uint8Array> {
-        await this.manifest_ready()
-        const base = base_font()
-        const fonts = [base, ...families.filter(family => family !== base)]
-        const cache_key = fonts.join(',')
-        if (!this.standalone_compiler || cache_key !== this.standalone_fonts) {
-            this.standalone_compiler = await this.create_compiler(
-                font_urls_for(this.fonts_prefix, fonts))
-            this.standalone_fonts = cache_key
-        }
-        const source = build(fonts)
-        this.count_wear(source)
-        const compiler = this.standalone_compiler
-        compiler.resetShadow()
-        compiler.addSource('/main.typ', source)
-        const result = await compiler.compile({mainFilePath: '/main.typ',
-            format: CompileFormatEnum.pdf})
-        if (!result.result) {
-            throw_compile_error(result.diagnostics)
-        }
-        return result.result
     }
 
     // Compile a request straight to an SVG string, skipping the PDF post-processing pipeline

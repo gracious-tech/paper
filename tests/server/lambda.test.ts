@@ -86,7 +86,7 @@ describe('the compile function', () => {
     it('tells a preview job apart by its kind', async () => {
         const {handler, run_compile, run_preview, ensure_assets_synced} = await load('compile')
         const job:PreviewJob = {kind: 'preview', uid: 'uid_owner', preview_id: 'preview_id',
-            design_id: 'design_id', client_ip: null, user_agent: null, format: 'svg',
+            design_id: 'design_id', client_ip: null, user_agent: null, size: 'phone',
             section: 'start'}
 
         await handler(job)

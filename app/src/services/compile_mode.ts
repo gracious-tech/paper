@@ -1,11 +1,19 @@
 
 // Whether this device compiles in its own browser or leaves it to the server. Every device starts
-// out compiling in the browser, and is switched to the server for good once it shows it can't
-// cope — only by failures that are the device's own (see is_device_failure): running out of
-// memory, a preview taking too long (PREVIEW_TIMEOUT_MS on a phone, DESKTOP_PREVIEW_TIMEOUT_MS
-// on a desktop), the engine failing to start, or the tab dying mid-compile, which on iOS gives no
-// error to catch (the page just reloads), so it's noticed on the next boot from a marker left
-// behind. An error in the Typst we generate, or a lost connection, says nothing about the device.
+// out compiling in the browser, and is switched to the server once it shows it can't cope — only
+// by failures that are the device's own (see is_device_failure): running out of memory, being too
+// slow, the engine failing to start, or the tab dying mid-compile, which on iOS gives no error to
+// catch (the page just reloads), so it's noticed on the next boot from a marker left behind. An
+// error in the Typst we generate, or a lost connection, says nothing about the device.
+//
+// Phones and desktops are treated differently, since a phone that can't cope can lose the user's
+// tab, while a desktop that can't cope is only slow, and a desktop in server mode loses its live
+// preview (the server only previews on request). So a phone switches on its first failure, and
+// for good. A desktop is given more rope: a preview over DESKTOP_PREVIEW_TIMEOUT_MS has the
+// server race it rather than replace it, and only a desktop the server keeps beating (or whose
+// tab keeps dying) is switched, by strikes (see strike). Once switched, it tries its own browser
+// again every so often beside the server's preview, and switches back as soon as it keeps up
+// (see recheck_due), so an old laptop isn't written off by one bad day.
 //
 // A switch is provisional until the server has done the same kind of job (settle_server_mode):
 // if the server fails it too, the fault was more likely the document or our own code than the
@@ -14,9 +22,9 @@
 // The choice is this browser's alone, in localStorage: it's about the device, so it mustn't
 // follow the account to another one.
 //
-// TODO(2027-02) Re-evaluate the switch being permanent once there's data (the compile_stats
-// rows below) and feedback: a phone may deserve another go after an app update lowers memory use,
-// or after a month in case the phone or its browser was upgraded
+// TODO(2027-02) Re-evaluate a phone's switch being permanent once there's data (the
+// compile_stats rows below) and feedback: a phone may deserve another go after an app update
+// lowers memory use, or after a month in case the phone or its browser was upgraded
 
 import {ref} from 'vue'
 import {collection, addDoc, serverTimestamp, Timestamp} from 'firebase/firestore'
@@ -31,10 +39,23 @@ import {is_mobile_now} from '@/services/display'
 // switched to the server
 export const PREVIEW_TIMEOUT_MS = 20 * 1000
 
-// How long a desktop's live preview may take before the server is asked instead. Shorter than a
-// phone's, since a desktop recompiles as the user edits and is expected to keep up.
+// How long a desktop's live preview may take before the server is asked to race it. Shorter than
+// a phone's, since a desktop recompiles as the user edits and is expected to keep up.
 // TODO(2027-02) Reassess with the compile_stats rows, which time every browser preview
 export const DESKTOP_PREVIEW_TIMEOUT_MS = 10 * 1000
+
+// The longest a desktop's browser preview is let run at all, raced by the server or not
+export const DESKTOP_PREVIEW_CAP_MS = 2 * 60 * 1000
+
+// How many strikes switch a desktop to the server: the server beating its browser at a preview
+// is one, the tab dying mid-compile two (it cost the user more, and is rarer), and a preview the
+// browser finishes in time clears them all
+const SWITCH_STRIKES = 3
+
+// How many server previews a switched desktop waits before trying its own browser again, and the
+// most that wait doubles to each time the browser still can't keep up
+const RECHECK_FIRST = 20
+const RECHECK_MAX = 160
 
 
 // Why a device was switched to the server (recorded with the switch, see switch_to_server)
@@ -45,15 +66,17 @@ export type SwitchReason = 'crash'|'slow'|'memory'|'engine'
 // worker (see send_compile in typst.ts), so the document is more than this device can hold
 export class BrowserMemoryError extends Error {}
 
-// A browser compile abandoned for taking too long (see within_timeout in phone_preview.ts and
-// DisplayPreview.vue)
+// A browser compile abandoned for taking too long (see within_timeout)
 export class SlowCompileError extends Error {}
 
 
-// localStorage keys: the device's mode ('1' once confirmed, 'provisional' until then), and when a
-// compile on it began while one is running
+// localStorage keys: the device's mode ('1' once confirmed, 'provisional' until then), when a
+// compile on it began while one is running, a desktop's strikes, and a switched desktop's re-check
+// countdown ({left, interval} as JSON)
 const MODE_KEY = 'compile_on_server'
 const IN_FLIGHT_KEY = 'compile_in_flight'
+const STRIKES_KEY = 'compile_strikes'
+const RECHECK_KEY = 'compile_recheck'
 
 
 function read_key(key:string):string|null{
@@ -124,7 +147,75 @@ export function switch_to_server(reason:SwitchReason):void{
     server_mode.value = true
     provisional = true
     write_key(MODE_KEY, 'provisional')
+    write_key(STRIKES_KEY, null)
+    write_key(RECHECK_KEY, JSON.stringify({left: RECHECK_FIRST, interval: RECHECK_FIRST}))
     record_mode('compile_mode', reason)
+}
+
+
+function switch_to_browser(reason:'server_failed'|'recheck'):void{
+    // Have this device compile in its own browser again, with a clean slate
+    server_mode.value = false
+    provisional = false
+    write_key(MODE_KEY, null)
+    write_key(STRIKES_KEY, null)
+    write_key(RECHECK_KEY, null)
+    record_mode('compile_mode_reverted', reason)
+}
+
+
+export function strike(reason:'slow'|'crash'):void{
+    // Count a desktop's failure towards switching it to the server (see SWITCH_STRIKES)
+    const strikes = Number(read_key(STRIKES_KEY) ?? 0) + (reason === 'crash' ? 2 : 1)
+    if (strikes >= SWITCH_STRIKES){
+        switch_to_server(reason)
+    } else {
+        write_key(STRIKES_KEY, String(strikes))
+    }
+}
+
+
+export function clear_strikes():void{
+    // A browser preview finished in time, so whatever went wrong before was a blip
+    write_key(STRIKES_KEY, null)
+}
+
+
+export function recheck_due():boolean{
+    // Whether a desktop in server mode should try its own browser beside this server preview
+    // (see recheck_passed/recheck_failed), counting this preview towards the next re-check
+    if (!server_mode.value || is_mobile_now()){
+        return false
+    }
+    let state = {left: RECHECK_FIRST, interval: RECHECK_FIRST}
+    try {
+        state = {...state, ...JSON.parse(read_key(RECHECK_KEY) ?? '{}') as typeof state}
+    } catch {
+        // A garbled countdown just starts again
+    }
+    state.left -= 1
+    write_key(RECHECK_KEY, JSON.stringify(state))
+    return state.left <= 0
+}
+
+
+export function recheck_passed():void{
+    // The browser kept up on a re-check, so the device compiles there again
+    switch_to_browser('recheck')
+}
+
+
+export function recheck_failed():void{
+    // The browser still couldn't keep up on a re-check: wait twice as long for the next one
+    let interval = RECHECK_FIRST
+    try {
+        interval = (JSON.parse(read_key(RECHECK_KEY) ?? '{}') as {interval?:number}).interval
+            ?? RECHECK_FIRST
+    } catch {
+        // As in recheck_due
+    }
+    interval = Math.min(interval * 2, RECHECK_MAX)
+    write_key(RECHECK_KEY, JSON.stringify({left: interval, interval}))
 }
 
 
@@ -142,13 +233,11 @@ export function settle_server_mode(server_ok:boolean):void{
     if (!provisional){
         return
     }
-    provisional = false
     if (server_ok){
+        provisional = false
         write_key(MODE_KEY, '1')
     } else {
-        server_mode.value = false
-        write_key(MODE_KEY, null)
-        record_mode('compile_mode_reverted', 'server_failed')
+        switch_to_browser('server_failed')
     }
 }
 
@@ -207,9 +296,14 @@ addEventListener('pageshow', () => {
 
 
 export function check_crashed_compile():void{
-    // At boot, switch the device to the server if the last session's tab died mid-compile
+    // At boot, notice the last session's tab dying mid-compile: a phone is switched to the server
+    // there and then, a desktop takes strikes (see strike)
     if (read_key(IN_FLIGHT_KEY) !== null){
         write_key(IN_FLIGHT_KEY, null)
-        switch_to_server('crash')
+        if (is_mobile_now()){
+            switch_to_server('crash')
+        } else {
+            strike('crash')
+        }
     }
 }

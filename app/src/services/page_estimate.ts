@@ -15,7 +15,7 @@ import {use_is_mobile} from '@/services/display'
 import {compiling_here} from '@/services/compile_progress'
 import {compiles_on_server, within_timeout} from '@/services/compile_mode'
 
-import type {PreviewSection, PreviewTruncation, ProgressFn} from 'paper-bible-typst'
+import type {PreviewSection, PreviewTruncation, ProgressFn, SvgPage} from 'paper-bible-typst'
 import type {TypstWorkerClient} from '@/services/typst'
 import type {Blueprint} from '@/services/types'
 
@@ -24,16 +24,14 @@ import type {Blueprint} from '@/services/types'
 // open design. On desktop the live preview (DisplayPreview.vue) refreshes it as a side effect of
 // every compile. Mobile has no preview pane, so nothing compiles in the background there:
 // whatever needs the estimate asks for it on demand (ensure_page_estimate), and it's computed
-// then, from a smaller window (ESTIMATE_CHAR_LIMIT) whose PDF is never displayed
+// then, from a smaller window (ESTIMATE_CHAR_LIMIT) whose pages are never displayed
 
 
 // What a preview-window compile produced
 export interface PreviewWindow {
-    bytes:Uint8Array
+    // The window's pages in reading order (see generate_svg_preview)
+    pages:SvgPage[]
     truncation:PreviewTruncation
-    // Whether the window reaches the start of the document and the design has a cover, so the
-    // preview shows one in front of it
-    show_front_cover:boolean
     share_url:string|undefined
     page_estimate:number
     // The render_signature() the compile started from
@@ -65,16 +63,25 @@ interface WindowSource {
 }
 
 
+// How a window compile is run, beyond its content
+export interface WindowOptions {
+    // What to compile, when not the open design
+    source?:WindowSource
+    // Give up on the compile itself (not the Bible text's download) with a SlowCompileError once
+    // it takes this long
+    timeout_ms?:number
+    // Told when the compile itself starts, after the Bible text is in
+    on_compile?:() => void
+}
+
+
 export async function compile_preview_window(generator:TypstWorkerClient, section:PreviewSection,
-        limit:number, on_progress?:ProgressFn, cover_label?:string,
-        source:WindowSource = {blueprint: blue, design_id: current_design_id.value},
-        timeout_ms:number|null = null):Promise<PreviewWindow>{
-    // Compile a window of the open design (or `source`) of at most `limit` characters
-    // (PREVIEW_CHAR_LIMIT for the preview, ESTIMATE_CHAR_LIMIT when only the page count is
-    // wanted), and estimate the full page count from it. `cover_label` marks the gray
-    // inside-of-cover slot when a cover precedes it. Given `timeout_ms`, the compile itself (not
-    // the Bible text's download) is given up on with a SlowCompileError once it takes that long
-    const {blueprint, design_id} = source
+        limit:number, on_progress?:ProgressFn, options:WindowOptions = {}):Promise<PreviewWindow>{
+    // Compile a window of the open design (or `options.source`) of at most `limit` characters
+    // (see PREVIEW_LIMITS, or ESTIMATE_CHAR_LIMIT when only the page count is wanted) to its
+    // pages, and estimate the full page count from it
+    const {blueprint, design_id} = options.source
+        ?? {blueprint: blue, design_id: current_design_id.value}
     const signature = render_signature(blueprint)
 
     // Swap in painted/torn variants of any images before resolving (a no-op for the plain
@@ -92,7 +99,6 @@ export async function compile_preview_window(generator:TypstWorkerClient, sectio
     // Omitted if no design is open yet
     const share_url = design_id ? `https://paper.bible/designs/${design_id}` : undefined
 
-    // The preview lays the pages out as facing-page book spreads, as if the book were opened
     const request = await bible_content.resolve(
         {...blueprint, content: styled_content}, get_custom_font_styles(), on_progress, share_url,
         page_count_guess())
@@ -102,29 +108,20 @@ export async function compile_preview_window(generator:TypstWorkerClient, sectio
     // kept pages lay out exactly as in the real document
     const truncation = truncate_for_preview(request, section, limit)
 
-    // The front cover is only shown when the preview window reaches the start of the
-    // document — a Middle or End window drops it
-    const show_front_cover = !!blueprint.cover && !truncation.dropped_before
-    if (show_front_cover && cover_label){
-        truncation.request.preview_cover_label = cover_label
-    }
-
-    // The worker returns the spread count alongside the bytes, so a multi-megabyte PDF is
-    // never re-parsed on this thread just to be measured
-    const compile = generator.compile_pdf_preview(truncation.request, on_progress)
-    const {bytes, pages} = timeout_ms === null ? await compile
-        : await within_timeout(compile, timeout_ms, () => generator.abandon())
+    options.on_compile?.()
+    const compile = generator.compile_svg_preview(truncation.request, on_progress)
+    const pages = options.timeout_ms === undefined ? await compile
+        : await within_timeout(compile, options.timeout_ms, () => generator.abandon())
 
     // The window's own page count scaled by how much of the document it covered (exact when
-    // nothing was truncated). Reading spreads hold two book pages per PDF page, and the result
-    // is rounded to an even number since bound pages always come in twos
-    const window_pages = Math.max(1, pages * 2)
+    // nothing was truncated), rounded to an even number since bound pages always come in twos —
+    // the same estimate the server's preview gives (see run_preview)
     const scale = truncation.window_chars > 0
         ? truncation.total_chars / truncation.window_chars
         : 1
-    const page_estimate = Math.max(2, Math.round(window_pages * scale / 2) * 2)
+    const page_estimate = Math.max(2, Math.round(Math.max(1, pages.length) * scale / 2) * 2)
 
-    return {bytes, truncation, show_front_cover, share_url, page_estimate, signature}
+    return {pages, truncation, share_url, page_estimate, signature}
 }
 
 
@@ -201,7 +198,7 @@ export async function estimate_pages_for(blueprint:Blueprint, design_id:string)
     }
     try {
         const result = await compile_preview_window(generator, 'start', ESTIMATE_CHAR_LIMIT,
-            undefined, undefined, {blueprint, design_id})
+            undefined, {source: {blueprint, design_id}})
         return result.page_estimate
     } catch (error){
         report_error('silent', error, {context: {stage: 'page_estimate'}})

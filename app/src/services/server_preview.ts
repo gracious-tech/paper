@@ -6,8 +6,8 @@
 //
 // The request is only accepted by /api/preview, since a preview can take longer than any request
 // is held open for. The outcome arrives on a previews/{id} doc, and the output itself is a file
-// in the design's cache prefix: one standalone SVG per page for a phone, the same facing-page
-// spreads PDF a desktop's browser makes for its live preview.
+// in the design's cache prefix: the same pages and cover panels the browser makes (see
+// preview.ts), as JSON.
 
 import {doc, onSnapshot} from 'firebase/firestore'
 import {ref as storage_ref, getBytes} from 'firebase/storage'
@@ -21,46 +21,17 @@ import {is_masked_image_style} from '@/services/image_frame'
 import {render_signature, set_page_estimate, fresh_estimate} from '@/services/page_estimate'
 import {retry_network} from '@/services/network_retry'
 import {settle_server_mode} from '@/services/compile_mode'
-import {locale, locale_dir} from '@/services/i18n'
 import {report_error} from '@/services/errors'
 
-import type {PreviewSection} from 'paper-bible-typst'
+import type {PreviewPages, PreviewSection, PreviewSize} from 'paper-bible-typst'
 import type {CompileProgress} from '@/services/compile_progress'
+import type {Preview} from '@/services/preview'
 
 
 // How long to wait for the server to make a preview before giving up on it. A preview is only a
 // window of the document, so this is generous, but something has to give up: a job lost from the
 // compile function's queue never settles its doc at all
 export const SERVER_PREVIEW_TIMEOUT_MS = 3 * 60 * 1000
-
-
-// The UI-language notices a desktop's preview carries, which the server has no catalogs for
-export interface ServerPreviewLabels {
-    inside_cover:string
-    banner_title:string
-    banner_subtitle:string
-    start_of_preview:string
-    end_of_preview:string
-    build_for_rest:string
-}
-
-
-// What to ask the server for: a phone's pages ('svg'), or a desktop's spreads ('pdf', which
-// needs its notices and may window any section of a long document)
-export type ServerPreviewRequest = {format:'svg'}
-    | {format:'pdf', section:PreviewSection, labels:ServerPreviewLabels}
-
-
-// A preview the server made
-export interface ServerPreview {
-    // The file: gzip already undone, JSON of {pages:string[]} for svg, a PDF for pdf
-    bytes:Uint8Array
-    // The full document's estimated page count
-    page_estimate:number
-    // Whether the document was cut to a window, and whether content past that window was dropped
-    truncated:boolean
-    dropped_after:boolean
-}
 
 
 // The server made the preview and failed (its error report's id, for support), or never made it
@@ -80,16 +51,18 @@ interface PreviewDoc {
     path:string|null
     page_estimate:number|null
     truncated:boolean|null
+    dropped_before:boolean|null
     dropped_after:boolean|null
     error_id:string|null
 }
 
 
-export async function request_server_preview(request:ServerPreviewRequest,
-        on_progress?:(event:CompileProgress) => void):Promise<ServerPreview>{
-    // Have the server preview the open design as it is now, and wait for the result. The page
-    // estimate it brings is kept if the design hasn't changed meanwhile, and its outcome settles a
-    // provisional switch to the server (see settle_server_mode)
+export async function request_server_preview(size:PreviewSize, section:PreviewSection,
+        on_progress?:(event:CompileProgress) => void):Promise<Preview>{
+    // Have the server preview the open design as it is now (a phone's window, or the desktop's
+    // `section`), and wait for the result. The page estimate it brings is kept if the design
+    // hasn't changed meanwhile, and its outcome settles a provisional switch to the server (see
+    // settle_server_mode)
     const design_id = current_design_id.value
     if (!design_id){
         throw new Error('No design open to preview')
@@ -105,8 +78,7 @@ export async function request_server_preview(request:ServerPreviewRequest,
 
     // Accepted straight away, or refused (an ApiError) — a lost connection is waited out, since
     // there's nothing here to try again but this
-    const body = {design_id, page_count: page_count_guess(), ...request,
-        ...request.format === 'pdf' && {locale: locale.value, dir: locale_dir(locale.value)}}
+    const body = {design_id, page_count: page_count_guess(), size, section}
     const {preview_id} = await retry_network(
         () => api<{preview_id:string}>('/api/preview', body),
         error => error instanceof ApiOfflineError, `preview_${design_id}`)
@@ -121,8 +93,10 @@ export async function request_server_preview(request:ServerPreviewRequest,
     if (render_signature() === signature && result.page_estimate !== null){
         set_page_estimate(result.page_estimate, signature)
     }
-    return {bytes, page_estimate: result.page_estimate ?? page_count_guess(),
-        truncated: !!result.truncated, dropped_after: !!result.dropped_after}
+    const {pages, front_cover, back_cover} =
+        JSON.parse(new TextDecoder().decode(bytes)) as PreviewPages
+    return {pages, front_cover, back_cover, truncated: !!result.truncated,
+        dropped_before: !!result.dropped_before, dropped_after: !!result.dropped_after}
 }
 
 
@@ -155,8 +129,8 @@ function await_preview(preview_id:string):Promise<PreviewDoc>{
 async function gunzip_if_needed(bytes:Uint8Array):Promise<Uint8Array>{
     // A preview's file as written, whether or not its gzip was already undone on the way. It's
     // stored gzipped with a Content-Encoding the browser normally undoes itself, but whatever
-    // serves it might not pass that on (an emulator, a proxy), and neither a PDF nor JSON can
-    // start with gzip's magic number, so it's told apart by that
+    // serves it might not pass that on (an emulator, a proxy), and JSON can't start with gzip's
+    // magic number, so it's told apart by that
     if (bytes[0] !== 0x1f || bytes[1] !== 0x8b){
         return bytes
     }
@@ -182,7 +156,7 @@ export function ensure_server_estimate(max_wait_ms:number):Promise<void>{
     if (estimating?.signature !== signature){
         const promise = (async () => {
             try {
-                await request_server_preview({format: 'svg'})
+                await request_server_preview('phone', 'start')
             } catch (error){
                 if (!(error instanceof ServerPreviewError && error.error_id)){
                     report_error('silent', error, {context: {stage: 'server_estimate'}})

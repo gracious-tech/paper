@@ -12,14 +12,12 @@
 import {version as compiler_version} from '@myriaddreamin/typst-ts-web-compiler/package.json'
 import {version as renderer_version} from '@myriaddreamin/typst-ts-renderer/package.json'
 import {init as init_typst} from 'paper-bible-typst-web'
-import {add_preview_strip, collect_fonts, gen_preview_strip_typst, notice_fonts, prepend_cover}
-    from 'paper-bible-typst'
+import {collect_fonts} from 'paper-bible-typst'
 import {PDFDocument} from 'pdf-lib'
 
 import type {TypstWeb} from 'paper-bible-typst-web'
 import type {CustomFont} from 'typst-fonts'
-import type {TypstRequest, ProgressEvent, TextDir, SvgPage, CoverPageGeometry}
-    from 'paper-bible-typst'
+import type {TypstRequest, ProgressEvent, SvgPage} from 'paper-bible-typst'
 
 
 // Actions the main thread can request (see TypstWorkerClient in typst.ts). A compile_pdf that
@@ -30,13 +28,9 @@ export type WorkerAction =
     | {action:'init', assets_prefix:string}
     | {action:'set_custom_fonts', fonts:CustomFont[]}
     | {action:'compile_pdf', request:TypstRequest, preview?:boolean, fonts?:CustomFont[]}
-    | {action:'compile_pdf_preview', request:TypstRequest}
     | {action:'compile_svg', request:TypstRequest}
     | {action:'compile_svg_preview', request:TypstRequest}
     | {action:'page_count', pdf:Uint8Array}
-    | {action:'preview_strip', pdf:Uint8Array, page_width:string, title:string, subtitle:string,
-        position:'start'|'end', locale:string, dir:TextDir}
-    | {action:'prepend_cover', cover:Uint8Array, book:Uint8Array, geometry:CoverPageGeometry|null}
 
 // Every request carries an id, echoed back in the matching response
 export type WorkerRequest = WorkerAction & {id:number}
@@ -146,15 +140,11 @@ async function handle_action(
         return {result: null, pages: null}
     }
 
-    // The pdf-lib-only actions need no compiler, so they're answered before the init check —
+    // The pdf-lib-only action needs no compiler, so it's answered before the init check —
     // adopting an already-uploaded PDF (see adopt_pending_pdf) must not depend on WASM having
     // come up
     if (message.action === 'page_count'){
         return {result: (await PDFDocument.load(message.pdf)).getPageCount(), pages: null}
-    }
-    if (message.action === 'prepend_cover'){
-        return {result: await prepend_cover(message.cover, message.book, message.geometry),
-            pages: null}
     }
 
     if (!generator){
@@ -172,23 +162,6 @@ async function handle_action(
         const pages = await generator.compile_svg_preview(message.request, on_progress)
         return {result: pages, pages: pages.length}
     }
-    if (message.action === 'preview_strip'){
-        // Typeset in the UI's language, with the fonts its script needs (see notice_fonts)
-        const {title, subtitle, page_width, locale, dir} = message
-        const strip = await generator.compile_standalone(notice_fonts(`${title} ${subtitle}`),
-            fonts => gen_preview_strip_typst(page_width, title, subtitle, locale, dir, fonts))
-        return {result: await add_preview_strip(message.pdf, strip, message.position),
-            pages: null}
-    }
-
-    // Both PDF compiles report their page count alongside the bytes — every caller wants it and
-    // the alternative is shipping pdf-lib to the main thread purely to re-parse what was just
-    // compiled here
-    if (message.action === 'compile_pdf_preview'){
-        const bytes = await generator.compile_pdf_preview(message.request, on_progress)
-        return {result: bytes, pages: (await PDFDocument.load(bytes)).getPageCount()}
-    }
-
     // A compile's own fonts are swapped in and back out within this one queued action, so no
     // other request can ever run against them (or swap them away mid-compile). Skipped when the
     // open design's set would resolve the same, since each swap forces a compiler rebuild

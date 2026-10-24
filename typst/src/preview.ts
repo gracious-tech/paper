@@ -31,6 +31,27 @@ export const ESTIMATE_CHAR_LIMIT = ROUGH_PAGE_CHARS * 30
 export type PreviewSection = 'start'|'middle'|'end'
 
 
+// Which device a preview is for: a phone's is the smaller window, from the start only
+export type PreviewSize = 'phone'|'desktop'
+
+
+// The character budget of each size of preview
+export const PREVIEW_LIMITS:Record<PreviewSize, number> = {
+    phone: ESTIMATE_CHAR_LIMIT,
+    desktop: PREVIEW_CHAR_LIMIT,
+}
+
+
+// A preview as the app shows it, whether its browser or the server made it: the window's pages
+// in reading order and the cover's panels, each a standalone SVG document. A cover panel is
+// only there when the window reaches that end of the book
+export interface PreviewPages {
+    pages:string[]
+    front_cover:string|null
+    back_cover:string|null
+}
+
+
 // Result of truncating a request for preview. truncated is false when the document fit within
 // the budget and the original request was returned untouched.
 export interface PreviewTruncation {
@@ -186,9 +207,8 @@ function grow_backward(weights:number[], end:number, budget:number):number {
 // document start, 'end' the trailing items, 'middle' outward from the item holding the
 // midpoint — with only the last kept passage ever tail-clipped to hit the budget. The result's
 // dropped_before/dropped_after flags say which sides lost content; the app renders each as a
-// short strip at the front/back of the preview (no page is added inside the compiled PDF).
-// `limit` is the character budget (PREVIEW_CHAR_LIMIT, or ESTIMATE_CHAR_LIMIT for an
-// estimate-only compile).
+// short note at the front/back of the preview. `limit` is the character budget (see
+// PREVIEW_LIMITS, or ESTIMATE_CHAR_LIMIT for an estimate-only compile).
 export function truncate_for_preview(
     request:TypstRequest, section:PreviewSection, limit = PREVIEW_CHAR_LIMIT,
 ):PreviewTruncation {

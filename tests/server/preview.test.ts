@@ -11,11 +11,10 @@ import {writeFile} from 'node:fs/promises'
 import path from 'node:path'
 import {gunzipSync} from 'node:zlib'
 
-import {PDFDocument} from 'pdf-lib'
 import {describe, it, expect, beforeEach, afterEach, vi} from 'vitest'
 
-import {compile_svg_preview, compile_pdf_spread_preview, compile_standalone}
-    from 'paper-bible-typst-node'
+import {compile_svg_preview} from 'paper-bible-typst-node'
+import {truncate_for_preview, PREVIEW_CHAR_LIMIT, ESTIMATE_CHAR_LIMIT} from 'paper-bible-typst'
 import {generate as generate_cover} from 'bookcover-node'
 
 import {handle_preview, run_preview, parse_preview_body} from '../../server/src/preview.ts'
@@ -26,18 +25,21 @@ import {admin_db, admin_bucket, reset_firestore, reset_storage, design_doc, new_
     upload_image, passage_with_image, list_paths, OWNER, STRANGER} from '../helpers/server.ts'
 
 import type {GenerateOptions, GenerateResult} from 'bookcover-node'
-import type {SvgPage, TypstRequest} from 'paper-bible-typst'
-import type {PreviewJob, PreviewLabels} from '../../server/src/preview.ts'
+import type {PreviewPages, SvgPage, TypstRequest} from 'paper-bible-typst'
+import type {PreviewJob} from '../../server/src/preview.ts'
 
 
 // The renderers, replaced (see the top of this file); everything else in both packages is real
 vi.mock('paper-bible-typst-node', async original => ({
     ...await original<typeof import('paper-bible-typst-node')>(),
     compile_svg_preview: vi.fn(),
-    compile_pdf_spread_preview: vi.fn(),
-    compile_standalone: vi.fn(),
     load_fonts_dir: vi.fn(),
 }))
+// The window a preview keeps, real unless a test needs a long document's
+vi.mock('paper-bible-typst', async original => {
+    const real = await original<typeof import('paper-bible-typst')>()
+    return {...real, truncate_for_preview: vi.fn(real.truncate_for_preview)}
+})
 vi.mock('bookcover-node', async original => ({
     ...await original<typeof import('bookcover-node')>(),
     generate: vi.fn(),
@@ -60,30 +62,8 @@ vi.mock('@aws-sdk/client-lambda', () => ({
 
 
 const svg_mock = vi.mocked(compile_svg_preview)
-const spread_mock = vi.mocked(compile_pdf_spread_preview)
-const standalone_mock = vi.mocked(compile_standalone)
+const truncate_mock = vi.mocked(truncate_for_preview)
 const cover_mock = vi.mocked(generate_cover)
-
-
-// The desktop's notices, as its client sends them
-const LABELS:PreviewLabels = {
-    inside_cover: "Inside of cover",
-    banner_title: "Only a preview",
-    banner_subtitle: "Build it for the real thing",
-    start_of_preview: "Start of preview",
-    end_of_preview: "End of preview",
-    build_for_rest: "Build it to see the rest",
-}
-
-
-// A real PDF with the given number of pages, as a renderer would return one
-async function pdf_bytes(pages:number):Promise<Uint8Array>{
-    const doc = await PDFDocument.create()
-    for (let i = 0; i < pages; i++){
-        doc.addPage([400, 600])
-    }
-    return await doc.save()
-}
 
 
 // A compiled page as typst-node returns one
@@ -92,16 +72,16 @@ function svg_page(height:number):SvgPage{
 }
 
 
-// What bookcover's generate() does, as far as a preview can tell: a PDF at the output path, or
-// for SVG the panels split from the wraparound beside it
+// What bookcover's generate() does, as far as a preview can tell: the panels split from the
+// wraparound, written beside its output path
 async function write_cover(options:GenerateOptions):Promise<GenerateResult>{
-    if (options.format === 'svg'){
-        const front = path.join(path.dirname(options.output_path), 'front.svg')
-        await writeFile(front, '<svg data-panel="front"></svg>')
-        return {output_path: options.output_path, split_paths: {front, back: front}}
+    const panel = async (name:string) => {
+        const panel_path = path.join(path.dirname(options.output_path), `${name}.svg`)
+        await writeFile(panel_path, `<svg data-panel="${name}"></svg>`)
+        return panel_path
     }
-    await writeFile(options.output_path, await pdf_bytes(1))
-    return {output_path: options.output_path}
+    return {output_path: options.output_path,
+        split_paths: {front: await panel('front'), back: await panel('back')}}
 }
 
 
@@ -128,7 +108,7 @@ async function make_design(overrides:Record<string, unknown> = {}):Promise<strin
 function request(design_id:string, overrides:Partial<PreviewJob> = {}):Omit<PreviewJob,
         'preview_id'>{
     return {kind: 'preview', uid: OWNER, design_id, client_ip: '203.0.113.9',
-        user_agent: 'test-agent', format: 'svg', section: 'start', ...overrides}
+        user_agent: 'test-agent', size: 'phone', section: 'start', ...overrides}
 }
 
 
@@ -147,10 +127,11 @@ async function preview(id:string):Promise<Record<string, unknown>>{
 }
 
 
-// A stored preview's bytes, gunzipped (whether or not the download already undid it)
-async function stored(file_path:string):Promise<Buffer>{
+// A stored preview, gunzipped (whether or not the download already undid it) and parsed
+async function stored_preview(file_path:string):Promise<PreviewPages>{
     const [bytes] = await admin_bucket.file(file_path).download()
-    return bytes[0] === 0x1f && bytes[1] === 0x8b ? gunzipSync(bytes) : bytes
+    const json = bytes[0] === 0x1f && bytes[1] === 0x8b ? gunzipSync(bytes) : bytes
+    return JSON.parse(json.toString()) as PreviewPages
 }
 
 
@@ -160,8 +141,6 @@ beforeEach(async () => {
     await reset_firestore()
     await reset_storage()
     svg_mock.mockReset().mockResolvedValue([svg_page(100), svg_page(101)])
-    spread_mock.mockReset().mockImplementation(async () => await pdf_bytes(3))
-    standalone_mock.mockReset().mockImplementation(async () => await pdf_bytes(1))
     cover_mock.mockReset().mockImplementation(write_cover)
     lambda_send.mockReset().mockResolvedValue({StatusCode: 202})
     // Resolving would fetch the Bible from fetch.bible: an empty document fits any window
@@ -178,34 +157,28 @@ afterEach(() => {
 
 describe('parse_preview_body', () => {
 
-    it('takes a phone\'s format alone, always from the start', () => {
-        expect(parse_preview_body({format: 'svg', section: 'end', page_count: 40}))
-            .toEqual({format: 'svg', section: 'start', page_count: 40})
+    it('takes a phone\'s preview always from the start', () => {
+        expect(parse_preview_body({size: 'phone', section: 'end', page_count: 40}))
+            .toEqual({size: 'phone', section: 'start', page_count: 40})
     })
 
-    it('requires a desktop\'s labels, locale and direction', () => {
-        const body = {format: 'pdf', section: 'middle', labels: LABELS, locale: 'pt-BR',
-            dir: 'ltr'}
-        expect(parse_preview_body(body)).toEqual(
-            {format: 'pdf', section: 'middle', labels: LABELS, locale: 'pt-BR', dir: 'ltr'})
-        expect(parse_preview_body({...body, labels: undefined})).toBe(null)
-        expect(parse_preview_body({...body, labels: {...LABELS, end_of_preview: 3}})).toBe(null)
-        expect(parse_preview_body({...body, locale: '"><script>'})).toBe(null)
-        expect(parse_preview_body({...body, dir: 'ttb'})).toBe(null)
+    it('takes a desktop\'s window where it asks', () => {
+        expect(parse_preview_body({size: 'desktop', section: 'middle'}))
+            .toEqual({size: 'desktop', section: 'middle'})
+        expect(parse_preview_body({size: 'desktop'})).toEqual({size: 'desktop', section: 'start'})
     })
 
-    it('refuses an unknown format or section, and an essay for a label', () => {
-        expect(parse_preview_body({format: 'png'})).toBe(null)
-        expect(parse_preview_body({format: 'svg', section: 'all'})).toBe(null)
-        expect(parse_preview_body({format: 'pdf', labels: {...LABELS,
-            banner_title: 'x'.repeat(301)}, locale: 'en', dir: 'ltr'})).toBe(null)
+    it('refuses an unknown size or section', () => {
+        expect(parse_preview_body({size: 'tablet'})).toBe(null)
+        expect(parse_preview_body({})).toBe(null)
+        expect(parse_preview_body({size: 'desktop', section: 'all'})).toBe(null)
     })
 
     it('ignores a page count that isn\'t a sane number', () => {
-        expect(parse_preview_body({format: 'svg', page_count: -3})).toEqual(
-            {format: 'svg', section: 'start'})
-        expect(parse_preview_body({format: 'svg', page_count: '40'})).toEqual(
-            {format: 'svg', section: 'start'})
+        expect(parse_preview_body({size: 'phone', page_count: -3})).toEqual(
+            {size: 'phone', section: 'start'})
+        expect(parse_preview_body({size: 'phone', page_count: '40'})).toEqual(
+            {size: 'phone', section: 'start'})
     })
 })
 
@@ -266,7 +239,7 @@ describe('handle_preview', () => {
         expect(result.status).toBe(202)
         const preview_id = (result.body as {preview_id:string}).preview_id
         expect(await preview(preview_id)).toMatchObject({owner: OWNER, design_id,
-            format: 'svg', status: 'pending', path: null, error_id: null})
+            size: 'phone', status: 'pending', path: null, error_id: null})
         // Kept for a day, by the TTL policy on `expires`
         const expires = ((await preview(preview_id))['expires'] as {toMillis():number})
         expect(expires.toMillis() - Date.now()).toBeGreaterThan(23 * 60 * 60 * 1000)
@@ -277,7 +250,7 @@ describe('handle_preview', () => {
         expect(command.input.FunctionName).toBe('paper-bible-compile')
         expect(command.input.InvocationType).toBe('Event')
         expect(JSON.parse(new TextDecoder().decode(command.input.Payload))).toMatchObject(
-            {kind: 'preview', preview_id, design_id, uid: OWNER, format: 'svg'})
+            {kind: 'preview', preview_id, design_id, uid: OWNER, size: 'phone'})
     })
 
     it('marks the preview failed when it can\'t be handed over', async () => {
@@ -305,12 +278,14 @@ describe('run_preview (phone)', () => {
         const doc = await preview(job.preview_id)
         const file_path = `design_cache/${design_id}/preview_${job.preview_id}.json`
         expect(doc).toMatchObject({status: 'available', path: file_path, pages: 2,
-            page_estimate: 2, truncated: false, dropped_after: false})
+            page_estimate: 2, truncated: false, dropped_before: false, dropped_after: false})
         // Each page a standalone SVG document, in reading order, stored gzipped
         const [metadata] = await admin_bucket.file(file_path).getMetadata()
         expect(metadata.contentType).toBe('application/json')
         expect(metadata.contentEncoding).toBe('gzip')
-        const pages = (JSON.parse((await stored(file_path)).toString()) as {pages:string[]}).pages
+        const output = await stored_preview(file_path)
+        expect(output).toMatchObject({front_cover: null, back_cover: null})
+        const pages = output.pages
         expect(pages).toHaveLength(2)
         expect(pages[0]).toMatch(/^<svg [^>]*viewBox="0 0 100 100"/)
         expect(pages[1]).toContain('<rect height="101"/>')
@@ -329,18 +304,18 @@ describe('run_preview (phone)', () => {
         expect(page_count).toBe(64)
     })
 
-    it('leads with the front cover', async () => {
+    it('brings both cover panels when the window is the whole book', async () => {
         const design_id = await make_design({blueprint: with_cover()})
         const job = await make_job(design_id)
 
         await run_preview(job)
 
         const doc = await preview(job.preview_id)
-        expect(doc['pages']).toBe(3)
-        const pages = (JSON.parse((await stored(doc['path'] as string)).toString()) as
-            {pages:string[]}).pages
-        expect(pages[0]).toBe('<svg data-panel="front"></svg>')
-        // Split from the wraparound by bookcover itself
+        expect(doc['pages']).toBe(2)
+        const output = await stored_preview(doc['path'] as string)
+        expect(output.front_cover).toBe('<svg data-panel="front"></svg>')
+        expect(output.back_cover).toBe('<svg data-panel="back"></svg>')
+        // Split from the wraparound by bookcover itself, its spine sized from the estimate
         expect(cover_mock.mock.calls[0]![0]).toMatchObject({format: 'svg', split: true})
     })
 
@@ -414,45 +389,30 @@ describe('run_preview (phone)', () => {
 
 describe('run_preview (desktop)', () => {
 
-    // A desktop's request, with the notices it sends
-    const desktop:Partial<PreviewJob> = {format: 'pdf', labels: LABELS, locale: 'en',
-        dir: 'ltr'}
-
-    it('stores the spreads with the preview strip, and an estimate from them', async () => {
-        const design_id = await make_design()
-        const job = await make_job(design_id, desktop)
+    it('keeps the window the desktop asked for, and only the covers it reaches', async () => {
+        const design_id = await make_design({blueprint: with_cover()})
+        const job = await make_job(design_id, {size: 'desktop', section: 'end'})
+        // A long document's end: what came before was dropped, half the document kept
+        truncate_mock.mockImplementationOnce(request => ({request, truncated: true,
+            dropped_before: true, dropped_after: false, total_chars: 200, window_chars: 100}))
 
         await run_preview(job)
 
+        // The desktop's larger window, positioned where it asked
+        expect(truncate_mock).toHaveBeenCalledWith(expect.anything(), 'end', PREVIEW_CHAR_LIMIT)
         const doc = await preview(job.preview_id)
-        const file_path = `design_cache/${design_id}/preview_${job.preview_id}.pdf`
-        // Three spreads hold six book pages, and the strip is a page of its own in front
-        expect(doc).toMatchObject({status: 'available', path: file_path, pages: 3,
-            page_estimate: 6, truncated: false})
-        const pdf = await PDFDocument.load(await stored(file_path))
-        expect(pdf.getPageCount()).toBe(4)
-
-        // The start strip only, typeset from the labels the client sent in its language
-        expect(standalone_mock).toHaveBeenCalledTimes(1)
-        const source = standalone_mock.mock.calls[0]![1](['Some Font'])
-        expect(source).toContain('Only a preview')
-        expect(source).toContain('Build it for the real thing')
+        // Two pages from half the document estimate four in all
+        expect(doc).toMatchObject({status: 'available', page_estimate: 4, truncated: true,
+            dropped_before: true, dropped_after: false})
+        const output = await stored_preview(doc['path'] as string)
+        expect(output.front_cover).toBe(null)
+        expect(output.back_cover).toBe('<svg data-panel="back"></svg>')
     })
 
-    it('merges the cover in front, with the labelled inside-of-cover slot', async () => {
-        const design_id = await make_design({blueprint: with_cover()})
-        const job = await make_job(design_id, desktop)
-
-        await run_preview(job)
-
-        const doc = await preview(job.preview_id)
-        expect(doc['status']).toBe('available')
-        // The cover's page, between the strip and the three spreads
-        expect((await PDFDocument.load(await stored(doc['path'] as string))).getPageCount())
-            .toBe(5)
-        const request = spread_mock.mock.calls[0]![0]
-        expect(request.preview_cover_label).toBe('Inside of cover')
-        expect(spread_mock.mock.calls[0]![2]).toBeInstanceOf(Uint8Array)
-        expect(cover_mock.mock.calls[0]![0]).toMatchObject({format: 'pdf'})
+    it('gives a phone the smaller window', async () => {
+        const design_id = await make_design()
+        await run_preview(await make_job(design_id))
+        expect(truncate_mock).toHaveBeenCalledWith(expect.anything(), 'start',
+            ESTIMATE_CHAR_LIMIT)
     })
 })

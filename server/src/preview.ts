@@ -1,7 +1,8 @@
 
-// Previews compiled on the server, for devices that can't compile in their browser (see
-// compile_mode.ts in the app): a phone's preview as standalone SVG pages, or a desktop's live
-// preview as the same facing-page spread PDF its browser would have made.
+// Previews made on the server, for devices that can't compile in their browser (see
+// compile_mode.ts in the app): a window of the design's pages, each a standalone SVG, plus the
+// cover's panels where the window reaches them — exactly what the browser makes, which the app
+// lays out as a phone's column or a desktop's facing-page spreads.
 //
 // Like a server compile, a preview outlasts anything API Gateway will hold a request open for,
 // so /api/preview only checks and accepts it (handle_preview), the compile function makes it
@@ -12,47 +13,28 @@
 import {gzipSync} from 'node:zlib'
 
 import {Timestamp, FieldValue} from 'firebase-admin/firestore'
-import {PDFDocument} from 'pdf-lib'
-import {design_assets_prefix, design_cache_prefix, truncate_for_preview,
-    ESTIMATE_CHAR_LIMIT, PREVIEW_CHAR_LIMIT, svg_page_markup, gen_cover_slot_typst,
-    gen_preview_strip_typst, notice_fonts, add_preview_strip, prepend_cover, cover_page_geometry,
-    COMPILE_STATS_LIFETIME_MS} from 'paper-bible-typst'
-import {compile_svg_preview, compile_pdf_spread_preview, compile_standalone, load_fonts_dir}
-    from 'paper-bible-typst-node'
+import {design_assets_prefix, design_cache_prefix, truncate_for_preview, PREVIEW_LIMITS,
+    svg_page_markup, COMPILE_STATS_LIFETIME_MS} from 'paper-bible-typst'
+import {compile_svg_preview, load_fonts_dir} from 'paper-bible-typst-node'
 
 import {admin_db, admin_bucket} from './firebase.ts'
 import {config} from './config.ts'
 import {quota_allows, QUOTA_PREVIEW, DAILY_PREVIEW_LIMIT} from './quota.ts'
-import {check_assets, download_fonts, render_cover, render_cover_front_svg} from './compile.ts'
+import {check_assets, download_fonts, render_cover_panels_svg} from './compile.ts'
 import {storage_public_url, join_design_blueprint} from './assets.ts'
 import {shared_content} from './content.ts'
 import {dispatch_job} from './dispatch.ts'
 import {new_id} from './designs.ts'
 import {save_error, generate_error_id} from './errors.ts'
 
-import type {Blueprint, CustomFont} from 'paper-bible-typst-node'
-import type {PreviewSection, TextDir, TypstRequest, StoredFontMeta} from 'paper-bible-typst'
+import type {Blueprint} from 'paper-bible-typst-node'
+import type {PreviewPages, PreviewSection, PreviewSize, StoredFontMeta} from 'paper-bible-typst'
 import type {HandlerResult} from './types.ts'
 
 
 // How long a preview's doc is kept (Firestore TTL on `expires`, see deploy_firebase_initial):
 // a preview is looked at once, straight after it's made
 export const PREVIEW_DOC_LIFETIME_MS = 24 * 60 * 60 * 1000
-
-
-// The UI-language notices a desktop's preview carries, translated by the client, since the
-// server has no UI catalogs (see DisplayPreview.vue for where each one goes)
-export interface PreviewLabels {
-    inside_cover:string
-    banner_title:string
-    banner_subtitle:string
-    start_of_preview:string
-    end_of_preview:string
-    build_for_rest:string
-}
-
-// The longest a label may be, so a request can't make the server typeset an essay
-const MAX_LABEL_LENGTH = 300
 
 
 // A preview, as /api/preview hands it to the compile function (see dispatch_job). The `kind`
@@ -64,16 +46,12 @@ export interface PreviewJob {
     design_id:string
     client_ip:string|null
     user_agent:string|null
-    // 'svg' for a phone (pages in reading order), 'pdf' for a desktop (spreads)
-    format:'svg'|'pdf'
+    // Which device it's for, which sets the window's size (see PREVIEW_LIMITS)
+    size:PreviewSize
     // Which window of a long document (the desktop's Start/Middle/End; a phone's is the start)
     section:PreviewSection
     // Advisory page-count estimate for the auto binding-gutter (see margin_gutter_auto)
     page_count?:number
-    // The desktop's notices, in the UI's language (pdf only)
-    labels?:PreviewLabels
-    locale?:string
-    dir?:TextDir
 }
 
 
@@ -85,38 +63,19 @@ interface CheckedDesign {
 
 
 export function parse_preview_body(body:Record<string, unknown>)
-        :Pick<PreviewJob, 'format'|'section'|'page_count'|'labels'|'locale'|'dir'>|null{
-    // The preview's options from a request body, or null if they're malformed. A desktop's
-    // preview needs every label, plus the locale and direction they're written in
-    const format = body['format']
+        :Pick<PreviewJob, 'size'|'section'|'page_count'>|null{
+    // The preview's options from a request body, or null if they're malformed. A phone's window
+    // is always the start of the document
+    const size = body['size']
     const section = body['section'] ?? 'start'
-    if ((format !== 'svg' && format !== 'pdf')
+    if ((size !== 'phone' && size !== 'desktop')
             || (section !== 'start' && section !== 'middle' && section !== 'end')){
         return null
     }
     const page_count = typeof body['page_count'] === 'number' && body['page_count'] > 0
         ? body['page_count'] : undefined
-    if (format === 'svg'){
-        return {format, section: 'start', ...page_count !== undefined && {page_count}}
-    }
-    const raw = body['labels'] as Record<string, unknown>|undefined
-    const keys:(keyof PreviewLabels)[] = ['inside_cover', 'banner_title', 'banner_subtitle',
-        'start_of_preview', 'end_of_preview', 'build_for_rest']
-    if (!raw || typeof raw !== 'object' || keys.some(key =>
-            typeof raw[key] !== 'string' || (raw[key] as string).length > MAX_LABEL_LENGTH)){
-        return null
-    }
-    const locale = body['locale']
-    const dir = body['dir']
-    if (typeof locale !== 'string' || !/^[A-Za-z-]{2,20}$/.test(locale)
-            || (dir !== 'ltr' && dir !== 'rtl')){
-        return null
-    }
-    const labels = {} as PreviewLabels
-    for (const key of keys){
-        labels[key] = raw[key] as string
-    }
-    return {format, section, labels, locale, dir, ...page_count !== undefined && {page_count}}
+    return {size, section: size === 'phone' ? 'start' : section,
+        ...page_count !== undefined && {page_count}}
 }
 
 
@@ -162,7 +121,7 @@ export async function handle_preview(job:Omit<PreviewJob, 'preview_id'>)
     await doc_ref.set({
         owner: job.uid,
         design_id: job.design_id,
-        format: job.format,
+        size: job.size,
         status: 'pending',
         created: FieldValue.serverTimestamp(),
         expires: Timestamp.fromMillis(Date.now() + PREVIEW_DOC_LIFETIME_MS),
@@ -170,6 +129,7 @@ export async function handle_preview(job:Omit<PreviewJob, 'preview_id'>)
         pages: null,
         page_estimate: null,
         truncated: null,
+        dropped_before: null,
         dropped_after: null,
         error_id: null,
     })
@@ -200,56 +160,47 @@ export async function run_preview(job:PreviewJob, prepare?:() => Promise<void>):
         const custom_fonts = await download_fonts(checked.design.fonts_meta)
         const blueprint = await with_styled_images(job.design_id, checked.design.blueprint)
 
-        // Resolved as the browser resolves it (see compile_preview_window in the app), with the
-        // curated font manifest loaded first so script detection can match fallback styles
+        // Resolved as the browser resolves it (see compile_preview in the app), with the curated
+        // font manifest loaded first so script detection can match fallback styles
         await load_fonts_dir(config.fonts_dir)
         await shared_content.init()
         const share_url = `${config.app_url}/designs/${job.design_id}`
         const request = await shared_content.resolve(blueprint,
             Object.fromEntries(custom_fonts.map(font => [font.family, font.style])), undefined,
             share_url, job.page_count)
-        const truncation = truncate_for_preview(request, job.section,
-            job.format === 'svg' ? ESTIMATE_CHAR_LIMIT : PREVIEW_CHAR_LIMIT)
-        const options = {typst_path: config.typst_path, fonts_dir: config.fonts_dir, custom_fonts}
-        const scale = truncation.window_chars > 0
-            ? truncation.total_chars / truncation.window_chars : 1
-        const show_front_cover = !!blueprint.cover && !truncation.dropped_before
+        const truncation = truncate_for_preview(request, job.section, PREVIEW_LIMITS[job.size])
 
         compile_start = performance.now()
-        let output:{bytes:Buffer, content_type:string, ext:string, pages:number,
-            page_estimate:number}
-        if (job.format === 'svg'){
-            const pages = await compile_svg_preview(truncation.request, options)
-            const page_estimate = estimate(pages.length, scale)
-            const markup = pages.map(page => svg_page_markup(page))
-            if (show_front_cover){
-                markup.unshift(await render_cover_front_svg(blueprint, custom_fonts,
-                    page_estimate, share_url))
-            }
-            output = {bytes: gzipSync(JSON.stringify({pages: markup})),
-                content_type: 'application/json', ext: 'json', pages: markup.length,
-                page_estimate}
-        } else {
-            const bytes = await compile_desktop_preview(job, truncation.request, blueprint,
-                custom_fonts, share_url, show_front_cover, truncation.dropped_before,
-                truncation.dropped_after, scale)
-            output = {bytes: gzipSync(bytes.bytes), content_type: 'application/pdf', ext: 'pdf',
-                pages: bytes.pages, page_estimate: bytes.page_estimate}
+        const pages = await compile_svg_preview(truncation.request,
+            {typst_path: config.typst_path, fonts_dir: config.fonts_dir, custom_fonts})
+        const scale = truncation.window_chars > 0
+            ? truncation.total_chars / truncation.window_chars : 1
+        const page_estimate = Math.max(2, Math.round(Math.max(1, pages.length) * scale / 2) * 2)
+
+        // The cover's panels where the window reaches them, its spine sized from the estimate
+        const show_front = !!blueprint.cover && !truncation.dropped_before
+        const show_back = !!blueprint.cover && !truncation.dropped_after
+        const panels = show_front || show_back
+            ? await render_cover_panels_svg(blueprint, custom_fonts, page_estimate, share_url)
+            : null
+        const output:PreviewPages = {
+            pages: pages.map(page => svg_page_markup(page)),
+            front_cover: show_front ? panels!.front : null,
+            back_cover: show_back ? panels!.back : null,
         }
         const preview_ms = performance.now() - compile_start
 
-        // Stored gzipped (served with Content-Encoding, which browsers undo themselves), as a
-        // phone may be fetching it over a slow connection
-        const path =
-            `${design_cache_prefix(job.design_id)}preview_${job.preview_id}.${output.ext}`
-        await admin_bucket.file(path).save(output.bytes, {
-            contentType: output.content_type,
-            metadata: {contentEncoding: 'gzip', contentDisposition: 'inline'},
+        // Stored gzipped (served with Content-Encoding, which browsers undo themselves), since
+        // SVG compresses well and a phone may be fetching it over a slow connection
+        const path = `${design_cache_prefix(job.design_id)}preview_${job.preview_id}.json`
+        await admin_bucket.file(path).save(gzipSync(JSON.stringify(output)), {
+            contentType: 'application/json',
+            metadata: {contentEncoding: 'gzip'},
         })
-        await doc_ref.update({status: 'available', path, pages: output.pages,
-            page_estimate: output.page_estimate, truncated: truncation.truncated,
+        await doc_ref.update({status: 'available', path, pages: pages.length, page_estimate,
+            truncated: truncation.truncated, dropped_before: truncation.dropped_before,
             dropped_after: truncation.dropped_after})
-        void record_preview_stat(job, preview_ms, output.pages, true)
+        void record_preview_stat(job, preview_ms, pages.length, true)
     } catch (error){
         console.error(error)
         if (compile_start !== null){
@@ -266,64 +217,10 @@ export async function run_preview(job:PreviewJob, prepare?:() => Promise<void>):
             user_agent: null,
             language: null,
             runtime_ms: null,
-            context: {design_id: job.design_id, stage: `preview_${job.format}`},
+            context: {design_id: job.design_id, stage: `preview_${job.size}`},
         })
         await doc_ref.update({status: 'failed', error_id}).catch(() => undefined)
     }
-}
-
-
-function estimate(window_pages:number, scale:number):number{
-    // The full document's page count from its window's, rounded to even since bound pages come
-    // in twos — the same estimate the browser's preview gives (see compile_preview_window)
-    return Math.max(2, Math.round(Math.max(1, window_pages) * scale / 2) * 2)
-}
-
-
-async function compile_desktop_preview(job:PreviewJob, request:TypstRequest,
-        blueprint:Blueprint, custom_fonts:CustomFont[], share_url:string,
-        show_front_cover:boolean, dropped_before:boolean, dropped_after:boolean, scale:number)
-        :Promise<{bytes:Uint8Array, pages:number, page_estimate:number}>{
-    // A desktop's live preview, as DisplayPreview.vue makes it in the browser: facing-page
-    // spreads, the cover merged in front when the window starts at the document's start, and a
-    // notice strip at each end, typeset in the UI's language from the labels the client sent
-    const labels = job.labels!
-    const standalone_options = {typst_path: config.typst_path, fonts_dir: config.fonts_dir}
-
-    // The labelled "inside of the front cover" slot the first spread opens on
-    let cover_slot:Uint8Array|undefined
-    if (show_front_cover){
-        request.preview_cover_label = labels.inside_cover
-        cover_slot = await compile_standalone(notice_fonts(labels.inside_cover),
-            fonts => gen_cover_slot_typst(request.page, labels.inside_cover, fonts),
-            standalone_options)
-    }
-    let bytes = await compile_pdf_spread_preview(request,
-        {typst_path: config.typst_path, fonts_dir: config.fonts_dir, custom_fonts}, cover_slot)
-    // Reading spreads hold two book pages per PDF page (see compile_preview_window)
-    const spreads = (await PDFDocument.load(bytes)).getPageCount()
-    const page_estimate = estimate(spreads * 2, scale)
-
-    if (show_front_cover){
-        const cover = await render_cover(blueprint, custom_fonts, page_estimate, share_url)
-        bytes = await prepend_cover(cover, bytes, cover_page_geometry(blueprint, page_estimate))
-    }
-
-    // The start strip always: "only a preview", or "start of preview" when the window dropped
-    // what came before it; the end strip only when it dropped what follows
-    const strip = async (title:string, subtitle:string, position:'start'|'end') => {
-        const strip_pdf = await compile_standalone(notice_fonts(`${title} ${subtitle}`),
-            fonts => gen_preview_strip_typst(request.page.width, title, subtitle, job.locale!,
-                job.dir!, fonts), standalone_options)
-        bytes = await add_preview_strip(bytes, strip_pdf, position)
-    }
-    await (dropped_before
-        ? strip(labels.start_of_preview, labels.build_for_rest, 'start')
-        : strip(labels.banner_title, labels.banner_subtitle, 'start'))
-    if (dropped_after){
-        await strip(labels.end_of_preview, labels.build_for_rest, 'end')
-    }
-    return {bytes, pages: spreads, page_estimate}
 }
 
 
@@ -372,7 +269,7 @@ async function record_preview_stat(job:PreviewJob, preview_ms:number, pages:numb
     // version compiles' rows (see record_compile_stat in compile.ts)
     try {
         await admin_db.collection('compile_stats').add({
-            kind: 'preview', format: job.format, design_id: job.design_id, owner: job.uid,
+            kind: 'preview', size: job.size, design_id: job.design_id, owner: job.uid,
             engine: 'server', preview_ms, pages, ok, user_agent: job.user_agent,
             created: Timestamp.now(),
             expires: Timestamp.fromMillis(Date.now() + COMPILE_STATS_LIFETIME_MS),

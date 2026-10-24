@@ -6,8 +6,7 @@ import {join} from 'node:path'
 import {describe, it, expect} from 'vitest'
 import {PDFDocument, PDFDict, PDFName, PDFRawStream, PDFRef} from 'pdf-lib'
 
-import {compile_pdf, compile_pdf_spread_preview, compile_svg_preview, compile_standalone,
-    generate_typst} from '../src/index.js'
+import {compile_pdf, compile_svg_preview, generate_typst} from '../src/index.js'
 
 import type {TypstRequest, PageConfig, TypographyConfig, TitlepageConfig} from 'paper-bible-typst'
 import type {CustomFont} from '../src/index.js'
@@ -326,86 +325,6 @@ describe('custom_fonts', () => {
 })
 
 
-describe('compile_pdf_spread_preview', () => {
-
-    // A passage long enough to span several pages
-    const long_passage = {
-        type: 'passage' as const,
-        bibles: [{content: Array.from({length: 200}, (_, i) =>
-            `#vn(${i + 1})Verse ${i + 1} with text long enough to wrap onto several lines and `
-            + `flow across multiple pages of the document.`).join(' ')}],
-        multi_layout: 'columns' as const,
-        half_blank: null,
-        show_headings: false,
-        headings_bold: true,
-        headings_italic: true,
-        headings_size: 0.9,
-        show_footnotes: false,
-        show_lines: false,
-        columns: 1,
-        column_gap: '5mm',
-        book: 'gen',
-        book_name: 'Genesis',
-        start_chapter: 1,
-        passage_title: null,
-        passage_subtitle: null,
-        passage_icon: null,
-    }
-
-    it('lays out spreads as 2-up landscape pages (twice the page width)', async () => {
-        const result = await compile_pdf_spread_preview(make_request({
-            content: [long_passage], arrangement: 'book',
-        }))
-        const doc = await PDFDocument.load(result)
-        const page_w = 148 * 2.8346
-        const page_h = 210 * 2.8346
-        // No preview_cover_label here, so page 1 stands alone on a single-width page — a book
-        // opens on a recto, so it has no facing page (see arrange_spreads)
-        const first = doc.getPage(0).getSize()
-        expect(first.width).toBeCloseTo(page_w, 0)
-        expect(first.height).toBeCloseTo(page_h, 0)
-        // Every spread after it is one landscape page holding two portrait pages side by side
-        const spread = doc.getPage(1).getSize()
-        expect(spread.width).toBeCloseTo(page_w * 2, 0)
-        expect(spread.height).toBeCloseTo(page_h, 0)
-    }, 15000)
-
-    it('starts on a full spread when a cover label is set', async () => {
-        // With a cover, the inside face of it fills the first spread's left slot so page 1
-        // lands on the right — there's no standalone single-width page
-        const result = await compile_pdf_spread_preview(make_request({
-            content: [long_passage], arrangement: 'book', preview_cover_label: 'Front cover',
-        }))
-        const doc = await PDFDocument.load(result)
-        const {width, height} = doc.getPage(0).getSize()
-        expect(width).toBeCloseTo(148 * 2.8346 * 2, 0)
-        expect(height).toBeCloseTo(210 * 2.8346, 0)
-    }, 15000)
-
-    it('produces one spread per pair of pages, after the standalone first page', async () => {
-        const request = make_request({content: [long_passage], arrangement: 'book'})
-        // Reading-order page count from a plain book compile
-        const reading = await PDFDocument.load(await compile_pdf(request))
-        const n = reading.getPageCount()
-        // Page 1 stands alone and the remaining n - 1 pages pair up, which comes to the same
-        // total as pairing n + 1 slots
-        const spreads = await PDFDocument.load(await compile_pdf_spread_preview(request))
-        expect(spreads.getPageCount()).toBe(Math.ceil((n + 1) / 2))
-    }, 15000)
-
-    it('includes note pages so half-blank spreads pair content with blanks', async () => {
-        // half_blank adds blank note pages; spread count must grow to include them
-        const plain = make_request({content: [long_passage], arrangement: 'book'})
-        const with_notes = make_request({
-            content: [{...long_passage, half_blank: 'right' as const}], arrangement: 'book',
-        })
-        const a = await PDFDocument.load(await compile_pdf_spread_preview(plain))
-        const b = await PDFDocument.load(await compile_pdf_spread_preview(with_notes))
-        expect(b.getPageCount()).toBeGreaterThan(a.getPageCount())
-    }, 15000)
-})
-
-
 describe('compile_svg_preview', () => {
 
     it('gives one standalone page per page, in order past the ninth', async () => {
@@ -421,25 +340,6 @@ describe('compile_svg_preview', () => {
         expect(heights.slice(-12)).toEqual(Array.from({length: 12}, (_, i) => 100 + i))
         expect(result[0]!.inner).not.toContain('<svg')
     }, 30000)
-})
-
-
-describe('compile_standalone', () => {
-
-    // Needs the curated fonts tree for its base font (see the custom_fonts tests above)
-    const fonts_dir = join(import.meta.dirname, '../../assets/fonts')
-
-    it.skipIf(!existsSync(fonts_dir))('compiles a source built from the font list it is given',
-            async () => {
-        let given:string[] = []
-        const bytes = await compile_standalone(['Noto Sans Thai'], fonts => {
-            given = fonts
-            return '#set page(width: 50pt, height: 50pt)\nhi'
-        }, {fonts_dir})
-        expect(given).toHaveLength(2)
-        expect(given[1]).toBe('Noto Sans Thai')
-        expect((await PDFDocument.load(bytes)).getPageCount()).toBe(1)
-    }, 15000)
 })
 
 

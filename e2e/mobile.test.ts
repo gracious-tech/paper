@@ -109,7 +109,7 @@ test('a phone switched to the server previews and builds there', async ({page}) 
     await expect(pages).toHaveCount(1, {timeout: 60_000})
     await expect.poll(() => pages.first().evaluate(img => (img as HTMLImageElement).naturalWidth))
         .toBeGreaterThan(0)
-    expect(previews).toEqual(['svg'])
+    expect(previews).toEqual(['phone'])
 
     // Build it, handed to the server as soon as the version exists
     await click_button(page.locator('.preview'), 'Build it')

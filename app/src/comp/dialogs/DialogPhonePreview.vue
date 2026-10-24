@@ -15,13 +15,8 @@ v-dialog(v-model='state.phone_preview' fullscreen transition='dialog-bottom-tran
                     :disabled='!can_build' :loading='build_starting')
                 | {{ $t("view.design.build_it") }}
 
-        div.pages(v-if='preview')
-            img.page(v-for='(url, i) of page_urls' :key='url' :src='url' alt=''
-                :loading='i < 2 ? "eager" : "lazy"' decoding='async')
-            //- More of the document follows the pages shown, which only the built PDF has
-            div.end(v-if='preview.truncated')
-                strong {{ $t("display.preview.end_of_preview") }}
-                div {{ $t("display.preview.build_for_rest") }}
+        div.scroll(v-if='preview')
+            DisplayPreviewPages(:preview='preview' layout='column')
         div.status(v-else-if='failed')
             h3(class='mb-4') {{ $t("display.preview.failed") }}
             v-btn(@click='compile' variant='tonal' color='white') {{ $t("common.try_again") }}
@@ -36,18 +31,20 @@ v-dialog(v-model='state.phone_preview' fullscreen transition='dialog-bottom-tran
 
 <script lang='ts' setup>
 
-import {ref, computed, watch, onUnmounted} from 'vue'
+import {ref, computed, watch} from 'vue'
 import {useRouter} from 'vue-router'
+
+import DisplayPreviewPages from '@/comp/display/DisplayPreviewPages.vue'
 
 import {useI18n} from '@/services/i18n'
 import {state} from '@/services/state'
 import {report_error} from '@/services/errors'
 import {stage_text} from '@/services/compile_progress'
-import {compile_phone_preview} from '@/services/phone_preview'
+import {phone_preview} from '@/services/preview'
 import {ServerPreviewError} from '@/services/server_preview'
 import {build_design, build_starting} from '@/services/build'
 
-import type {PhonePreview} from '@/services/phone_preview'
+import type {Preview} from '@/services/preview'
 import type {CompileProgress} from '@/services/compile_progress'
 
 
@@ -55,9 +52,8 @@ const {t} = useI18n()
 const router = useRouter()
 
 
-// The preview being shown, and its pages as object URLs for the <img>s
-const preview = ref<PhonePreview|null>(null)
-const page_urls = ref<string[]>([])
+// The preview being shown
+const preview = ref<Preview|null>(null)
 
 // Whether the last attempt failed, and whether this browser turned out too slow for it (after
 // which the server makes it, and builds on this device from now on)
@@ -78,15 +74,6 @@ let latest_run = 0
 const can_build = computed(() => !!preview.value || failed.value || slow.value)
 
 
-function revoke_pages():void{
-    // Release the object URLs of the pages shown
-    for (const url of page_urls.value){
-        URL.revokeObjectURL(url)
-    }
-    page_urls.value = []
-}
-
-
 async function compile():Promise<void>{
     // Compile the open design's preview and show it
     const run = ++latest_run
@@ -94,7 +81,6 @@ async function compile():Promise<void>{
     failed.value = false
     slow.value = false
     progress_message.value = null
-    revoke_pages()
     const on_progress = (event:CompileProgress) => {
         const text = stage_text(event, t)
         if (run === latest_run && text !== null){
@@ -107,12 +93,10 @@ async function compile():Promise<void>{
         }
     }
     try {
-        const result = await compile_phone_preview(on_progress, on_slow)
+        const result = await phone_preview(on_progress, on_slow)
         if (run !== latest_run){
             return
         }
-        page_urls.value = result.pages.map(markup =>
-            URL.createObjectURL(new Blob([markup], {type: 'image/svg+xml'})))
         preview.value = result
     } catch (error){
         if (run !== latest_run){
@@ -136,7 +120,6 @@ watch(() => state.phone_preview, open => {
     } else {
         latest_run += 1
         preview.value = null
-        revoke_pages()
     }
 }, {immediate: true})
 
@@ -153,9 +136,6 @@ const build = async () => {
     state.phone_preview = false
     await build_design(router)
 }
-
-
-onUnmounted(revoke_pages)
 
 </script>
 
@@ -177,30 +157,9 @@ onUnmounted(revoke_pages)
     padding: 8px
     background-color: rgb(var(--v-theme-primary))
 
-.pages
+.scroll
     flex-grow: 1
     overflow-y: auto
-    display: flex
-    flex-direction: column
-    align-items: center
-    gap: 12px
-    padding: 12px
-
-    // Each page as wide as the screen allows, keeping its own proportions
-    .page
-        width: 100%
-        max-width: 600px
-        height: auto
-        background-color: white
-        box-shadow: 0 2px 8px rgba(0, 0, 0, 0.4)
-
-    .end
-        max-width: 600px
-        padding: 12px 16px
-        border-radius: 8px
-        text-align: center
-        color: rgb(26, 26, 26)
-        background-color: rgb(255, 224, 178)
 
 .status
     flex-grow: 1

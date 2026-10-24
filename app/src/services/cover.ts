@@ -14,11 +14,11 @@ import {make_blank_form_values, asset_path, BACKGROUNDS_DIR, BG_PREVIEW_DIR,
     font_families_in_form} from 'bookcover-core'
 import {cover_form_for_render, cover_render_key, doc_has_copyright, gen_copyright_typst,
     COPYRIGHT_MARKER, resolve_reading_trim, convert_unit, COVER_TITLE_KEY, design_assets_prefix,
-    to_version_asset, to_design_asset, asset_basename, sniff_image_mime, cover_page_geometry}
+    to_version_asset, to_design_asset, asset_basename, sniff_image_mime}
     from 'paper-bible-typst'
 
 import {firebase_storage} from '@/services/firebase'
-import {ASSETS_PREFIX, typst_generator} from '@/services/typst'
+import {ASSETS_PREFIX} from '@/services/typst'
 import {track_browser_compile} from '@/services/compile_mode'
 import {page_count_guess} from '@/services/state'
 import {content} from '@/services/content'
@@ -499,13 +499,14 @@ export async function render_cover_pdf(blueprint:Blueprint, page_count:number,
 }
 
 
-// The cover's individual panels as SVG text, for building a 3D picture of the book (see
-// app/tools/example_images/). Goes through the same render_cover() as every other cover, at
-// preview quality since the picture is small
-export async function render_cover_panels(blueprint:Blueprint, page_count:number)
-        :Promise<{front:string, back:string, spine?:string}> {
+// The cover's individual panels as SVG text, for a preview's cover pages and for building a 3D
+// picture of the book (see app/tools/example_images/). Goes through the same render_cover() as
+// every other cover, at preview quality since neither is printed. `share_url` is the link any
+// auto-copyright block on the back carries
+export async function render_cover_panels(blueprint:Blueprint, page_count:number,
+        share_url?:string):Promise<{front:string, back:string, spine?:string}> {
     const result = await render_cover(blueprint, page_count, undefined,
-        {format: 'svg', quality: 'preview'})
+        {format: 'svg', quality: 'preview', ...share_url !== undefined && {share_url}})
     return {front: result.front as string, back: result.back as string,
         ...result.spine !== undefined && {spine: result.spine as string}}
 }
@@ -683,20 +684,4 @@ export function plan_version_cover(design_id:string, blueprint:Blueprint)
     frozen.bg_image = {kind: 'custom', path, hash: cover.bg_image.hash}
     return {frozen, copies: [{from: cover.bg_image.path, to: path,
         content_type: bg_mime_for(path)}]}
-}
-
-
-// Prepend a rendered cover (its single wraparound page) to a book PDF, for the preview only —
-// stored versions keep the cover as its own separate cover.pdf. The page is cropped to its
-// trim box (bleed hidden) and gets 50%-gray guide lines: the spine's left and right edges when
-// there's a spine, otherwise a single line on the back/front fold. Both are preview aids: the
-// content is untouched and the real cover PDF is produced by a different path
-export async function prepend_cover_page(cover_bytes:Uint8Array, book_bytes:Uint8Array,
-        blueprint:Blueprint, page_count:number):Promise<Uint8Array> {
-    const generator = typst_generator.value
-    if (!generator){
-        throw new Error('Typst compiler not ready')
-    }
-    return generator.prepend_cover(cover_bytes, book_bytes,
-        blueprint.cover ? cover_page_geometry(blueprint, page_count) : null)
 }

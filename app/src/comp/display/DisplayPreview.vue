@@ -13,9 +13,11 @@ div.preview
                 | {{ $t("common.middle") }}
             v-btn(value='end' size='small') {{ $t("common.end") }}
         //- A device that previews on the server doesn't recompile as the design changes, so it
-        //- asks for a fresh preview when wanted
-        v-btn(v-if='server_mode' @click='refresh' size='small' variant='tonal'
-                color='primary-light' :loading='!!progress_message')
+        //- asks for a fresh preview when wanted, and the button stands out once it's out of date
+        v-btn(v-if='server_mode' @click='refresh' size='small'
+                :variant='stale ? "elevated" : "tonal"'
+                :color='stale ? "secondary-darken-1" : "primary-light"'
+                :loading='!!progress_message')
             template(#prepend)
                 app-icon(name='refresh')
             | {{ $t("display.preview.refresh") }}
@@ -30,10 +32,11 @@ div.preview
     div.status(v-if='missing_warnings.length')
         h3(class='mb-4') {{ $t("display.preview.missing_books") }}
         p(v-for='warning of missing_warnings' class='status-detail') {{ warning }}
-    div.frame(v-else-if='pdf_url')
-        iframe(:src='pdf_url')
+    div.frame(v-else-if='preview')
+        div.scroll
+            DisplayPreviewPages(:preview='preview' layout='spreads')
         //- Semi-transparent readout of the in-progress recompile, layered over the still-visible
-        //- (and still-scrollable, via pointer-events:none) previous PDF
+        //- (and still-scrollable, via pointer-events:none) previous preview
         transition(name='fade')
             div.overlay(v-if='progress_message || overlay_failed')
                 div.overlay_box(:class='{error: overlay_failed}')
@@ -53,37 +56,40 @@ div.preview
 
 <script lang='ts' setup>
 
-import {ref, computed, watch, onUnmounted} from 'vue'
+import {ref, shallowRef, computed, watch, onUnmounted} from 'vue'
 import {debounce} from 'lodash-es'
 import {useI18n} from '@/services/i18n'
 
 import BtnGenerate from '@/comp/views/assets/BtnGenerate.vue'
+import DisplayPreviewPages from '@/comp/display/DisplayPreviewPages.vue'
 import {blue} from '@/services/state'
 import {content} from '@/services/content'
 import {collect_passage_books, missing_book_warnings} from '@/services/blueprints'
 import {typst_generator} from '@/services/typst'
-import {render_cover_pdf, prepend_cover_page} from '@/services/cover'
 import {report_error} from '@/services/errors'
 import {stage_text} from '@/services/compile_progress'
-import {compile_preview_window, set_page_estimate, render_signature}
-    from '@/services/page_estimate'
-import {server_mode, compiles_on_server, is_device_failure, switch_to_server, SlowCompileError,
-    DESKTOP_PREVIEW_TIMEOUT_MS} from '@/services/compile_mode'
-import {request_server_preview, ServerPreviewError} from '@/services/server_preview'
-import {PREVIEW_CHAR_LIMIT} from 'paper-bible-typst'
+import {render_signature} from '@/services/page_estimate'
+import {server_mode, compiles_on_server} from '@/services/compile_mode'
+import {desktop_preview} from '@/services/preview'
+import {ServerPreviewError} from '@/services/server_preview'
 
 import type {PreviewSection} from 'paper-bible-typst'
-import type {TypstWorkerClient} from '@/services/typst'
+import type {Preview} from '@/services/preview'
 import type {CompileProgress} from '@/services/compile_progress'
 
 
 const {t} = useI18n()
 
 
-// Object URL of the current compiled PDF, and whether the last compile failed with no previous
-// PDF to keep showing
-const pdf_url = ref<string|null>(null)
+// The preview being shown, the render_signature() it was made from, and whether the last compile
+// failed with no previous preview to keep showing
+const preview = shallowRef<Preview|null>(null)
+const shown_signature = ref<string|null>(null)
 const failed = ref(false)
+
+// Whether the design has changed since the preview shown was made — only ever the case for long
+// on a device that previews on the server, where it waits for Refresh
+const stale = computed(() => !!preview.value && shown_signature.value !== render_signature())
 
 // Text for the currently active progress stage, or null between compiles (and for stages the
 // user doesn't need to see — see stage_text() in compile_progress.ts)
@@ -108,7 +114,7 @@ function show_failure(error:unknown, stage:string):void{
     if (!(error instanceof ServerPreviewError && error.error_id)){
         report_error('silent', error, {context: {stage}})
     }
-    if (pdf_url.value){
+    if (preview.value){
         overlay_failed.value = true
     } else {
         failed.value = true
@@ -159,23 +165,13 @@ const missing_warnings = computed(() => {
 let latest_run = 0
 
 
-// What a preview compile produced: the PDF to show, and whether its document was truncated
-interface CompiledPreview {
-    bytes:Uint8Array
-    truncated:boolean
-}
-
-
-// Compile the current blueprint to a PDF and display it: in this browser, or on the server for a
-// device that compiles there — and on the server too for this one preview whenever the browser
-// fails at it, switching the device for good when the failure was the device's own
+// Show a fresh preview of the current blueprint: made in this browser, or on the server for a
+// device that compiles there or whose browser can't keep up (see desktop_preview)
 async function compile(){
 
     // Wait until the WASM compiler is ready (watcher retriggers when it becomes available),
     // unless the server makes this device's previews
-    const generator = typst_generator.value
-    const on_server = compiles_on_server()
-    if (!generator && !on_server){
+    if (!typst_generator.value && !compiles_on_server()){
         return
     }
 
@@ -186,11 +182,12 @@ async function compile(){
     }
 
     const run = ++latest_run
+    const signature = render_signature()
     failed.value = false
     overlay_failed.value = false
 
-    // Forwarded to both the content-fetching and PDF-compiling stages, so the overlay reflects
-    // whichever one is currently running
+    // Forwarded to every stage (the Bible's download, the compile, the cover, the server), so the
+    // overlay reflects whichever one is currently running
     const on_progress = (event:CompileProgress) => {
         if (run !== latest_run){
             return
@@ -202,126 +199,26 @@ async function compile(){
     }
 
     try {
-        let preview:CompiledPreview|null = null
-        if (generator && !on_server){
-            try {
-                preview = await compile_in_browser(generator, run, on_progress)
-            } catch (error){
-                // Classified even when overtaken by a newer compile, since a device that's too
-                // slow would otherwise only ever be overtaken while the user types
-                if (is_device_failure(error)){
-                    switch_to_server(error instanceof SlowCompileError ? 'slow' : 'memory')
-                }
-                if (run !== latest_run){
-                    return
-                }
-                report_error('silent', error, {context: {stage: 'preview'}})
-            }
-            // A newer compile has started since
-            if (run !== latest_run){
-                return
-            }
-        }
-        preview ??= await compile_on_server(on_progress)
+        const result = await desktop_preview(effective_section.value, on_progress,
+            () => run === latest_run)
         if (run !== latest_run){
             return
         }
-        truncated.value = preview.truncated
-
-        // Swap in the new PDF and revoke the previous object URL
-        const url = URL.createObjectURL(
-            new Blob([new Uint8Array(preview.bytes)], {type: 'application/pdf'}))
-        if (pdf_url.value){
-            URL.revokeObjectURL(pdf_url.value)
-        }
-        pdf_url.value = url
-
+        truncated.value = result.truncated
+        preview.value = result
+        shown_signature.value = signature
     } catch (error){
         if (run !== latest_run){
             return
         }
         // If an old preview is still showing underneath, the overlay stays up and turns red to
-        // explain the failure, rather than silently reverting to the (now stale) PDF
-        show_failure(error, on_server ? 'preview_server' : 'preview')
+        // explain the failure, rather than silently reverting to the (now stale) preview
+        show_failure(error, 'preview')
     } finally {
         if (run === latest_run){
             progress_message.value = null
         }
     }
-}
-
-
-async function compile_on_server(on_progress:(event:CompileProgress) => void)
-        :Promise<CompiledPreview>{
-    // The same preview made on the server, which also keeps the page estimate current (see
-    // request_server_preview). Its notices are translated here, as the server has no catalogs
-    const result = await request_server_preview({format: 'pdf', section: effective_section.value,
-        labels: {
-            inside_cover: t("display.preview.inside_cover"),
-            banner_title: t("display.preview.banner_title"),
-            banner_subtitle: t("display.preview.banner_subtitle"),
-            start_of_preview: t("display.preview.start_of_preview"),
-            end_of_preview: t("display.preview.end_of_preview"),
-            build_for_rest: t("display.preview.build_for_rest"),
-        }}, on_progress)
-    return {bytes: result.bytes, truncated: result.truncated}
-}
-
-
-async function compile_in_browser(generator:TypstWorkerClient, run:number,
-        on_progress:(event:CompileProgress) => void):Promise<CompiledPreview|null>{
-    // The preview compiled in this browser, or null if a newer compile overtook it. Throws on any
-    // failure (the compile taking longer than DESKTOP_PREVIEW_TIMEOUT_MS included), for the
-    // server to be asked instead
-
-    // Compile the window chosen by the Start|Middle|End toggle, labelling the "inside of
-    // front cover" gray slot on the first spread so it's clear it's not a missing/blank page.
-    // The dropped_before/dropped_after flags drive the start/end strips added below
-    const preview = await compile_preview_window(generator, effective_section.value,
-        PREVIEW_CHAR_LIMIT, on_progress, t("display.preview.inside_cover"), undefined,
-        DESKTOP_PREVIEW_TIMEOUT_MS)
-    const {truncation, show_front_cover, share_url, page_estimate} = preview
-    let bytes = preview.bytes
-
-    // Ignore if a newer compile has started since
-    if (run !== latest_run){
-        return null
-    }
-
-    // Refresh the shared page-count estimate (the start/end strips aren't in these bytes
-    // yet, so it counts only real pages)
-    set_page_estimate(page_estimate, preview.signature)
-
-    // Merge the rendered cover into the preview (cached in cover.ts — book-only edits reuse
-    // the previous render): the full wraparound cover as page 1, matching the actual print
-    // file. A cover failure fails the preview the same way a book compile failure does, rather
-    // than silently showing a preview that's missing its cover
-    if (show_front_cover){
-        on_progress({stage: 'cover'})
-        bytes = await prepend_cover_page(
-            await render_cover_pdf(blue, page_estimate, 'preview', undefined, share_url),
-            bytes, blue, page_estimate)
-        if (run !== latest_run){
-            return null
-        }
-    }
-
-    // Cap the preview with short orange strips — after every other step (cover included) so
-    // they sit at the very edges in every section. The start strip is always
-    // present: it's the plain "this is only a preview" note, or the "Start of preview"
-    // marker when content before the window was dropped. The end strip is only added when
-    // content past the window was dropped.
-    const [start_title, start_subtitle] = truncation.dropped_before
-        ? [t("display.preview.start_of_preview"), t("display.preview.build_for_rest")]
-        : [t("display.preview.banner_title"), t("display.preview.banner_subtitle")]
-    bytes = await generator.preview_strip(
-        bytes, truncation.request.page.width, start_title, start_subtitle, 'start')
-    if (truncation.dropped_after){
-        bytes = await generator.preview_strip(
-            bytes, truncation.request.page.width,
-            t("display.preview.end_of_preview"), t("display.preview.build_for_rest"), 'end')
-    }
-    return {bytes, truncated: truncation.truncated}
 }
 
 
@@ -410,12 +307,9 @@ watch(discrete_signature, () => {
 })
 
 
-// Clean up pending work and the last object URL
+// Clean up pending work (the pages' object URLs are their component's)
 onUnmounted(() => {
     compile_debounced.cancel()
-    if (pdf_url.value){
-        URL.revokeObjectURL(pdf_url.value)
-    }
 })
 
 </script>
@@ -472,12 +366,10 @@ onUnmounted(() => {
     width: 100%
     overflow: hidden
 
-iframe
+.scroll
     position: absolute
     inset: 0
-    width: 100%
-    height: 100%
-    border: none
+    overflow-y: auto
 
 .overlay
     position: absolute

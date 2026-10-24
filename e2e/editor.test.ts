@@ -191,14 +191,21 @@ test('the preview renders the design', async ({page}) => {
     test.setTimeout(3 * 60 * 1000)
     await open_editor(page)
 
-    const preview = page.locator('.preview .frame iframe')
-    await expect(preview).toHaveAttribute('src', /^blob:/, {timeout: 2 * 60 * 1000})
+    // Facing-page spreads of each page as an image, opening on page 1 alone on the right
+    const pages = page.locator('.preview .frame img.page')
+    await expect(pages.first()).toBeVisible({timeout: 2 * 60 * 1000})
+    expect(await pages.first().evaluate(img => (img as HTMLImageElement).naturalWidth))
+        .toBeGreaterThan(0)
+    await expect(page.locator('.preview .spread').first().locator('> :first-child'))
+        .not.toHaveClass(/page/)
     await expect(page.getByText('Couldn\'t generate preview')).toBeHidden()
+    await expect(page.locator('.preview .note').first()).toContainText('This is only a preview')
 
     // An edit recompiles it into a new document
-    const first = await preview.getAttribute('src')
+    const first = await pages.first().getAttribute('src')
     await page.getByLabel('Verse numbers').uncheck()
-    await expect.poll(() => preview.getAttribute('src'), {timeout: 60_000}).not.toBe(first)
+    await expect.poll(() => pages.first().getAttribute('src'), {timeout: 60_000})
+        .not.toBe(first)
 })
 
 
@@ -213,19 +220,24 @@ test('a desktop switched to the server previews there, on request', async ({page
     const design_id = await seed_own_design(uid, {simple_mode: false})
     await page.goto(`/designs/${design_id}`)
 
-    // One preview as the pane opens, the same spreads PDF the browser would have made
-    const preview = page.locator('.preview .frame iframe')
-    await expect(preview).toHaveAttribute('src', /^blob:/, {timeout: 60_000})
-    expect(previews).toEqual(['pdf'])
+    // One preview as the pane opens, shown as the browser's would be
+    const pages = page.locator('.preview .frame img.page')
+    await expect(pages.first()).toBeVisible({timeout: 60_000})
+    expect(previews).toEqual(['desktop'])
+    const refresh = page.locator('.preview .toolbar').getByRole('button', {name: 'Refresh'})
+    await expect(refresh).not.toHaveClass(/v-btn--variant-elevated/)
 
-    // An edit doesn't ask for another, since each one costs the server: Refresh does
-    const first = await preview.getAttribute('src')
+    // An edit doesn't ask for another, since each one costs the server, but Refresh stands out
+    // as the preview is now out of date, and asks for one
+    const first = await pages.first().getAttribute('src')
     await page.getByLabel('Verse numbers').uncheck()
     await expect.poll(async () => (await design_data(design_id))['blueprint'])
         .toMatchObject({show_verses: false})
+    await expect(refresh).toHaveClass(/v-btn--variant-elevated/)
     await page.waitForTimeout(2000)
-    expect(previews).toEqual(['pdf'])
-    await page.locator('.preview .toolbar').getByRole('button', {name: 'Refresh'}).click()
-    await expect.poll(() => preview.getAttribute('src')).not.toBe(first)
-    expect(previews).toEqual(['pdf', 'pdf'])
+    expect(previews).toEqual(['desktop'])
+    await refresh.click()
+    await expect.poll(() => pages.first().getAttribute('src')).not.toBe(first)
+    expect(previews).toEqual(['desktop', 'desktop'])
+    await expect(refresh).not.toHaveClass(/v-btn--variant-elevated/)
 })

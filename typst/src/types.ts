@@ -57,10 +57,6 @@ export interface TypstRequest {
     // Binary assets referenced by generated Typst source (virtual filename -> bytes), served via
     // the compiler's shadow filesystem — currently only passage images (see TypstPassageImage)
     assets:Record<string, Uint8Array>
-    // Preview-only label drawn centred on the "inside of front cover" gray slot of the reading
-    // preview's first spread (see arrange_spreads) — translated text supplied by the app, since
-    // this file has no access to i18n
-    preview_cover_label?:string
     // Preview-only: content past this window was dropped, so it isn't the document's real end
     // (see truncate_for_preview). The reading preview pads out to the printed page count so
     // what's on screen matches what gets printed — but only when this is false, since padding a

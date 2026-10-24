@@ -20,7 +20,9 @@ vi.mock('@/services/auth', async () => {
     const {ref} = await import('vue')
     return {user: ref({uid: 'uid_owner'})}
 })
-vi.mock('@/services/display', () => ({is_mobile_now: () => true}))
+// Whether the device is a phone, per test
+const mobile = vi.hoisted(() => ({value: true}))
+vi.mock('@/services/display', () => ({is_mobile_now: () => mobile.value}))
 
 
 // This browser's localStorage, and the page events the module listens to
@@ -47,6 +49,7 @@ async function load(stored:Record<string, string> = {}){
 
 beforeEach(() => {
     add_doc.mockClear()
+    mobile.value = true
 })
 
 
@@ -107,7 +110,7 @@ describe('settle_server_mode', () => {
         mode.switch_to_server('slow')
         mode.settle_server_mode(false)
         expect(mode.compiles_on_server()).toBe(false)
-        expect(storage.has('compile_on_server')).toBe(false)
+        expect([...storage.keys()]).toEqual([])
         expect(add_doc).toHaveBeenLastCalledWith('compile_stats', expect.objectContaining(
             {kind: 'compile_mode_reverted'}))
     })
@@ -121,9 +124,104 @@ describe('settle_server_mode', () => {
 })
 
 
+describe('a desktop\'s strikes', () => {
+
+    beforeEach(() => {
+        mobile.value = false
+    })
+
+    it('switch it after the server beats its browser three times running', async () => {
+        const mode = await load()
+        mode.strike('slow')
+        mode.strike('slow')
+        expect(mode.compiles_on_server()).toBe(false)
+        mode.strike('slow')
+        expect(mode.compiles_on_server()).toBe(true)
+        expect(add_doc).toHaveBeenCalledWith('compile_stats', expect.objectContaining(
+            {kind: 'compile_mode', reason: 'slow', mobile: false}))
+    })
+
+    it('are wiped by a preview the browser finishes in time, and outlast the page', async () => {
+        let mode = await load()
+        mode.strike('slow')
+        mode.strike('slow')
+        mode.clear_strikes()
+        mode.strike('slow')
+        expect(mode.compiles_on_server()).toBe(false)
+        mode = await load(Object.fromEntries(storage))
+        mode.strike('slow')
+        mode.strike('slow')
+        expect(mode.compiles_on_server()).toBe(true)
+    })
+
+    it('count a dead tab double, so it takes two to switch', async () => {
+        let mode = await load({compile_in_flight: '1700000000000'})
+        mode.check_crashed_compile()
+        expect(mode.compiles_on_server()).toBe(false)
+        mode = await load({...Object.fromEntries(storage), compile_in_flight: '1700000000000'})
+        mode.check_crashed_compile()
+        expect(mode.compiles_on_server()).toBe(true)
+    })
+})
+
+
+describe('a switched desktop\'s re-checks', () => {
+
+    beforeEach(() => {
+        mobile.value = false
+    })
+
+    // How many server previews it takes until a re-check is due
+    function previews_until_due(mode:Awaited<ReturnType<typeof load>>):number{
+        for (let count = 1; count <= 1000; count++){
+            if (mode.recheck_due()){
+                return count
+            }
+        }
+        return Infinity
+    }
+
+    it('come every 20th preview, then twice as far apart each time the browser fails', async () => {
+        const mode = await load()
+        mode.switch_to_server('slow')
+        expect(previews_until_due(mode)).toBe(20)
+        mode.recheck_failed()
+        expect(previews_until_due(mode)).toBe(40)
+        mode.recheck_failed()
+        mode.recheck_failed()
+        mode.recheck_failed()
+        mode.recheck_failed()
+        // Capped, so a laptop that's merely having a bad month isn't written off
+        expect(previews_until_due(mode)).toBe(160)
+    })
+
+    it('switch it back once the browser keeps up, with a clean slate', async () => {
+        const mode = await load()
+        mode.switch_to_server('slow')
+        mode.recheck_passed()
+        expect(mode.compiles_on_server()).toBe(false)
+        expect([...storage.keys()]).toEqual([])
+        expect(add_doc).toHaveBeenLastCalledWith('compile_stats', expect.objectContaining(
+            {kind: 'compile_mode_reverted', reason: 'recheck'}))
+    })
+
+    it('never happen on a phone, whose browser may lose the tab', async () => {
+        mobile.value = true
+        const mode = await load()
+        mode.switch_to_server('memory')
+        expect(previews_until_due(mode)).toBe(Infinity)
+    })
+
+    it('never happen on a device compiling in its browser', async () => {
+        const mode = await load()
+        expect(mode.recheck_due()).toBe(false)
+    })
+})
+
+
 describe('check_crashed_compile', () => {
 
-    it('switches a device whose last page died mid-compile', async () => {
+    it('switches a phone whose last page died mid-compile', async () => {
         const mode = await load({compile_in_flight: '1700000000000'})
         mode.check_crashed_compile()
         expect(mode.compiles_on_server()).toBe(true)
