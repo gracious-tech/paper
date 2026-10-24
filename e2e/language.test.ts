@@ -73,9 +73,6 @@ test('choosing a language switches the UI and is remembered', async ({page}) => 
 
     await expect(page.locator('html')).toHaveAttribute('lang', 'es')
     await expect(page.getByText(catalog('es', 'view.designs.no_designs_yet'))).toBeVisible()
-    // Vuetify's own strings follow too, not just ours (its search box's clear button etc.)
-    await expect(page.getByPlaceholder(catalog('es', 'view.designs.search_designs')))
-        .toBeVisible()
 
     await page.reload()
     await expect(page.getByText(catalog('es', 'view.designs.no_designs_yet')))

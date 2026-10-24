@@ -114,6 +114,14 @@ body
     padding-right: 12px
 
 
+// A fullscreen dialog's card fills the screen, so it has no corners to round. Vuetify resets the
+// radius itself, but in its components layer, which the `rounded-lg` utility class it now gives
+// every card outranks — unlayered, this outranks both
+.v-dialog--fullscreen > .v-overlay__content > .v-card,
+.v-dialog--fullscreen > .v-overlay__content > form > .v-card
+    border-radius: 0
+
+
 // New-design wizard (non-mobile only — mobile is fullscreen): anchor the card near the top of
 // the viewport instead of vertically centering it, so moving between steps of differing height
 // only shifts the card's bottom edge rather than re-centering the whole dialog. Overrides

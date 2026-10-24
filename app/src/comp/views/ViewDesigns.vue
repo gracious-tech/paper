@@ -3,7 +3,8 @@
 
 div.cont
 
-    div.header
+    //- Searching and sorting only earn their space once the list is long enough to need them
+    div.header(v-if='show_header')
         v-text-field.search(v-model='search_query' density='compact' variant='outlined'
                 hide-details :placeholder='$t("view.designs.search_designs")')
             template(#prepend-inner)
@@ -87,7 +88,7 @@ div.cont
 
 <script lang='ts' setup>
 
-import {computed, ref, nextTick} from 'vue'
+import {computed, ref, watch, nextTick} from 'vue'
 import {useI18n} from '@/services/i18n'
 import {useRouter} from 'vue-router'
 
@@ -108,20 +109,57 @@ const {t} = useI18n()
 const router = useRouter()
 
 
+// How many designs the list must hold before the search box and sort toggle are shown
+const HEADER_MIN_DESIGNS = 10
+
+// localStorage key remembering the sort criterion last chosen, so the list opens sorted the same
+const SORT_KEY = 'designs_sort'
+
+
+// Read the remembered sort criterion, defaulting to most recent first
+const read_sort = ():'modified'|'name' => {
+    try {
+        return localStorage.getItem(SORT_KEY) === 'name' ? 'name' : 'modified'
+    } catch {
+        // Private mode / blocked storage
+        return 'modified'
+    }
+}
+
+
 // Sort criterion, applied per-group (Uncategorized/each category/Shared edit/Shared read)
-const sort_by = ref<'modified'|'name'>('modified')
+const sort_by = ref<'modified'|'name'>(read_sort())
+
+// Remember each change of sort criterion
+watch(sort_by, value => {
+    try {
+        localStorage.setItem(SORT_KEY, value)
+    } catch {
+        // Never fail over a cosmetic preference
+    }
+})
 
 // Search box — filters every group by name, before any grouping/sorting below
 const search_query = ref('')
 
+
+// Whether the list is long enough to show the search box and sort toggle
+const show_header = computed(() => designs.length + viewed_designs.length >= HEADER_MIN_DESIGNS)
+
+// The search and sort in effect, which fall back to showing everything by most recent while
+// their controls are hidden, so a list that shrinks can't stay filtered or sorted by a control
+// the user can no longer see (the remembered sort returns with the toggle)
+const effective_query = computed(() => show_header.value ? search_query.value : '')
+const effective_sort = computed(() => show_header.value ? sort_by.value : 'modified')
+
 const matches_search = (name:string):boolean => {
-    const query = search_query.value.trim().toLowerCase()
+    const query = effective_query.value.trim().toLowerCase()
     return !query || name.toLowerCase().includes(query)
 }
 
 const sort = <T extends {name:string, modified:Date}>(list:T[]):T[] => {
     return [...list].sort((a, b) => {
-        return sort_by.value === 'name'
+        return effective_sort.value === 'name'
             ? a.name.localeCompare(b.name)
             : b.modified.getTime() - a.modified.getTime()
     })
