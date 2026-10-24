@@ -1,8 +1,8 @@
 
 // A design's preview: a window of its pages, each a standalone SVG, led by its cover when the
 // window starts at the book's start. A phone shows them one under another, full screen, before
-// building, its front cover first (see DialogPhonePreview.vue); a desktop shows its whole cover
-// and then facing-page spreads beside the editor, all along (see DisplayPreview.vue). Either is made in this browser, or on the server for a
+// building, its front and back covers first (see DialogPhonePreview.vue); a desktop shows its
+// whole cover and then facing-page spreads beside the editor, all along (see DisplayPreview.vue). Either is made in this browser, or on the server for a
 // device that compiles there or whose browser fails at it (see compile_mode.ts), and comes out
 // the same either way.
 
@@ -55,22 +55,22 @@ export async function browser_preview(generator:TypstWorkerClient, size:PreviewS
         }
 
         // The cover when the window starts at the book's start, its spine sized from the
-        // estimate: a phone's front panel, or a desktop's whole wraparound with its bleed cropped
-        // off and its folds marked. A phone frees the book's compiler first, as it may not hold
-        // the cover's beside it
-        let cover:string|null = null
+        // estimate: a phone's front and back panels, or a desktop's whole wraparound with its
+        // bleed cropped off and its folds marked. A phone frees the book's compiler first, as it
+        // may not hold the cover's beside it
+        let covers:string[] = []
         if (blue.cover && !truncation.dropped_before){
             on_progress?.({stage: 'cover'})
             if (size === 'phone'){
                 generator.release_memory()
             }
             const svgs = await render_cover_panels(blue, page_estimate, window.share_url)
-            cover = size === 'phone' ? svgs.front : crop_cover_svg(svgs.wraparound,
-                cover_page_geometry(blue, page_estimate))
+            covers = size === 'phone' ? [svgs.front, svgs.back] : [crop_cover_svg(
+                svgs.wraparound, cover_page_geometry(blue, page_estimate))]
         }
         return {
             pages: window.pages.map(page => svg_page_markup(page)),
-            cover,
+            covers,
             truncated: truncation.truncated,
             dropped_before: truncation.dropped_before,
             dropped_after: truncation.dropped_after,

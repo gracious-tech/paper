@@ -93,8 +93,8 @@ export async function request_server_preview(size:PreviewSize, section:PreviewSe
     if (render_signature() === signature && result.page_estimate !== null){
         set_page_estimate(result.page_estimate, signature)
     }
-    const {pages, cover} = JSON.parse(new TextDecoder().decode(bytes)) as PreviewPages
-    return {pages, cover, truncated: !!result.truncated,
+    const {pages, covers} = JSON.parse(new TextDecoder().decode(bytes)) as PreviewPages
+    return {pages, covers, truncated: !!result.truncated,
         dropped_before: !!result.dropped_before, dropped_after: !!result.dropped_after}
 }
 

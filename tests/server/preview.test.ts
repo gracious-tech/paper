@@ -286,7 +286,7 @@ describe('run_preview (phone)', () => {
         expect(metadata.contentType).toBe('application/json')
         expect(metadata.contentEncoding).toBe('gzip')
         const output = await stored_preview(file_path)
-        expect(output.cover).toBe(null)
+        expect(output.covers).toEqual([])
         const pages = output.pages
         expect(pages).toHaveLength(2)
         expect(pages[0]).toMatch(/^<svg [^>]*viewBox="0 0 100 100"/)
@@ -306,7 +306,7 @@ describe('run_preview (phone)', () => {
         expect(page_count).toBe(64)
     })
 
-    it('leads with the cover\'s front panel', async () => {
+    it('leads with the cover\'s front panel, then its back', async () => {
         const design_id = await make_design({blueprint: with_cover()})
         const job = await make_job(design_id)
 
@@ -315,7 +315,8 @@ describe('run_preview (phone)', () => {
         const doc = await preview(job.preview_id)
         expect(doc['pages']).toBe(2)
         const output = await stored_preview(doc['path'] as string)
-        expect(output.cover).toBe('<svg data-panel="front"></svg>')
+        expect(output.covers).toEqual(['<svg data-panel="front"></svg>',
+            '<svg data-panel="back"></svg>'])
         // Split from the wraparound by bookcover itself, its spine sized from the estimate
         expect(cover_mock.mock.calls[0]![0]).toMatchObject({format: 'svg', split: true})
     })
@@ -396,7 +397,9 @@ describe('run_preview (desktop)', () => {
         await run_preview(await make_job(design_id, {size: 'desktop'}))
 
         const doc = (await admin_db.collection('previews').get()).docs[0]!.data()
-        const cover = (await stored_preview(doc['path'] as string)).cover!
+        const covers = (await stored_preview(doc['path'] as string)).covers
+        expect(covers).toHaveLength(1)
+        const cover = covers[0]!
         expect(cover).toContain('data-panel="wraparound"')
         // Cropped in from the bleed on every side
         const [x, y] = /viewBox="([^"]+)"/.exec(cover)![1]!.split(' ').map(Number)
@@ -423,7 +426,7 @@ describe('run_preview (desktop)', () => {
         expect(doc).toMatchObject({status: 'available', page_estimate: 4, truncated: true,
             dropped_before: true, dropped_after: false})
         const output = await stored_preview(doc['path'] as string)
-        expect(output.cover).toBe(null)
+        expect(output.covers).toEqual([])
     })
 
     it('gives a phone the smaller window', async () => {

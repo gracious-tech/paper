@@ -64,7 +64,7 @@ function window_result(){
 
 
 // The server's preview, told apart from the browser's by its page
-const SERVER_PREVIEW:Preview = {pages: ['server'], cover: null,
+const SERVER_PREVIEW:Preview = {pages: ['server'], covers: [],
     truncated: false, dropped_before: false, dropped_after: false}
 
 

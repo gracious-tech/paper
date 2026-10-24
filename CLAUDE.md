@@ -48,7 +48,7 @@ Live at [paper.bible](https://paper.bible). MIT No Attribution license.
    no room for it, so its editor's button reads **Preview** and opens `DialogPhonePreview.vue`
    instead, with Keep editing / Build it. Both are one standalone SVG per page plus the cover
    (`preview.ts`), laid out by `DisplayPreviewPages.vue`: a phone's ~30 pages one under another,
-   its cover's front panel first; a desktop's ~50 as the PDF preview always showed them, at one
+   its cover's front then back panel first; a desktop's ~50 as the PDF preview always showed them, at one
    scale, with the "only a preview" strips (HTML now), the whole cover with its bleed cropped
    and its spine marked (`crop_cover_svg()`), then facing-page spreads.
    Whenever the browser fails at a preview, the server makes it instead (`POST /api/preview`,
@@ -450,7 +450,7 @@ version_assets/{design_id}/{hash}.{ext}   # frozen snapshots shared by every ver
                                           #   design. Append-only by rule, so a design edit can
                                           #   never change what a published version renders
 design_cache/{design_id}/*.png            # regenerable painted/torn variants, swept at 90d
-design_cache/{design_id}/preview_{id}.json  # server previews (gzipped {pages, cover} of
+design_cache/{design_id}/preview_{id}.json  # server previews (gzipped {pages, covers} of
                                           #   SVGs), by the server, swept at 90d
 versions/{version_id}/doc.pdf, cover.pdf  # rendered output only — swept at 365d, then
                                           #   regenerated from the frozen blueprint + snapshots

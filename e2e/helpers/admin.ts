@@ -299,7 +299,7 @@ export async function stub_server_preview(page:Page, uid:string,
         requested.push(body.size)
         const preview_id = new_id()
         const path = `design_cache/${body.design_id}/preview_${preview_id}.json`
-        const output = {pages: svg_pages, cover: null}
+        const output = {pages: svg_pages, covers: []}
         await admin_bucket.file(path).save(gzipSync(JSON.stringify(output)),
             {contentType: 'application/json', metadata: {contentEncoding: 'gzip'}})
         await admin_db.doc(`previews/${preview_id}`).set({owner: uid, design_id: body.design_id,

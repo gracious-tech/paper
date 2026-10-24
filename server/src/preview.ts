@@ -179,15 +179,15 @@ export async function run_preview(job:PreviewJob, prepare?:() => Promise<void>):
         const page_estimate = Math.max(2, Math.round(Math.max(1, pages.length) * scale / 2) * 2)
 
         // The cover when the window starts at the book's start, its spine sized from the
-        // estimate: a phone's front panel, or a desktop's whole wraparound with its bleed cropped
-        // off and its folds marked
-        let cover:string|null = null
+        // estimate: a phone's front and back panels, or a desktop's whole wraparound with its
+        // bleed cropped off and its folds marked
+        let covers:string[] = []
         if (blueprint.cover && !truncation.dropped_before){
             const svgs = await render_cover_svgs(blueprint, custom_fonts, page_estimate, share_url)
-            cover = job.size === 'phone' ? svgs.front : crop_cover_svg(svgs.wraparound,
-                cover_page_geometry(blueprint, page_estimate))
+            covers = job.size === 'phone' ? [svgs.front, svgs.back] : [crop_cover_svg(
+                svgs.wraparound, cover_page_geometry(blueprint, page_estimate))]
         }
-        const output:PreviewPages = {pages: pages.map(page => svg_page_markup(page)), cover}
+        const output:PreviewPages = {pages: pages.map(page => svg_page_markup(page)), covers}
         const preview_ms = performance.now() - compile_start
 
         // Stored gzipped (served with Content-Encoding, which browsers undo themselves), since

@@ -2,9 +2,10 @@
 <template lang='pug'>
 
 //- A preview's pages, each an <img> of its own standalone SVG (so its styles stay inside it).
-//- A phone shows them one under another, its front cover first. A desktop shows them as the
-//- book opens, everything at one scale as a PDF viewer would: a note that it's only a preview,
-//- the whole cover, then facing-page spreads, and a closing note when the window stops short
+//- A phone shows them one under another, its front and back covers first. A desktop shows them
+//- as the book opens, everything at one scale as a PDF viewer would: a note that it's only a
+//- preview, the whole cover, then facing-page spreads, and a closing note when the window stops
+//- short
 div.pages(:class='layout')
 
     template(v-if='layout === "column"')
@@ -21,7 +22,8 @@ div.pages(:class='layout')
             strong {{ preview.dropped_before ? $t("display.preview.start_of_preview") : $t("display.preview.banner_title") }}
             div {{ preview.dropped_before ? $t("display.preview.build_for_rest") : $t("display.preview.banner_subtitle") }}
 
-        img.page(v-if='urls.cover' :src='urls.cover' alt='' :style='{width: pt(cover_width)}')
+        img.page(v-if='urls.covers[0]' :src='urls.covers[0]' alt=''
+            :style='{width: pt(cover_width)}')
 
         template(v-for='(row, r) of rows' :key='r')
             img.page(v-if='row.kind === "single"' :src='row.url' alt=''
@@ -62,8 +64,8 @@ type Slot = {kind:'page', url:string}|{kind:'inside', label:boolean}
 type Row = {kind:'single', url:string}|{kind:'spread', slots:[Slot, Slot]}
 
 
-// Object URLs of the preview's pages and cover, replaced along with the preview
-const urls = shallowRef<{pages:string[], cover:string|null}>({pages: [], cover: null})
+// Object URLs of the preview's pages and cover(s), replaced along with the preview
+const urls = shallowRef<{pages:string[], covers:string[]}>({pages: [], covers: []})
 
 
 function to_url(markup:string):string{
@@ -74,10 +76,8 @@ function to_url(markup:string):string{
 
 function revoke():void{
     // Release the object URLs of the preview shown
-    for (const url of [...urls.value.pages, urls.value.cover]){
-        if (url){
-            URL.revokeObjectURL(url)
-        }
+    for (const url of [...urls.value.pages, ...urls.value.covers]){
+        URL.revokeObjectURL(url)
     }
 }
 
@@ -85,8 +85,7 @@ function revoke():void{
 // A fresh set of URLs for each preview, the last set released
 watch(() => props.preview, preview => {
     revoke()
-    urls.value = {pages: preview.pages.map(to_url),
-        cover: preview.cover && to_url(preview.cover)}
+    urls.value = {pages: preview.pages.map(to_url), covers: preview.covers.map(to_url)}
 }, {immediate: true})
 
 onUnmounted(revoke)
@@ -100,15 +99,17 @@ function svg_size(markup:string|null|undefined):{width:number, height:number}{
 }
 
 
-// A phone's column: the front cover, then the pages
-const column = computed(() => [...urls.value.cover ? [urls.value.cover] : [],
-    ...urls.value.pages])
+// A phone's column: the front and back covers, then the pages (the back straight after the
+// front, as a desktop shows the whole cover at once)
+const column = computed(() => [...urls.value.covers, ...urls.value.pages])
 
 
 // Every page of a book is the same size, so the first one's stands for all of them
 const page_size = computed(() => svg_size(props.preview.pages[0]))
 const page_ratio = computed(() => `${page_size.value.width} / ${page_size.value.height}`)
-const cover_width = computed(() => props.preview.cover ? svg_size(props.preview.cover).width : 0)
+// A desktop's one cover is the whole wraparound
+const cover_width = computed(() => props.preview.covers[0]
+    ? svg_size(props.preview.covers[0]).width : 0)
 
 
 // The widest thing shown, in points, which fills the pane's width (so a spread or the cover does,
@@ -129,7 +130,7 @@ function pt(points:number):string{
 // direction, so this never mirrors
 const rows = computed(() => {
     const pages = urls.value.pages.map(url => ({kind: 'page' as const, url}))
-    const has_cover = !!urls.value.cover
+    const has_cover = urls.value.covers.length > 0
     const result:Row[] = []
     const slots:Slot[] = has_cover ? [{kind: 'inside', label: true}, ...pages] : pages.slice(1)
     if (!has_cover && pages[0]){

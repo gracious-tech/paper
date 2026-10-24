@@ -65,12 +65,15 @@ export async function render_cover(blueprint:Blueprint, custom_fonts:CustomFont[
 
 
 export async function render_cover_svgs(blueprint:Blueprint, custom_fonts:CustomFont[],
-        page_count:number, share_url?:string):Promise<{wraparound:string, front:string}>{
+        page_count:number, share_url?:string)
+        :Promise<{wraparound:string, front:string, back:string}>{
     // Render a blueprint's cover for a preview (see run_preview): the whole wraparound and its
-    // front panel, each a standalone SVG, the panel split from the wraparound by bookcover itself
+    // front and back panels, each a standalone SVG, the panels split from the wraparound by
+    // bookcover itself
     return await render_cover_files(blueprint, custom_fonts, page_count, share_url, 'svg',
         async result => ({wraparound: await readFile(result.output_path, 'utf-8'),
-            front: await readFile(result.split_paths!.front, 'utf-8')}))
+            front: await readFile(result.split_paths!.front, 'utf-8'),
+            back: await readFile(result.split_paths!.back, 'utf-8')}))
 }
 
 
