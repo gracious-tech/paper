@@ -290,8 +290,6 @@
   "display.examples.create_new": "Создать новый макет",
   "display.examples.heading": "Что можно создать?",
   "display.examples.intro": "Вот несколько примеров — настройте один из них или начните с нуля",
-  "display.preview.banner_subtitle": "Соберите книгу, чтобы увидеть готовую версию",
-  "display.preview.banner_title": "Это только предпросмотр",
   "display.preview.build_for_rest": "Соберите книгу, чтобы увидеть все страницы",
   "display.preview.build_hint": "Всё нравится? Получите версию для печати",
   "display.preview.downloading": "Загрузка: {label} ({i}/{total})",

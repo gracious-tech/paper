@@ -290,8 +290,6 @@
   "display.examples.create_new": "కొత్త డిజైన్‌ను సృష్టించు",
   "display.examples.heading": "నేను ఏమేమి సృష్టించగలను?",
   "display.examples.intro": "ఇవిగో కొన్ని ఉదాహరణలు — వాటిలో ఒకదాన్ని మీకు నచ్చినట్లు మార్చుకోండి లేదా మొదటి నుండి ప్రారంభించండి",
-  "display.preview.banner_subtitle": "తుది వెర్షన్‌ను చూడటానికి దీనిని రూపొందించండి",
-  "display.preview.banner_title": "ఇది ప్రివ్యూ మాత్రమే",
   "display.preview.build_for_rest": "అన్ని పేజీలను చూడటానికి దీనిని రూపొందించండి",
   "display.preview.build_hint": "బాగుందా? ముద్రణకు సిద్ధమైన వెర్షన్‌ను పొందండి",
   "display.preview.downloading": "{label} డౌన్‌లోడ్ అవుతోంది ({i}/{total})",

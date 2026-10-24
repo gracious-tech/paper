@@ -290,8 +290,6 @@
   "display.examples.create_new": "Yeni bir tasarım oluştur",
   "display.examples.heading": "Neler oluşturabilirim?",
   "display.examples.intro": "İşte bazı örnekler — birini özelleştirin veya sıfırdan başlayın",
-  "display.preview.banner_subtitle": "Son hâlini görmek için oluşturun",
-  "display.preview.banner_title": "Bu yalnızca bir önizlemedir",
   "display.preview.build_for_rest": "Tüm sayfaları görmek için oluşturun",
   "display.preview.build_hint": "Beğendiniz mi? Baskıya hazır sürümü alın",
   "display.preview.downloading": "İndiriliyor: {label} ({i}/{total})",

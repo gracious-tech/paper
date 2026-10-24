@@ -290,8 +290,6 @@
   "display.examples.create_new": "Buat desain baru",
   "display.examples.heading": "Apa yang bisa saya buat?",
   "display.examples.intro": "Berikut beberapa contoh — sesuaikan salah satunya atau mulai dari awal",
-  "display.preview.banner_subtitle": "Buat untuk melihat versi jadinya",
-  "display.preview.banner_title": "Ini hanya pratinjau",
   "display.preview.build_for_rest": "Buat untuk melihat semua halaman",
   "display.preview.build_hint": "Sudah bagus? Dapatkan versi yang siap cetak",
   "display.preview.downloading": "Mengunduh {label} ({i}/{total})",

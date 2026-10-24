@@ -191,15 +191,14 @@ test('the preview renders the design', async ({page}) => {
     test.setTimeout(3 * 60 * 1000)
     await open_editor(page)
 
-    // Each page an image: with no cover, page 1 on its own after the note that it's only a
-    // preview, then facing-page spreads
+    // Each page an image: with no cover, page 1 on its own first, then facing-page spreads, and
+    // no note at either end since the whole book fits
     const pages = page.locator('.preview .frame img.page')
     await expect(pages.first()).toBeVisible({timeout: 2 * 60 * 1000})
     expect(await pages.first().evaluate(img => (img as HTMLImageElement).naturalWidth))
         .toBeGreaterThan(0)
-    await expect(page.locator('.preview .book > :first-child'))
-        .toContainText('This is only a preview')
-    await expect(page.locator('.preview .book > :nth-child(2)')).toHaveClass(/page/)
+    await expect(page.locator('.preview .book > :first-child')).toHaveClass(/page/)
+    await expect(page.locator('.preview .strip')).toHaveCount(0)
     await expect(page.getByText('Couldn\'t generate preview')).toBeHidden()
 
     // An edit recompiles it into a new document

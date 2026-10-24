@@ -290,8 +290,6 @@
   "display.examples.create_new": "新建设计",
   "display.examples.heading": "我可以创作什么？",
   "display.examples.intro": "这里有一些示例：您可以自定义其中一个，或从零开始",
-  "display.preview.banner_subtitle": "生成后即可查看最终版本",
-  "display.preview.banner_title": "这只是预览",
   "display.preview.build_for_rest": "生成后即可查看所有页面",
   "display.preview.build_hint": "看起来不错？获取可直接印刷的版本",
   "display.preview.downloading": "正在下载 {label}（{i}/{total}）",

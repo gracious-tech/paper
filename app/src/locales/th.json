@@ -290,8 +290,6 @@
   "display.examples.create_new": "สร้างงานออกแบบใหม่",
   "display.examples.heading": "ฉันสร้างอะไรได้บ้าง?",
   "display.examples.intro": "นี่คือตัวอย่างบางส่วน ปรับแต่งจากตัวอย่าง หรือเริ่มต้นใหม่ตั้งแต่ต้น",
-  "display.preview.banner_subtitle": "กดสร้างเพื่อดูเวอร์ชันที่เสร็จสมบูรณ์",
-  "display.preview.banner_title": "นี่เป็นเพียงตัวอย่างเท่านั้น",
   "display.preview.build_for_rest": "กดสร้างเพื่อดูทุกหน้า",
   "display.preview.build_hint": "ดูดีแล้วใช่ไหม? รับเวอร์ชันที่พร้อมพิมพ์",
   "display.preview.downloading": "กำลังดาวน์โหลด {label} ({i}/{total})",

@@ -290,8 +290,6 @@
   "display.examples.create_new": "Tạo thiết kế mới",
   "display.examples.heading": "Tôi có thể tạo gì?",
   "display.examples.intro": "Đây là một vài ví dụ — hãy tùy chỉnh một mẫu hoặc bắt đầu từ đầu",
-  "display.preview.banner_subtitle": "Hãy tạo bản in để xem phiên bản hoàn chỉnh",
-  "display.preview.banner_title": "Đây chỉ là bản xem trước",
   "display.preview.build_for_rest": "Hãy tạo bản in để xem tất cả các trang",
   "display.preview.build_hint": "Trông ổn chưa? Hãy tạo bản sẵn sàng để in",
   "display.preview.downloading": "Đang tải {label} ({i}/{total})",

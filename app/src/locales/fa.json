@@ -290,8 +290,6 @@
   "display.examples.create_new": "ساخت طرح جدید",
   "display.examples.heading": "چه چیزی می‌توانم بسازم؟",
   "display.examples.intro": "چند نمونه را در اینجا می‌بینید — یکی را سفارشی کنید یا از صفر شروع کنید",
-  "display.preview.banner_subtitle": "برای دیدن نسخهٔ نهایی، آن را بسازید",
-  "display.preview.banner_title": "این فقط یک پیش‌نمایش است",
   "display.preview.build_for_rest": "برای دیدن همهٔ صفحه‌ها، آن را بسازید",
   "display.preview.build_hint": "خوب به نظر می‌رسد؟ نسخهٔ آمادهٔ چاپ را بگیرید",
   "display.preview.downloading": "در حال دریافت {label} ({i}/{total})",

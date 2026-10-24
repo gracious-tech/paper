@@ -290,8 +290,6 @@
   "display.examples.create_new": "إنشاء تصميم جديد",
   "display.examples.heading": "ماذا يمكنني أن أُنشئ؟",
   "display.examples.intro": "إليك بعض الأمثلة — خصّص أحدها أو ابدأ من الصفر",
-  "display.preview.banner_subtitle": "أنشئه لترى الإصدار النهائي",
-  "display.preview.banner_title": "هذه مجرد معاينة",
   "display.preview.build_for_rest": "أنشئه لترى جميع الصفحات",
   "display.preview.build_hint": "يبدو جيدًا؟ احصل على الإصدار الجاهز للطباعة",
   "display.preview.downloading": "جارٍ تنزيل {label} ({i}/{total})",

@@ -290,8 +290,6 @@
   "display.examples.create_new": "نیا ڈیزائن بنائیں",
   "display.examples.heading": "آپ کیا بنا سکتے ہیں؟",
   "display.examples.intro": "یہ رہیں کچھ مثالیں — کسی ایک کو اپنی مرضی کے مطابق ڈھالیں یا بالکل نئے سرے سے شروع کریں",
-  "display.preview.banner_subtitle": "مکمل ورژن دیکھنے کے لیے اسے بنائیں",
-  "display.preview.banner_title": "یہ صرف ایک پیش منظر ہے",
   "display.preview.build_for_rest": "تمام صفحات دیکھنے کے لیے اسے بنائیں",
   "display.preview.build_hint": "ٹھیک لگ رہا ہے؟ پرنٹ کے لیے تیار ورژن حاصل کریں",
   "display.preview.downloading": "ڈاؤن لوڈ جاری ہے: {label} ({i}/{total})",

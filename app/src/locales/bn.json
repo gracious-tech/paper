@@ -290,8 +290,6 @@
   "display.examples.create_new": "নতুন ডিজাইন তৈরি করুন",
   "display.examples.heading": "আমি কী তৈরি করতে পারি?",
   "display.examples.intro": "এখানে কিছু উদাহরণ দেওয়া হলো — একটি নিজের মতো সাজিয়ে নিন অথবা একেবারে শুরু থেকে তৈরি করুন",
-  "display.preview.banner_subtitle": "চূড়ান্ত সংস্করণ দেখতে এটি তৈরি করুন",
-  "display.preview.banner_title": "এটি কেবল একটি প্রিভিউ",
   "display.preview.build_for_rest": "সব পৃষ্ঠা দেখতে এটি তৈরি করুন",
   "display.preview.build_hint": "ভালো লাগছে? ছাপার উপযোগী সংস্করণটি নিন",
   "display.preview.downloading": "{label} ডাউনলোড হচ্ছে ({i}/{total})",

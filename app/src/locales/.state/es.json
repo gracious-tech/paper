@@ -290,8 +290,6 @@
   "display.examples.create_new": "Create a new design",
   "display.examples.heading": "What could I create?",
   "display.examples.intro": "Here's some examples — customize one or start from scratch",
-  "display.preview.banner_subtitle": "Build it to see the finished version",
-  "display.preview.banner_title": "This is only a preview",
   "display.preview.build_for_rest": "Build it to see all pages",
   "display.preview.build_hint": "Look good? Get the print-ready version",
   "display.preview.downloading": "Downloading {label} ({i}/{total})",

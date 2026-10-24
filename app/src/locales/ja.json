@@ -290,8 +290,6 @@
   "display.examples.create_new": "新しいデザインを作成",
   "display.examples.heading": "どんなものが作れますか？",
   "display.examples.intro": "作成例をご紹介します。例をカスタマイズするか、一から作成してください",
-  "display.preview.banner_subtitle": "完成版を見るには生成してください",
-  "display.preview.banner_title": "これはプレビューです",
   "display.preview.build_for_rest": "すべてのページを見るには生成してください",
   "display.preview.build_hint": "よろしければ、印刷用の完成版を作成しましょう",
   "display.preview.downloading": "{label}をダウンロード中（{i}/{total}）",

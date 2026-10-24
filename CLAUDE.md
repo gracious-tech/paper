@@ -49,8 +49,8 @@ Live at [paper.bible](https://paper.bible). MIT No Attribution license.
    instead, with Keep editing / Build it. Both are one standalone SVG per page plus the cover
    (`preview.ts`), laid out by `DisplayPreviewPages.vue`: a phone's ~30 pages one under another,
    its cover's front then back panel first; a desktop's ~50 as the PDF preview always showed them, at one
-   scale, with the "only a preview" strips (HTML now), the whole cover with its bleed cropped
-   and its spine marked (`crop_cover_svg()`), then facing-page spreads.
+   scale: the whole cover with its bleed cropped and its spine marked (`crop_cover_svg()`),
+   then facing-page spreads, with a note (HTML now) only at an end the window cuts off.
    Whenever the browser fails at a preview, the server makes it instead (`POST /api/preview`,
    see `server_preview.ts`): on a phone after 20s, while on a desktop the server only races a
    browser that's taken 10s. A phone that can't cope (out of memory, too slow, a tab that died

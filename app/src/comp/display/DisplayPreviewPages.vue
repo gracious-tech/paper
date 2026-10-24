@@ -3,9 +3,8 @@
 
 //- A preview's pages, each an <img> of its own standalone SVG (so its styles stay inside it).
 //- A phone shows them one under another, its front and back covers first. A desktop shows them
-//- as the book opens, everything at one scale as a PDF viewer would: a note that it's only a
-//- preview, the whole cover, then facing-page spreads, and a closing note when the window stops
-//- short
+//- as the book opens, everything at one scale as a PDF viewer would: the whole cover, then
+//- facing-page spreads, with a note at either end where the window leaves part of the book out
 div.pages(:class='layout')
 
     template(v-if='layout === "column"')
@@ -17,10 +16,11 @@ div.pages(:class='layout')
             div {{ $t("display.preview.build_for_rest") }}
 
     div.book(v-else :style='{"--pt": `calc(100cqw / ${scale_width})`}')
-        //- "Only a preview", or "start of preview" when the window left out what comes before
-        div.strip(:style='{width: pt(page_size.width * 0.8)}')
-            strong {{ preview.dropped_before ? $t("display.preview.start_of_preview") : $t("display.preview.banner_title") }}
-            div {{ preview.dropped_before ? $t("display.preview.build_for_rest") : $t("display.preview.banner_subtitle") }}
+        //- The window left out what comes before it (a preview showing the whole book needs no
+        //- note: it's plainly not a PDF to print from)
+        div.strip(v-if='preview.dropped_before' :style='{width: pt(page_size.width * 0.8)}')
+            strong {{ $t("display.preview.start_of_preview") }}
+            div {{ $t("display.preview.build_for_rest") }}
 
         img.page(v-if='urls.covers[0]' :src='urls.covers[0]' alt=''
             :style='{width: pt(cover_width)}')

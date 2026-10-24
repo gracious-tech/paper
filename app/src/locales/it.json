@@ -290,8 +290,6 @@
   "display.examples.create_new": "Crea un nuovo progetto",
   "display.examples.heading": "Cosa potrei creare?",
   "display.examples.intro": "Ecco alcuni esempi — personalizzane uno o parti da zero",
-  "display.preview.banner_subtitle": "Generalo per vedere il risultato finale",
-  "display.preview.banner_title": "Questa è solo un'anteprima",
   "display.preview.build_for_rest": "Generalo per vedere tutte le pagine",
   "display.preview.build_hint": "Ti piace? Ottieni la versione pronta per la stampa",
   "display.preview.downloading": "Scaricamento di {label} ({i}/{total})",
