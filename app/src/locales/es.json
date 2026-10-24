@@ -597,6 +597,8 @@
   "view.design_item.unrendered_changes": "Este diseño tiene cambios desde la última versión creada",
   "view.designs.create_first": "Crea tu primer diseño",
   "view.designs.hide_suggestions": "Ocultar sugerencias",
+  "view.designs.install": "Instalar",
+  "view.designs.install_prompt": "Instala Paper Bible en este dispositivo para abrirlo como una aplicación.",
   "view.designs.no_designs_yet": "Todavía no hay diseños",
   "view.designs.no_matching_designs": "No hay diseños que coincidan",
   "view.designs.recent": "Recientes",

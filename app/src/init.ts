@@ -27,6 +27,7 @@ import Warning from '@material-symbols/svg-400/rounded/warning-fill.svg'
 import Info from '@material-symbols/svg-400/rounded/info-fill.svg'
 import ErrorIcon from '@material-symbols/svg-400/rounded/error-fill.svg'
 import CheckCircle from '@material-symbols/svg-400/rounded/check_circle-fill.svg'
+import Close from '@material-symbols/svg-400/rounded/close.svg'
 
 import AppIcon from './comp/global/AppIcon.vue'
 import AppColor from './comp/global/AppColor.vue'
@@ -49,6 +50,12 @@ import {custom_fonts} from '@/services/custom_fonts'
 import {start_watchers} from '@/services/watchers'
 import {check_crashed_compile, switch_to_server} from '@/services/compile_mode'
 import {report_error, vue_error_handler, set_error_translator} from '@/services/errors'
+import {listen_for_install} from '@/services/install'
+
+
+// Catch the browser's offer to install the app however early it comes, ahead of the slow boot
+// below (see install.ts)
+listen_for_install(window)
 
 
 // Create app
@@ -144,6 +151,9 @@ const vuetify = createVuetify({
             info: Info,
             error: ErrorIcon,
             success: CheckCircle,
+            // Closable alerts and clearable fields (blank without these)
+            close: Close,
+            clear: Close,
         },
     },
 })

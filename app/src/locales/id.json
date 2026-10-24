@@ -597,6 +597,8 @@
   "view.design_item.unrendered_changes": "Desain ini memiliki perubahan sejak versi terakhir dibuat",
   "view.designs.create_first": "Buat desain pertama Anda",
   "view.designs.hide_suggestions": "Sembunyikan saran",
+  "view.designs.install": "Instal",
+  "view.designs.install_prompt": "Instal Paper Bible di perangkat ini agar dapat dibuka seperti aplikasi.",
   "view.designs.no_designs_yet": "Belum ada desain",
   "view.designs.no_matching_designs": "Tidak ada desain yang cocok",
   "view.designs.recent": "Terbaru",

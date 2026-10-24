@@ -130,6 +130,48 @@ test('a guest with designs is warned they live only in this browser', async ({pa
 })
 
 
+// Make the browser offer to install the app, as Chromium does once a page meets its install
+// criteria (headless Chromium never does), with a prompt() that records being called and answers
+// as the user would
+async function offer_install(page:Page, outcome:'accepted'|'dismissed'):Promise<void>{
+    await page.evaluate(answer => {
+        const event = new Event('beforeinstallprompt') as Event & {prompt:() => Promise<unknown>}
+        event.prompt = () => {
+            (window as unknown as {prompted:boolean}).prompted = true
+            return Promise.resolve({outcome: answer})
+        }
+        window.dispatchEvent(event)
+    }, outcome)
+}
+
+
+test('installing is offered only while the browser can, until turned down', async ({page}) => {
+    const uid = await boot(page)
+    await seed_design(uid, 'Something to come back to')
+    await expect(row(page, 'Something to come back to')).toBeVisible()
+    const notice = page.getByText('Install Paper Bible on this device')
+    await expect(notice).toBeHidden()
+
+    // Installing opens the browser's own dialog, and the notice goes with the offer it used
+    await offer_install(page, 'accepted')
+    await expect(notice).toBeVisible()
+    await page.getByRole('button', {name: 'Install', exact: true}).click()
+    expect(await page.evaluate(() => (window as unknown as {prompted:boolean}).prompted))
+        .toBe(true)
+    await expect(notice).toBeHidden()
+
+    // Closing it turns installing down for good, offers or not
+    await offer_install(page, 'accepted')
+    await expect(notice).toBeVisible()
+    await page.locator('.install').getByRole('button', {name: 'Close'}).click()
+    await expect(notice).toBeHidden()
+    await page.reload()
+    await expect(row(page, 'Something to come back to')).toBeVisible({timeout: 60_000})
+    await offer_install(page, 'accepted')
+    await expect(notice).toBeHidden()
+})
+
+
 test('renaming from the list', async ({page}) => {
     const uid = await boot(page)
     const design_id = await seed_design(uid, 'Old name')

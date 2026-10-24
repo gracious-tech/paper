@@ -597,6 +597,8 @@
   "view.design_item.unrendered_changes": "마지막으로 만든 버전 이후 이 디자인에 변경사항이 있습니다",
   "view.designs.create_first": "첫 디자인 만들기",
   "view.designs.hide_suggestions": "추천 숨기기",
+  "view.designs.install": "설치",
+  "view.designs.install_prompt": "이 기기에 Paper Bible을 설치하면 앱처럼 열 수 있습니다.",
   "view.designs.no_designs_yet": "아직 디자인이 없습니다",
   "view.designs.no_matching_designs": "일치하는 디자인이 없습니다",
   "view.designs.recent": "최근",

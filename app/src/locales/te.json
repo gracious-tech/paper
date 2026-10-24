@@ -597,6 +597,8 @@
   "view.design_item.unrendered_changes": "చివరిగా సృష్టించిన వెర్షన్ తర్వాత ఈ డిజైన్‌లో మార్పులు జరిగాయి",
   "view.designs.create_first": "మీ మొదటి డిజైన్‌ను సృష్టించండి",
   "view.designs.hide_suggestions": "సూచనలను దాచు",
+  "view.designs.install": "ఇన్‌స్టాల్ చేయండి",
+  "view.designs.install_prompt": "Paper Bibleను యాప్‌లా తెరవడానికి దీన్ని ఈ పరికరంలో ఇన్‌స్టాల్ చేయండి.",
   "view.designs.no_designs_yet": "ఇంకా డిజైన్‌లు లేవు",
   "view.designs.no_matching_designs": "సరిపోలే డిజైన్‌లు లేవు",
   "view.designs.recent": "ఇటీవలివి",

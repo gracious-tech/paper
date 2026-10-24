@@ -1,4 +1,6 @@
 {
+  "view.designs.install_prompt": "A dismissable notice on the list of the user's designs, offered only when their browser can install this web app (as a home-screen / desktop app). Shown beside a button labelled with view.designs.install.",
+  "view.designs.install": "The button on that notice which opens the browser's own install dialog. Use the word the language's browsers use for installing a web app.",
   "app.beta": "A small badge beside the app's name in the header, marking it as a beta release.",
   "common.end": "A toggle button choosing which part of a long document the live preview shows: its end.",
   "common.home": "A back button on the About and Privacy pages that returns to the app's main page (the list of designs).",

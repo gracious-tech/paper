@@ -597,6 +597,8 @@
   "view.design_item.unrendered_changes": "Ce projet a été modifié depuis la dernière version créée",
   "view.designs.create_first": "Créer votre premier projet",
   "view.designs.hide_suggestions": "Masquer les suggestions",
+  "view.designs.install": "Installer",
+  "view.designs.install_prompt": "Installez Paper Bible sur cet appareil pour l’ouvrir comme une application.",
   "view.designs.no_designs_yet": "Aucun projet pour l’instant",
   "view.designs.no_matching_designs": "Aucun projet correspondant",
   "view.designs.recent": "Récents",

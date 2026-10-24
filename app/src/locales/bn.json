@@ -597,6 +597,8 @@
   "view.design_item.unrendered_changes": "সর্বশেষ তৈরি সংস্করণের পর এই ডিজাইনে পরিবর্তন হয়েছে",
   "view.designs.create_first": "আপনার প্রথম ডিজাইন তৈরি করুন",
   "view.designs.hide_suggestions": "পরামর্শ লুকান",
+  "view.designs.install": "ইনস্টল করুন",
+  "view.designs.install_prompt": "অ্যাপের মতো খুলতে এই ডিভাইসে Paper Bible ইনস্টল করুন।",
   "view.designs.no_designs_yet": "এখনও কোনো ডিজাইন নেই",
   "view.designs.no_matching_designs": "মেলে এমন কোনো ডিজাইন নেই",
   "view.designs.recent": "সাম্প্রতিক",

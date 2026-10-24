@@ -597,6 +597,8 @@
   "view.design_item.unrendered_changes": "Dieser Entwurf wurde seit der zuletzt erstellten Version geändert",
   "view.designs.create_first": "Ersten Entwurf erstellen",
   "view.designs.hide_suggestions": "Vorschläge ausblenden",
+  "view.designs.install": "Installieren",
+  "view.designs.install_prompt": "Installieren Sie Paper Bible auf diesem Gerät, um es wie eine App zu öffnen.",
   "view.designs.no_designs_yet": "Noch keine Entwürfe",
   "view.designs.no_matching_designs": "Keine passenden Entwürfe",
   "view.designs.recent": "Neueste",

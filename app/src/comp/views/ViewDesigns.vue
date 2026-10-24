@@ -16,8 +16,19 @@ div.cont
             v-btn(value='modified' size='small') {{$t("view.designs.recent")}}
             v-btn(value='name' size='small') {{$t("common.name")}}
 
+    //- Only while the browser itself can install the app, and until dismissed (see install.ts).
+    //-     Not on the empty-state page, where there's nothing to come back to yet
+    div.install(v-if='offer_install && has_any_unfiltered')
+        v-alert(variant='tonal' density='compact' color='primary' closable
+                @click:close='dismiss_install')
+            template(#prepend)
+                app-icon(:name='is_mobile ? "install_mobile" : "install_desktop"')
+            | {{$t("view.designs.install_prompt")}}
+            v-btn(@click='install_app' variant='flat' color='secondary' size='small' class='ml-2')
+                | {{$t("view.designs.install")}}
+
     //- Nothing at all yet — the navbar's "New" is easy to miss on an otherwise blank page
-    div(v-if='!has_any_unfiltered' class='pa-4 text-center')
+    div(v-if='!has_any_unfiltered' class='pa-4 mt-12 text-center')
         p(class='text-medium-emphasis') {{$t("view.designs.no_designs_yet")}}
         v-btn(@click='state.new_design = true' color='secondary' variant='tonal' class='mt-4')
             | {{$t("view.designs.create_first")}}
@@ -101,6 +112,7 @@ import {designs, viewed_designs, rename_category, clear_category} from '@/servic
 import {legacy} from '@/legacy/legacy'
 import {state, confirm_dialog, prompt_dialog} from '@/services/state'
 import {format_relative_time} from '@/services/utils'
+import {offer_install, dismiss_install, install_app} from '@/services/install'
 
 import type {DesignMeta, ViewedDesign} from '@/services/types'
 
@@ -277,6 +289,16 @@ const open_viewed = (viewed:ViewedDesign) => {
 .search
     flex-grow: 1
     max-width: 320px
+
+.install
+    padding: 16px 16px 0
+
+// The search bar already spaces it from the top
+.header + .install
+    padding-top: 0
+
+    .v-alert
+        line-height: 1.5
 
 .subheader
     display: flex

@@ -293,6 +293,8 @@ paper_bible/
         typst_worker.ts    # The worker: WASM compiler via paper-bible-typst-web
         watchers.ts        # Auto-fetch book content as the design changes
         errors.ts          # Error capture/reporting (imported first, before everything)
+        install.ts         # Installing the app (public/manifest.json): offered, in a dismissable
+                            #   notice on /designs, only while a browser fires beforeinstallprompt
         example_designs.ts # The example designs (pure data + translated labels)
         examples.ts        # Building/creating a design from an example
         example_images.ts  # Each example's pre-rendered cover picture, by UI locale
@@ -364,7 +366,8 @@ paper_bible/
   coverage/           # .bin/audit_coverage internals: scope.ts (what counts, path normalising),
                       #   mcr.unit.ts (the unit groups' MCR config), e2e.ts (browser collection),
                       #   node_flush.ts (preload for spawned Node), merge.ts; reports/ is output
-  branding/           # Source icon/social/splash artwork
+  branding/           # Source icon/social/splash artwork (icon_maskable.svg is the full-bleed
+                      #   square behind app/public/icons/' maskable + apple-touch PNGs)
   typst/                   # paper-bible-typst: core (Blueprint→TypstRequest, typst gen,
                             #   split_blueprint_doc/join_blueprint_doc for Firestore doc shape;
                             #   assemble.ts puts the page sequence together for both outputs,

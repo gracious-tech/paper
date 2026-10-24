@@ -597,6 +597,8 @@
   "view.design_item.unrendered_changes": "या डिझाइनची शेवटची आवृत्ती तयार केल्यानंतर त्यात बदल झाले आहेत",
   "view.designs.create_first": "तुमचे पहिले डिझाइन तयार करा",
   "view.designs.hide_suggestions": "सूचना लपवा",
+  "view.designs.install": "इंस्टॉल करा",
+  "view.designs.install_prompt": "Paper Bible ॲपसारखे उघडण्यासाठी ते या डिव्हाइसवर इंस्टॉल करा.",
   "view.designs.no_designs_yet": "अजून कोणतेही डिझाइन नाही",
   "view.designs.no_matching_designs": "जुळणारे कोणतेही डिझाइन नाही",
   "view.designs.recent": "अलीकडील",

@@ -597,6 +597,8 @@
   "view.design_item.unrendered_changes": "Thiết kế này có thay đổi kể từ phiên bản được tạo gần nhất",
   "view.designs.create_first": "Tạo thiết kế đầu tiên của bạn",
   "view.designs.hide_suggestions": "Ẩn gợi ý",
+  "view.designs.install": "Cài đặt",
+  "view.designs.install_prompt": "Cài đặt Paper Bible trên thiết bị này để mở như một ứng dụng.",
   "view.designs.no_designs_yet": "Chưa có thiết kế nào",
   "view.designs.no_matching_designs": "Không có thiết kế phù hợp",
   "view.designs.recent": "Gần đây",
