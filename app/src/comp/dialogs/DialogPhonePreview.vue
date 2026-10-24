@@ -11,12 +11,14 @@ v-dialog(v-model='state.phone_preview' fullscreen transition='dialog-bottom-tran
                     app-icon(name='arrow_back')
                 | {{ $t("dialog.phone_preview.keep_editing") }}
             v-spacer
+            //- Zooms in on the pages, which pinching them does too
+            DisplayPreviewZoom(v-if='preview' v-model='zoom' :fit='1' :physical='false')
             v-btn(@click='build' variant='elevated' color='secondary-darken-1'
                     :disabled='!can_build' :loading='build_starting')
                 | {{ $t("view.design.build_it") }}
 
-        div.scroll(v-if='preview')
-            DisplayPreviewPages(:preview='preview' layout='column')
+        DisplayPreviewPages.scroll(v-if='preview' :preview='preview' layout='column'
+            v-model:zoom='zoom')
         div.status(v-else-if='failed')
             h3(class='mb-4') {{ $t("display.preview.failed") }}
             v-btn(@click='compile' variant='tonal' color='white') {{ $t("common.try_again") }}
@@ -35,6 +37,7 @@ import {ref, computed, watch} from 'vue'
 import {useRouter} from 'vue-router'
 
 import DisplayPreviewPages from '@/comp/display/DisplayPreviewPages.vue'
+import DisplayPreviewZoom from '@/comp/display/DisplayPreviewZoom.vue'
 
 import {useI18n} from '@/services/i18n'
 import {state} from '@/services/state'
@@ -54,6 +57,9 @@ const router = useRouter()
 
 // The preview being shown
 const preview = ref<Preview|null>(null)
+
+// How far it's zoomed in (null fits the width, see preview_zoom.ts)
+const zoom = ref<number|null>(null)
 
 // Whether the last attempt failed, and whether this browser turned out too slow for it (after
 // which the server makes it, and builds on this device from now on)
@@ -120,6 +126,7 @@ watch(() => state.phone_preview, open => {
     } else {
         latest_run += 1
         preview.value = null
+        zoom.value = null
     }
 }, {immediate: true})
 
@@ -159,7 +166,6 @@ const build = async () => {
 
 .scroll
     flex-grow: 1
-    overflow-y: auto
 
 .status
     flex-grow: 1

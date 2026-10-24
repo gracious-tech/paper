@@ -4,38 +4,44 @@
 //- A preview's pages, each an <img> of its own standalone SVG (so its styles stay inside it).
 //- A phone shows them one under another, its front and back covers first. A desktop shows them
 //- as the book opens, everything at one scale as a PDF viewer would: the whole cover, then
-//- facing-page spreads, with a note at either end where the window leaves part of the book out
-div.pages(:class='layout')
+//- facing-page spreads, with a note at either end where the window leaves part of the book out.
+//- Both scroll within this, and zoom by pinching or Ctrl+wheel (see preview_zoom.ts)
+div.viewport(ref='viewport' :class='[layout, {pannable, panning}]' @wheel='on_wheel'
+        @touchstart='on_touch_start' @touchmove='on_touch_move' @touchend='on_touch_end'
+        @touchcancel='on_touch_end' @gesturestart='on_gesture' @gesturechange='on_gesture'
+        @pointerdown='on_pointer_down' @pointermove='on_pointer_move' @pointerup='on_pointer_up'
+        @pointercancel='on_pointer_up')
 
-    template(v-if='layout === "column"')
-        img.page(v-for='(url, i) of column' :key='url' :src='url' alt=''
+    div.pages(v-if='layout === "column"' ref='content' :style='{"--width": `${column_width}px`}')
+        img.page(v-for='(url, i) of column' :key='url' :src='url' alt='' draggable='false'
             :loading='i < 2 ? "eager" : "lazy"' decoding='async')
         //- More of the document follows the pages shown, which only the built PDF has
         div.end(v-if='preview.dropped_after')
             strong {{ $t("display.preview.end_of_preview") }}
             div {{ $t("display.preview.build_for_rest") }}
 
-    div.book(v-else :style='{"--pt": `calc(100cqw / ${scale_width})`}')
+    div.pages(v-else ref='content' :style='{"--pt": `${pt_px}px`}')
         //- The window left out what comes before it (a preview showing the whole book needs no
         //- note: it's plainly not a PDF to print from)
         div.strip(v-if='preview.dropped_before' :style='{width: pt(page_size.width * 0.8)}')
             strong {{ $t("display.preview.start_of_preview") }}
             div {{ $t("display.preview.build_for_rest") }}
 
-        img.page(v-if='urls.covers[0]' :src='urls.covers[0]' alt=''
+        img.page(v-if='urls.covers[0]' :src='urls.covers[0]' alt='' draggable='false'
             :style='{width: pt(cover_width)}')
 
         template(v-for='(row, r) of rows' :key='r')
-            img.page(v-if='row.kind === "single"' :src='row.url' alt=''
+            img.page(v-if='row.kind === "single"' :src='row.url' alt='' draggable='false'
                 :loading='r < 2 ? "eager" : "lazy"' decoding='async'
                 :style='{width: pt(page_size.width)}')
-            div.spread(v-else :style='{width: pt(page_size.width * 2)}')
+            //- Left to right whatever the UI's direction, as binding is always on the left
+            div.spread(v-else dir='ltr' :style='{width: pt(page_size.width * 2)}')
                 template(v-for='(slot, s) of row.slots' :key='s')
-                    img(v-if='slot.kind === "page"' :src='slot.url' alt=''
+                    img(v-if='slot.kind === "page"' :src='slot.url' alt='' draggable='false'
                         :loading='r < 2 ? "eager" : "lazy"' decoding='async')
                     //- The inside of a cover: a real surface of the book, with nothing printed
                     div.inside(v-else :style='{aspectRatio: page_ratio}')
-                        span(v-if='slot.label') {{ $t("display.preview.inside_cover") }}
+                        span(v-if='slot.label' dir='auto') {{ $t("display.preview.inside_cover") }}
 
         div.strip(v-if='preview.dropped_after' :style='{width: pt(page_size.width * 0.8)}')
             strong {{ $t("display.preview.end_of_preview") }}
@@ -46,7 +52,10 @@ div.pages(:class='layout')
 
 <script lang='ts' setup>
 
-import {computed, shallowRef, watch, onUnmounted} from 'vue'
+import {ref, computed, shallowRef, watch, nextTick, onMounted, onUnmounted} from 'vue'
+
+import {PX_PER_PT, zoom_limits, clamp_zoom, wheel_zoom, anchored_scroll}
+    from '@/services/preview_zoom'
 
 import type {Preview} from '@/services/preview'
 
@@ -55,6 +64,14 @@ const props = defineProps<{
     preview:Preview
     layout:'column'|'spreads'
 }>()
+
+const emit = defineEmits<{
+    // The zoom that fits the pane's width, for the zoom control (always 1 for a phone's column)
+    fit:[zoom:number]
+}>()
+
+// The zoom chosen, or null to fit the pane's width (see preview_zoom.ts for what it measures)
+const zoom = defineModel<number|null>('zoom', {default: null})
 
 
 // One half of a spread: a page (by object URL), or the inside of a cover (the front's labelled)
@@ -118,8 +135,212 @@ const scale_width = computed(() => Math.max(page_size.value.width * 2, cover_wid
 
 
 function pt(points:number):string{
-    // A length in the book's points, at the pane's scale (see the --pt property)
+    // A length in the book's points, at the zoom shown (see the --pt property)
     return `calc(${points} * var(--pt))`
+}
+
+
+// The scrolling pane and the pages within it, which zooming anchors to
+const viewport = ref<HTMLElement|null>(null)
+const content = ref<HTMLElement|null>(null)
+
+// The width the pages have to fill, kept current as the pane resizes (the padding either side
+// of them excluded)
+const PADDING_PX = 12
+const available_width = ref(0)
+let resize_observer:ResizeObserver|null = null
+
+onMounted(() => {
+    // Measured now, not when the observer first reports, so the first frame is already to scale
+    const element = viewport.value!
+    available_width.value = element.clientWidth - PADDING_PX * 2
+    resize_observer = new ResizeObserver(() => {
+        available_width.value = element.clientWidth - PADDING_PX * 2
+    })
+    resize_observer.observe(element)
+})
+
+onUnmounted(() => {
+    resize_observer?.disconnect()
+})
+
+
+// The zoom that fits the pane's width: for a desktop the physical zoom at which the widest thing
+// shown spans it, for a phone 1 by definition
+const fit = computed(() => {
+    if (props.layout === 'column'){
+        return 1
+    }
+    return Math.max(available_width.value, 1) / (scale_width.value * PX_PER_PT)
+})
+watch(fit, value => emit('fit', value), {immediate: true})
+
+const limits = computed(() => zoom_limits(props.layout === 'spreads', fit.value))
+
+// The zoom shown, whether chosen or fitting the pane
+const shown_zoom = computed(() => zoom.value ?? fit.value)
+
+// One of the book's points in CSS pixels, at the zoom shown (a desktop's)
+const pt_px = computed(() => shown_zoom.value * PX_PER_PT)
+
+// A phone's page width: as wide as the pane allows (up to a comfortable width), times the zoom
+const column_width = computed(() =>
+    Math.min(Math.max(available_width.value, 1), 600) * shown_zoom.value)
+
+
+// Where the next change of zoom is centred, in client coordinates: the pinch or the pointer, or
+// when unset (the zoom control, a resize) the middle of the pane
+let focus:{x:number, y:number}|null = null
+
+
+function set_zoom(value:number, at:{x:number, y:number}):void{
+    // Zoom to `value` (within limits), keeping the point of the pages under `at` where it is
+    const clamped = clamp_zoom(value, limits.value)
+    if (clamped !== shown_zoom.value){
+        focus = at
+        zoom.value = clamped
+    }
+}
+
+
+// Keep what's under the focus in place as the zoom changes: the pages' box is taken before the
+// DOM updates (a pre-flush watcher) and compared with it after
+watch(shown_zoom, () => {
+    const pane = viewport.value
+    const pages = content.value
+    if (!pane || !pages){
+        return
+    }
+    const view = pane.getBoundingClientRect()
+    const at = focus ?? {x: view.left + view.width / 2, y: view.top + view.height / 2}
+    focus = null
+    const before = pages.getBoundingClientRect()
+    void nextTick(() => {
+        const shift = anchored_scroll(before, pages.getBoundingClientRect(), at)
+        pane.scrollLeft += shift.x
+        pane.scrollTop += shift.y
+    })
+})
+
+
+function on_wheel(event:WheelEvent):void{
+    // Ctrl+wheel zooms (a trackpad's pinch arrives as one too), anything else scrolls as usual
+    if (!event.ctrlKey){
+        return
+    }
+    event.preventDefault()
+    set_zoom(wheel_zoom(shown_zoom.value, event), {x: event.clientX, y: event.clientY})
+}
+
+
+// A two-finger pinch in progress: the fingers' distance apart and the zoom when it began
+let pinch:{distance:number, zoom:number}|null = null
+
+
+function touch_pair(event:TouchEvent):{distance:number, x:number, y:number}{
+    // The distance between the first two touches, and the point midway between them
+    const a = event.touches[0]!
+    const b = event.touches[1]!
+    return {distance: Math.hypot(a.clientX - b.clientX, a.clientY - b.clientY),
+        x: (a.clientX + b.clientX) / 2, y: (a.clientY + b.clientY) / 2}
+}
+
+
+function on_touch_start(event:TouchEvent):void{
+    // A second finger begins a pinch (the browser's own is disabled, see touch-action below)
+    if (event.touches.length === 2){
+        pinch = {distance: touch_pair(event).distance || 1, zoom: shown_zoom.value}
+    }
+}
+
+
+function on_touch_move(event:TouchEvent):void{
+    // Zoom by how far apart the fingers have moved since the pinch began, around their midpoint
+    if (!pinch || event.touches.length !== 2){
+        return
+    }
+    // Not cancelable once the browser is scrolling, when it's only asked not to
+    if (event.cancelable){
+        event.preventDefault()
+    }
+    const pair = touch_pair(event)
+    set_zoom(pinch.zoom * pair.distance / pinch.distance, pair)
+}
+
+
+function on_touch_end(event:TouchEvent):void{
+    // A pinch ends when a finger lifts
+    if (event.touches.length < 2){
+        pinch = null
+    }
+}
+
+
+// The zoom when Safari's pinch began
+let gesture_start = 1
+
+
+function on_gesture(event:Event):void{
+    // Safari's own pinch events (a Mac's trackpad, which elsewhere sends Ctrl+wheel): kept from
+    // zooming the page, and zooming the preview instead, unless touches are already doing that
+    event.preventDefault()
+    const gesture = event as Event & {scale:number, clientX:number, clientY:number}
+    if (pinch){
+        return
+    }
+    if (event.type === 'gesturestart'){
+        gesture_start = shown_zoom.value
+        return
+    }
+    set_zoom(gesture_start * gesture.scale, {x: gesture.clientX, y: gesture.clientY})
+}
+
+// Zoomed wider than the pane, a mouse drags the pages around (as there's no other way to pan
+// sideways but Shift+wheel). Touch pans natively, so this is a mouse's only
+const content_width = ref(0)
+const pannable = computed(() => content_width.value > available_width.value + PADDING_PX * 2)
+watch([shown_zoom, available_width, () => props.preview], () => {
+    void nextTick(() => {
+        content_width.value = content.value?.offsetWidth ?? 0
+    })
+}, {immediate: true})
+
+// A drag in progress: where it began, and the pane's scroll then
+const panning = ref(false)
+let pan_start = {x: 0, y: 0, left: 0, top: 0}
+
+
+function on_pointer_down(event:PointerEvent):void{
+    // Begin dragging, for the main mouse button over the pages (not the pane's scrollbars)
+    const pane = viewport.value
+    if (!pane || !pannable.value || event.pointerType !== 'mouse' || event.button !== 0){
+        return
+    }
+    const rect = pane.getBoundingClientRect()
+    if (event.clientX - rect.left >= pane.clientWidth
+            || event.clientY - rect.top >= pane.clientHeight){
+        return
+    }
+    panning.value = true
+    pan_start = {x: event.clientX, y: event.clientY, left: pane.scrollLeft, top: pane.scrollTop}
+    pane.setPointerCapture(event.pointerId)
+}
+
+
+function on_pointer_move(event:PointerEvent):void{
+    // Scroll by how far the mouse has moved since the drag began
+    const pane = viewport.value
+    if (!panning.value || !pane){
+        return
+    }
+    pane.scrollLeft = pan_start.left - (event.clientX - pan_start.x)
+    pane.scrollTop = pan_start.top - (event.clientY - pan_start.y)
+}
+
+
+function on_pointer_up():void{
+    // The drag is over
+    panning.value = false
 }
 
 
@@ -158,41 +379,53 @@ const rows = computed(() => {
 
 <style lang='sss' scoped>
 
-.pages
-    padding: 12px
+// The pane: scrolls both ways once zoomed in, with a gutter kept for the scrollbar so fitting the
+// width doesn't change it as one comes and goes. Pinching is left to the handlers above, panning
+// to the browser
+.viewport
+    overflow: auto
+    scrollbar-gutter: stable
+    touch-action: pan-x pan-y
 
-// A phone's pages, each as wide as the screen allows, keeping its own proportions
-.column
+    &.pannable
+        cursor: grab
+
+    &.panning
+        cursor: grabbing
+        user-select: none
+
+// As wide as what's shown and centred, so zooming beyond the pane's width scrolls rather than
+// clipping its left side
+.pages
+    width: max-content
+    margin: 0 auto
+    padding: 12px
     display: flex
     flex-direction: column
     align-items: center
+
+// A phone's pages, one under another, each its column's width keeping its own proportions
+.column .pages
     gap: 12px
 
     .page
-        width: 100%
-        max-width: 600px
+        width: var(--width)
         height: auto
         background-color: white
         box-shadow: 0 2px 8px rgba(0, 0, 0, 0.4)
 
     .end
-        max-width: 600px
+        width: var(--width)
         padding: 12px 16px
         border-radius: 8px
         text-align: center
         color: rgb(26, 26, 26)
         background-color: rgb(255, 224, 178)
 
-// A desktop's book, laid out in its own points (--pt is one point at the pane's scale) so it
-// keeps the proportions it would have in a PDF viewer
-.spreads
-    container-type: inline-size
-
-    .book
-        display: flex
-        flex-direction: column
-        align-items: center
-        gap: 8px
+// A desktop's book, laid out in its own points (--pt is one point at the zoom shown) so it keeps
+// the proportions it would have in a PDF viewer
+.spreads .pages
+    gap: 8px
 
     .page, .spread
         display: block

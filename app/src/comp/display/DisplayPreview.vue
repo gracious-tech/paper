@@ -3,6 +3,9 @@
 
 div.preview
     div.toolbar
+        //- Zooms the pages, from fitting the pane to print size and beyond (pinching and
+        //- Ctrl+wheel over them do too)
+        DisplayPreviewZoom(v-if='preview' v-model='zoom' :fit='fit_zoom' physical)
         //- Which part of a large document to preview — only shown when the document was
         //- truncated and has more than one book/passage to window across
         v-btn-toggle.sections(v-if='truncated && section_options.length > 1'
@@ -33,8 +36,8 @@ div.preview
         h3(class='mb-4') {{ $t("display.preview.missing_books") }}
         p(v-for='warning of missing_warnings' class='status-detail') {{ warning }}
     div.frame(v-else-if='preview')
-        div.scroll
-            DisplayPreviewPages(:preview='preview' layout='spreads')
+        DisplayPreviewPages.scroll(:preview='preview' layout='spreads' v-model:zoom='zoom'
+            @fit='fit_zoom = $event')
         //- Semi-transparent readout of the in-progress recompile, layered over the still-visible
         //- (and still-scrollable, via pointer-events:none) previous preview
         transition(name='fade')
@@ -62,6 +65,7 @@ import {useI18n} from '@/services/i18n'
 
 import BtnGenerate from '@/comp/views/assets/BtnGenerate.vue'
 import DisplayPreviewPages from '@/comp/display/DisplayPreviewPages.vue'
+import DisplayPreviewZoom from '@/comp/display/DisplayPreviewZoom.vue'
 import {blue} from '@/services/state'
 import {content} from '@/services/content'
 import {collect_passage_books, missing_book_warnings} from '@/services/blueprints'
@@ -86,6 +90,11 @@ const {t} = useI18n()
 const preview = shallowRef<Preview|null>(null)
 const shown_signature = ref<string|null>(null)
 const failed = ref(false)
+
+// The zoom chosen (null fits the pane's width, see preview_zoom.ts), kept across previews, and the
+// zoom that fits the width, as the pages report it
+const zoom = ref<number|null>(null)
+const fit_zoom = ref(1)
 
 // Whether the design has changed since the preview shown was made — only ever the case for long
 // on a device that previews on the server, where it waits for Refresh
@@ -369,7 +378,6 @@ onUnmounted(() => {
 .scroll
     position: absolute
     inset: 0
-    overflow-y: auto
     // The gray a browser's PDF viewer shows around the pages, as this preview once was one
     background-color: rgb(82, 86, 89)
 

@@ -51,6 +51,10 @@ Live at [paper.bible](https://paper.bible). MIT No Attribution license.
    its cover's front then back panel first; a desktop's ~50 as the PDF preview always showed them, at one
    scale: the whole cover with its bleed cropped and its spine marked (`crop_cover_svg()`),
    then facing-page spreads, with a note (HTML now) only at an end the window cuts off.
+   Both zoom (pinch, Ctrl+wheel, or the toolbar's slider, as the bookcover editor does): a
+   desktop's zoom is physical, 1× being print size, with A4/US Letter widths drawn to hold a
+   sheet against while the slider is open; a phone's is relative to its pages filling the
+   width (`preview_zoom.ts`, `DisplayPreviewZoom.vue`).
    Whenever the browser fails at a preview, the server makes it instead (`POST /api/preview`,
    see `server_preview.ts`): on a phone after 20s, while on a desktop the server only races a
    browser that's taken 10s. A phone that can't cope (out of memory, too slow, a tab that died
@@ -272,6 +276,8 @@ paper_bible/
         preview.ts         # A design's preview (SVG pages + cover): browser_preview,
                             #   phone_preview (20s limit, else server), desktop_preview (the
                             #   browser/server race, strikes and re-checks)
+        preview_zoom.ts    # Zooming a preview: limits, Ctrl+wheel steps, keeping the point
+                            #   under the pointer in place (1 = print size on a desktop)
         server_preview.ts  # Previews made on the server (/api/preview): flush, request, await
                             #   the previews/{id} doc, fetch the file; ensure_server_estimate
         compile_mode.ts    # Whether this device compiles on the server: failure classification,
@@ -716,7 +722,10 @@ After that, every push to `main` deploys itself. The scripts still work by hand
   typst.ts's whole-document SVG (`split_typst_svg`), carrying only the defs it references (the
   Typst CLI writes one per page already, `parse_standalone_svg`), and shown as an `<img>` from a
   blob URL so its styles stay inside it. Desktop spreads are laid out in HTML, never mirrored for
-  RTL, since binding is always on the left (`binding_for_page`)
+  RTL (`dir='ltr'` on each spread), since binding is always on the left (`binding_for_page`).
+  They're sized in the book's own points (`--pt`, a point at the zoom shown), and the pages box
+  is `max-content` wide with auto margins, so zooming past the pane's width scrolls rather than
+  clipping the left side
 - **Server mode** (`compile_mode.ts`): in it a device compiles nothing itself — previews go to
   `/api/preview`, builds and covers straight to `/api/compile` — and estimates only come from
   previews and builds (the cover editor asks the server once when its estimate is stale,

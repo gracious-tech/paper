@@ -49,6 +49,8 @@ import help from '@material-symbols/svg-400/outlined/help.svg?component'
 import mail from '@material-symbols/svg-400/outlined/mail.svg?component'
 import payments from '@material-symbols/svg-400/outlined/payments.svg?component'
 import translate from '@material-symbols/svg-400/outlined/translate.svg?component'
+import zoom_in from '@material-symbols/svg-400/outlined/zoom_in.svg?component'
+import fit_width from '@material-symbols/svg-400/outlined/fit_width.svg?component'
 
 import planner_banner from '@/assets/planner_banner.svg?component'
 import donate from '@/assets/icons/donate.svg?component'
@@ -70,7 +72,7 @@ const icons = {
     add, content_copy, 'delete': delete_icon, group, share, account_circle, account_circle_fill,
     straighten,
     menu_book, description, print, refresh, warning, check, check_circle, cancel, search, edit, help, mail,
-    payments, google, no_accounts, translate,
+    payments, google, no_accounts, translate, zoom_in, fit_width,
 } as Record<string, FunctionalComponent>
 
 

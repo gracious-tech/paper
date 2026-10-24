@@ -124,6 +124,45 @@ test('a phone switched to the server previews and builds there', async ({page}) 
 })
 
 
+
+test('pinching zooms in on the preview\'s pages', async ({page}) => {
+    // Previewed on the server (stubbed), as only the pages matter here
+    await page.addInitScript(() => {
+        localStorage.setItem('compile_on_server', '1')
+    })
+    const uid = await boot(page)
+    await stub_server_preview(page, uid)
+    const design_id = await seed_own_design(uid, {simple_mode: true})
+    await page.goto(`/designs/${design_id}`)
+    const open = page.getByRole('button', {name: 'Preview', exact: true}).locator('visible=true')
+    await expect(open).toBeEnabled({timeout: 120_000})
+    await open.click()
+    const first = page.locator('.preview img.page').first()
+    await expect(first).toBeVisible({timeout: 60_000})
+    const width = () => first.evaluate(img => img.getBoundingClientRect().width)
+    const fitted = await width()
+
+    // Two fingers moving apart (Playwright's touchscreen only taps, so straight to the browser)
+    const box = (await first.boundingBox())!
+    const [x, y] = [box.x + box.width / 2, box.y + Math.min(box.height, 300) / 2]
+    const cdp = await page.context().newCDPSession(page)
+    const touch = async (type:'touchStart'|'touchMove'|'touchEnd', spread:number) => {
+        await cdp.send('Input.dispatchTouchEvent', {type, touchPoints: type === 'touchEnd' ? []
+            : [{x: x - spread, y}, {x: x + spread, y}]})
+    }
+    await touch('touchStart', 40)
+    for (const spread of [50, 60, 70, 80]){
+        await touch('touchMove', spread)
+    }
+    await touch('touchEnd', 0)
+    await expect.poll(width).toBeCloseTo(fitted * 2, -1)
+
+    // The bar's zoom fits the width again
+    await page.locator('.bar').getByRole('button', {name: /^Zoom:/}).click()
+    await page.locator('.zoom_menu').getByRole('button', {name: 'Fit to width'}).click()
+    await expect.poll(width).toBeCloseTo(fitted, 0)
+})
+
 test('a tab that died mid-compile switches the phone to the server', async ({page}) => {
     // The marker a compile leaves while it runs, as a tab killed for memory leaves it behind
     await page.addInitScript(() => {

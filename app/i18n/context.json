@@ -40,5 +40,13 @@
   "vuetify.open": "Screen-reader label for the button that opens a dropdown list.",
   "wizard.type.coming": "Subtitle on a not-yet-available design type card in the new-design wizard. {date} is a short month and year already formatted in the UI language, e.g. \"Dec 2026\".",
   "display.preview.on_server": "Progress text while the preview of a book is being made on our servers rather than on the user's device (followed by \"…\").",
-  "display.preview.refresh": "Button in the live preview's toolbar that asks for a fresh preview of the book as it is now. Shown only when previews are made on our servers, which don't update automatically as the user edits."
+  "display.preview.refresh": "Button in the live preview's toolbar that asks for a fresh preview of the book as it is now. Shown only when previews are made on our servers, which don't update automatically as the user edits.",
+  "display.preview.zoom": "Tooltip of the preview's zoom button, with the current zoom as a percentage already formatted for the locale (e.g. \"150%\"). On a computer 100% is the book's printed size; on a phone, the pages filling the screen's width.",
+  "display.preview.print_size": "Tooltip of a button labelled \"1×\" in the preview's zoom control, which zooms to the book's printed size (as nearly as the screen allows).",
+  "display.preview.fit_width": "Tooltip of a button in the preview's zoom control that zooms the pages to fill the width of the preview again.",
+  "display.preview.a4_width": "Label under a line drawn as wide as a sheet of A4 paper, shown while the zoom control is open, so a real sheet can be held against it.",
+  "display.preview.letter_width": "Label under a line drawn as wide as a sheet of US Letter paper (8.5 inches; ″ is the inch sign), shown while the zoom control is open.",
+  "display.preview.lines_overflow": "Warning under the paper-width lines when the window is too narrow to show them at full length.",
+  "display.preview.measure_hint": "Instructions under the paper-width lines: holding a real sheet of paper against the screen and zooming until the line matches it makes the preview show the book at its true size.",
+  "display.preview.measure_note": "Shown in parentheses under display.preview.measure_hint, explaining why the zoom usually needs adjusting."
 }
