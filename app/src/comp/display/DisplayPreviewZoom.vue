@@ -31,8 +31,8 @@ div.zoom
                     div.rule(:class='line.kind')
                     span {{ line.label }}
                 p.overflow(v-if='overflows') {{ $t("display.preview.lines_overflow") }}
-                p.hint
-                    strong {{ $t("display.preview.measure_hint") }}
+                p.measure
+                    | {{ $t("display.preview.measure_hint") }}
                     br
                     | {{ $t("display.preview.measure_note") }}
 
@@ -151,6 +151,7 @@ const overflows = computed(() => lines.value.some(line => line.px + 48 > window_
         align-items: center
         flex-shrink: 0
         font-size: 12px
+        font-weight: bold
         white-space: nowrap
 
     .rule
