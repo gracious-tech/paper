@@ -25,6 +25,15 @@ async function seed_design(uid:string, name:string, age = 0,
 }
 
 
+// Seed `count` more designs, older than any the test names, to fill the list out to the length
+// where its search box and sort toggle appear
+async function seed_fillers(uid:string, count:number):Promise<void>{
+    for (let i = 1; i <= count; i++){
+        await seed_design(uid, `Zulu ${i}`, 1000 + i)
+    }
+}
+
+
 // A design's row in the list
 function row(page:Page, name:string):Locator{
     return page.locator('.design-item').filter({hasText: name})
@@ -53,15 +62,37 @@ test('an empty list offers to create a first design', async ({page}) => {
 })
 
 
+test('a short list has no search box or sort toggle', async ({page}) => {
+    const uid = await boot(page)
+    await seed_design(uid, 'Alpha')
+    await seed_fillers(uid, 8)
+    await expect(page.locator('.design-item')).toHaveCount(9)
+    await expect(page.getByPlaceholder('Search designs')).toBeHidden()
+    await expect(page.getByRole('button', {name: 'Name', exact: true})).toBeHidden()
+
+    // The tenth design brings them in
+    await seed_design(uid, 'Bravo')
+    await expect(page.getByPlaceholder('Search designs')).toBeVisible()
+    await expect(page.getByRole('button', {name: 'Name', exact: true})).toBeVisible()
+})
+
+
 test('designs are listed most recent first, and can be sorted by name', async ({page}) => {
     const uid = await boot(page)
     await seed_design(uid, 'Bravo', 30)
     await seed_design(uid, 'Alpha', 10)
     await seed_design(uid, 'Charlie', 20)
+    await seed_fillers(uid, 7)
+    const fillers = Array.from({length: 7}, (_, i) => `Zulu ${i + 1}`)
 
-    await expect.poll(() => listed_names(page)).toEqual(['Alpha', 'Charlie', 'Bravo'])
+    await expect.poll(() => listed_names(page)).toEqual(['Alpha', 'Charlie', 'Bravo', ...fillers])
     await page.getByRole('button', {name: 'Name', exact: true}).click()
-    await expect.poll(() => listed_names(page)).toEqual(['Alpha', 'Bravo', 'Charlie'])
+    await expect.poll(() => listed_names(page)).toEqual(['Alpha', 'Bravo', 'Charlie', ...fillers])
+
+    // The choice is remembered
+    await page.reload()
+    await expect.poll(() => listed_names(page), {timeout: 60_000})
+        .toEqual(['Alpha', 'Bravo', 'Charlie', ...fillers])
 
     // The navbar keeps the three most recent close at hand
     const tabs = page.locator('.navbar .design_btn')
@@ -73,7 +104,8 @@ test('search filters by name, and says so when nothing matches', async ({page}) 
     const uid = await boot(page)
     await seed_design(uid, 'Psalms for the sick')
     await seed_design(uid, 'Gospel of John')
-    await expect(page.locator('.design-item')).toHaveCount(2)
+    await seed_fillers(uid, 8)
+    await expect(page.locator('.design-item')).toHaveCount(10)
 
     await page.getByPlaceholder('Search designs').fill('psalm')
     await expect.poll(() => listed_names(page)).toEqual(['Psalms for the sick'])
@@ -82,7 +114,7 @@ test('search filters by name, and says so when nothing matches', async ({page}) 
     await expect(page.getByText('No matching designs')).toBeVisible()
     // Clearing it brings everything back
     await page.locator('.search').getByRole('button').click()
-    await expect(page.locator('.design-item')).toHaveCount(2)
+    await expect(page.locator('.design-item')).toHaveCount(10)
 })
 
 
