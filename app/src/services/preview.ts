@@ -57,16 +57,18 @@ export async function browser_preview(generator:TypstWorkerClient, size:PreviewS
         // The cover when the window starts at the book's start, its spine sized from the
         // estimate: a phone's front and back panels, or a desktop's whole wraparound with its
         // bleed cropped off and its folds marked. A phone frees the book's compiler first, as it
-        // may not hold the cover's beside it
+        // may not hold the cover's beside it. Both read a snapshot of the design, since the user
+        // can edit it (or remove the cover) while the cover renders
         let covers:string[] = []
-        if (blue.cover && !truncation.dropped_before){
+        const design = {...blue}
+        if (design.cover && !truncation.dropped_before){
             on_progress?.({stage: 'cover'})
             if (size === 'phone'){
                 generator.release_memory()
             }
-            const svgs = await render_cover_panels(blue, page_estimate, window.share_url)
+            const svgs = await render_cover_panels(design, page_estimate, window.share_url)
             covers = size === 'phone' ? [svgs.front, svgs.back] : [crop_cover_svg(
-                svgs.wraparound, cover_page_geometry(blue, page_estimate))]
+                svgs.wraparound, cover_page_geometry(design, page_estimate))]
         }
         return {
             pages: window.pages.map(page => svg_page_markup(page)),
