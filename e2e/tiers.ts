@@ -120,7 +120,7 @@ export function build_blueprint(tier:Tier, overrides:Partial<Blueprint> = {}):Bl
         show_wj_color: '#cc0000',
         show_wj_bold: false,
         show_wj_italic: false,
-        lines: 'wide',
+        lines: 'medium',
         notes: null,
         half_blank: null,
         passage_title: 'heading',
