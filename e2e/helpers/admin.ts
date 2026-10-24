@@ -116,7 +116,7 @@ function blueprint_options():Record<string, unknown>{
         show_wj_color: '#cc0000',
         show_wj_bold: false,
         show_wj_italic: false,
-        show_lines: true,
+        lines: 'wide',
         notes: null,
         half_blank: null,
         passage_title: 'heading',

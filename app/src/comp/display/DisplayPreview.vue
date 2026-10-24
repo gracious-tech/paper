@@ -297,7 +297,7 @@ function discrete_signature():string {
         blue.show_chapters, blue.show_chapters_style, blue.show_verses,
         blue.running_pages, blue.running_headings, blue.running_position, blue.running_align,
         blue.show_footnotes, blue.show_wj, blue.show_wj_bold,
-        blue.show_wj_italic, blue.show_lines, blue.notes,
+        blue.show_wj_italic, blue.lines, blue.notes,
         blue.margin_unit, blue.public_domain, blue.app_link, blue.design_link,
         blue.titlepage_frame, blue.titlepage_always, blue.titlepage_blank_back, blue.passage_title, blue.story_emphasis,
         // The whole cover config — it only ever changes atomically (editor Finished / Remove)

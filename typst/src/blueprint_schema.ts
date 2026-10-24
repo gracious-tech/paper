@@ -208,7 +208,7 @@ export function make_blueprint_schema(defaults:Blueprint):z.ZodType<Blueprint>{
         show_wj_color: z.string().nullable().catch(defaults.show_wj_color),
         show_wj_bold: z.boolean().catch(defaults.show_wj_bold),
         show_wj_italic: z.boolean().catch(defaults.show_wj_italic),
-        show_lines: z.boolean().catch(defaults.show_lines),
+        lines: z.enum(['narrow', 'medium', 'wide']).nullable().catch(defaults.lines),
         notes: z.string().nullable().catch(defaults.notes),
         half_blank: z.enum(['left', 'right']).nullable().catch(defaults.half_blank),
         passage_title: z.enum(['titlepage', 'heading']).nullable().catch(defaults.passage_title),

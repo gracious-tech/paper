@@ -41,6 +41,15 @@ export type BlueprintMigration = (blueprint:Record<string, unknown>) => void
 //         delete blueprint['paper_width']
 //     },
 export const MIGRATIONS:Record<number, BlueprintMigration> = {
+
+    // 1 → 2: the show_lines checkbox became a choice of ruling (`lines`). The old lines were
+    // 10mm apart, wider than any standard ruling, so they map to the widest, 'wide'
+    1: blueprint => {
+        if (typeof blueprint['show_lines'] === 'boolean'){
+            blueprint['lines'] = blueprint['show_lines'] ? 'wide' : null
+        }
+        delete blueprint['show_lines']
+    },
 }
 
 
@@ -48,9 +57,8 @@ export function migration_steps(from:number, to = SCHEMA_VERSION):number[]{
     // The versions to run a step for, in order, to get a doc from `from` up to `to`.
     //
     // Separate from the applying function below so the walk can be tested against arbitrary
-    // target versions — while SCHEMA_VERSION is 1 there is no gap for a test to exercise through
-    // migrate_blueprint_doc(), and this is precisely the logic that must still be right the first
-    // time it matters.
+    // target versions, not only the gaps the real chain happens to have — this is precisely the
+    // logic that must be right for every doc, however old.
     //
     // An unreadable or out-of-range `from` reads as 1, the oldest shape, rather than as current:
     // replaying a step against already-migrated data is a bug that shows up loudly in testing,

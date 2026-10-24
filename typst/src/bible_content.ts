@@ -590,7 +590,7 @@ export class BibleContent {
             headings_size: blue.show_headings_size,
             // Regular translator footnotes are disabled while study notes are on
             show_footnotes: blue.notes ? false : blue.show_footnotes,
-            show_lines: blue.show_lines,
+            lines: blue.lines,
             // null = auto-detect by book, true = 2 columns, false = single column
             columns: blue.columns === null ? 'auto' : (blue.columns ? 2 : 1),
             column_gap: `${usable_length(blue.column_gap)}${typst_unit(blue.margin_unit)}`,

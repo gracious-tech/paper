@@ -11,6 +11,7 @@
 
 import {generate_typst, generate_typst_facing, generate_typst_blank,
     generate_typst_lines, passage_is_alternate, half_blank_content_side} from './generate.js'
+import {LINE_SPACING} from './content_lines.js'
 
 import type {MarginMode} from './generate.js'
 import type {TypstRequest, TypstContentItem, TypstPassage, TypstCustomPage, ProgressFn}
@@ -343,9 +344,10 @@ async function process_faced<D>(
     // Ruled lines on the facing side (reused for every page — one fixed-side compile, since
     // every facing page sits on the same physical side); otherwise a plain blank
     let lines_doc:D|null = null
-    if (passage.show_lines) {
+    if (passage.lines) {
         lines_doc = await backend.compile(
-            generate_typst_lines(request, '10mm', facing_mode), request.assets)
+            generate_typst_lines(request, LINE_SPACING[passage.lines], facing_mode),
+            request.assets)
     }
 
     // Ensure the pair starts on the correct page for book-like arrangement

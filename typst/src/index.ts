@@ -117,4 +117,5 @@ export type {
     ImageStyle,
     MeasureUnit,
     TextDir,
+    LineRuling,
 } from './types.js'

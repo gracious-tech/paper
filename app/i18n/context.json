@@ -48,5 +48,9 @@
   "display.preview.letter_width": "Label under a line drawn as wide as a sheet of US Letter paper (8.5 inches; ″ is the inch sign), shown while the zoom control is open.",
   "display.preview.lines_overflow": "Warning under the paper-width lines when the window is too narrow to show them at full length.",
   "display.preview.measure_hint": "Instructions under the paper-width lines: holding a real sheet of paper against the screen and zooming until the line matches it makes the preview show the book at its true size.",
-  "display.preview.measure_note": "Shown in parentheses under display.preview.measure_hint, explaining why the zoom usually needs adjusting."
+  "display.preview.measure_note": "Shown in parentheses under display.preview.measure_hint, explaining why the zoom usually needs adjusting.",
+  "editor.advanced.draw_lines": "Label of a toggle choosing the lines drawn on a book's blank pages for the reader to write notes on: None, or the spacing of narrow, medium or wide ruled notebook paper.",
+  "editor.advanced.lines_narrow": "A toggle button choosing how far apart the handwriting lines on a book's blank pages are, named after the standard rulings of notebook paper (narrow, medium/college, wide ruled). This one: the closest lines, for small handwriting. Use your language's term for narrow ruled paper if it has one.",
+  "editor.advanced.lines_medium": "A toggle button choosing how far apart the handwriting lines on a book's blank pages are, named after the standard rulings of notebook paper (narrow, medium/college, wide ruled). This one: the middle spacing (college ruled).",
+  "editor.advanced.lines_wide": "A toggle button choosing how far apart the handwriting lines on a book's blank pages are, named after the standard rulings of notebook paper (narrow, medium/college, wide ruled). This one: the widest lines, for large handwriting."
 }

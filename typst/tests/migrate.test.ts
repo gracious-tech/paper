@@ -125,6 +125,28 @@ describe('migrate_version_blueprint', () => {
 })
 
 
+describe('migration 1 → 2 (show_lines → lines)', () => {
+
+    it('maps the old checkbox onto a ruling', () => {
+        // The old lines were 10mm apart, so the nearest ruling is the widest
+        const on:Record<string, unknown> = {show_lines: true}
+        MIGRATIONS[1]!(on)
+        expect(on).toEqual({lines: 'wide'})
+        const off:Record<string, unknown> = {show_lines: false}
+        MIGRATIONS[1]!(off)
+        expect(off).toEqual({lines: null})
+    })
+
+    it('leaves lines to its default when show_lines is missing or junk', () => {
+        for (const bad of [undefined, 'yes', 1, null]){
+            const blueprint:Record<string, unknown> = {show_lines: bad}
+            MIGRATIONS[1]!(blueprint)
+            expect(blueprint).toEqual({})
+        }
+    })
+})
+
+
 describe('join_blueprint_doc with migration', () => {
 
     it('round-trips a current-schema design doc without losing fields', () => {
