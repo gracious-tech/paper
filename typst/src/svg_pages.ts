@@ -91,6 +91,17 @@ function with_definitions(body:string, defs:Map<string, string>):string {
 }
 
 
+export function parse_standalone_svg(svg:string):SvgPage {
+    // A page as the Typst CLI writes it (one file per page, each already carrying its own
+    // definitions): its markup, sized from the root's viewBox
+    const open_end = svg.indexOf('>', svg.indexOf('<svg')) + 1
+    const view_box = /viewBox="([^"]+)"/.exec(svg.slice(0, open_end))?.[1] ?? '0 0 0 0'
+    const [x, , width, height] = view_box.trim().split(/[\s,]+/).map(Number)
+    return {inner: svg.slice(open_end, svg.lastIndexOf('</svg>')), x: x ?? 0, width: width ?? 0,
+        height: height ?? 0}
+}
+
+
 export function svg_page_half(page:SvgPage, side:'left'|'right'):SvgPage {
     // One half of a page split down the middle (a facing-pages passage is compiled double-width,
     // see process_facing): the same markup, showing only that half

@@ -6,7 +6,8 @@ import {track_browser_compile} from '@/services/compile_mode'
 
 import type {CustomFont} from 'typst-fonts'
 import type {TypstRequest, ProgressFn, SvgPage} from 'paper-bible-typst'
-import type {CoverPageGeometry, WorkerAction, WorkerResponse} from './typst_worker'
+import type {CoverPageGeometry} from 'paper-bible-typst'
+import type {WorkerAction, WorkerResponse} from './typst_worker'
 
 
 // The shared static assets tree (fonts/, typst/ WASM, and bookcover's docs/frames/backgrounds)

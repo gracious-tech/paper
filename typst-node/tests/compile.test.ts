@@ -6,7 +6,8 @@ import {join} from 'node:path'
 import {describe, it, expect} from 'vitest'
 import {PDFDocument, PDFDict, PDFName, PDFRawStream, PDFRef} from 'pdf-lib'
 
-import {compile_pdf, compile_pdf_spread_preview, generate_typst} from '../src/index.js'
+import {compile_pdf, compile_pdf_spread_preview, compile_svg_preview, compile_standalone,
+    generate_typst} from '../src/index.js'
 
 import type {TypstRequest, PageConfig, TypographyConfig, TitlepageConfig} from 'paper-bible-typst'
 import type {CustomFont} from '../src/index.js'
@@ -401,6 +402,43 @@ describe('compile_pdf_spread_preview', () => {
         const a = await PDFDocument.load(await compile_pdf_spread_preview(plain))
         const b = await PDFDocument.load(await compile_pdf_spread_preview(with_notes))
         expect(b.getPageCount()).toBeGreaterThan(a.getPageCount())
+    }, 15000)
+})
+
+
+describe('compile_svg_preview', () => {
+
+    it('gives one standalone page per page, in order past the ninth', async () => {
+        // Pages of increasing height, so the order they come back in can be read off their
+        // sizes — the CLI pads its page numbers once there are ten or more, which a plain
+        // string sort of the files would put out of order
+        const pages = Array.from({length: 12}, (_, i) =>
+            `#page(width: 100pt, height: ${100 + i}pt)[x]`).join('\n')
+        const request = make_request({preview_clipped: true, content: [{
+            ...make_request().content[0]!, bibles: [{content: pages}]} as TypstRequest['content'][0]]})
+        const result = await compile_svg_preview(request)
+        const heights = result.map(page => page.height)
+        expect(heights.slice(-12)).toEqual(Array.from({length: 12}, (_, i) => 100 + i))
+        expect(result[0]!.inner).not.toContain('<svg')
+    }, 30000)
+})
+
+
+describe('compile_standalone', () => {
+
+    // Needs the curated fonts tree for its base font (see the custom_fonts tests above)
+    const fonts_dir = join(import.meta.dirname, '../../assets/fonts')
+
+    it.skipIf(!existsSync(fonts_dir))('compiles a source built from the font list it is given',
+            async () => {
+        let given:string[] = []
+        const bytes = await compile_standalone(['Noto Sans Thai'], fonts => {
+            given = fonts
+            return '#set page(width: 50pt, height: 50pt)\nhi'
+        }, {fonts_dir})
+        expect(given).toHaveLength(2)
+        expect(given[1]).toBe('Noto Sans Thai')
+        expect((await PDFDocument.load(bytes)).getPageCount()).toBe(1)
     }, 15000)
 })
 

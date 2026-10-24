@@ -10,11 +10,11 @@ import {ref as storage_ref, uploadBytes, getBytes} from 'firebase/storage'
 // bookcover-core ships `sideEffects: false` and only exposes its barrel (plus `/patterns-svg`)
 // via package.json `exports`, so Rollup tree-shakes the unused vector-background data,
 // bwip-js and chroma-js out of this main-thread bundle — the cover worker owns all of that
-import {make_blank_form_values, asset_path, BACKGROUNDS_DIR, BG_PREVIEW_DIR, resolve_dimensions,
+import {make_blank_form_values, asset_path, BACKGROUNDS_DIR, BG_PREVIEW_DIR,
     font_families_in_form} from 'bookcover-core'
 import {cover_form_for_render, cover_render_key, doc_has_copyright, gen_copyright_typst,
     COPYRIGHT_MARKER, resolve_reading_trim, convert_unit, COVER_TITLE_KEY, design_assets_prefix,
-    to_version_asset, to_design_asset, asset_basename, sniff_image_mime}
+    to_version_asset, to_design_asset, asset_basename, sniff_image_mime, cover_page_geometry}
     from 'paper-bible-typst'
 
 import {firebase_storage} from '@/services/firebase'
@@ -26,12 +26,11 @@ import {custom_fonts} from '@/services/custom_fonts'
 import {book_icon} from '@/services/icons'
 import {get_passages, default_title} from '@/services/blueprints'
 
-import type {DimensionInputs, EmbedFormState} from 'bookcover-core'
+import type {EmbedFormState} from 'bookcover-core'
 import type {CustomFont} from 'typst-fonts'
 import type {PmDoc} from 'paper-bible-typst'
 import type {AssetCopy} from '@/services/design_assets'
 import type {Blueprint, CoverConfig} from '@/services/types'
-import type {CoverPageGeometry} from './typst_worker'
 import type {CoverWorkerRequest, CoverWorkerResponse, CoverRenderResult, DistributiveOmit}
     from './cover_worker'
 
@@ -700,34 +699,4 @@ export async function prepend_cover_page(cover_bytes:Uint8Array, book_bytes:Uint
     }
     return generator.prepend_cover(cover_bytes, book_bytes,
         blueprint.cover ? cover_page_geometry(blueprint, page_count) : null)
-}
-
-
-// Where the wraparound cover's trim box and fold guide lines fall on the rendered page, in PDF
-// points measured from its top-left. Uses the same dimensions bookcover uses to split the
-// wraparound into panels — its layout is mm-based and the page is pt, so this converts mm -> pt
-// exactly as bookcover's splitter does. Resolved here rather than in the worker so the pdf-lib
-// side of the merge needs no bookcover-core
-function cover_page_geometry(blueprint:Blueprint, page_count:number):CoverPageGeometry {
-    const dims = resolve_dimensions(cover_form_for_render(
-        blueprint.cover!, blueprint, page_count) as unknown as DimensionInputs)
-    const mm_to_pt = (mm:number) => mm / 25.4 * 72
-    const back = dims.cover_region_back
-    const front = dims.cover_region_front
-
-    // The trim box (bleed dropped) — only when there's bleed to hide
-    const left = mm_to_pt(back.x.toNumber())
-    const right = mm_to_pt(front.x.toNumber() + front.w.toNumber())
-    const crop = dims.cover_has_bleed
-        ? {left, top: mm_to_pt(back.y.toNumber()), width: right - left,
-            height: mm_to_pt(back.h.toNumber())}
-        : null
-
-    // The spine's left and right edges when the book has a spine, otherwise a single line on
-    // the fold between the back and front panels
-    const fold_mm = dims.cover_has_spine
-        ? [dims.cover_region_spine.x.toNumber(),
-            dims.cover_region_spine.x.toNumber() + dims.cover_region_spine.w.toNumber()]
-        : [front.x.toNumber()]
-    return {crop, fold_x: fold_mm.map(mm_to_pt)}
 }

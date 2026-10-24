@@ -12,25 +12,15 @@
 import {version as compiler_version} from '@myriaddreamin/typst-ts-web-compiler/package.json'
 import {version as renderer_version} from '@myriaddreamin/typst-ts-renderer/package.json'
 import {init as init_typst} from 'paper-bible-typst-web'
-import {add_preview_strip, collect_fonts, gen_preview_strip_typst, notice_fonts}
+import {add_preview_strip, collect_fonts, gen_preview_strip_typst, notice_fonts, prepend_cover}
     from 'paper-bible-typst'
-import {PDFDocument, rgb} from 'pdf-lib'
+import {PDFDocument} from 'pdf-lib'
 
 import type {TypstWeb} from 'paper-bible-typst-web'
 import type {CustomFont} from 'typst-fonts'
-import type {TypstRequest, ProgressEvent, TextDir, SvgPage} from 'paper-bible-typst'
+import type {TypstRequest, ProgressEvent, TextDir, SvgPage, CoverPageGeometry}
+    from 'paper-bible-typst'
 
-
-// Where a rendered wraparound cover's trim box and fold guide lines fall, in PDF points, as
-// resolved from bookcover's mm-based layout by the caller (see cover_page_geometry in cover.ts)
-// — passing plain numbers keeps bookcover-core out of this worker's bundle
-export interface CoverPageGeometry {
-    // Trim box to crop to, measured from the page's top-left (bookcover's regions are top-down;
-    // the worker flips y for PDF's bottom-up origin), or null when the cover has no bleed to hide
-    crop:{left:number, top:number, width:number, height:number}|null
-    // X positions of the 50%-gray fold guide lines
-    fold_x:number[]
-}
 
 // Actions the main thread can request (see TypstWorkerClient in typst.ts). A compile_pdf that
 // carries `fonts` uses exactly those custom fonts for that one compile instead of the open
@@ -88,41 +78,6 @@ let design_fonts:CustomFont[] = []
 
 // Actions run one at a time since compiles mutate shared compiler state (fonts, shadow files)
 let queue:Promise<void> = Promise.resolve()
-
-
-// Prepend a rendered cover (its single wraparound page) to a book PDF, for the preview only —
-// stored versions keep the cover as its own separate cover.pdf. The page is cropped to its trim
-// box (bleed hidden) and gets 50%-gray guide lines on the fold(s). Both are preview aids: the
-// content is untouched and the real cover PDF is produced by a different path
-async function prepend_cover(
-    cover_bytes:Uint8Array, book_bytes:Uint8Array, geometry:CoverPageGeometry|null,
-):Promise<Uint8Array> {
-    const book = await PDFDocument.load(book_bytes)
-    const cover_doc = await PDFDocument.load(cover_bytes)
-    const [cover_page] = await book.copyPages(cover_doc, [0])
-
-    if (geometry){
-        const page_h = cover_page!.getHeight()
-        // Crop to the trim box (drop the bleed) — a display-only crop, content is preserved
-        if (geometry.crop){
-            const {left, top, width, height} = geometry.crop
-            cover_page!.setCropBox(left, page_h - (top + height), width, height)
-        }
-        // Gray fold guide lines, clipped by the crop box above to the visible trim height
-        const gray = rgb(0.5, 0.5, 0.5)
-        for (const x of geometry.fold_x){
-            cover_page!.drawLine({
-                start: {x, y: 0},
-                end: {x, y: page_h},
-                thickness: 0.5,
-                color: gray,
-            })
-        }
-    }
-
-    book.insertPage(0, cover_page!)
-    return book.save()
-}
 
 
 // Whether compiling `request` with custom fonts `a` would use exactly the same fonts as with `b`:

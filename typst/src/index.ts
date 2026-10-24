@@ -11,12 +11,13 @@ export {generate_pdf} from './pdf_postprocess.js'
 export {generate_pdf_spread_preview} from './pdf_postprocess.js'
 
 // Preview pipeline for phones: the printed pages in reading order, one standalone SVG each
-export {generate_svg_preview, split_typst_svg, svg_page_markup} from './svg_pages.js'
+export {generate_svg_preview, split_typst_svg, parse_standalone_svg, svg_page_markup}
+    from './svg_pages.js'
 export type {SvgPage, SvgCompileFn} from './svg_pages.js'
 
 // Adds a short "this is only a preview" / "end of preview" strip to the front/back of a preview PDF
-export {add_preview_strip, gen_preview_strip_typst, gen_cover_slot_typst, notice_fonts}
-    from './pdf_postprocess.js'
+export {add_preview_strip, gen_preview_strip_typst, gen_cover_slot_typst, notice_fonts,
+    prepend_cover} from './pdf_postprocess.js'
 
 // Preview truncation: cuts an over-long request down to a fast-compiling window of content
 export {truncate_for_preview, PREVIEW_CHAR_LIMIT, ESTIMATE_CHAR_LIMIT} from './preview.js'
@@ -59,7 +60,8 @@ export {make_blueprint_schema, clean_content_items, cover_config_schema} from '.
 // Cover render helpers (blueprint size overlay + render cache key) and the shape check that
 // bounds any builtin background reference
 export {cover_form_for_render, cover_render_key, is_builtin_background,
-    is_known_builtin_background} from './cover.js'
+    is_known_builtin_background, cover_page_geometry} from './cover.js'
+export type {CoverPageGeometry} from './cover.js'
 
 // Trim-size resolution (service + named size, or custom dimensions) and a mm/in converter —
 // used for the interior margin clamp and, in the app, the cover's create-time back-margin seed

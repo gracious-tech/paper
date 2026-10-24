@@ -21,7 +21,7 @@ import type {StoredFontMeta} from 'paper-bible-typst'
 import type {HandlerResult} from './types.ts'
 
 
-function new_id():string{
+export function new_id():string{
     // Matches the client's generate_token() — url64, unguessable, and the whole capability for
     // anything keyed by it
     return randomBytes(15).toString('base64url')

@@ -10,6 +10,7 @@ import {escape_typst} from './helpers.js'
 import {resolve_lang} from './lang.js'
 
 import type {Assembly, PageBackend} from './assemble.js'
+import type {CoverPageGeometry} from './cover.js'
 import type {TypstRequest, CompileFn, ProgressFn, TextDir} from './types.js'
 
 
@@ -290,6 +291,41 @@ export async function add_preview_strip(
         doc.addPage(page!)
     }
     return doc.save()
+}
+
+
+// Prepend a rendered cover (its single wraparound page) to a book PDF, for the preview only —
+// stored versions keep the cover as its own separate cover.pdf. The page is cropped to its trim
+// box (bleed hidden) and gets 50%-gray guide lines on the fold(s). Both are preview aids: the
+// content is untouched and the real cover PDF is produced by a different path
+export async function prepend_cover(
+    cover_bytes:Uint8Array, book_bytes:Uint8Array, geometry:CoverPageGeometry|null,
+):Promise<Uint8Array> {
+    const book = await PDFDocument.load(book_bytes)
+    const cover_doc = await PDFDocument.load(cover_bytes)
+    const [cover_page] = await book.copyPages(cover_doc, [0])
+
+    if (geometry){
+        const page_h = cover_page!.getHeight()
+        // Crop to the trim box (drop the bleed) — a display-only crop, content is preserved
+        if (geometry.crop){
+            const {left, top, width, height} = geometry.crop
+            cover_page!.setCropBox(left, page_h - (top + height), width, height)
+        }
+        // Gray fold guide lines, clipped by the crop box above to the visible trim height
+        const gray = rgb(0.5, 0.5, 0.5)
+        for (const x of geometry.fold_x){
+            cover_page!.drawLine({
+                start: {x, y: 0},
+                end: {x, y: page_h},
+                thickness: 0.5,
+                color: gray,
+            })
+        }
+    }
+
+    book.insertPage(0, cover_page!)
+    return book.save()
 }
 
 

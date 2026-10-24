@@ -5,8 +5,8 @@
 
 import {describe, it, expect} from 'vitest'
 
-import {split_typst_svg, svg_page_half, svg_page_markup, generate_svg_preview}
-    from '../src/svg_pages.js'
+import {split_typst_svg, parse_standalone_svg, svg_page_half, svg_page_markup,
+    generate_svg_preview} from '../src/svg_pages.js'
 import {make_request, make_passage, make_title} from './fixtures.js'
 
 import type {SvgPage} from '../src/svg_pages.js'
@@ -61,6 +61,22 @@ describe('split_typst_svg', () => {
         expect(first!.inner).not.toContain('foreignObject')
         expect(first!.inner).not.toContain('data-tid')
         expect(first!.inner).not.toContain('</svg>')
+    })
+})
+
+
+describe('parse_standalone_svg', () => {
+
+    it("takes a Typst CLI page's markup and size from its root", () => {
+        // Abridged from the CLI's own output: the root carries the viewBox, the page its own defs
+        const page = parse_standalone_svg('<svg class="typst-doc" viewBox="0 0 100 140"'
+            + ' width="100pt" height="140pt" xmlns="http://www.w3.org/2000/svg">\n'
+            + '<path class="typst-shape" fill="#ffffff" d="M 0 0v 140 h 100 v -140 Z "/>'
+            + '<defs id="glyph"><symbol id="g1"><path d="M0 0"/></symbol></defs>\n</svg>\n')
+        expect([page.x, page.width, page.height]).toEqual([0, 100, 140])
+        expect(page.inner).toContain('<defs id="glyph">')
+        expect(page.inner).not.toContain('<svg')
+        expect(page.inner).not.toContain('</svg>')
     })
 })
 

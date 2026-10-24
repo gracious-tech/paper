@@ -4,7 +4,6 @@ import {tmpdir} from 'node:os'
 import {mkdtemp, writeFile, readFile, rm} from 'node:fs/promises'
 
 import {Timestamp, FieldValue} from 'firebase-admin/firestore'
-import {LambdaClient, InvokeCommand} from '@aws-sdk/client-lambda'
 import {PDFDocument} from 'pdf-lib'
 import {PDF_LIFETIME_MS, COMPILE_STATS_LIFETIME_MS,
     cover_form_for_render, is_builtin_background, is_known_builtin_background,
@@ -21,16 +20,17 @@ import {quota_allows, claim_compile_lock, extend_compile_lock, release_compile_l
 import {collect_image_urls} from './assets.ts'
 import {shared_content} from './content.ts'
 import {save_error, generate_error_id} from './errors.ts'
+import {dispatch_job} from './dispatch.ts'
 
 import type {DocumentData, DocumentReference} from 'firebase-admin/firestore'
-import type {EmbedFormState} from 'bookcover-node'
-import type {PmDoc} from 'paper-bible-typst'
+import type {EmbedFormState, GenerateResult} from 'bookcover-node'
+import type {PmDoc, StoredFontMeta} from 'paper-bible-typst'
 import type {Blueprint, CustomFont} from 'paper-bible-typst-node'
 import type {HandlerResult} from './types.ts'
 
 
 // A server compile, as the light function's /api/compile route hands it to the compile function
-// (see dispatch_compile). Plain JSON, since in production it crosses as an async Lambda
+// (see dispatch_job). Plain JSON, since in production it crosses as an async Lambda
 // invocation's payload. Only the light function may invoke the compile function (IAM), so the
 // uid here was verified from the caller's ID token
 export interface CompileJob {
@@ -52,19 +52,33 @@ interface CheckedVersion {
     data:DocumentData
     design_id:string
     blueprint:Blueprint
-    fonts_meta:{family:string, style:'serif'|'sans', files:string[]}[]
+    fonts_meta:StoredFontMeta[]
 }
 
 
-// Invokes the compile function from the light one (created on first dispatch)
-let lambda_client:LambdaClient|null = null
+export async function render_cover(blueprint:Blueprint, custom_fonts:CustomFont[],
+        page_count:number, share_url?:string):Promise<Uint8Array>{
+    // Render a blueprint's cover to PDF bytes (see render_cover_files)
+    return await render_cover_files(blueprint, custom_fonts, page_count, share_url, 'pdf',
+        async result => new Uint8Array(await readFile(result.output_path)))
+}
 
 
-async function render_cover(blueprint:Blueprint, custom_fonts:CustomFont[], page_count:number,
-        share_url?:string)
-        :Promise<Uint8Array>{
-    // Render a frozen blueprint's cover to PDF bytes via the bookcover-node package (Typst
-    // CLI + the same mounted fonts tree the book compile uses). The renderable schema is
+export async function render_cover_front_svg(blueprint:Blueprint, custom_fonts:CustomFont[],
+        page_count:number, share_url?:string):Promise<string>{
+    // Render just the front panel of a blueprint's cover, as a standalone SVG, for a phone's
+    // preview (see run_preview) — split from the wraparound by bookcover itself
+    return await render_cover_files(blueprint, custom_fonts, page_count, share_url, 'svg',
+        async result => await readFile(result.split_paths!.front, 'utf-8'))
+}
+
+
+async function render_cover_files<T>(blueprint:Blueprint, custom_fonts:CustomFont[],
+        page_count:number, share_url:string|undefined, format:'pdf'|'svg',
+        read:(result:GenerateResult) => Promise<T>):Promise<T>{
+    // Render a blueprint's cover via the bookcover-node package (Typst CLI + the same mounted
+    // fonts tree the book compile uses), as a PDF of the wraparound or SVG panels split from it,
+    // and read what's wanted from the output before it's cleaned up. The renderable schema is
     // derived from the stored widget form with the blueprint's own size fields (and the
     // just-compiled interior's page count, which drives the spine width) overlaid —
     // identical logic to the in-browser path (see cover.ts / cover_worker.ts in the app)
@@ -124,19 +138,20 @@ async function render_cover(blueprint:Blueprint, custom_fonts:CustomFont[], page
             // the browser's preview and version renders use
             image_builtin = id
         }
-        const output_path = path.join(tmp_dir, 'cover.pdf')
-        await generate_cover({
+        const output_path = path.join(tmp_dir, `cover.${format}`)
+        const result = await generate_cover({
             schema: {...schema, ...images && {images}},
             ...image_builtin !== undefined && {image_builtin},
             input_path: tmp_dir,
             output_path,
-            format: 'pdf',
+            format,
+            split: format === 'svg',
             assets_dir: config.assets_dir,
             fonts_dir: config.fonts_dir,
             typst_path: config.typst_path,
             custom_fonts: cover_fonts,
         })
-        return new Uint8Array(await readFile(output_path))
+        return await read(result)
     } finally {
         await rm(tmp_dir, {recursive: true, force: true})
     }
@@ -198,19 +213,8 @@ async function check_version(uid:string, version_id:string, cover_only = false)
     // pinned at create by the rules and immutable thereafter, so it can only name a design the
     // writer could already edit
     const design_id = data['design_id'] as string
-    const assets_prefix = version_assets_prefix(design_id)
-    const fonts_meta = (data['custom_fonts'] ?? []) as
-        {family:string, style:'serif'|'sans', files:string[]}[]
-    if (fonts_meta.some(meta => meta.files.some(path => !path.startsWith(assets_prefix)))){
-        return refuse(400, 'bad_font_path')
-    }
+    const fonts_meta = (data['custom_fonts'] ?? []) as StoredFontMeta[]
 
-    // The cover's bg image reference lives inside the client-written blueprint, so it gets
-    // the same distrust as font paths (including its type, since nothing validates the doc's
-    // shape server-side): a 'custom' snapshot must sit under the design's version prefix, a
-    // 'builtin' id must at least be a plain image filename. Only the shape is checked here —
-    // failing it 400s the whole compile, interior included, so whether bookcover still ships
-    // that background is left to render_cover() above, where it can only cost the cover
     // Brought up to the current schema for this render only — migrate_version_blueprint() always
     // clones, so the version's stored blueprint stays exactly as it was published (see
     // migrate.ts). Everything below, validation included, works on the migrated shape
@@ -218,63 +222,63 @@ async function check_version(uid:string, version_id:string, cover_only = false)
     if (cover_only && !blueprint.cover){
         return refuse(400, 'no_cover')
     }
-    const bg_image = (blueprint.cover?.bg_image ?? null) as unknown
-    if (bg_image !== null){
-        if (typeof bg_image !== 'object'){
-            return refuse(400, 'bad_cover_image')
-        }
-        const rec = bg_image as Record<string, unknown>
-        if (rec['kind'] === 'custom'){
-            const p = rec['path']
-            if (typeof p !== 'string' || !p.startsWith(assets_prefix)){
-                return refuse(400, 'bad_cover_path')
-            }
-        } else if (rec['kind'] === 'builtin'){
-            const id = rec['id']
-            if (typeof id !== 'string' || !is_builtin_background(id)){
-                return refuse(400, 'bad_cover_image')
-            }
-        } else {
-            return refuse(400, 'bad_cover_image')
-        }
-    }
-
-    // Passage images are fetched by url at render time (see image_cache.ts), and the content
-    // list is client-written like everything else on the doc — so every url gets checked here
-    // before the compile runs. Without this the compile service would fetch whatever address a
-    // crafted version doc named, including ones on its own network. The browser path needs no
-    // equivalent: there the fetch happens under the page's own origin policy
-    for (const url of collect_image_urls(blueprint)){
-        if (!is_fetchable_image_url(url, config.dev)){
-            return refuse(400, 'bad_image_url')
-        }
+    const bad_asset = check_assets(blueprint, fonts_meta, version_assets_prefix(design_id))
+    if (bad_asset){
+        return refuse(400, bad_asset)
     }
 
     return {ok: true, version: {doc_ref, data, design_id, blueprint, fonts_meta}}
 }
 
 
-async function dispatch_compile(job:CompileJob):Promise<void>{
-    // Start an accepted compile without waiting for it. In production that's an async ('Event')
-    // invocation of the compile function, which Lambda queues and runs to the function's own
-    // timeout with no HTTP request attached. Running from source there's no function to invoke,
-    // so the compile runs in this process instead — only where this process serves the compile
-    // role too (dev's default): a light-only Lambda is frozen the moment its response goes out
-    if (config.compile_function !== null){
-        lambda_client ??= new LambdaClient({})
-        await lambda_client.send(new InvokeCommand({
-            FunctionName: config.compile_function,
-            InvocationType: 'Event',
-            Payload: new TextEncoder().encode(JSON.stringify(job)),
-        }))
-        return
+export function check_assets(blueprint:Blueprint, fonts_meta:StoredFontMeta[], assets_prefix:string)
+        :string|null{
+    // Why a blueprint's asset references can't be compiled from, or null if they can. Every one
+    // comes off a client-written doc (a version, or a design any co-editor writes), so the Admin
+    // SDK must never be pointed at a path or address the doc names unless it's under the
+    // design's own prefix (`assets_prefix`) or a fetchable image url
+    if (fonts_meta.some(meta => meta.files.some(path => !path.startsWith(assets_prefix)))){
+        return 'bad_font_path'
     }
-    if (!config.roles.includes('compile')){
-        throw new Error('No compile function to dispatch to (COMPILE_FUNCTION is unset)')
+
+    // The cover's bg image reference lives inside the client-written blueprint, so it gets
+    // the same distrust as font paths (including its type, since nothing validates the doc's
+    // shape server-side): a 'custom' upload must sit under the design's prefix, a 'builtin' id
+    // must at least be a plain image filename. Only the shape is checked here — failing it
+    // refuses the whole compile, interior included, so whether bookcover still ships that
+    // background is left to render_cover() above, where it can only cost the cover
+    const bg_image = (blueprint.cover?.bg_image ?? null) as unknown
+    if (bg_image !== null){
+        if (typeof bg_image !== 'object'){
+            return 'bad_cover_image'
+        }
+        const rec = bg_image as Record<string, unknown>
+        if (rec['kind'] === 'custom'){
+            const p = rec['path']
+            if (typeof p !== 'string' || !p.startsWith(assets_prefix)){
+                return 'bad_cover_path'
+            }
+        } else if (rec['kind'] === 'builtin'){
+            const id = rec['id']
+            if (typeof id !== 'string' || !is_builtin_background(id)){
+                return 'bad_cover_image'
+            }
+        } else {
+            return 'bad_cover_image'
+        }
     }
-    // The compile records its own outcome on the version doc; this only keeps anything it
-    // couldn't record from going unhandled and taking the dev server down with it
-    void run_compile(job).catch(error => console.error(error))
+
+    // Passage images are fetched by url at render time (see image_cache.ts), and the content
+    // list is client-written like everything else on the doc — so every url gets checked here
+    // before the compile runs. Without this the compile service would fetch whatever address a
+    // crafted doc named, including ones on its own network. The browser path needs no
+    // equivalent: there the fetch happens under the page's own origin policy
+    for (const url of collect_image_urls(blueprint)){
+        if (!is_fetchable_image_url(url, config.dev)){
+            return 'bad_image_url'
+        }
+    }
+    return null
 }
 
 
@@ -313,7 +317,7 @@ export async function handle_compile(job:CompileJob):Promise<HandlerResult>{
         .catch(() => undefined)
 
     try {
-        await dispatch_compile(job)
+        await dispatch_job(job, async () => await run_compile(job))
     } catch (error){
         console.error(error)
         await release_compile_lock(uid, version_id)
@@ -351,8 +355,8 @@ export async function run_compile(job:CompileJob, prepare?:() => Promise<void>):
 }
 
 
-async function download_fonts(fonts_meta:CheckedVersion['fonts_meta']):Promise<CustomFont[]>{
-    // Download a version's snapshotted custom fonts (usually none)
+export async function download_fonts(fonts_meta:StoredFontMeta[]):Promise<CustomFont[]>{
+    // Download a doc's custom fonts (usually none)
     return await Promise.all(
         fonts_meta.map(
             async meta => ({

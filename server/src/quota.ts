@@ -24,6 +24,7 @@ import {admin_db} from './firebase.ts'
 // uid that ever hit the route
 export const QUOTA_COMPILE = 'compile_quota'
 export const QUOTA_COPY = 'copy_quota'
+export const QUOTA_PREVIEW = 'preview_quota'
 
 // Not a daily count but the same kind of per-uid throttle row: which server compile the user has
 // running, if any (see claim_compile_lock). Its `expires` is both the lock's own lapse time and
@@ -33,12 +34,18 @@ export const COMPILE_LOCK = 'compile_lock'
 
 // Every collection above, so account deletion can clear a user's counters without having to be
 // updated each time one is added (see delete_user_records in account.ts)
-export const QUOTA_COLLECTIONS = [QUOTA_COMPILE, QUOTA_COPY, COMPILE_LOCK]
+export const QUOTA_COLLECTIONS = [QUOTA_COMPILE, QUOTA_COPY, QUOTA_PREVIEW, COMPILE_LOCK]
 
 
 // Server-side compiles per user per day (the in-browser WASM path is unthrottled — it costs
 // the user's own device, not us)
 export const DAILY_COMPILE_LIMIT = 50
+
+
+// Server previews per user per day (see preview.ts). Looser than compiles: a device that compiles
+// on the server previews on every tap of Preview (a phone) or Refresh (a desktop), and each is
+// only a window of the document
+export const DAILY_PREVIEW_LIMIT = 300
 
 
 // "Keep own copy" operations per user per day. Deliberately generous: the Storage rules permit
