@@ -744,7 +744,10 @@ After that, every push to `main` deploys itself. The scripts still work by hand
   server's outcome on the next job settles it: success confirms (`'1'`), failure switches back,
   since then the document or our code was more likely at fault. A crash is a
   `compile_in_flight` marker left in localStorage, which `pagehide` clears, so closing a tab
-  mid-compile doesn't count. The engine failing to start only shows the health banner once the
+  mid-compile doesn't count. It covers a whole browser job, not just the worker's compile
+  (`begin_browser_job()`: a build until its PDF is uploaded, a phone's preview until 15s after
+  it's shown), since the main thread's part can lose a phone's tab too, and it names the stages
+  running, which the next boot reports (`The tab died during browser work`). The engine failing to start only shows the health banner once the
   server can't take over either
 - **The server can't mask images, so server previews need the client's variants.** Before
   asking, `request_server_preview()` flushes the design (the server reads it from Firestore)
@@ -839,6 +842,11 @@ After that, every push to `main` deploys itself. The scripts still work by hand
   gitignored `errors/records/` is written and parses, so that directory (triage state
   included) is the *only* copy — back it up, and run the tool from one machine.
   The boot splash and a failed version show the report id in a gracious.tech/contact link.
+  A bundle that never starts (syntax an old browser can't parse, a chunk that failed to load)
+  can't report itself, so `app/public/boot_check.js` (ES5, outside the bundle) does: if
+  `errors.ts` hasn't flagged itself by `DOMContentLoaded`, it shows a splash and files a
+  `Boot check: ...` report. Safari may give no `SyntaxError` for a module that fails to parse
+  (as far as is known, only the `<script>` element's own error event), so don't rely on one
   The cover widget's errors are relayed over the embed protocol (`{type: 'error'}`) and reported
   as `Cover widget: ...` with `context.source = 'cover_widget'`. Triage keeps them out of the
   fixer and fix-commit pinning, since their code and builds belong to the bookcover repo

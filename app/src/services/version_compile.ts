@@ -40,7 +40,7 @@ import {version_progress, build_requests, hold_page, claim_compile_turn, compili
     from '@/services/compile_progress'
 import {retry_network} from '@/services/network_retry'
 import {compiles_on_server, is_device_failure, switch_to_server, switch_provisional,
-    settle_server_mode} from '@/services/compile_mode'
+    settle_server_mode, begin_browser_job} from '@/services/compile_mode'
 
 import type {CustomFont} from 'typst-fonts'
 import type {Blueprint, Version} from '@/services/types'
@@ -454,6 +454,9 @@ export async function compile_and_upload(job:VersionCompileJob,
         version_progress[id] = event
     }
 
+    // Ends the browser's part of this attempt once it started one (see below)
+    let end_job = () => {}
+
     try {
         try {
             // A phone that can't cope compiles nothing itself (see compile_mode.ts), so the
@@ -467,6 +470,11 @@ export async function compile_and_upload(job:VersionCompileJob,
             if (!generator){
                 throw new Error('Typst compiler not ready')
             }
+
+            // The whole of the browser's part counts as running, not just the worker's compile:
+            // fetching the content before it and holding and uploading the PDF after it can lose
+            // a phone's tab as well (see begin_browser_job)
+            end_job = begin_browser_job('build')
             const font_styles = Object.fromEntries(fonts.map(f => [f.family, f.style]))
             interior_start = performance.now()
             const request = await bible_content.resolve(
@@ -497,6 +505,7 @@ export async function compile_and_upload(job:VersionCompileJob,
                 cover = await render_cover_here(id, blueprint, pages, async () => fonts,
                     'cover_render')
             }
+            end_job()
 
             await updateDoc(doc_ref, {
                 status: 'available',
@@ -512,6 +521,7 @@ export async function compile_and_upload(job:VersionCompileJob,
                 await finish_cover_on_server(id)
             }
         } catch (wasm_error){
+            end_job()
             // A refused upload may just mean another attempt got there first (see
             // version_settled), leaving nothing to fall back for
             if (await version_settled(doc_ref)){
@@ -550,6 +560,7 @@ export async function compile_and_upload(job:VersionCompileJob,
         // No more in-browser progress to show once this attempt is over, whether it succeeded,
         // was handed off to the server, or failed outright
         delete version_progress[id]
+        end_job()
         release_page()
         release_turn()
     }

@@ -163,23 +163,35 @@ test('pinching zooms in on the preview\'s pages', async ({page}) => {
     await expect.poll(width).toBeCloseTo(fitted, 0)
 })
 
-test('a tab that died mid-compile switches the phone to the server', async ({page}) => {
-    // The marker a compile leaves while it runs, as a tab killed for memory leaves it behind
-    await page.addInitScript(() => {
-        if (!sessionStorage.getItem('booted')){
-            sessionStorage.setItem('booted', '1')
-            localStorage.setItem('compile_in_flight', String(Date.now()))
-        }
+test.describe('a tab that died mid-compile', () => {
+
+    // Nothing else learns of it, so it's reported, with what was running
+    test.use({expected_reports: [/The tab died during browser work/]})
+
+    test('switches the phone to the server, reporting what was running',
+            async ({page, error_reports}) => {
+        // The marker browser work leaves while it runs, as a tab killed for memory leaves it
+        // behind: here past the worker's compile, as a preview's pages are shown (see
+        // begin_browser_job)
+        await page.addInitScript(() => {
+            if (!sessionStorage.getItem('booted')){
+                sessionStorage.setItem('booted', '1')
+                localStorage.setItem('compile_in_flight',
+                    JSON.stringify({at: Date.now(), stages: ['phone_preview']}))
+            }
+        })
+        const uid = await boot(page)
+        const design_id = await seed_own_design(uid, {simple_mode: true})
+        await page.goto(`/designs/${design_id}`)
+        await expect(page.getByRole('button', {name: 'Preview', exact: true})
+            .locator('visible=true')).toHaveCount(1, {timeout: 60_000})
+        // Provisionally, until the server has done a job of its own (see settle_server_mode)
+        await expect.poll(() => page.evaluate(() => localStorage.getItem('compile_on_server')))
+            .toBe('provisional')
+        expect(await page.evaluate(() => localStorage.getItem('compile_in_flight'))).toBe(null)
+        expect(error_reports.map(report => report.context))
+            .toEqual([expect.objectContaining({stages: 'phone_preview', mobile: 1})])
     })
-    const uid = await boot(page)
-    const design_id = await seed_own_design(uid, {simple_mode: true})
-    await page.goto(`/designs/${design_id}`)
-    await expect(page.getByRole('button', {name: 'Preview', exact: true})
-        .locator('visible=true')).toHaveCount(1, {timeout: 60_000})
-    // Provisionally, until the server has done a job of its own (see settle_server_mode)
-    await expect.poll(() => page.evaluate(() => localStorage.getItem('compile_on_server')))
-        .toBe('provisional')
-    expect(await page.evaluate(() => localStorage.getItem('compile_in_flight'))).toBe(null)
 })
 
 

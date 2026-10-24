@@ -20,6 +20,9 @@ vi.mock('@/services/auth', async () => {
     const {ref} = await import('vue')
     return {user: ref({uid: 'uid_owner'})}
 })
+// What a crash is reported through
+const report_error = vi.hoisted(() => vi.fn(() => ''))
+vi.mock('@/services/errors', () => ({report_error}))
 // Whether the device is a phone, per test
 const mobile = vi.hoisted(() => ({value: true}))
 vi.mock('@/services/display', () => ({is_mobile_now: () => mobile.value}))
@@ -49,6 +52,7 @@ async function load(stored:Record<string, string> = {}){
 
 beforeEach(() => {
     add_doc.mockClear()
+    report_error.mockClear()
     mobile.value = true
 })
 
@@ -221,13 +225,53 @@ describe('a switched desktop\'s re-checks', () => {
 
 describe('check_crashed_compile', () => {
 
-    it('switches a phone whose last page died mid-compile', async () => {
-        const mode = await load({compile_in_flight: '1700000000000'})
+    it('switches a phone whose last page died mid-compile, reporting where', async () => {
+        const marker = JSON.stringify({at: Date.now() - 5000, stages: ['build', 'compile']})
+        const mode = await load({compile_in_flight: marker})
         mode.check_crashed_compile()
         expect(mode.compiles_on_server()).toBe(true)
         expect(storage.has('compile_in_flight')).toBe(false)
         expect(add_doc).toHaveBeenCalledWith('compile_stats', expect.objectContaining(
             {reason: 'crash'}))
+        expect(report_error).toHaveBeenCalledWith('silent', expect.any(Error), {critical: true,
+            context: {stages: 'build>compile', since_marked_ms: expect.any(Number), mobile: 1}})
+    })
+
+    it('still switches on a marker left by a build from before stages', async () => {
+        const mode = await load({compile_in_flight: '1700000000000'})
+        mode.check_crashed_compile()
+        expect(mode.compiles_on_server()).toBe(true)
+        expect(report_error).toHaveBeenCalledWith('silent', expect.any(Error),
+            {critical: true, context: {stages: 'unknown', mobile: 1}})
+    })
+
+    it('leaves a page that died doing nothing heavy alone', async () => {
+        const mode = await load()
+        mode.check_crashed_compile()
+        expect(mode.compiles_on_server()).toBe(false)
+        expect(report_error).not.toHaveBeenCalled()
+    })
+
+    it('records the stages running, past the worker\'s own compile', async () => {
+        // A build's main-thread work around its compile (the upload) can lose the tab too
+        const mode = await load()
+        const stages = () => (JSON.parse(storage.get('compile_in_flight')!) as
+            {stages:string[]}).stages
+        const end_build = mode.begin_browser_job('build')
+        let finish = () => {}
+        const compile = mode.track_browser_compile(new Promise<void>(resolve => {
+            finish = resolve
+        }))
+        expect(stages()).toEqual(['build', 'compile'])
+        finish()
+        await compile
+        expect(stages()).toEqual(['build'])
+        end_build()
+        expect(storage.has('compile_in_flight')).toBe(false)
+        // Ending twice is harmless (a build ends its job on more than one path)
+        mode.begin_browser_job('phone_preview')
+        end_build()
+        expect(stages()).toEqual(['phone_preview'])
     })
 
     it('marks a compile as running only while it runs, and not past leaving the page',
