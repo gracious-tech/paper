@@ -10,6 +10,10 @@ export {generate_pdf} from './pdf_postprocess.js'
 // Preview pipeline: lays out the printed pages as facing-page book spreads (preview only)
 export {generate_pdf_spread_preview} from './pdf_postprocess.js'
 
+// Preview pipeline for phones: the printed pages in reading order, one standalone SVG each
+export {generate_svg_preview, split_typst_svg, svg_page_markup} from './svg_pages.js'
+export type {SvgPage, SvgCompileFn} from './svg_pages.js'
+
 // Adds a short "this is only a preview" / "end of preview" strip to the front/back of a preview PDF
 export {add_preview_strip, gen_preview_strip_typst, gen_cover_slot_typst, notice_fonts}
     from './pdf_postprocess.js'

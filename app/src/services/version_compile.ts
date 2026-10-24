@@ -39,6 +39,7 @@ import {report_error, error_to_string} from '@/services/errors'
 import {version_progress, build_requests, hold_page, claim_compile_turn, compiling_here}
     from '@/services/compile_progress'
 import {retry_network} from '@/services/network_retry'
+import {compiles_on_server} from '@/services/compile_mode'
 
 import type {CustomFont} from 'typst-fonts'
 import type {Blueprint, Version} from '@/services/types'
@@ -293,6 +294,11 @@ async function render_cover_here(id:string, blueprint:Blueprint, pages:number,
     // publish it. When that fails it's reported and 'pending' returned, for the caller to record
     // before handing the cover to the server (see finish_cover_on_server)
 
+    // A device that builds on the server leaves its covers to it too (see compile_mode.ts)
+    if (compiles_on_server()){
+        return 'pending'
+    }
+
     // A phone may not hold the cover's compiler beside the book's, which still has the whole
     // interior in memory, so free that first (it respawns lean for the next compile)
     if (is_mobile_now()){
@@ -338,6 +344,10 @@ async function finish_cover_on_server(id:string):Promise<void>{
             .catch(() => undefined)
     }
 }
+
+
+// Thrown to skip a compile's browser attempt on a device that builds on the server
+class ServerModeHandover extends Error {}
 
 
 async function version_settled(doc_ref:DocumentReference):Promise<boolean>{
@@ -425,6 +435,12 @@ export async function compile_and_upload(job:VersionCompileJob,
 
     try {
         try {
+            // A phone that can't cope compiles nothing itself (see compile_mode.ts), so the
+            // version goes straight to the server, by the same path a failed compile falls back on
+            if (compiles_on_server()){
+                throw new ServerModeHandover()
+            }
+
             // Resolve the frozen blueprint to a full request (fetches uncached Bible content)
             const generator = typst_generator.value
             if (!generator){
@@ -480,10 +496,13 @@ export async function compile_and_upload(job:VersionCompileJob,
             if (await version_settled(doc_ref)){
                 return
             }
-            // In-browser path failed — hand over to the server (status updates then arrive
-            // via the versions Firestore sync). Not critical yet as the fallback usually works
-            report_error('silent', wasm_error,
-                {context: {version_id: id, stage: 'wasm_compile'}})
+            // In-browser path failed (or was skipped) — hand over to the server (status updates
+            // then arrive via the versions Firestore sync). Not critical yet as the fallback
+            // usually works
+            if (!(wasm_error instanceof ServerModeHandover)){
+                report_error('silent', wasm_error,
+                    {context: {version_id: id, stage: 'wasm_compile'}})
+            }
             // Log the failed in-browser attempt (only if the compile itself was reached) so the
             // telemetry shows browser-vs-server splits and how long a device struggles before
             // giving up; the server records its own row for the fallback that follows

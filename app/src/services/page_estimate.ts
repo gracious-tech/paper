@@ -13,6 +13,7 @@ import {resolve_content_for_style} from '@/services/content_images'
 import {report_error} from '@/services/errors'
 import {use_is_mobile} from '@/services/display'
 import {compiling_here} from '@/services/compile_progress'
+import {compiles_on_server} from '@/services/compile_mode'
 
 import type {PreviewSection, PreviewTruncation, ProgressFn} from 'paper-bible-typst'
 import type {TypstWorkerClient} from '@/services/typst'
@@ -136,8 +137,11 @@ export function ensure_page_estimate():Promise<void>{
     // A no-op wherever the live preview already keeps it current. Never throws: a failed
     // estimate is reported and leaves the previous one (or the fallback guess) in place, since
     // nothing that asks for one should fail over it
+    // Nothing is compiled in the browser of a phone that builds on the server (see
+    // compile_mode.ts), so there its estimate only comes from previews and builds
     const generator = typst_generator.value
-    if (!generator || has_missing_books(collect_passage_books(blue.content), blue.bibles)){
+    if (!generator || compiles_on_server()
+            || has_missing_books(collect_passage_books(blue.content), blue.bibles)){
         return Promise.resolve()
     }
     const signature = render_signature()
@@ -188,8 +192,8 @@ export async function estimate_pages_for(blueprint:Blueprint, design_id:string)
         return fresh_estimate(blueprint)
     }
     const generator = typst_generator.value
-    if (!generator || has_missing_books(collect_passage_books(blueprint.content),
-            blueprint.bibles)){
+    if (!generator || compiles_on_server() || has_missing_books(
+            collect_passage_books(blueprint.content), blueprint.bibles)){
         return null
     }
     try {

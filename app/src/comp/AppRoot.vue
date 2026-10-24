@@ -81,6 +81,7 @@ DialogHowToPrint
 DialogEstimateCost
 DialogPrintServiceWarning
 DialogLanguage
+DialogPhonePreview
 //- LEGACY Remove with app/src/legacy/ once old data no longer needs recovering
 DialogLegacy
 
@@ -110,6 +111,7 @@ import DialogHowToPrint from '@/comp/dialogs/DialogHowToPrint.vue'
 import DialogEstimateCost from '@/comp/dialogs/DialogEstimateCost.vue'
 import DialogPrintServiceWarning from '@/comp/dialogs/DialogPrintServiceWarning.vue'
 import DialogLanguage from '@/comp/dialogs/DialogLanguage.vue'
+import DialogPhonePreview from '@/comp/dialogs/DialogPhonePreview.vue'
 import DisplaySplash from '@/comp/display/DisplaySplash.vue'
 import DisplayPreview from '@/comp/display/DisplayPreview.vue'
 import DisplayDesignVersion from '@/comp/display/DisplayDesignVersion.vue'

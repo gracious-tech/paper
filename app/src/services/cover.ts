@@ -19,6 +19,7 @@ import {cover_form_for_render, cover_render_key, doc_has_copyright, gen_copyrigh
 
 import {firebase_storage} from '@/services/firebase'
 import {ASSETS_PREFIX, typst_generator} from '@/services/typst'
+import {track_browser_compile} from '@/services/compile_mode'
 import {page_count_guess} from '@/services/state'
 import {content} from '@/services/content'
 import {custom_fonts} from '@/services/custom_fonts'
@@ -252,13 +253,14 @@ class CoverWorkerClient {
         return error
     }
 
-    // Post one request to the worker and await its matching result
+    // Post one request to the worker and await its matching result, marked as a compile in
+    // progress meanwhile (a cover's Typst compile can run a phone out of memory like a book's)
     send(action:DistributiveOmit<CoverWorkerRequest, 'id'>):Promise<CoverRenderResult|null> {
         const id = this.next_id++
-        return new Promise((resolve, reject) => {
+        return track_browser_compile(new Promise((resolve, reject) => {
             this.pending.set(id, {action: action.action, resolve, reject})
             this.worker.postMessage({...action, id})
-        })
+        }))
     }
 }
 

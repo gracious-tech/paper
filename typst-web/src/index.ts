@@ -6,13 +6,13 @@ import {loadFonts} from '@myriaddreamin/typst.ts'
 import {load_fonts_prefix, font_urls_for, fonts_to_blob_urls, revoke_blob_urls} from 'typst-fonts/web'
 import {base_font} from 'typst-fonts'
 
-import {generate_pdf, generate_pdf_spread_preview, generate_typst, collect_fonts,
-    gen_cover_slot_typst, notice_fonts} from 'paper-bible-typst'
+import {generate_pdf, generate_pdf_spread_preview, generate_svg_preview, split_typst_svg,
+    generate_typst, collect_fonts, gen_cover_slot_typst, notice_fonts} from 'paper-bible-typst'
 
 import type {TypstCompiler} from '@myriaddreamin/typst.ts/compiler'
 import type {TypstRenderer} from '@myriaddreamin/typst.ts/renderer'
 import type {CustomFont} from 'typst-fonts'
-import type {TypstRequest, CompileFn, ProgressFn} from 'paper-bible-typst'
+import type {TypstRequest, CompileFn, ProgressFn, SvgPage, SvgCompileFn} from 'paper-bible-typst'
 
 
 // Asset subdirectory name for fonts (under a consumer-provided assets prefix), matching
@@ -32,8 +32,9 @@ export interface InitOptions {
     // URL prefix under which bundled fonts are served (default '/generator_assets/').
     // Font files are fetched from `${assets_prefix}/fonts/<family>/<file>.ttf`.
     assets_prefix?:string
-    // URL to the typst_ts_renderer_bg.wasm module — only needed for compile_svg(), and only
-    // fetched the first time one is asked for (see ensure_renderer)
+    // URL to the typst_ts_renderer_bg.wasm module — only needed for SVG output (compile_svg(),
+    // compile_svg_preview()), and only fetched the first time one is asked for (see
+    // ensure_renderer)
     renderer_wasm_url?:string
 }
 
@@ -64,7 +65,7 @@ export class TypstWeb {
     private renderer_wasm_url:string|null
     private fonts_prefix:string
     private compiler:TypstCompiler
-    // Created on first compile_svg() only (SVG output is preview-only — see ensure_renderer)
+    // Created on the first SVG compile only (SVG output is preview-only — see ensure_renderer)
     private renderer:TypstRenderer|null = null
     // Comma-joined font families (+ custom font names) last used to init the compiler
     // ('' = base fonts only)
@@ -207,6 +208,25 @@ export class TypstWeb {
         }
     }
 
+    // Build a compile function that turns a single Typst source string into its pages as SVG
+    private make_svg_compile_fn(renderer:TypstRenderer):SvgCompileFn {
+        return async (source:string, assets?:Record<string, Uint8Array>):Promise<SvgPage[]> => {
+            this.load_source(source, assets)
+            const result = await this.compiler.compile({
+                mainFilePath: '/main.typ',
+                format: CompileFormatEnum.vector,
+            })
+            if (!result.result) {
+                throw_compile_error(result.diagnostics)
+            }
+            return split_typst_svg(await renderer.renderSvg({
+                artifactContent: result.result,
+                format: 'vector',
+                data_selection: {js: false, css: false, body: true, defs: true},
+            }))
+        }
+    }
+
     // Reinitialise the compiler only when the set of fonts a request needs changes
     private async ensure_fonts(request:TypstRequest):Promise<void> {
         await this.manifest_ready()
@@ -270,6 +290,14 @@ export class TypstWeb {
             : undefined
         return generate_pdf_spread_preview(request, this.make_compile_fn(), on_progress,
             cover_slot)
+    }
+
+    // Compile a request to its pages in reading order, one standalone SVG each, for a phone's
+    // preview (see generate_svg_preview) — the same pages print assembles, without the PDF
+    async compile_svg_preview(request:TypstRequest, on_progress?:ProgressFn):Promise<SvgPage[]> {
+        const renderer = await this.ensure_renderer()
+        await this.ensure_fonts(request)
+        return generate_svg_preview(request, this.make_svg_compile_fn(renderer), on_progress)
     }
 
     // Compile a small standalone page — a preview notice in the UI's language, rather than part

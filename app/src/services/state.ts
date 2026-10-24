@@ -71,6 +71,9 @@ export const state = reactive({
     // change can invalidate another step, so it needs the full stepper's cross-step validation
     // rather than the single-step EditorWizardStep sidebar editor)
     wizard_edit: null as null|{step:WizardStep},
+    // Whether a phone's full-screen preview of the open design is showing (see
+    // DialogPhonePreview.vue) — opened by BtnGenerate in place of building straight away
+    phone_preview: false,
     // Message for a brief snackbar toast (e.g. link copied confirmation), null when hidden
     toast: null as string|null,
     // Pending confirm-dialog request, rendered by DialogConfirm — null hides it (see confirm_dialog())

@@ -47,6 +47,7 @@ import {content, bible_content, load_fonts} from '@/services/content'
 import {typst_generator, TypstWorkerClient, ASSETS_PREFIX} from '@/services/typst'
 import {custom_fonts} from '@/services/custom_fonts'
 import {start_watchers} from '@/services/watchers'
+import {check_crashed_compile} from '@/services/compile_mode'
 import {report_error, vue_error_handler, set_error_translator} from '@/services/errors'
 
 
@@ -173,6 +174,10 @@ void (async () => {
     // get_default_blueprint in blueprints.ts, content_summary via meta_from_doc), so nothing
     // below this line can run without it
     await Promise.all([ensure_signed_in(), bible_content.init(), locale_ready])
+
+    // A phone whose last session died mid-compile compiles on the server from now on (signed in
+    // first, so the switch is recorded against the user)
+    check_crashed_compile()
 
     // If arriving via a passwordless email sign-in link, take the URL now and clean it — the
     // code is single-use, so if the address stayed sign-in-shaped every later refresh would

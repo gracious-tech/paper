@@ -44,7 +44,11 @@ Live at [paper.bible](https://paper.bible). MIT No Attribution license.
 2. The user edits a design's `Blueprint` — the reactive `blue` singleton mirrors the
    currently open Firestore `designs/{id}` doc (`designs.ts` syncs both directions, debounced
    field-level writes so co-editors don't clobber each other)
-3. `DisplayPreview.vue` compiles a truncated preview in the browser as they edit
+3. `DisplayPreview.vue` compiles a truncated preview in the browser as they edit. A phone has no
+   room for it, so its editor's button reads **Preview** and opens `DialogPhonePreview.vue`
+   instead: the first ~30 pages as one standalone SVG each, full screen, with Keep editing /
+   Build it. A phone that can't cope (a preview over 20s, or a tab that died mid-compile) is
+   switched to compiling on the server for good (`compile_mode.ts`, localStorage)
 4. On "Build it" (`BtnGenerate.vue`), the design as it is at the click is snapshotted, the
    design force-flushed, and the snapshot frozen into an immutable `versions/{id}` doc (blueprint
    + custom-font snapshot + a `save_token`), then compiled in the browser and uploaded to Storage
@@ -253,7 +257,11 @@ paper_bible/
         blueprints.ts      # Default blueprint + clean_blueprint() validation + display helpers
         page_estimate.ts   # The page-count estimate from a preview-window compile: kept current
                             #   by the live preview on desktop; mobile mounts no preview, so
-                            #   build/cover editor/Paper options ask for it (ensure_page_estimate)
+                            #   its preview/build/cover editor/Paper options ask for it
+                            #   (ensure_page_estimate). Never in the browser in server mode
+        build.ts           # build_design(): snapshot, freeze, compile (BtnGenerate, phone preview)
+        phone_preview.ts   # The phone's SVG preview compile (20s limit, then server mode)
+        compile_mode.ts    # Whether this phone compiles on the server: the switch + crash marker
         binding_advice.ts  # auto_binding / binding_page_issue / page_reduction_suggestions —
                             #   advice over a blueprint, never mutating one
         printing_services.ts  # Service picker items over printing-services
@@ -331,7 +339,9 @@ paper_bible/
                       #   node_flush.ts (preload for spawned Node), merge.ts; reports/ is output
   branding/           # Source icon/social/splash artwork
   typst/                   # paper-bible-typst: core (Blueprint→TypstRequest, typst gen,
-                            #   split_blueprint_doc/join_blueprint_doc for Firestore doc shape)
+                            #   split_blueprint_doc/join_blueprint_doc for Firestore doc shape;
+                            #   assemble.ts puts the page sequence together for both outputs,
+                            #   pdf_postprocess.ts for print, svg_pages.ts for phone previews)
     locales/, locales.json #   The strings it prints into books, by Bible language (the i18n
                             #   `doc` domain), compiled into src/generated/doc_strings.ts
   typst-web/               # paper-bible-typst-web: WASM wrapper (browser)
@@ -670,6 +680,16 @@ After that, every push to `main` deploys itself. The scripts still work by hand
 - **Lambda-era leftovers** live under `.private/generator/` — dead code, ignore
 - **WASM memory:** the Typst worker leaks per unique source; `TypstWorkerClient`
   recycles worn workers automatically (see `typst.ts`)
+- **Page assembly is shared by PDF and SVG** (`typst/src/assemble.ts`): blank padding, title
+  sides, half-blank notes pages, facing-page splits and the pinned last page work on references
+  to compiled pages, and a backend turns them into output. Change the sequence there, never in
+  `pdf_postprocess.ts`, or the phone preview stops matching print. An SVG page is cut out of
+  typst.ts's whole-document SVG (`split_typst_svg`), carrying only the defs it references, and
+  shown as an `<img>` from a blob URL so its styles stay inside it
+- **Server mode is permanent for now** (`compile_mode.ts`, with a TODO to revisit): in it a
+  phone compiles nothing itself, builds and covers go straight to `/api/compile`, and estimates
+  only come from builds. A crash is a `compile_in_flight` marker left in localStorage, which
+  `pagehide` clears, so closing a tab mid-compile doesn't count
 - **`footnote.entry` rules only work from the preamble.** A page resolves its footnote area
   against the style chain in force *before any content is laid out*, so a `#show footnote.entry`
   rule that follows the first piece of content on the page — including one emitted from a

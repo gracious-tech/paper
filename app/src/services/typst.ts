@@ -2,9 +2,10 @@
 import {shallowRef, toRaw} from 'vue'
 
 import {locale, locale_dir} from '@/services/i18n'
+import {track_browser_compile} from '@/services/compile_mode'
 
 import type {CustomFont} from 'typst-fonts'
-import type {TypstRequest, ProgressFn} from 'paper-bible-typst'
+import type {TypstRequest, ProgressFn, SvgPage} from 'paper-bible-typst'
 import type {CoverPageGeometry, WorkerAction, WorkerResponse} from './typst_worker'
 
 
@@ -19,7 +20,7 @@ export const ASSETS_PREFIX = import.meta.env.USE_PROD_SERVICES
 // What the worker answers a request with: the action's own value, plus the page count of the
 // bytes when the action was a PDF compile (see WorkerResult in typst_worker.ts)
 interface ActionOutcome {
-    result:Uint8Array|string|number|null
+    result:Uint8Array|string|number|SvgPage[]|null
     pages:number|null
 }
 
@@ -42,6 +43,10 @@ interface PendingHandlers {
 // out-of-memory abort). The worker is recycled in response, so compile callers retry once on
 // the fresh worker (see send_compile)
 class FatalWorkerError extends Error {}
+
+
+// Failure of a request whose worker was thrown away before it answered (see abandon)
+export class AbandonedCompileError extends Error {}
 
 
 // Client for the Typst Web Worker: same async API as typst-web's TypstWeb class, but every call
@@ -149,6 +154,18 @@ export class TypstWorkerClient {
         }
     }
 
+    // Give up on everything the worker is doing — a compile taking far too long, which no
+    // message can interrupt — failing every request in flight with AbandonedCompileError and
+    // swapping in a fresh worker
+    abandon():void {
+        for (const handlers of this.pending.values()){
+            handlers.reject(new AbandonedCompileError('Compile abandoned'))
+        }
+        this.pending.clear()
+        this.recycle_needed = false
+        this.gate = this.recycle()
+    }
+
     // Post one request to the current worker and await its matching result. on_progress, if
     // given, is called for every progress update the worker reports before the result arrives
     private post(action:WorkerAction, on_progress?:ProgressFn):Promise<ActionOutcome> {
@@ -170,6 +187,13 @@ export class TypstWorkerClient {
     // recycle (see onmessage above), so when it was caused by accumulated memory rather than
     // by the document itself, the retry succeeds on the fresh worker
     private async send_compile(
+        action:WorkerAction, on_progress?:ProgressFn,
+    ):Promise<ActionOutcome> {
+        return await track_browser_compile(this.send_compile_once_retried(action, on_progress))
+    }
+
+    // send_compile itself, apart from marking the compile as in progress for its whole length
+    private async send_compile_once_retried(
         action:WorkerAction, on_progress?:ProgressFn,
     ):Promise<ActionOutcome> {
         try {
@@ -245,6 +269,13 @@ export class TypstWorkerClient {
     // in typst-web
     async compile_svg(request:TypstRequest):Promise<string> {
         return (await this.send_compile({action: 'compile_svg', request})).result as string
+    }
+
+    // Compile a request to its pages in reading order as standalone SVGs, for a phone's preview
+    // (see generate_svg_preview in paper-bible-typst)
+    async compile_svg_preview(request:TypstRequest, on_progress?:ProgressFn):Promise<SvgPage[]> {
+        return (await this.send_compile({action: 'compile_svg_preview', request}, on_progress))
+            .result as SvgPage[]
     }
 
     // Count the pages of a PDF this client didn't compile (one already sitting in Storage).

@@ -18,7 +18,7 @@ import {PDFDocument, rgb} from 'pdf-lib'
 
 import type {TypstWeb} from 'paper-bible-typst-web'
 import type {CustomFont} from 'typst-fonts'
-import type {TypstRequest, ProgressEvent, TextDir} from 'paper-bible-typst'
+import type {TypstRequest, ProgressEvent, TextDir, SvgPage} from 'paper-bible-typst'
 
 
 // Where a rendered wraparound cover's trim box and fold guide lines fall, in PDF points, as
@@ -42,6 +42,7 @@ export type WorkerAction =
     | {action:'compile_pdf', request:TypstRequest, preview?:boolean, fonts?:CustomFont[]}
     | {action:'compile_pdf_preview', request:TypstRequest}
     | {action:'compile_svg', request:TypstRequest}
+    | {action:'compile_svg_preview', request:TypstRequest}
     | {action:'page_count', pdf:Uint8Array}
     | {action:'preview_strip', pdf:Uint8Array, page_width:string, title:string, subtitle:string,
         position:'start'|'end', locale:string, dir:TextDir}
@@ -54,23 +55,26 @@ export type WorkerRequest = WorkerAction & {id:number}
 // number of these may arrive before the matching WorkerResult
 export type WorkerProgress = {id:number, kind:'progress', event:ProgressEvent}
 
-// Final response to a request: PDF bytes for the PDF actions, an SVG string for compile_svg, a
-// number for page_count, null for init/set_custom_fonts. `pages` accompanies the PDF bytes of a
-// compile action, counted here so the main thread never has to parse the document itself.
+// Final response to a request: PDF bytes for the PDF actions, an SVG string for compile_svg, one
+// SvgPage per page for compile_svg_preview, a number for page_count, null for
+// init/set_custom_fonts. `pages` accompanies the output of a compile action, counted here so the
+// main thread never has to parse the document itself.
 // worn = the WASM compiler has permanently accumulated enough memory that this whole worker
 // should be recycled (see TypstWeb.worn). fatal = the error was a WASM trap (e.g. an
 // out-of-memory abort), which poisons the compiler for good — the worker must be recycled
 // before any further compile can succeed. Both are acted on by TypstWorkerClient in typst.ts.
 export type WorkerResult =
-    | {id:number, kind:'result', ok:true, result:Uint8Array|string|number|null, pages:number|null,
-        worn:boolean}
+    | {id:number, kind:'result', ok:true, result:WorkerOutput, pages:number|null, worn:boolean}
     | {id:number, kind:'result', ok:false, error:string, fatal:boolean}
 
 export type WorkerResponse = WorkerProgress | WorkerResult
 
-// What handle_action answers with — `pages` is set only by the PDF compile actions
+// Everything an action can answer with (see WorkerResult)
+type WorkerOutput = Uint8Array|string|number|SvgPage[]|null
+
+// What handle_action answers with — `pages` is set only by the compile actions
 interface ActionOutcome {
-    result:Uint8Array|string|number|null
+    result:WorkerOutput
     pages:number|null
 }
 
@@ -208,6 +212,10 @@ async function handle_action(
     }
     if (message.action === 'compile_svg'){
         return {result: await generator.compile_svg(message.request), pages: null}
+    }
+    if (message.action === 'compile_svg_preview'){
+        const pages = await generator.compile_svg_preview(message.request, on_progress)
+        return {result: pages, pages: pages.length}
     }
     if (message.action === 'preview_strip'){
         // Typeset in the UI's language, with the fonts its script needs (see notice_fonts)

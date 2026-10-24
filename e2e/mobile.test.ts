@@ -1,11 +1,12 @@
 
 // The phone layout, below AppRoot's 900px breakpoint, run by the config's `mobile` project.
 // AppRoot mounts no preview pane there at all, so whatever the pane does on desktop has to
-// happen some other way: the page-count estimate a build freezes is measured on demand
-// (ensure_page_estimate) rather than kept current by the live preview, the downloads move into
-// the versions list, and the example designs and intro video sit inline
+// happen some other way: the editor previews on request, full screen, before building (which
+// also measures the page-count estimate the build freezes), the downloads move into the
+// versions list, and the example designs and intro video sit inline. A phone that can't cope
+// compiles nothing itself and builds on the server instead (see compile_mode.ts)
 
-import {test, expect, boot, build_version, click_button, owned_designs, UI_TIMEOUT}
+import {test, expect, boot, build_version, click_button, owned_designs, versions_of, UI_TIMEOUT}
     from './fixtures'
 import {seed_own_design} from './helpers/admin'
 
@@ -21,8 +22,11 @@ test('there is no preview pane', async ({page}) => {
     await expect(page.getByLabel('Name')).toBeVisible({timeout: 60_000})
     // Not mounted rather than hidden, so nothing compiles previews nobody can see
     await expect(page.locator('.display')).toHaveCount(0)
-    await expect(page.getByRole('button', {name: 'Build it', exact: true})
+    // The editor previews first rather than building straight away
+    await expect(page.getByRole('button', {name: 'Preview', exact: true})
         .locator('visible=true')).toHaveCount(1)
+    await expect(page.getByRole('button', {name: 'Build it', exact: true})
+        .locator('visible=true')).toHaveCount(0)
 })
 
 
@@ -33,8 +37,17 @@ test('building from the simple editor, then opening the PDF', async ({page}) => 
     const design_id = await seed_own_design(uid, {simple_mode: true})
     await page.goto(`/designs/${design_id}`)
 
-    // Simple mode derives the binding from the page estimate, which with no preview pane the
-    // build has to measure first — a build that skipped it would freeze a guess
+    // The preview shows the pages as images, and Build it in its top bar builds what it shows.
+    // Simple mode derives the binding from the page estimate, which the preview measures — a
+    // build without one would freeze a guess
+    const preview = page.getByRole('button', {name: 'Preview', exact: true})
+        .locator('visible=true')
+    await expect(preview).toBeEnabled({timeout: 120_000})
+    await preview.click()
+    const pages = page.locator('.preview img.page')
+    await expect(pages.first()).toBeVisible({timeout: 60_000})
+    expect(await pages.first().evaluate(img => (img as HTMLImageElement).naturalWidth))
+        .toBeGreaterThan(0)
     const version = await build_version(page, design_id)
     expect(version.data['error'] ?? null).toBe(null)
     expect(version.data['status']).toBe('available')
@@ -51,6 +64,71 @@ test('building from the simple editor, then opening the PDF', async ({page}) => 
     await click_button(page.locator('.mobile_actions'), 'Open interior')
     const tab = await opening
     expect((await navigating).frame().page()).toBe(tab)
+})
+
+
+test('Keep editing closes the preview, back to the editor', async ({page}) => {
+    const uid = await boot(page)
+    const design_id = await seed_own_design(uid, {simple_mode: true})
+    await page.goto(`/designs/${design_id}`)
+    const preview = page.getByRole('button', {name: 'Preview', exact: true})
+        .locator('visible=true')
+    await expect(preview).toBeEnabled({timeout: 120_000})
+    await preview.click()
+    await expect(page.locator('.preview img.page').first()).toBeVisible({timeout: 60_000})
+    await click_button(page, 'Keep editing')
+    await expect(page.locator('.preview img.page')).toHaveCount(0)
+    await expect(preview).toBeVisible()
+})
+
+
+test('a phone switched to the server builds there, without a preview', async ({page}) => {
+    await page.addInitScript(() => {
+        localStorage.setItem('compile_on_server', '1')
+    })
+    const uid = await boot(page)
+    const design_id = await seed_own_design(uid, {simple_mode: true})
+
+    // Accept the compile without running one (no journey compiles on the server)
+    const requested:string[] = []
+    await page.route('**/api/compile', async route => {
+        requested.push((route.request().postDataJSON() as {version_id:string}).version_id)
+        await route.fulfill({status: 202, contentType: 'application/json', body: '{}'})
+    })
+    await page.goto(`/designs/${design_id}`)
+
+    // Straight to Build it, handed to the server as soon as the version exists
+    await expect(page.getByRole('button', {name: 'Preview', exact: true})
+        .locator('visible=true')).toHaveCount(0, {timeout: 60_000})
+    const build = page.getByRole('button', {name: 'Build it', exact: true}).locator('visible=true')
+    await expect(build).toBeEnabled({timeout: 120_000})
+    await build.click()
+    await expect.poll(async () => (await versions_of(design_id)).length, {timeout: 60_000})
+        .toBe(1)
+    const [version] = await versions_of(design_id)
+    await expect.poll(() => requested, {timeout: 60_000}).toEqual([version!.id])
+
+    // ...and never compiled here: nothing published it while the stubbed server sat on it
+    await page.waitForTimeout(3000)
+    expect((await versions_of(design_id))[0]!.data['status']).toBe('pending')
+})
+
+
+test('a tab that died mid-compile switches the phone to the server', async ({page}) => {
+    // The marker a compile leaves while it runs, as a tab killed for memory leaves it behind
+    await page.addInitScript(() => {
+        if (!sessionStorage.getItem('booted')){
+            sessionStorage.setItem('booted', '1')
+            localStorage.setItem('compile_in_flight', String(Date.now()))
+        }
+    })
+    const uid = await boot(page)
+    const design_id = await seed_own_design(uid, {simple_mode: true})
+    await page.goto(`/designs/${design_id}`)
+    await expect(page.getByRole('button', {name: 'Build it', exact: true})
+        .locator('visible=true')).toHaveCount(1, {timeout: 60_000})
+    expect(await page.evaluate(() => localStorage.getItem('compile_on_server'))).toBe('1')
+    expect(await page.evaluate(() => localStorage.getItem('compile_in_flight'))).toBe(null)
 })
 
 
