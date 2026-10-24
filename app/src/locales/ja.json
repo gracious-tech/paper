@@ -9,6 +9,7 @@
   "app.error_content_unreachable": "聖書本文を提供しているfetch.bibleに接続できませんでした。お使いのネットワークでブロックされている可能性があります。モバイルデータ通信など、別のネットワークをお試しください。",
   "app.error_report": "お知らせください",
   "app.error_title": "問題が発生しました",
+  "app.install": "アプリとしてインストール",
   "app.language": "言語",
   "app.privacy": "プライバシーポリシー",
   "app.save_failed": "変更を保存できませんでした。再読み込みして同期し直してください。",

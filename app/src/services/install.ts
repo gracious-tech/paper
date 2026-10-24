@@ -2,7 +2,8 @@
 // Installing the app (public/manifest.json makes it installable). It's offered only where the
 // browser itself can install it in one step: Chromium-based browsers fire `beforeinstallprompt`
 // once a page meets their install criteria, and that event's prompt() is the browser's own
-// install dialog, which the designs list offers in a notice the user can dismiss for good. Where
+// install dialog, which the header menu offers whenever it can, and the designs list in a notice
+// the user can dismiss for good. Where
 // it never fires — Safari, Firefox, the in-app browsers of Facebook and
 // the like, an app that's already installed — nothing is offered, rather than instructions for
 // an install that may not work there. The browser's own suggestions are left alone too (no

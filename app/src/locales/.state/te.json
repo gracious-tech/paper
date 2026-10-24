@@ -9,6 +9,7 @@
   "app.error_content_unreachable": "Couldn't connect to fetch.bible, which provides the Bible text. Your network may be blocking it — try a different network, such as mobile data.",
   "app.error_report": "Let us know",
   "app.error_title": "Something went wrong",
+  "app.install": "Install as app",
   "app.language": "Language",
   "app.privacy": "Privacy policy",
   "app.save_failed": "Couldn't save your changes — reload to resync",

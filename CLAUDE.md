@@ -293,8 +293,9 @@ paper_bible/
         typst_worker.ts    # The worker: WASM compiler via paper-bible-typst-web
         watchers.ts        # Auto-fetch book content as the design changes
         errors.ts          # Error capture/reporting (imported first, before everything)
-        install.ts         # Installing the app (public/manifest.json): offered, in a dismissable
-                            #   notice on /designs, only while a browser fires beforeinstallprompt
+        install.ts         # Installing the app (public/manifest.json): offered (header menu, and a
+                            #   dismissable notice on /designs) only while a browser fires
+                            #   beforeinstallprompt
         example_designs.ts # The example designs (pure data + translated labels)
         examples.ts        # Building/creating a design from an example
         example_images.ts  # Each example's pre-rendered cover picture, by UI locale

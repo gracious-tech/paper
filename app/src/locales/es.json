@@ -9,6 +9,7 @@
   "app.error_content_unreachable": "No se pudo conectar con fetch.bible, que proporciona el texto de la Biblia. Es posible que tu red lo esté bloqueando. Prueba con otra red, como los datos móviles.",
   "app.error_report": "Avísanos",
   "app.error_title": "Algo salió mal",
+  "app.install": "Instalar como aplicación",
   "app.language": "Idioma",
   "app.privacy": "Política de privacidad",
   "app.save_failed": "No se pudieron guardar tus cambios. Recarga la página para volver a sincronizar",

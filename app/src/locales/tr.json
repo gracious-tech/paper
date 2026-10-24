@@ -9,6 +9,7 @@
   "app.error_content_unreachable": "Kutsal Kitap metnini sağlayan fetch.bible’a bağlanılamadı. Ağınız onu engelliyor olabilir — mobil veri gibi farklı bir ağ deneyin.",
   "app.error_report": "Bize bildirin",
   "app.error_title": "Bir şeyler ters gitti",
+  "app.install": "Uygulama olarak yükle",
   "app.language": "Dil",
   "app.privacy": "Gizlilik politikası",
   "app.save_failed": "Değişiklikleriniz kaydedilemedi — eşitlemek için sayfayı yeniden yükleyin",

@@ -9,6 +9,7 @@
   "app.error_content_unreachable": "Tidak dapat terhubung ke fetch.bible, yang menyediakan teks Alkitab. Jaringan Anda mungkin memblokirnya — coba jaringan lain, seperti data seluler.",
   "app.error_report": "Beri tahu kami",
   "app.error_title": "Terjadi kesalahan",
+  "app.install": "Instal sebagai aplikasi",
   "app.language": "Bahasa",
   "app.privacy": "Kebijakan privasi",
   "app.save_failed": "Perubahan Anda gagal disimpan — muat ulang untuk menyinkronkan",

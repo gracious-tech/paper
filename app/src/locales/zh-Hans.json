@@ -9,6 +9,7 @@
   "app.error_content_unreachable": "无法连接到提供圣经文本的 fetch.bible。您的网络可能屏蔽了它，请尝试其他网络，例如移动数据。",
   "app.error_report": "告诉我们",
   "app.error_title": "出错了",
+  "app.install": "安装为应用",
   "app.language": "语言",
   "app.privacy": "隐私政策",
   "app.save_failed": "无法保存您的更改，请重新加载以重新同步",

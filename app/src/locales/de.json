@@ -9,6 +9,7 @@
   "app.error_content_unreachable": "Es konnte keine Verbindung zu fetch.bible hergestellt werden, das den Bibeltext bereitstellt. Möglicherweise wird es von Ihrem Netzwerk blockiert – versuchen Sie es mit einem anderen Netzwerk, z. B. mobilen Daten.",
   "app.error_report": "Geben Sie uns Bescheid",
   "app.error_title": "Etwas ist schiefgelaufen",
+  "app.install": "Als App installieren",
   "app.language": "Sprache",
   "app.privacy": "Datenschutzerklärung",
   "app.save_failed": "Ihre Änderungen konnten nicht gespeichert werden – laden Sie die Seite neu, um zu synchronisieren",

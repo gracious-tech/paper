@@ -46,6 +46,12 @@ v-app.app(v-else)
                                 AppIcon(name='translate')
                             v-list-item-title {{ $t("app.language") }}
                             v-list-item-subtitle {{ LOCALES[locale]?.name }}
+                        //- Whenever the browser itself can install the app, even once the designs
+                        //- list's notice about it is dismissed (see install.ts)
+                        v-list-item(v-if='can_install' @click='install_app')
+                            template(#prepend)
+                                AppIcon(:name='is_mobile ? "install_mobile" : "install_desktop"')
+                            v-list-item-title {{ $t("app.install") }}
 
             AppNavbar(v-if='!on_info_page')
 
@@ -128,6 +134,7 @@ import {design_needs_editor} from '@/services/versions'
 import {init_coloris} from '@/services/coloris'
 import {use_is_mobile} from '@/services/display'
 import {server_mode} from '@/services/compile_mode'
+import {can_install, install_app} from '@/services/install'
 
 
 const route = useRoute()
