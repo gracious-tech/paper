@@ -72,9 +72,11 @@ function svg_page(height:number):SvgPage{
 }
 
 
-// What bookcover's generate() does, as far as a preview can tell: the panels split from the
-// wraparound, written beside its output path
+// What bookcover's generate() does, as far as a preview can tell: the wraparound at its output
+// path (1000 x 500pt, bleed included), and the panels split from it written beside it
 async function write_cover(options:GenerateOptions):Promise<GenerateResult>{
+    await writeFile(options.output_path, '<svg viewBox="0 0 1000 500" width="1000pt"'
+        + ' height="500pt" data-panel="wraparound"><rect/></svg>')
     const panel = async (name:string) => {
         const panel_path = path.join(path.dirname(options.output_path), `${name}.svg`)
         await writeFile(panel_path, `<svg data-panel="${name}"></svg>`)
@@ -284,7 +286,7 @@ describe('run_preview (phone)', () => {
         expect(metadata.contentType).toBe('application/json')
         expect(metadata.contentEncoding).toBe('gzip')
         const output = await stored_preview(file_path)
-        expect(output).toMatchObject({front_cover: null, back_cover: null})
+        expect(output.cover).toBe(null)
         const pages = output.pages
         expect(pages).toHaveLength(2)
         expect(pages[0]).toMatch(/^<svg [^>]*viewBox="0 0 100 100"/)
@@ -304,7 +306,7 @@ describe('run_preview (phone)', () => {
         expect(page_count).toBe(64)
     })
 
-    it('brings both cover panels when the window is the whole book', async () => {
+    it('leads with the cover\'s front panel', async () => {
         const design_id = await make_design({blueprint: with_cover()})
         const job = await make_job(design_id)
 
@@ -313,8 +315,7 @@ describe('run_preview (phone)', () => {
         const doc = await preview(job.preview_id)
         expect(doc['pages']).toBe(2)
         const output = await stored_preview(doc['path'] as string)
-        expect(output.front_cover).toBe('<svg data-panel="front"></svg>')
-        expect(output.back_cover).toBe('<svg data-panel="back"></svg>')
+        expect(output.cover).toBe('<svg data-panel="front"></svg>')
         // Split from the wraparound by bookcover itself, its spine sized from the estimate
         expect(cover_mock.mock.calls[0]![0]).toMatchObject({format: 'svg', split: true})
     })
@@ -389,7 +390,24 @@ describe('run_preview (phone)', () => {
 
 describe('run_preview (desktop)', () => {
 
-    it('keeps the window the desktop asked for, and only the covers it reaches', async () => {
+    it('leads with the whole cover, its bleed cropped off and its folds marked', async () => {
+        // A custom size, with 3mm of bleed and a 10mm spine (see with_cover)
+        const design_id = await make_design({blueprint: {...with_cover(), service_id: 'custom'}})
+        await run_preview(await make_job(design_id, {size: 'desktop'}))
+
+        const doc = (await admin_db.collection('previews').get()).docs[0]!.data()
+        const cover = (await stored_preview(doc['path'] as string)).cover!
+        expect(cover).toContain('data-panel="wraparound"')
+        // Cropped in from the bleed on every side
+        const [x, y] = /viewBox="([^"]+)"/.exec(cover)![1]!.split(' ').map(Number)
+        expect(x).toBeCloseTo(3 / 25.4 * 72)
+        expect(y).toBeCloseTo(3 / 25.4 * 72)
+        // A guide line on each side of the spine
+        expect(cover.match(/<line /g)).toHaveLength(2)
+    })
+
+    it('keeps the window the desktop asked for, with no cover once the start is left out',
+            async () => {
         const design_id = await make_design({blueprint: with_cover()})
         const job = await make_job(design_id, {size: 'desktop', section: 'end'})
         // A long document's end: what came before was dropped, half the document kept
@@ -405,8 +423,7 @@ describe('run_preview (desktop)', () => {
         expect(doc).toMatchObject({status: 'available', page_estimate: 4, truncated: true,
             dropped_before: true, dropped_after: false})
         const output = await stored_preview(doc['path'] as string)
-        expect(output.front_cover).toBe(null)
-        expect(output.back_cover).toBe('<svg data-panel="back"></svg>')
+        expect(output.cover).toBe(null)
     })
 
     it('gives a phone the smaller window', async () => {

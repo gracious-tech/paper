@@ -499,15 +499,16 @@ export async function render_cover_pdf(blueprint:Blueprint, page_count:number,
 }
 
 
-// The cover's individual panels as SVG text, for a preview's cover pages and for building a 3D
-// picture of the book (see app/tools/example_images/). Goes through the same render_cover() as
-// every other cover, at preview quality since neither is printed. `share_url` is the link any
-// auto-copyright block on the back carries
+// The cover as SVG text — the whole wraparound and its individual panels — for a preview's cover
+// and for building a 3D picture of the book (see app/tools/example_images/). Goes through the
+// same render_cover() as every other cover, at preview quality since neither is printed.
+// `share_url` is the link any auto-copyright block on the back carries
 export async function render_cover_panels(blueprint:Blueprint, page_count:number,
-        share_url?:string):Promise<{front:string, back:string, spine?:string}> {
+        share_url?:string):Promise<{wraparound:string, front:string, back:string, spine?:string}> {
     const result = await render_cover(blueprint, page_count, undefined,
         {format: 'svg', quality: 'preview', ...share_url !== undefined && {share_url}})
-    return {front: result.front as string, back: result.back as string,
+    return {wraparound: result.data as string, front: result.front as string,
+        back: result.back as string,
         ...result.spine !== undefined && {spine: result.spine as string}}
 }
 

@@ -370,6 +370,8 @@ onUnmounted(() => {
     position: absolute
     inset: 0
     overflow-y: auto
+    // The gray a browser's PDF viewer shows around the pages, as this preview once was one
+    background-color: rgb(82, 86, 89)
 
 .overlay
     position: absolute

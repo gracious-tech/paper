@@ -6,10 +6,11 @@
 // compiled interior, so callers pass the actual count (version creation, where the cover is
 // rendered after the interior) or an estimate (live preview).
 
-import {get_builtin_bg} from 'bookcover-core'
+import {get_builtin_bg, resolve_dimensions} from 'bookcover-core'
 
 import {resolve_reading_trim, usable_length} from './trim.js'
 
+import type {DimensionInputs} from 'bookcover-core'
 import type {Blueprint, CoverConfig} from './types.js'
 
 
@@ -105,4 +106,67 @@ export function cover_render_key(cover:CoverConfig, blueprint:Blueprint,
     return JSON.stringify(cover_form_for_render(cover, blueprint, page_count))
         + '|' + bg_key
         + '|' + cover.font_families.join(',')
+}
+
+
+// Where a rendered wraparound cover's trim box and fold guide lines fall, in points, as resolved
+// from bookcover's mm-based layout
+export interface CoverPageGeometry {
+    // Trim box to crop to, measured from the page's top-left, or null when the cover has no bleed
+    crop:{left:number, top:number, width:number, height:number}|null
+    // X positions of the 50%-gray fold guide lines
+    fold_x:number[]
+}
+
+
+export function cover_page_geometry(blueprint:Blueprint, page_count:number):CoverPageGeometry {
+    // Where the wraparound cover's trim box and fold guide lines fall on the rendered page, in
+    // points measured from its top-left. Uses the same dimensions bookcover uses to split the
+    // wraparound into panels — its layout is mm-based and the page is pt, so this converts mm ->
+    // pt exactly as bookcover's splitter does
+    const dims = resolve_dimensions(cover_form_for_render(
+        blueprint.cover!, blueprint, page_count) as unknown as DimensionInputs)
+    const mm_to_pt = (mm:number) => mm / 25.4 * 72
+    const back = dims.cover_region_back
+    const front = dims.cover_region_front
+
+    // The trim box (bleed dropped) — only when there's bleed to hide
+    const left = mm_to_pt(back.x.toNumber())
+    const right = mm_to_pt(front.x.toNumber() + front.w.toNumber())
+    const crop = dims.cover_has_bleed
+        ? {left, top: mm_to_pt(back.y.toNumber()), width: right - left,
+            height: mm_to_pt(back.h.toNumber())}
+        : null
+
+    // The spine's left and right edges when the book has a spine, otherwise a single line on
+    // the fold between the back and front panels
+    const fold_mm = dims.cover_has_spine
+        ? [dims.cover_region_spine.x.toNumber(),
+            dims.cover_region_spine.x.toNumber() + dims.cover_region_spine.w.toNumber()]
+        : [front.x.toNumber()]
+    return {crop, fold_x: fold_mm.map(mm_to_pt)}
+}
+
+
+export function crop_cover_svg(svg:string, geometry:CoverPageGeometry):string {
+    // A rendered wraparound cover (an SVG whose viewBox is in points, as Typst writes them) as a
+    // preview shows it: cropped to its trim box, so the bleed is hidden, with thin 50%-gray guide
+    // lines on the fold(s). Both are preview aids; the printed cover is rendered separately
+    const open_start = svg.indexOf('<svg')
+    const open_end = svg.indexOf('>', open_start) + 1
+    const view_box = /viewBox="([^"]+)"/.exec(svg.slice(open_start, open_end))?.[1] ?? '0 0 0 0'
+    const [x, y, width, height] = view_box.trim().split(/[\s,]+/).map(Number) as
+        [number, number, number, number]
+    const box = geometry.crop ?? {left: x, top: y, width, height}
+
+    // The root's box and size replaced, everything else about it kept
+    const open_tag = svg.slice(open_start, open_end)
+        .replace(/\s(?:viewBox|width|height)="[^"]*"/g, '')
+        .replace(/^<svg/, `<svg viewBox="${box.left} ${box.top} ${box.width} ${box.height}"`
+            + ` width="${box.width}pt" height="${box.height}pt"`)
+    const lines = geometry.fold_x.map(fold => `<line x1="${fold}" y1="${y}" x2="${fold}"`
+        + ` y2="${y + height}" stroke="rgb(128,128,128)" stroke-width="0.5"/>`).join('')
+    const close = svg.lastIndexOf('</svg>')
+    return svg.slice(0, open_start) + open_tag + svg.slice(open_end, close) + lines
+        + svg.slice(close)
 }

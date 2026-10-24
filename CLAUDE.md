@@ -46,9 +46,11 @@ Live at [paper.bible](https://paper.bible). MIT No Attribution license.
    field-level writes so co-editors don't clobber each other)
 3. `DisplayPreview.vue` shows a truncated preview beside the editor as they edit. A phone has
    no room for it, so its editor's button reads **Preview** and opens `DialogPhonePreview.vue`
-   instead, with Keep editing / Build it. Both are one standalone SVG per page plus the cover's
-   panels (`preview.ts`), laid out by `DisplayPreviewPages.vue`: a column of ~30 pages on a
-   phone, facing-page spreads of ~50 on a desktop, with the "only a preview" notes in HTML.
+   instead, with Keep editing / Build it. Both are one standalone SVG per page plus the cover
+   (`preview.ts`), laid out by `DisplayPreviewPages.vue`: a phone's ~30 pages one under another,
+   its cover's front panel first; a desktop's ~50 as the PDF preview always showed them, at one
+   scale, with the "only a preview" strips (HTML now), the whole cover with its bleed cropped
+   and its spine marked (`crop_cover_svg()`), then facing-page spreads.
    Whenever the browser fails at a preview, the server makes it instead (`POST /api/preview`,
    see `server_preview.ts`): on a phone after 20s, while on a desktop the server only races a
    browser that's taken 10s. A phone that can't cope (out of memory, too slow, a tab that died
@@ -267,7 +269,7 @@ paper_bible/
                             #   its preview/build/cover editor/Paper options ask for it
                             #   (ensure_page_estimate). Never in the browser in server mode
         build.ts           # build_design(): snapshot, freeze, compile (BtnGenerate, phone preview)
-        preview.ts         # A design's preview (SVG pages + cover panels): browser_preview,
+        preview.ts         # A design's preview (SVG pages + cover): browser_preview,
                             #   phone_preview (20s limit, else server), desktop_preview (the
                             #   browser/server race, strikes and re-checks)
         server_preview.ts  # Previews made on the server (/api/preview): flush, request, await
@@ -325,7 +327,7 @@ paper_bible/
                             #   (compile_pdf_from_blueprint + upload + doc update); also the
                             #   asset checks and cover rendering previews share
     src/preview.ts         # handle_preview + run_preview: a design's preview window as SVG
-                            #   pages + cover panels as JSON, a phone's window or a desktop's,
+                            #   pages + cover as JSON, a phone's window or a desktop's,
                             #   into design_cache/
     src/dispatch.ts        # dispatch_job(): async-invoke the compile function, or run in-process
     src/quota.ts           # per-uid daily caps on the expensive routes (compile, preview,
@@ -448,8 +450,8 @@ version_assets/{design_id}/{hash}.{ext}   # frozen snapshots shared by every ver
                                           #   design. Append-only by rule, so a design edit can
                                           #   never change what a published version renders
 design_cache/{design_id}/*.png            # regenerable painted/torn variants, swept at 90d
-design_cache/{design_id}/preview_{id}.json  # server previews (gzipped {pages, front_cover,
-                                          #   back_cover} of SVGs), by the server, swept at 90d
+design_cache/{design_id}/preview_{id}.json  # server previews (gzipped {pages, cover} of
+                                          #   SVGs), by the server, swept at 90d
 versions/{version_id}/doc.pdf, cover.pdf  # rendered output only — swept at 365d, then
                                           #   regenerated from the frozen blueprint + snapshots
 errors/{fingerprint}/{id}.json            # error reports, swept at 90d

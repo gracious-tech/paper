@@ -43,12 +43,12 @@ export const PREVIEW_LIMITS:Record<PreviewSize, number> = {
 
 
 // A preview as the app shows it, whether its browser or the server made it: the window's pages
-// in reading order and the cover's panels, each a standalone SVG document. A cover panel is
-// only there when the window reaches that end of the book
+// in reading order, each a standalone SVG document, and the cover when the window starts at the
+// book's start — a phone's is its front panel, a desktop's the whole wraparound, cropped to its
+// trim box with its folds marked (see crop_cover_svg)
 export interface PreviewPages {
     pages:string[]
-    front_cover:string|null
-    back_cover:string|null
+    cover:string|null
 }
 
 

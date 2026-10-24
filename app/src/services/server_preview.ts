@@ -6,8 +6,8 @@
 //
 // The request is only accepted by /api/preview, since a preview can take longer than any request
 // is held open for. The outcome arrives on a previews/{id} doc, and the output itself is a file
-// in the design's cache prefix: the same pages and cover panels the browser makes (see
-// preview.ts), as JSON.
+// in the design's cache prefix: the same pages and cover the browser makes (see preview.ts), as
+// JSON.
 
 import {doc, onSnapshot} from 'firebase/firestore'
 import {ref as storage_ref, getBytes} from 'firebase/storage'
@@ -93,9 +93,8 @@ export async function request_server_preview(size:PreviewSize, section:PreviewSe
     if (render_signature() === signature && result.page_estimate !== null){
         set_page_estimate(result.page_estimate, signature)
     }
-    const {pages, front_cover, back_cover} =
-        JSON.parse(new TextDecoder().decode(bytes)) as PreviewPages
-    return {pages, front_cover, back_cover, truncated: !!result.truncated,
+    const {pages, cover} = JSON.parse(new TextDecoder().decode(bytes)) as PreviewPages
+    return {pages, cover, truncated: !!result.truncated,
         dropped_before: !!result.dropped_before, dropped_after: !!result.dropped_after}
 }
 

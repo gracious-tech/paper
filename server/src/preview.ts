@@ -1,8 +1,8 @@
 
 // Previews made on the server, for devices that can't compile in their browser (see
 // compile_mode.ts in the app): a window of the design's pages, each a standalone SVG, plus the
-// cover's panels where the window reaches them — exactly what the browser makes, which the app
-// lays out as a phone's column or a desktop's facing-page spreads.
+// cover when the window starts at the book's start — exactly what the browser makes, which the
+// app lays out as a phone's column or a desktop's facing-page spreads.
 //
 // Like a server compile, a preview outlasts anything API Gateway will hold a request open for,
 // so /api/preview only checks and accepts it (handle_preview), the compile function makes it
@@ -14,13 +14,14 @@ import {gzipSync} from 'node:zlib'
 
 import {Timestamp, FieldValue} from 'firebase-admin/firestore'
 import {design_assets_prefix, design_cache_prefix, truncate_for_preview, PREVIEW_LIMITS,
-    svg_page_markup, COMPILE_STATS_LIFETIME_MS} from 'paper-bible-typst'
+    svg_page_markup, cover_page_geometry, crop_cover_svg, COMPILE_STATS_LIFETIME_MS}
+    from 'paper-bible-typst'
 import {compile_svg_preview, load_fonts_dir} from 'paper-bible-typst-node'
 
 import {admin_db, admin_bucket} from './firebase.ts'
 import {config} from './config.ts'
 import {quota_allows, QUOTA_PREVIEW, DAILY_PREVIEW_LIMIT} from './quota.ts'
-import {check_assets, download_fonts, render_cover_panels_svg} from './compile.ts'
+import {check_assets, download_fonts, render_cover_svgs} from './compile.ts'
 import {storage_public_url, join_design_blueprint} from './assets.ts'
 import {shared_content} from './content.ts'
 import {dispatch_job} from './dispatch.ts'
@@ -177,17 +178,16 @@ export async function run_preview(job:PreviewJob, prepare?:() => Promise<void>):
             ? truncation.total_chars / truncation.window_chars : 1
         const page_estimate = Math.max(2, Math.round(Math.max(1, pages.length) * scale / 2) * 2)
 
-        // The cover's panels where the window reaches them, its spine sized from the estimate
-        const show_front = !!blueprint.cover && !truncation.dropped_before
-        const show_back = !!blueprint.cover && !truncation.dropped_after
-        const panels = show_front || show_back
-            ? await render_cover_panels_svg(blueprint, custom_fonts, page_estimate, share_url)
-            : null
-        const output:PreviewPages = {
-            pages: pages.map(page => svg_page_markup(page)),
-            front_cover: show_front ? panels!.front : null,
-            back_cover: show_back ? panels!.back : null,
+        // The cover when the window starts at the book's start, its spine sized from the
+        // estimate: a phone's front panel, or a desktop's whole wraparound with its bleed cropped
+        // off and its folds marked
+        let cover:string|null = null
+        if (blueprint.cover && !truncation.dropped_before){
+            const svgs = await render_cover_svgs(blueprint, custom_fonts, page_estimate, share_url)
+            cover = job.size === 'phone' ? svgs.front : crop_cover_svg(svgs.wraparound,
+                cover_page_geometry(blueprint, page_estimate))
         }
+        const output:PreviewPages = {pages: pages.map(page => svg_page_markup(page)), cover}
         const preview_ms = performance.now() - compile_start
 
         // Stored gzipped (served with Content-Encoding, which browsers undo themselves), since
