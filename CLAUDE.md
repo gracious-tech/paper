@@ -744,7 +744,10 @@ After that, every push to `main` deploys itself. The scripts still work by hand
   server's outcome on the next job settles it: success confirms (`'1'`), failure switches back,
   since then the document or our code was more likely at fault. A crash is a
   `compile_in_flight` marker left in localStorage, which `pagehide` clears, so closing a tab
-  mid-compile doesn't count. The engine failing to start only shows the health banner once the
+  mid-compile doesn't count. It covers a whole browser job, not just the worker's compile
+  (`begin_browser_job()`: a build until its PDF is uploaded, a phone's preview until 15s after
+  it's shown), since the main thread's part can lose a phone's tab too, and it names the stages
+  running, which the next boot reports (`The tab died during browser work`). The engine failing to start only shows the health banner once the
   server can't take over either
 - **The server can't mask images, so server previews need the client's variants.** Before
   asking, `request_server_preview()` flushes the design (the server reads it from Firestore)

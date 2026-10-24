@@ -24,6 +24,7 @@ interface ErrorReport {
     severity:string
     message:string
     url:string
+    context?:Record<string, string|number>|null
 }
 
 

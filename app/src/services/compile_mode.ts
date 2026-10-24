@@ -33,6 +33,7 @@ import {COMPILE_STATS_LIFETIME_MS} from 'paper-bible-typst'
 import {firestore} from '@/services/firebase'
 import {user} from '@/services/auth'
 import {is_mobile_now} from '@/services/display'
+import {report_error} from '@/services/errors'
 
 
 // How long a phone's preview may take in the browser before it's abandoned and the device
@@ -70,9 +71,9 @@ export class BrowserMemoryError extends Error {}
 export class SlowCompileError extends Error {}
 
 
-// localStorage keys: the device's mode ('1' once confirmed, 'provisional' until then), when a
-// compile on it began while one is running, a desktop's strikes, and a switched desktop's re-check
-// countdown ({left, interval} as JSON)
+// localStorage keys: the device's mode ('1' once confirmed, 'provisional' until then), what
+// browser work is running on it while any is ({at, stages} as JSON, see begin_browser_job), a
+// desktop's strikes, and a switched desktop's re-check countdown ({left, interval} as JSON)
 const MODE_KEY = 'compile_on_server'
 const IN_FLIGHT_KEY = 'compile_in_flight'
 const STRIKES_KEY = 'compile_strikes'
@@ -262,44 +263,82 @@ export async function within_timeout<T>(compile:Promise<T>, timeout_ms:number,
 }
 
 
-// How many browser compiles are running on this device right now (see track_browser_compile)
-let in_flight = 0
+// The stages of browser work running on this device right now, outermost first (see
+// begin_browser_job), e.g. a build's whole job and the worker compile inside it
+const active_stages:string[] = []
 
 
-export function track_browser_compile<T>(compile:Promise<T>):Promise<T>{
-    // Mark a browser compile as running for as long as `compile` is pending, so a tab that dies
-    // during it is noticed on the next boot (see check_crashed_compile)
-    in_flight += 1
-    write_key(IN_FLIGHT_KEY, String(Date.now()))
-    const done = () => {
-        in_flight -= 1
-        if (in_flight === 0){
-            write_key(IN_FLIGHT_KEY, null)
+function write_marker():void{
+    // Record what's running for the next boot to find if the tab dies (see
+    // check_crashed_compile), or clear the record once nothing is
+    write_key(IN_FLIGHT_KEY, active_stages.length
+        ? JSON.stringify({at: Date.now(), stages: active_stages}) : null)
+}
+
+
+export function begin_browser_job(stage:string):() => void{
+    // Mark a stretch of heavy browser work as running until the returned function is called, so
+    // a tab that dies during it is noticed on the next boot. Not just the worker's compile: the
+    // main thread's part around it (resolving content, holding and uploading the PDF, decoding a
+    // preview's pages) can run a phone out of memory just as well, and iOS gives no error for
+    // either, only a reload
+    active_stages.push(stage)
+    write_marker()
+    let ended = false
+    return () => {
+        if (!ended){
+            ended = true
+            active_stages.splice(active_stages.indexOf(stage), 1)
+            write_marker()
         }
     }
-    compile.then(done, done)
+}
+
+
+export function track_browser_compile<T>(compile:Promise<T>, stage = 'compile'):Promise<T>{
+    // Mark a browser compile as running for as long as `compile` is pending (see
+    // begin_browser_job)
+    const end = begin_browser_job(stage)
+    compile.then(end, end)
     return compile
 }
 
 
 // A page being left on purpose (the tab closed, a link followed, stored in the back/forward
 // cache) fires pagehide, which a tab killed for using too much memory never gets to. So the
-// marker is cleared then, and set again if the page comes back with a compile still running
+// marker is cleared then, and set again if the page comes back with work still running
 addEventListener('pagehide', () => {
     write_key(IN_FLIGHT_KEY, null)
 })
 addEventListener('pageshow', () => {
-    if (in_flight > 0){
-        write_key(IN_FLIGHT_KEY, String(Date.now()))
+    if (active_stages.length){
+        write_marker()
     }
 })
+
+
+function crash_context(marker:string):Record<string, string|number>{
+    // What a crash's marker says about where the tab died, for its report. A marker left by a
+    // build from before stages were recorded is just a timestamp
+    try {
+        const {at, stages} = JSON.parse(marker) as {at:number, stages:string[]}
+        return {stages: stages.join('>'), since_marked_ms: Date.now() - at,
+            mobile: is_mobile_now() ? 1 : 0}
+    } catch {
+        return {stages: 'unknown', mobile: is_mobile_now() ? 1 : 0}
+    }
+}
 
 
 export function check_crashed_compile():void{
     // At boot, notice the last session's tab dying mid-compile: a phone is switched to the server
     // there and then, a desktop takes strikes (see strike)
-    if (read_key(IN_FLIGHT_KEY) !== null){
+    const marker = read_key(IN_FLIGHT_KEY)
+    if (marker !== null){
         write_key(IN_FLIGHT_KEY, null)
+        // Nothing else ever learns of it, and the stages say what to make leaner
+        report_error('silent', new Error('The tab died during browser work'),
+            {critical: true, context: crash_context(marker)})
         if (is_mobile_now()){
             switch_to_server('crash')
         } else {

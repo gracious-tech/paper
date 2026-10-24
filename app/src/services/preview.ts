@@ -17,7 +17,8 @@ import {compile_preview_window, render_signature, set_page_estimate}
 import {claim_compile_turn} from '@/services/compile_progress'
 import {PREVIEW_TIMEOUT_MS, DESKTOP_PREVIEW_TIMEOUT_MS, DESKTOP_PREVIEW_CAP_MS, SlowCompileError,
     BrowserMemoryError, switch_to_server, compiles_on_server, is_device_failure, strike,
-    clear_strikes, recheck_due, recheck_passed, recheck_failed} from '@/services/compile_mode'
+    clear_strikes, recheck_due, recheck_passed, recheck_failed, begin_browser_job}
+    from '@/services/compile_mode'
 import {request_server_preview} from '@/services/server_preview'
 import {report_error} from '@/services/errors'
 
@@ -33,6 +34,12 @@ export interface Preview extends PreviewPages {
     dropped_before:boolean
     dropped_after:boolean
 }
+
+
+// How long a phone's browser preview still counts as running once it's made: showing it means
+// decoding its pages and cover as images, as heavy a moment as any, while the compiler that made
+// them still holds its memory (see begin_browser_job)
+const PHONE_PREVIEW_SHOWN_MS = 15 * 1000
 
 
 // Progress readouts, as the views show them
@@ -92,10 +99,14 @@ export async function phone_preview(on_progress:OnProgress, on_slow:() => void)
     if (compiles_on_server() || !generator){
         return await request_server_preview('phone', 'start', on_progress)
     }
+    const end_job = begin_browser_job('phone_preview')
     try {
-        return await browser_preview(generator, 'phone', 'start', on_progress,
+        const preview = await browser_preview(generator, 'phone', 'start', on_progress,
             {timeout_ms: PREVIEW_TIMEOUT_MS})
+        setTimeout(end_job, PHONE_PREVIEW_SHOWN_MS)
+        return preview
     } catch (error){
+        end_job()
         report_error('silent', error, {context: {stage: 'phone_preview'}})
         if (is_device_failure(error)){
             switch_to_server(error instanceof SlowCompileError ? 'slow' : 'memory')
