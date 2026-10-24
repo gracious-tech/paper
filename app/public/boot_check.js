@@ -1,7 +1,7 @@
 
 // Shows the "browser too old" splash when the app's module bundle can't even start, the one case
 // services/errors.ts can't catch itself (it's part of that bundle, so it never runs either).
-// Without this the loading spinner just spins forever with no explanation.
+// Without this the loading screen just animates forever with no explanation.
 // WARN Must stay ES5 (parseable by anything) and a same-origin file, not an inline <script> —
 //      the CSP's script-src allows no inline scripts, so an inline copy silently never runs
 ;(function(){

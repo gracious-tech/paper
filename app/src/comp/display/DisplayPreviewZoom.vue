@@ -32,7 +32,7 @@ div.zoom
                     span {{ line.label }}
                 p.overflow(v-if='overflows') {{ $t("display.preview.lines_overflow") }}
                 p.hint
-                    | {{ $t("display.preview.measure_hint") }}
+                    strong {{ $t("display.preview.measure_hint") }}
                     br
                     | {{ $t("display.preview.measure_note") }}
 
@@ -140,7 +140,7 @@ const overflows = computed(() => lines.value.some(line => line.px + 48 > window_
     gap: 12px
     padding: 16px 24px
     border-radius: 12px
-    color: rgba(255, 255, 255, 0.8)
+    color: white
     background-color: rgba(0, 0, 0, 0.6)
     backdrop-filter: blur(4px)
     pointer-events: none
@@ -172,9 +172,6 @@ const overflows = computed(() => lines.value.some(line => line.px + 48 > window_
 
     .overflow
         color: rgb(251, 191, 36)
-
-    .hint
-        color: rgba(255, 255, 255, 0.6)
 
 .fade-enter-active, .fade-leave-active
     transition: opacity 0.2s ease

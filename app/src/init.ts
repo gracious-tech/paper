@@ -163,7 +163,7 @@ watch(locale, code => {
 
 
 // Wait for critical services before mounting. Anything that fails here leaves the app unable to
-// start, so it shows the failure splash (nothing else would replace the loading spinner)
+// start, so it shows the failure splash (nothing else would replace the loading screen)
 void (async () => {
 
     // Sign in (anonymously if no persisted user) and init the Bible-content layer in parallel
@@ -262,6 +262,12 @@ void (async () => {
         await router.replace({...router.currentRoute.value, query: {}})
     }
     app.mount('#app')
+
+    // Fade out the loading screen now the app is beneath it, then remove it (on a timer rather
+    // than transitionend, which never fires in a background tab or when the fade is skipped)
+    const boot_loader = document.getElementById('boot_loader')
+    boot_loader?.classList.add('done')
+    setTimeout(() => boot_loader?.remove(), 400)
 
     // Deferred from above: a sign-in link opened on a device that never requested it. Now the
     // app can render a dialog, ask which address it was sent to and finish the sign-in
