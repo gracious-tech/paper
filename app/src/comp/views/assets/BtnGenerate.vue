@@ -2,7 +2,7 @@
 <template lang='pug'>
 
 v-btn-group(rounded='pill' divided color='secondary-darken-1' variant='elevated')
-    v-btn(@click='click' :disabled='!blue.content.length || !typst_generator || blocked'
+    v-btn(@click='click' :disabled='!blue.content.length || !engine_ready || blocked'
             :loading='build_starting')
         | {{ previews ? $t("view.design.preview") : $t("view.design.build_it") }}
     v-btn(v-if='latest_version' @click='view_versions' icon
@@ -39,8 +39,12 @@ const blocked = computed(() => {
 
 
 // Whether this button previews rather than builds: on a phone, which has no live preview to see
-// the design in first, unless it builds on the server (where phase 1 has nothing to preview with)
-const previews = computed(() => is_mobile.value && !server_mode.value)
+// the design in first (the server makes it, where the phone compiles nothing itself)
+const previews = computed(() => is_mobile.value)
+
+// Whether something can compile the design: this browser's engine, or the server for a device
+// that compiles there (whose engine may never have started, see init.ts)
+const engine_ready = computed(() => !!typst_generator.value || server_mode.value)
 
 
 const view_versions = async () => {

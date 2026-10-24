@@ -23,8 +23,8 @@ Live at [paper.bible](https://paper.bible). MIT No Attribution license.
   (`SERVER_ROLES` env picks the handler): `paper-bible-light` (every `/api` route, 512MB),
   behind one API Gateway HTTP API that CloudFront routes `/api/*` to, and `paper-bible-compile`
   (3GB/4GB ephemeral storage, fonts synced from S3 into `/tmp` on cold start — see
-  `server/src/lambda_bootstrap.ts`), which has no HTTP route at all: light's `/api/compile`
-  checks a compile and invokes it asynchronously
+  `server/src/lambda_bootstrap.ts`), which has no HTTP route at all: light's `/api/compile` and
+  `/api/preview` check a job and invoke it asynchronously
 **Shared assets:** the public assets bucket (`https://assets.paper.bible/`, S3 + CloudFront,
   same AWS account) is owned and published by the separate
   [bookcover repo](https://github.com/gracious-tech/bookcover) — top-level dirs: `fonts/`
@@ -47,8 +47,12 @@ Live at [paper.bible](https://paper.bible). MIT No Attribution license.
 3. `DisplayPreview.vue` compiles a truncated preview in the browser as they edit. A phone has no
    room for it, so its editor's button reads **Preview** and opens `DialogPhonePreview.vue`
    instead: the first ~30 pages as one standalone SVG each, full screen, with Keep editing /
-   Build it. A phone that can't cope (a preview over 20s, or a tab that died mid-compile) is
-   switched to compiling on the server for good (`compile_mode.ts`, localStorage)
+   Build it. Whenever the browser fails at a preview (or takes over 10s on a desktop, 20s on a
+   phone), the server makes it instead (`POST /api/preview`, see `server_preview.ts`). A device
+   that can't cope — out of memory, too slow, the engine not starting, or a tab that died
+   mid-compile — is switched to compiling everything on the server for good (`compile_mode.ts`,
+   localStorage), provisionally until the server manages the same kind of job. A desktop in
+   that mode previews on the server once per opening and then on Refresh, not as they edit
 4. On "Build it" (`BtnGenerate.vue`), the design as it is at the click is snapshotted, the
    design force-flushed, and the snapshot frozen into an immutable `versions/{id}` doc (blueprint
    + custom-font snapshot + a `save_token`), then compiled in the browser and uploaded to Storage
@@ -101,7 +105,7 @@ Live at [paper.bible](https://paper.bible). MIT No Attribution license.
 - **Same-origin API:** CloudFront routes `/api/*` to one API Gateway HTTP API, which routes
   everything (`ANY /api/{proxy+}`) to the light Lambda (Vite proxies everything to
   `localhost:8788` in dev) — no CORS anywhere.
-  Light routes: `compile` (accepts and dispatches only), `design_invite_preview`,
+  Light routes: `compile` and `preview` (accept and dispatch only), `design_invite_preview`,
   `redeem_design_invite`, `design_editors`, `copy_version`, `duplicate_design`, `delete_design`, `delete_version`,
   `reconcile_design_assets`, `touch_assets`, `merge_account`, `report_error`
   (unauthenticated), plus `health` on both roles
@@ -260,8 +264,11 @@ paper_bible/
                             #   its preview/build/cover editor/Paper options ask for it
                             #   (ensure_page_estimate). Never in the browser in server mode
         build.ts           # build_design(): snapshot, freeze, compile (BtnGenerate, phone preview)
-        phone_preview.ts   # The phone's SVG preview compile (20s limit, then server mode)
-        compile_mode.ts    # Whether this phone compiles on the server: the switch + crash marker
+        phone_preview.ts   # The phone's SVG preview: browser compile (20s limit), else server
+        server_preview.ts  # Previews made on the server (/api/preview): flush, request, await
+                            #   the previews/{id} doc, fetch the file; ensure_server_estimate
+        compile_mode.ts    # Whether this device compiles on the server: failure classification,
+                            #   the provisional switch and its settling, the crash marker
         binding_advice.ts  # auto_binding / binding_page_issue / page_reduction_suggestions —
                             #   advice over a blueprint, never mutating one
         printing_services.ts  # Service picker items over printing-services
@@ -303,14 +310,20 @@ paper_bible/
     src/dev_server.ts      # Entry point for local dev/tests: serve()s `app` over a real
                             #   listener (see .bin/serve_server, tests/server/routes.test.ts)
     src/lambda.ts           # Production entry point: light wraps `app` with hono/aws-lambda's
-                            #   handle(); compile takes a CompileJob (async invocation from
-                            #   light) and syncs fonts/backgrounds from S3 before compiling
+                            #   handle(); compile takes a CompileJob or PreviewJob (`kind:
+                            #   'preview'`, async invocation from light) and syncs
+                            #   fonts/backgrounds from S3 before running it
     src/lambda_bootstrap.ts # The S3 sync itself (fonts/, backgrounds/ into ASSETS_DIR/tmp),
                             #   memoized per execution environment, retried on failure
     src/types.ts           # HandlerResult — what every handle_* returns
     src/compile.ts         # handle_compile (checks, lock, dispatch, 202) + run_compile
-                            #   (compile_pdf_from_blueprint + upload + doc update)
-    src/quota.ts           # per-uid daily caps on the expensive routes (compile, copy_version)
+                            #   (compile_pdf_from_blueprint + upload + doc update); also the
+                            #   asset checks and cover rendering previews share
+    src/preview.ts         # handle_preview + run_preview: a design's preview window as SVG
+                            #   pages (phone) or the spreads PDF (desktop), into design_cache/
+    src/dispatch.ts        # dispatch_job(): async-invoke the compile function, or run in-process
+    src/quota.ts           # per-uid daily caps on the expensive routes (compile, preview,
+                            #   copy_version)
                             #   + the per-uid server compile lock
     src/content.ts         # Shared BibleContent: collection TTL + LRU book cache
     src/share.ts           # Share-token redemption, shared views, keep-own-copy
@@ -389,12 +402,17 @@ compile_stats/{id}   # write-only telemetry, one row per interior compile attemp
                      #   server). Never read in-app; analysed offline via Firestore export
 compile_quota/{uid}  # cross-instance per-user daily cap on server compiles
 copy_quota/{uid}     # ditto for "keep own copy" (/api/copy_version)
-                     #   Both are {day, count, expires}, Admin SDK only and matching no client
+preview_quota/{uid}  # ditto for server previews (/api/preview, 300/day)
+                     #   All are {day, count, expires}, Admin SDK only and matching no client
                      #   rule, so a caller can neither read nor reset their own count.
                      #   One helper: quota_allows() in server/src/quota.ts
 compile_lock/{uid}   # {version_id, expires}: the one server compile a user may have running,
                      #   claimed by /api/compile, released by the compile (claim_compile_lock()
                      #   etc. in quota.ts). Listed in QUOTA_COLLECTIONS like the rows above
+previews/{id}        # a server preview: {owner, design_id, format: svg|pdf, status:
+                     #   pending|available|failed, path, pages, page_estimate, truncated,
+                     #   dropped_after, error_id, expires}. Server-written; get-only for its
+                     #   owner, who listens for the outcome. ~1 day TTL, swept with the account
 ```
 
 Every `compile_stats` and `*_quota` row carries an `expires` field with a Firestore native
@@ -423,6 +441,8 @@ version_assets/{design_id}/{hash}.{ext}   # frozen snapshots shared by every ver
                                           #   design. Append-only by rule, so a design edit can
                                           #   never change what a published version renders
 design_cache/{design_id}/*.png            # regenerable painted/torn variants, swept at 90d
+design_cache/{design_id}/preview_{id}.*   # server previews (gzipped .json of SVG pages, or
+                                          #   .pdf), written by the server, swept at 90d
 versions/{version_id}/doc.pdf, cover.pdf  # rendered output only — swept at 365d, then
                                           #   regenerated from the frozen blueprint + snapshots
 errors/{fingerprint}/{id}.json            # error reports, swept at 90d
@@ -487,7 +507,7 @@ neither side knows about the other's setup process.
    content — the compile Lambda reads it directly via same-account IAM, the app fetches from
    its CloudFront domain)
 3. `.bin/deploy_firebase_initial <project-id>` — Storage lifecycle rules, Firestore TTL policies
-   (`compile_stats`, `compile_quota`, `copy_quota`, `compile_lock`)
+   (`compile_stats`, `compile_quota`, `copy_quota`, `preview_quota`, `compile_lock`, `previews`)
 4. Create a GCP service account for the Lambda functions' Admin SDK credential (least
    privilege: `roles/datastore.user`, `roles/storage.objectAdmin` scoped to the Storage
    bucket, `roles/firebaseauth.admin`), download its key — `.bin/deploy_aws` prints where to
@@ -687,9 +707,24 @@ After that, every push to `main` deploys itself. The scripts still work by hand
   typst.ts's whole-document SVG (`split_typst_svg`), carrying only the defs it references, and
   shown as an `<img>` from a blob URL so its styles stay inside it
 - **Server mode is permanent for now** (`compile_mode.ts`, with a TODO to revisit): in it a
-  phone compiles nothing itself, builds and covers go straight to `/api/compile`, and estimates
-  only come from builds. A crash is a `compile_in_flight` marker left in localStorage, which
-  `pagehide` clears, so closing a tab mid-compile doesn't count
+  device compiles nothing itself — previews go to `/api/preview`, builds and covers straight to
+  `/api/compile` — and estimates only come from previews and builds (the cover editor asks the
+  server once when its estimate is stale, waiting at most 20s). Only the device's own failures
+  switch it (`is_device_failure()`: `BrowserMemoryError`, `SlowCompileError`, plus the engine
+  failing to start and a crash); an error in generated Typst or a lost connection never does.
+  A switch is stored as `provisional` until the server's outcome on the next job settles it:
+  success confirms (`'1'`), failure switches back, since then the document or our code was
+  more likely at fault. A crash is a `compile_in_flight` marker left in localStorage, which
+  `pagehide` clears, so closing a tab mid-compile doesn't count. The engine failing to start
+  only shows the health banner once the server can't take over either
+- **The server can't mask images, so server previews need the client's variants.** Before
+  asking, `request_server_preview()` flushes the design (the server reads it from Firestore)
+  and runs `resolve_content_for_style()`, which uploads painted/torn variants as
+  `design_cache/{id}/{style}_v{n}_{hash}.png`. The server finds them by the same numbering
+  (`with_styled_images()` in `preview.ts`, every passage image then every story slide image, in
+  order) and shows an image unmasked where none exists. Server previews are stored gzipped with
+  `Content-Encoding: gzip`; the client also gunzips by magic number, in case whatever served the
+  file didn't pass that header on
 - **`footnote.entry` rules only work from the preamble.** A page resolves its footnote area
   against the style chain in force *before any content is laid out*, so a `#show footnote.entry`
   rule that follows the first piece of content on the page — including one emitted from a
@@ -814,10 +849,12 @@ After that, every push to `main` deploys itself. The scripts still work by hand
   `STUCK_MS` in the app (6 min), the last two above the function's 5-min timeout — so a queued event never
   starts after its lock lapsed, and a retry offered for a stuck version is never refused by
   the lock a dead compile left. Async retries are off (a retry would only compile again). From
-  source there's no function to invoke (`COMPILE_FUNCTION` unset), so `dispatch_compile()`
+  source there's no function to invoke (`COMPILE_FUNCTION` unset), so `dispatch_job()`
   runs the compile in the same process — but only where that process serves the `compile`
   role too (dev's default). A light-only server without `COMPILE_FUNCTION` throws instead,
-  since a Lambda is frozen the moment its response goes out
+  since a Lambda is frozen the moment its response goes out. Server previews (`/api/preview`)
+  take the same path, with no lock (a preview mustn't wait on a build) and the client giving
+  up after 3 minutes (`SERVER_PREVIEW_TIMEOUT_MS`)
 - **The CSP (`SecurityHeadersPolicy` in `infra/cloudformation.yml`) guards two things only:**
   injected script can't run (the threat is a shared design smuggling markup into a viewer's
   page — nothing renders user content as HTML today, so this is the backstop), and nothing the

@@ -47,7 +47,7 @@ import {content, bible_content, load_fonts} from '@/services/content'
 import {typst_generator, TypstWorkerClient, ASSETS_PREFIX} from '@/services/typst'
 import {custom_fonts} from '@/services/custom_fonts'
 import {start_watchers} from '@/services/watchers'
-import {check_crashed_compile} from '@/services/compile_mode'
+import {check_crashed_compile, switch_to_server} from '@/services/compile_mode'
 import {report_error, vue_error_handler, set_error_translator} from '@/services/errors'
 
 
@@ -220,10 +220,12 @@ void (async () => {
         // upload, and this covers any uploads that happened before the worker was ready
         await typst_client.set_custom_fonts(custom_fonts)
     }).catch((error:unknown) => {
-        // Without the engine nothing can be previewed or generated, so it's flagged to the user
-        // (unless it started and only re-sending the uploaded fonts failed)
+        // Without the engine nothing can be previewed or generated here, so the device compiles
+        // on the server instead (unless it started and only re-sending the uploaded fonts
+        // failed). The user is only told if the server can't do it either (see AppRoot.vue)
         if (!typst_generator.value){
             health.engine_failed = true
+            switch_to_server('engine')
         }
         report_error('silent', error, {critical: true, context: {stage: 'typst_init'}})
     })

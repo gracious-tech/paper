@@ -127,6 +127,7 @@ import {is_anonymous, photo_url} from '@/services/auth'
 import {design_needs_editor} from '@/services/versions'
 import {init_coloris} from '@/services/coloris'
 import {use_is_mobile} from '@/services/display'
+import {server_mode} from '@/services/compile_mode'
 
 
 const route = useRoute()
@@ -180,7 +181,8 @@ const health_problem = computed(() => {
     if (health.saving === 'offline'){
         return {type: 'warning' as const, message: t("app.save_offline"), reload: false}
     }
-    if (health.engine_failed){
+    // A device without the engine compiles on the server, unless that failed too
+    if (health.engine_failed && !server_mode.value){
         return {type: 'error' as const, message: t("app.engine_failed"), reload: true}
     }
     return null

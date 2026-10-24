@@ -5,7 +5,7 @@
 // it's the only place the WASM engine's output is shown before a version is built
 
 import {test, expect, boot, click_button, design_data, UI_TIMEOUT} from './fixtures'
-import {seed_own_design} from './helpers/admin'
+import {seed_own_design, stub_server_preview} from './helpers/admin'
 
 import type {Page} from '@playwright/test'
 
@@ -199,4 +199,33 @@ test('the preview renders the design', async ({page}) => {
     const first = await preview.getAttribute('src')
     await page.getByLabel('Verse numbers').uncheck()
     await expect.poll(() => preview.getAttribute('src'), {timeout: 60_000}).not.toBe(first)
+})
+
+
+test('a desktop switched to the server previews there, on request', async ({page}) => {
+    // A desktop whose browser couldn't cope (see compile_mode.ts): its preview is made on the
+    // server, which is stubbed here (no journey compiles on the server)
+    await page.addInitScript(() => {
+        localStorage.setItem('compile_on_server', '1')
+    })
+    const uid = await boot(page)
+    const previews = await stub_server_preview(page, uid)
+    const design_id = await seed_own_design(uid, {simple_mode: false})
+    await page.goto(`/designs/${design_id}`)
+
+    // One preview as the pane opens, the same spreads PDF the browser would have made
+    const preview = page.locator('.preview .frame iframe')
+    await expect(preview).toHaveAttribute('src', /^blob:/, {timeout: 60_000})
+    expect(previews).toEqual(['pdf'])
+
+    // An edit doesn't ask for another, since each one costs the server: Refresh does
+    const first = await preview.getAttribute('src')
+    await page.getByLabel('Verse numbers').uncheck()
+    await expect.poll(async () => (await design_data(design_id))['blueprint'])
+        .toMatchObject({show_verses: false})
+    await page.waitForTimeout(2000)
+    expect(previews).toEqual(['pdf'])
+    await page.locator('.preview .toolbar').getByRole('button', {name: 'Refresh'}).click()
+    await expect.poll(() => preview.getAttribute('src')).not.toBe(first)
+    expect(previews).toEqual(['pdf', 'pdf'])
 })

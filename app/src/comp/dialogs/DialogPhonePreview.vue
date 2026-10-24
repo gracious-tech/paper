@@ -22,14 +22,14 @@ v-dialog(v-model='state.phone_preview' fullscreen transition='dialog-bottom-tran
             div.end(v-if='preview.truncated')
                 strong {{ $t("display.preview.end_of_preview") }}
                 div {{ $t("display.preview.build_for_rest") }}
-        div.status(v-else-if='slow')
-            p {{ $t("dialog.phone_preview.too_slow") }}
         div.status(v-else-if='failed')
             h3(class='mb-4') {{ $t("display.preview.failed") }}
             v-btn(@click='compile' variant='tonal' color='white') {{ $t("common.try_again") }}
         div.status(v-else)
             v-progress-circular(indeterminate color='white' class='mb-6')
-            p {{ progress_message || $t("display.preview.generating_preview") + "…" }}
+            //- Said once this device turned out too slow, while the server makes it instead
+            p(v-if='slow') {{ $t("dialog.phone_preview.too_slow") }}
+            p(v-else) {{ progress_message || $t("display.preview.generating_preview") + "…" }}
 
 </template>
 
@@ -43,8 +43,8 @@ import {useI18n} from '@/services/i18n'
 import {state} from '@/services/state'
 import {report_error} from '@/services/errors'
 import {stage_text} from '@/services/compile_progress'
-import {compile_phone_preview, SlowPreviewError} from '@/services/phone_preview'
-import {AbandonedCompileError} from '@/services/typst'
+import {compile_phone_preview} from '@/services/phone_preview'
+import {ServerPreviewError} from '@/services/server_preview'
 import {build_design, build_starting} from '@/services/build'
 
 import type {PhonePreview} from '@/services/phone_preview'
@@ -59,8 +59,8 @@ const router = useRouter()
 const preview = ref<PhonePreview|null>(null)
 const page_urls = ref<string[]>([])
 
-// Whether the last attempt failed, and whether that was for taking too long (after which this
-// device builds on the server, so there's no point offering another go)
+// Whether the last attempt failed, and whether this browser turned out too slow for it (after
+// which the server makes it, and builds on this device from now on)
 const failed = ref(false)
 const slow = ref(false)
 
@@ -73,7 +73,8 @@ let latest_run = 0
 
 
 // Building needs nothing from the preview, but a failure of its own is worth a look first, so
-// only while one is still compiling is it held back (a slow preview means the server builds)
+// only while one is still compiling is it held back (unless this browser was too slow for it,
+// since then the server builds too)
 const can_build = computed(() => !!preview.value || failed.value || slow.value)
 
 
@@ -100,8 +101,13 @@ async function compile():Promise<void>{
             progress_message.value = text
         }
     }
+    const on_slow = () => {
+        if (run === latest_run){
+            slow.value = true
+        }
+    }
     try {
-        const result = await compile_phone_preview(on_progress)
+        const result = await compile_phone_preview(on_progress, on_slow)
         if (run !== latest_run){
             return
         }
@@ -112,12 +118,12 @@ async function compile():Promise<void>{
         if (run !== latest_run){
             return
         }
-        if (error instanceof SlowPreviewError){
-            slow.value = true
-        } else if (!(error instanceof AbandonedCompileError)){
-            report_error('silent', error, {context: {stage: 'phone_preview'}})
-            failed.value = true
+        // A preview the server failed at was already reported there
+        if (!(error instanceof ServerPreviewError && error.error_id)){
+            report_error('silent', error, {context: {stage: 'phone_preview_server'}})
         }
+        failed.value = true
+        slow.value = false
     }
 }
 

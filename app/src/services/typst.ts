@@ -2,7 +2,7 @@
 import {shallowRef, toRaw} from 'vue'
 
 import {locale, locale_dir} from '@/services/i18n'
-import {track_browser_compile} from '@/services/compile_mode'
+import {track_browser_compile, BrowserMemoryError} from '@/services/compile_mode'
 
 import type {CustomFont} from 'typst-fonts'
 import type {TypstRequest, ProgressFn, SvgPage} from 'paper-bible-typst'
@@ -207,9 +207,10 @@ export class TypstWorkerClient {
                 return await this.send(action, on_progress)
             } catch (retry_error){
                 // A fresh worker failing the same way means the document itself exceeds the
-                // 32-bit WASM heap — surface something clearer than the raw trap message
+                // 32-bit WASM heap — surface something clearer than the raw trap message, and
+                // something compile_mode.ts can tell is the device's limit
                 if (retry_error instanceof FatalWorkerError){
-                    throw new Error('Document too large to generate in the browser '
+                    throw new BrowserMemoryError('Document too large to generate in the browser '
                         + `(${retry_error.message})`)
                 }
                 throw retry_error

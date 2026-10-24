@@ -110,7 +110,8 @@ export const health = reactive({
     // while this tab stays open), 'failed' once a write was refused or the design's listener
     // died (see designs.ts)
     saving: null as null|'offline'|'failed',
-    // The in-browser Typst engine couldn't start, so nothing can be previewed or generated
+    // The in-browser Typst engine couldn't start, so nothing can be previewed or generated in this
+    // browser — a problem only while the device isn't compiling on the server instead
     engine_failed: false,
 })
 

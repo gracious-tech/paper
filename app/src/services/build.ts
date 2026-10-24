@@ -56,8 +56,9 @@ export async function build_design(router:Router):Promise<void>{
     // Build the open design: freeze it into a new version and compile that, taking the user
     // straight to the version's page (see below). Any failure is told to the user here
 
-    // Compiler must be ready (the button is disabled until it is, but guard anyway)
-    if (!typst_generator.value || !current_design_id.value){
+    // Compiler must be ready, unless the server compiles for this device (the button is disabled
+    // until one is, but guard anyway)
+    if ((!typst_generator.value && !compiles_on_server()) || !current_design_id.value){
         return
     }
 

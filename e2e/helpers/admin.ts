@@ -7,6 +7,7 @@
 // directly here, which is also how the app's own server does it.
 
 import {randomBytes} from 'node:crypto'
+import {gzipSync} from 'node:zlib'
 
 import {initializeApp} from 'firebase-admin/app'
 import {getAuth} from 'firebase-admin/auth'
@@ -15,7 +16,7 @@ import {getStorage} from 'firebase-admin/storage'
 
 import {BUCKET, EMULATOR_PORTS, PROJECT} from '../stack.ts'
 
-import type {Page} from '@playwright/test'
+import type {Page, Route} from '@playwright/test'
 
 
 process.env['GCLOUD_PROJECT'] = PROJECT
@@ -278,4 +279,38 @@ export async function seed_shared_version(owner:string):Promise<{design_id:strin
     await admin_bucket.file(`versions/${version_id}/doc.pdf`)
         .save(MINIMAL_PDF, {contentType: 'application/pdf'})
     return {design_id, version_id, share_token}
+}
+
+
+// A page as a phone's server preview carries it: a standalone SVG, white like paper
+export const PREVIEW_SVG_PAGE = '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 140"'
+    + ' width="100pt" height="140pt"><rect width="100" height="140" fill="#fff"/></svg>'
+
+
+export async function stub_server_preview(page:Page, uid:string,
+        svg_pages = [PREVIEW_SVG_PAGE]):Promise<string[]>{
+    // Answer /api/preview the way the server does without running a compile (no journey compiles
+    // on the server): the doc the client listens to, settled at once, and the file it names,
+    // gzipped as the server stores it (a phone's pages are `svg_pages`, a desktop's a one-page
+    // PDF). Returns the formats asked for, in order
+    const requested:string[] = []
+    await page.route('**/api/preview', async (route:Route) => {
+        const body = route.request().postDataJSON() as {design_id:string, format:'svg'|'pdf'}
+        requested.push(body.format)
+        const preview_id = new_id()
+        const ext = body.format === 'svg' ? 'json' : 'pdf'
+        const path = `design_cache/${body.design_id}/preview_${preview_id}.${ext}`
+        const bytes = body.format === 'svg'
+            ? Buffer.from(JSON.stringify({pages: svg_pages}))
+            : MINIMAL_PDF
+        await admin_bucket.file(path).save(gzipSync(bytes), {contentType: body.format === 'svg'
+            ? 'application/json' : 'application/pdf', metadata: {contentEncoding: 'gzip'}})
+        await admin_db.doc(`previews/${preview_id}`).set({owner: uid, design_id: body.design_id,
+            format: body.format, status: 'available', path, pages: 1, page_estimate: 24,
+            truncated: false, dropped_after: false, error_id: null,
+            expires: Timestamp.fromMillis(Date.now() + 24 * 60 * 60 * 1000)})
+        await route.fulfill({status: 202, contentType: 'application/json',
+            body: JSON.stringify({ok: true, preview_id})})
+    })
+    return requested
 }

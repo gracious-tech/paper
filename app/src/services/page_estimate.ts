@@ -13,7 +13,7 @@ import {resolve_content_for_style} from '@/services/content_images'
 import {report_error} from '@/services/errors'
 import {use_is_mobile} from '@/services/display'
 import {compiling_here} from '@/services/compile_progress'
-import {compiles_on_server} from '@/services/compile_mode'
+import {compiles_on_server, within_timeout} from '@/services/compile_mode'
 
 import type {PreviewSection, PreviewTruncation, ProgressFn} from 'paper-bible-typst'
 import type {TypstWorkerClient} from '@/services/typst'
@@ -67,12 +67,13 @@ interface WindowSource {
 
 export async function compile_preview_window(generator:TypstWorkerClient, section:PreviewSection,
         limit:number, on_progress?:ProgressFn, cover_label?:string,
-        source:WindowSource = {blueprint: blue, design_id: current_design_id.value})
-        :Promise<PreviewWindow>{
+        source:WindowSource = {blueprint: blue, design_id: current_design_id.value},
+        timeout_ms:number|null = null):Promise<PreviewWindow>{
     // Compile a window of the open design (or `source`) of at most `limit` characters
     // (PREVIEW_CHAR_LIMIT for the preview, ESTIMATE_CHAR_LIMIT when only the page count is
     // wanted), and estimate the full page count from it. `cover_label` marks the gray
-    // inside-of-cover slot when a cover precedes it
+    // inside-of-cover slot when a cover precedes it. Given `timeout_ms`, the compile itself (not
+    // the Bible text's download) is given up on with a SlowCompileError once it takes that long
     const {blueprint, design_id} = source
     const signature = render_signature(blueprint)
 
@@ -110,7 +111,9 @@ export async function compile_preview_window(generator:TypstWorkerClient, sectio
 
     // The worker returns the spread count alongside the bytes, so a multi-megabyte PDF is
     // never re-parsed on this thread just to be measured
-    const {bytes, pages} = await generator.compile_pdf_preview(truncation.request, on_progress)
+    const compile = generator.compile_pdf_preview(truncation.request, on_progress)
+    const {bytes, pages} = timeout_ms === null ? await compile
+        : await within_timeout(compile, timeout_ms, () => generator.abandon())
 
     // The window's own page count scaled by how much of the document it covered (exact when
     // nothing was truncated). Reading spreads hold two book pages per PDF page, and the result

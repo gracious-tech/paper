@@ -4,11 +4,12 @@
 // happen some other way: the editor previews on request, full screen, before building (which
 // also measures the page-count estimate the build freezes), the downloads move into the
 // versions list, and the example designs and intro video sit inline. A phone that can't cope
-// compiles nothing itself and builds on the server instead (see compile_mode.ts)
+// compiles nothing itself, and has the server make its previews and builds instead (see
+// compile_mode.ts)
 
 import {test, expect, boot, build_version, click_button, owned_designs, versions_of, UI_TIMEOUT}
     from './fixtures'
-import {seed_own_design} from './helpers/admin'
+import {seed_own_design, stub_server_preview} from './helpers/admin'
 
 
 test.describe.configure({timeout: UI_TIMEOUT})
@@ -82,14 +83,16 @@ test('Keep editing closes the preview, back to the editor', async ({page}) => {
 })
 
 
-test('a phone switched to the server builds there, without a preview', async ({page}) => {
+test('a phone switched to the server previews and builds there', async ({page}) => {
     await page.addInitScript(() => {
         localStorage.setItem('compile_on_server', '1')
     })
     const uid = await boot(page)
     const design_id = await seed_own_design(uid, {simple_mode: true})
 
-    // Accept the compile without running one (no journey compiles on the server)
+    // Accept the preview and the compile without running either (no journey compiles on the
+    // server): the preview settled at once, the compile left pending
+    const previews = await stub_server_preview(page, uid)
     const requested:string[] = []
     await page.route('**/api/compile', async route => {
         requested.push((route.request().postDataJSON() as {version_id:string}).version_id)
@@ -97,12 +100,19 @@ test('a phone switched to the server builds there, without a preview', async ({p
     })
     await page.goto(`/designs/${design_id}`)
 
-    // Straight to Build it, handed to the server as soon as the version exists
-    await expect(page.getByRole('button', {name: 'Preview', exact: true})
-        .locator('visible=true')).toHaveCount(0, {timeout: 60_000})
-    const build = page.getByRole('button', {name: 'Build it', exact: true}).locator('visible=true')
-    await expect(build).toBeEnabled({timeout: 120_000})
-    await build.click()
+    // The server's pages, shown like the browser's
+    const preview = page.getByRole('button', {name: 'Preview', exact: true})
+        .locator('visible=true')
+    await expect(preview).toBeEnabled({timeout: 120_000})
+    await preview.click()
+    const pages = page.locator('.preview img.page')
+    await expect(pages).toHaveCount(1, {timeout: 60_000})
+    await expect.poll(() => pages.first().evaluate(img => (img as HTMLImageElement).naturalWidth))
+        .toBeGreaterThan(0)
+    expect(previews).toEqual(['svg'])
+
+    // Build it, handed to the server as soon as the version exists
+    await click_button(page.locator('.preview'), 'Build it')
     await expect.poll(async () => (await versions_of(design_id)).length, {timeout: 60_000})
         .toBe(1)
     const [version] = await versions_of(design_id)
@@ -125,9 +135,11 @@ test('a tab that died mid-compile switches the phone to the server', async ({pag
     const uid = await boot(page)
     const design_id = await seed_own_design(uid, {simple_mode: true})
     await page.goto(`/designs/${design_id}`)
-    await expect(page.getByRole('button', {name: 'Build it', exact: true})
+    await expect(page.getByRole('button', {name: 'Preview', exact: true})
         .locator('visible=true')).toHaveCount(1, {timeout: 60_000})
-    expect(await page.evaluate(() => localStorage.getItem('compile_on_server'))).toBe('1')
+    // Provisionally, until the server has done a job of its own (see settle_server_mode)
+    await expect.poll(() => page.evaluate(() => localStorage.getItem('compile_on_server')))
+        .toBe('provisional')
     expect(await page.evaluate(() => localStorage.getItem('compile_in_flight'))).toBe(null)
 })
 

@@ -15,7 +15,7 @@
   "dialog.how_to_print.lulu_paper_cream": "The exact name of an option on Lulu's English-only website, which the user has to find there. Keep it in English as Lulu shows it.",
   "dialog.how_to_print.lulu_paper_white": "The exact name of an option on Lulu's English-only website, which the user has to find there. Keep it in English as Lulu shows it.",
   "dialog.phone_preview.keep_editing": "Button at the top of the full-screen preview on a phone, closing it to go back to editing the book.",
-  "dialog.phone_preview.too_slow": "Shown in the full-screen preview on a phone when making the preview took too long: from now on the books are built (made into printable PDFs) on our servers instead of on the device. 'Build it' is the button beside this message.",
+  "dialog.phone_preview.too_slow": "Shown under a spinner in the full-screen preview on a phone, once making the preview on the device took too long: our servers are now making this preview instead, and from now on they also build the user's books (make them into printable PDFs) instead of the device.",
   "display.preview.waiting_online": "Progress text under a timer while a book being built has lost its internet connection: its PDF is ready (or must be handed to our servers) and is sent as soon as the device is back online.",
   "display.preview.waiting_previous": "Progress text under a timer while a book being built waits for the user's previous build, still being made on their device, to finish first. 'Build' is the act of making the printable PDF.",
   "doc.chapter": "The heading printed above each chapter when the 'heading' chapter style is chosen; {n} is the chapter number. Use the word published Bibles in this language use for a chapter, and put {n} where it goes (some languages put the number first or wrap it, e.g. \"第{n}章\").",
@@ -38,5 +38,7 @@
   "vuetify.loading": "Screen-reader label for a loading spinner.",
   "vuetify.noDataText": "Shown inside a dropdown list that has no items to choose from.",
   "vuetify.open": "Screen-reader label for the button that opens a dropdown list.",
-  "wizard.type.coming": "Subtitle on a not-yet-available design type card in the new-design wizard. {date} is a short month and year already formatted in the UI language, e.g. \"Dec 2026\"."
+  "wizard.type.coming": "Subtitle on a not-yet-available design type card in the new-design wizard. {date} is a short month and year already formatted in the UI language, e.g. \"Dec 2026\".",
+  "display.preview.on_server": "Progress text while the preview of a book is being made on our servers rather than on the user's device (followed by \"…\").",
+  "display.preview.refresh": "Button in the live preview's toolbar that asks for a fresh preview of the book as it is now. Shown only when previews are made on our servers, which don't update automatically as the user edits."
 }
