@@ -264,4 +264,11 @@ const next = async () => {
     .stepper-progress
         flex: none
 
+// Vuetify draws a pending step's circle with color-mix(), which older browsers (Safari < 16.2)
+// drop, leaving its light number on the white dialog. The same tint as an rgba() for them only,
+// and only on circles without a colour of their own (the current and complete steps have one)
+@supports not (background: color-mix(in srgb, red 50%, transparent))
+    .stepper-progress :deep(.v-stepper-item__avatar:not([class*='bg-']))
+        background: rgba(var(--v-theme-surface-variant), var(--v-medium-emphasis-opacity))
+
 </style>

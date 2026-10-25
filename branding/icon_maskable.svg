@@ -1,11 +1,12 @@
 <?xml version="1.0" encoding="UTF-8" standalone="no"?>
 <!-- icon.svg as a full-bleed square, for platforms that cut their own shape out of an icon
-     (Android's maskable icons, iOS's home screen). The scroll is shrunk to 85% so it stays
-     inside the maskable safe zone, the middle circle 80% of the icon's width -->
+     (Android's maskable icons, iOS's home screen). The scroll is shrunk to 70% so its corners
+     stay well inside the circle Android shows, which is only the middle 72/108 of the icon
+     (its safe zone is 66/108), not the 80% the maskable spec promises -->
 <svg width="34.63662" height="34.63662" viewBox="0 0 34.63662 34.63662" version="1.1"
     xmlns="http://www.w3.org/2000/svg">
   <rect width="34.63662" height="34.63662" fill="#642b4c" />
-  <g transform="translate(17.31831 17.31831) scale(0.85) translate(-17.31831 -17.31831) translate(7.5151196,6.8111362)">
+  <g transform="translate(17.31831 17.31831) scale(0.7) translate(-17.31831 -17.31831) translate(7.5151196,6.8111362)">
     <path
        style="fill:#ffffff"
        d="m 3.2148438,0.28125 v 19.4375 H 16.306641 L 17.8125,18.210938 V 0.28125 Z" />

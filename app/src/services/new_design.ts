@@ -206,7 +206,7 @@ export const TYPE_PRESETS:{id:NewDesignType, image:string|null, diff:Partial<Blu
 
 // Every type picture's URL, keyed by its path (only URLs are bundled, so a visitor downloads
 // just the pictures their own locale shows)
-const type_images = import.meta.glob<string>('../assets/images/design_types/**/*.avif',
+const type_images = import.meta.glob<string>('../assets/images/design_types/**/*.webp',
     {eager: true, query: '?url', import: 'default'})
 
 
@@ -218,7 +218,7 @@ export function type_preset_image(image:string|null, locale:string):string|undef
         return undefined
     }
     const dir = '../assets/images/design_types'
-    return type_images[`${dir}/${locale}/type_${image}.avif`] ?? type_images[`${dir}/type_${image}.avif`]
+    return type_images[`${dir}/${locale}/type_${image}.webp`] ?? type_images[`${dir}/type_${image}.webp`]
 }
 
 
