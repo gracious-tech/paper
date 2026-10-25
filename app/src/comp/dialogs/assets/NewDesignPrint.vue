@@ -27,7 +27,7 @@ template(v-else-if='professional')
             v-card-title(class='text-body-large') {{ item.label }}
             v-card-subtitle {{ item.dims }}
             v-card-text {{ item.subtitle }}
-    img.size_guide(src='@/assets/images/book_sizes.avif' alt='' class='mt-5')
+    img.size_guide(src='@/assets/images/book_sizes.webp' alt='' class='mt-5')
 
 </template>
 
@@ -38,8 +38,8 @@ import {computed, ref} from 'vue'
 import {useI18n} from '@/services/i18n'
 
 import NewDesignCard from '@/comp/dialogs/assets/NewDesignCard.vue'
-import img_btn_home from '@/assets/images/btn_home.avif'
-import img_btn_pro from '@/assets/images/btn_pro.avif'
+import img_btn_home from '@/assets/images/btn_home.webp'
+import img_btn_pro from '@/assets/images/btn_pro.webp'
 
 import {wizard_size_options} from '@/services/new_design'
 import {guess_paper_size, remember_paper_size} from '@/services/blueprints'

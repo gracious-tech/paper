@@ -1024,7 +1024,7 @@ After that, every push to `main` deploys itself. The scripts still work by hand
   spine width never churns every picture when fetch.bible's content shifts
 - **Type pictures are rendered, not translated** (`app/src/assets/images/design_types/`). The
   wizard's first step shows each type as a crop of a printed page: English's are hand-cropped
-  screenshots (`type_<name>.avif`), and every other UI locale gets `<tag>/type_<name>.avif`,
+  screenshots (`type_<name>.webp`), and every other UI locale gets `<tag>/type_<name>.webp`,
   Genesis 1 in fetch.bible's preferred translation for its language (else the first in that
   language with Genesis), compiled through `BibleContent.resolve()` + the Typst CLI by
   `.bin/gen_type_images` (a few seconds per locale, no dev servers; fonts are cached in the
