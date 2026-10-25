@@ -232,33 +232,38 @@ function float_chapter_size(request:TypstRequest):number {
 // and script, with no gaps or missing glyphs. Three paths draw it — the 'divider' style itself,
 // the bilingual columns layout (one divider across both translations at full grid width rather
 // than one inside each cell, see gen_multi_bible_grids) and the 'float' style's two-column
-// fallback (see gen_ch_divider_binding). Each rule's box has its baseline raised so the rule sits
-// centred on the number's lining figures rather than at the text baseline. No font: override, so
-// it inherits the document-wide font like any other text. Laid out LTR in every document, since
-// the tapers point outward by their order around the number, which RTL would reverse.
+// fallback (see gen_ch_divider_binding). Each rule is moved up so it sits centred on the number's
+// lining figures rather than at the text baseline. No font: override, so it inherits the
+// document-wide font like any other text. Laid out LTR in every document, since the tapers point
+// outward by their order around the number, which RTL would reverse.
 //
 // A single full-width block: width: 100% gives align(center) the text column to centre against,
 // and sticky: true keeps the divider with the chapter's text so it can never be stranded at the
 // foot of a page. Explicit v() around it gets trimmed — #ch(n) sits at a paragraph edge in the
 // fetched markup — so the block's own margins are the spacing.
 //
-// above + below total three leadings, so the divider takes two line slots out of the baseline
-// grid and the rhythm is unchanged. They're deliberately unequal though: every body line is a
-// zero-height box on its baseline (see gen_preamble's leading calc), so the line
-// *following* the divider hangs its whole ascent up into the gap beneath it, while the line above
-// ends flat at its baseline. Shifting up by half that imbalance — roughly half of a body ascent
-// (~0.95em) less the divider's own figure height (~0.65 x 1.25em) — evens it out. A constant
-// rather than a measured value: it's within ~0.05em across the font range, well below
-// perception, and this runs once per chapter (1189x for a full Bible).
+// The block itself has to be zero height, as a body line is. Inline content directly in a block
+// isn't a paragraph, so gen_preamble's `show par` rule zeroing line heights never reaches it: the
+// number's own edges are zeroed here instead, and each rule is a zero-height box with its
+// polygon moved up out of it (move() draws elsewhere without changing the box's size), since a
+// raised box would give the line its own ascent. Without both, the number's cap height and the
+// rules pushed every line after a divider a few points off the baseline grid.
+//
+// above + below are 1.5 leadings each, so the divider takes two line slots out of the baseline
+// grid and the rhythm is unchanged. Equal margins balance by eye: every body line is a
+// zero-height box on its baseline (see gen_preamble's leading calc), so the line *following* the
+// divider hangs its capitals up into the gap beneath it, while the divider's own figures
+// (~0.65 x 1.1em) rise the same distance into the gap above it.
 function gen_ch_divider(leading:string):string {
     return `#let ch_divider(n) = block(width: 100%, sticky: true,
-    above: 1.5 * ${leading} - 0.1em, below: 1.5 * ${leading} + 0.1em,
-    align(center, text(size: 1.25em, weight: "bold", dir: ltr, context {
+    above: 1.5 * ${leading}, below: 1.5 * ${leading},
+    align(center, text(size: 1.1em, weight: "bold", dir: ltr, top-edge: 0pt, bottom-edge: 0pt,
+            context {
         // Filled in the text's own colour, so the rules follow the text colour option
         let w = 3em
-        let t = 1.8pt
-        let taper(..points) = box(width: w, height: t, baseline: -0.32em + t / 2,
-            polygon(fill: text.fill, stroke: none, ..points))
+        let t = 1.2pt
+        let taper(..points) = box(width: w, height: 0pt, move(dy: -0.32em - t / 2,
+            polygon(fill: text.fill, stroke: none, ..points)))
         let start = taper((0pt, t / 2), (w, 0pt), (w, t))
         let end = taper((0pt, 0pt), (w, t / 2), (0pt, t))
         [#start #h(0.2em) #str(n) #h(0.2em) #end]
