@@ -125,8 +125,81 @@ test('a guest with designs is warned they live only in this browser', async ({pa
 
     await seed_design(uid, 'Something to lose')
     await expect(page.getByText(/only saved in this browser/)).toBeVisible()
-    await page.locator('.signin_warning').getByRole('button', {name: 'Sign in', exact: true}).click()
+    const warning = page.locator('.notice').filter({hasText: 'only saved in this browser'})
+    await warning.getByRole('button', {name: 'Sign in', exact: true}).click()
     await expect(page.getByText('Email me a sign-in link')).toBeVisible()
+})
+
+
+test('the sign-in warning can be dismissed for good', async ({page}) => {
+    const uid = await boot(page)
+    await seed_design(uid, 'Something to lose')
+    const warning = page.locator('.notice').filter({hasText: 'only saved in this browser'})
+    await expect(warning).toBeVisible()
+    await warning.getByRole('button', {name: 'Close'}).click()
+    await expect(warning).toBeHidden()
+    await page.reload()
+    await expect(row(page, 'Something to lose')).toBeVisible({timeout: 60_000})
+    await expect(warning).toBeHidden()
+})
+
+
+// Make the browser offer to install the app, as Chromium does once a page meets its install
+// criteria (headless Chromium never does), with a prompt() that records being called and answers
+// as the user would
+async function offer_install(page:Page, outcome:'accepted'|'dismissed'):Promise<void>{
+    await page.evaluate(answer => {
+        const event = new Event('beforeinstallprompt') as Event & {prompt:() => Promise<unknown>}
+        event.prompt = () => {
+            (window as unknown as {prompted:boolean}).prompted = true
+            return Promise.resolve({outcome: answer})
+        }
+        window.dispatchEvent(event)
+    }, outcome)
+}
+
+
+test('installing is offered only while the browser can, until turned down', async ({page}) => {
+    const uid = await boot(page)
+    await seed_design(uid, 'Something to come back to')
+    await expect(row(page, 'Something to come back to')).toBeVisible()
+    const notice = page.getByText('Install Paper Bible on this device')
+    await expect(notice).toBeHidden()
+    // Nor in the header menu
+    await page.locator('header h1').getByRole('button').last().click()
+    await expect(page.locator('.v-overlay--active .v-list-item').first()).toBeVisible()
+    await expect(page.locator('.v-overlay--active .v-list-item')
+        .filter({hasText: 'Install as app'})).toHaveCount(0)
+    await page.keyboard.press('Escape')
+
+    // Installing opens the browser's own dialog, and the notice goes with the offer it used
+    await offer_install(page, 'accepted')
+    await expect(notice).toBeVisible()
+    await page.getByRole('button', {name: 'Install', exact: true}).click()
+    expect(await page.evaluate(() => (window as unknown as {prompted:boolean}).prompted))
+        .toBe(true)
+    await expect(notice).toBeHidden()
+
+    // Closing it turns installing down for good, offers or not
+    await offer_install(page, 'accepted')
+    await expect(notice).toBeVisible()
+    await page.locator('.notice').filter({hasText: 'Install Paper Bible'})
+        .getByRole('button', {name: 'Close'}).click()
+    await expect(notice).toBeHidden()
+    await page.reload()
+    await expect(row(page, 'Something to come back to')).toBeVisible({timeout: 60_000})
+    await offer_install(page, 'accepted')
+    await expect(notice).toBeHidden()
+
+    // The header menu still offers it, whenever the browser can
+    await page.locator('header h1').getByRole('button').last().click()
+    const item = page.locator('.v-overlay--active .v-list-item').filter({hasText: 'Install as app'})
+    await item.click()
+    expect(await page.evaluate(() => (window as unknown as {prompted:boolean}).prompted))
+        .toBe(true)
+    await page.locator('header h1').getByRole('button').last().click()
+    await expect(page.locator('.v-overlay--active .v-list-item').first()).toBeVisible()
+    await expect(item).toHaveCount(0)
 })
 
 

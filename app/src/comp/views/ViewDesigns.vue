@@ -17,7 +17,7 @@ div.cont
             v-btn(value='name' size='small') {{$t("common.name")}}
 
     //- Nothing at all yet — the navbar's "New" is easy to miss on an otherwise blank page
-    div(v-if='!has_any_unfiltered' class='pa-4 text-center')
+    div(v-if='!has_any_unfiltered' class='pa-4 mt-12 text-center')
         p(class='text-medium-emphasis') {{$t("view.designs.no_designs_yet")}}
         v-btn(@click='state.new_design = true' color='secondary' variant='tonal' class='mt-4')
             | {{$t("view.designs.create_first")}}
@@ -57,11 +57,26 @@ div.cont
 
     //- Guests only exist in this browser, so warn them their designs are one clear-data away
     //-     from being lost. Sits outside the list so searching/filtering can never hide it
-    div.signin_warning(v-if='show_signin_warning')
-        v-alert(type='info' variant='tonal' density='compact' class='')
+    div.notice(v-if='show_signin_warning')
+        v-alert(variant='tonal' density='compact' color='primary' closable
+                @click:close='dismiss_signin_warning')
+            template(#prepend)
+                app-icon(name='no_accounts')
             | {{$t("view.designs.signin_warning")}}
-            v-btn(@click='state.account = true' variant='flat' color='secondary' size='small' class='ml-2')
+            v-btn(@click='state.account = true' variant='flat' color='secondary' size='small'
+                    class='ml-2')
                 | {{$t("view.designs.signin_warning_action")}}
+
+    //- Only while the browser itself can install the app, and until dismissed (see install.ts).
+    //-     Not on the empty-state page, where there's nothing to come back to yet
+    div.notice(v-if='offer_install && has_any_unfiltered')
+        v-alert(variant='tonal' density='compact' color='primary' closable
+                @click:close='dismiss_install')
+            template(#prepend)
+                app-icon(:name='is_mobile ? "install_mobile" : "install_desktop"')
+            | {{$t("view.designs.install_prompt")}}
+            v-btn(@click='install_app' variant='flat' color='secondary' size='small' class='ml-2')
+                | {{$t("view.designs.install")}}
 
     //- Example designs, which desktop shows in the preview pane beside this list. Mobile has no
     //- such pane (see AppRoot), so they sit at the bottom here, behind a toggle so they don't
@@ -101,6 +116,7 @@ import {designs, viewed_designs, rename_category, clear_category} from '@/servic
 import {legacy} from '@/legacy/legacy'
 import {state, confirm_dialog, prompt_dialog} from '@/services/state'
 import {format_relative_time} from '@/services/utils'
+import {offer_install, dismiss_install, install_app} from '@/services/install'
 
 import type {DesignMeta, ViewedDesign} from '@/services/types'
 
@@ -230,8 +246,39 @@ const has_any_filtered = computed(() => {
 })
 
 
-// Only nag guests who actually have something to lose (not on the empty-state page)
-const show_signin_warning = computed(() => is_anonymous.value && has_any_unfiltered.value)
+// localStorage key recording that the sign-in warning was dismissed in this browser
+const SIGNIN_WARNING_DISMISSED_KEY = 'signin_warning_dismissed'
+
+
+// Whether the sign-in warning has been dismissed in this browser
+const read_signin_dismissed = ():boolean => {
+    try {
+        return localStorage.getItem(SIGNIN_WARNING_DISMISSED_KEY) === 'true'
+    } catch {
+        // Private mode / blocked storage
+        return false
+    }
+}
+
+const signin_dismissed = ref(read_signin_dismissed())
+
+
+// Stop showing the sign-in warning in this browser
+const dismiss_signin_warning = () => {
+    signin_dismissed.value = true
+    try {
+        localStorage.setItem(SIGNIN_WARNING_DISMISSED_KEY, 'true')
+    } catch {
+        // Never fail over a cosmetic preference (it's still dismissed until the page reloads)
+    }
+}
+
+
+// Only nag guests who actually have something to lose (not on the empty-state page), and only
+// until they dismiss it
+const show_signin_warning = computed(() => {
+    return is_anonymous.value && has_any_unfiltered.value && !signin_dismissed.value
+})
 
 
 // Whether the example designs are revealed at the bottom of the list (mobile only — desktop
@@ -278,6 +325,9 @@ const open_viewed = (viewed:ViewedDesign) => {
     flex-grow: 1
     max-width: 320px
 
+    .v-alert
+        line-height: 1.5
+
 .subheader
     display: flex
     align-items: center
@@ -299,8 +349,15 @@ const open_viewed = (viewed:ViewedDesign) => {
     padding-bottom: 14px
     margin-bottom: 4px
 
-.signin_warning
+.notice
     padding: 32px 16px 0
+
+    // Stacked notices sit closer together
+    & + .notice
+        padding-top: 12px
+
+    .v-alert
+        line-height: 1.5
 
     .v-alert
         line-height: 1.5

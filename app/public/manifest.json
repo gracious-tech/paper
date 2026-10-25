@@ -1,0 +1,17 @@
+{
+    "id": "/",
+    "name": "Paper Bible",
+    "short_name": "Paper Bible",
+    "description": "Print your own Bible, customise how it looks, and optionally include multiple translations and study notes.",
+    "start_url": "/designs",
+    "scope": "/",
+    "display": "standalone",
+    "theme_color": "#642b4c",
+    "background_color": "#e73c7e",
+    "icons": [
+        {"src": "/icons/icon_192.png", "sizes": "192x192", "type": "image/png", "purpose": "any"},
+        {"src": "/icons/icon_512.png", "sizes": "512x512", "type": "image/png", "purpose": "any"},
+        {"src": "/icons/maskable_192.png", "sizes": "192x192", "type": "image/png", "purpose": "maskable"},
+        {"src": "/icons/maskable_512.png", "sizes": "512x512", "type": "image/png", "purpose": "maskable"}
+    ]
+}

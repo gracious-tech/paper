@@ -8,6 +8,12 @@ html
         meta(name='description' content="Print your own Bible, customise how it looks, and optionally include multiple translations and study notes.")
         meta(property='og:image' content='https://paper.bible/social.jpg')
         link(rel='icon' href='/icon.png')
+        //- Makes the app installable (see services/install.ts). iOS reads its home-screen icon
+            from apple-touch-icon rather than the manifest, and needs it square since it rounds
+            the corners itself. theme-color tints the browser's (or installed app's) title bar
+        link(rel='manifest' href='/manifest.json')
+        link(rel='apple-touch-icon' href='/icons/apple_touch_180.png')
+        meta(name='theme-color' content='#642b4c')
 
         //- Warm the connections boot blocks on, so their DNS + TLS handshakes overlap
             downloading and parsing the bundle rather than starting after it. All four are hit
