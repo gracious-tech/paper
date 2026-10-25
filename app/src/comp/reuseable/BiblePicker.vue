@@ -201,6 +201,15 @@ const change_trans = (id:string) => {
     flex-grow: 1
     min-width: 0
 
+// Info button out over the item's end padding, to the item's edge (its icon keeps the
+// button's own inset, so the tap target stays whole). The content box would clip it there,
+// and needn't clip anything else: titles and subtitles truncate their own text
+.head .v-btn
+    margin-inline-end: -16px
+
+.v-list-item :deep() .v-list-item__content
+    overflow: visible
+
 // Facts and descriptions (up to 100 characters) wrap on a phone, where Vuetify's one line
 // would cut them off. Facts are bold, to set them apart from the description below
 .v-list-item-subtitle.facts
