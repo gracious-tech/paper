@@ -304,3 +304,21 @@ export function to_mm(value:number, unit:string):number {
             return value
     }
 }
+
+
+// Net count of content brackets opened by a piece of markup. Escaped brackets (`\[`, `\]`) are
+// text, not delimiters, so the character after a backslash is skipped
+export function bracket_depth(text:string):number {
+    let depth = 0
+    for (let i = 0; i < text.length; i++) {
+        const char = text[i]
+        if (char === '\\') {
+            i += 1
+        } else if (char === '[') {
+            depth += 1
+        } else if (char === ']') {
+            depth -= 1
+        }
+    }
+    return depth
+}

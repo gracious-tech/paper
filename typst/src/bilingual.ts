@@ -5,6 +5,8 @@
 // gen_multi_bible_grids in content_passage.ts). All functions operate on the pre-rendered
 // Typst markup from fetch.bible (#ch/#vn marker calls, blank-line paragraph blocks).
 
+import {bracket_depth} from './helpers.js'
+
 
 // One chapter of book markup with its chapter number (parsed from the #ch marker)
 export interface ChapterChunk {
@@ -117,6 +119,38 @@ export function cut_at_verses(text:string, boundaries:number[]):string[] {
 }
 
 
+// Split markup into its blank-line separated blocks, except where a blank line sits inside an
+// open `[`. Study notes (`#studynote[...\n\n]`) span blank lines, so a cut there would leave the
+// row's cell with an unclosed bracket and fail the whole compile with "unclosed delimiter"
+function split_balanced_blocks(text:string):string[] {
+    // Alternating block text and the blank-line run that followed it
+    const parts = text.split(/(\n{2,})/)
+    const blocks:string[] = []
+    let pending = ''
+    let depth = 0
+    for (let i = 0; i < parts.length; i++) {
+        // A separator is dropped between blocks, but kept verbatim inside an open bracket
+        if (i % 2 === 1) {
+            if (depth > 0) {
+                pending += parts[i]
+            }
+            continue
+        }
+        pending += parts[i]
+        depth += bracket_depth(parts[i]!)
+        if (depth <= 0) {
+            blocks.push(pending)
+            pending = ''
+            depth = 0
+        }
+    }
+    if (pending) {
+        blocks.push(pending)
+    }
+    return blocks.filter(block => block.trim().length)
+}
+
+
 // Chunk one chapter of the primary translation at the requested granularity: 'verse' cuts at
 // every verse marker, 'paragraph' at every blank-line block that introduces a new verse
 // (blocks with no verse of their own — headings, chapter markers — stay attached so every
@@ -152,7 +186,7 @@ function chapter_rows(
 
     // Paragraph: group blank-line blocks, starting a new group on each verse-introducing block
     // (a verse-less block — heading, chapter marker — continues the current group)
-    const blocks = text.split(/\n{2,}/).filter(block => block.trim().length)
+    const blocks = split_balanced_blocks(text)
     const groups:string[][] = []
     for (const block of blocks) {
         if (/#vn\(\d+\)/.test(block) || !groups.length) {

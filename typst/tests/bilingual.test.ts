@@ -2,6 +2,7 @@
 import {describe, it, expect} from 'vitest'
 
 import {split_chapters, cut_at_verses, build_aligned_rows} from '../src/bilingual.js'
+import {bracket_depth} from '../src/helpers.js'
 
 
 // Two chapters of prose in the primary translation: ch1 has two paragraphs (vv1-2, v3) after
@@ -140,6 +141,18 @@ describe('build_aligned_rows', () => {
         const rows = build_aligned_rows(a, CONTENT_B, 'verse')
         expect(rows[0]![0]).not.toContain('== A Section')
         expect(rows[1]![0]).toBe('== A Section\n#vn(2)Alpha two.')
+    })
+
+    it('never cuts a paragraph row inside a study note that spans a blank line', () => {
+        // Tyndale notes end with a blank line before their closing bracket
+        const a = '#ch(1)\n\n#vn(1)Alpha one.#studynote[#strong[1:1]  A note.\n\n];\n\n'
+            + '#vn(2)Alpha two.'
+        const rows = build_aligned_rows(a, CONTENT_B, 'paragraph')
+        expect(rows.length).toBe(2)
+        for (const [row_a] of rows) {
+            expect(bracket_depth(row_a)).toBe(0)
+        }
+        expect(rows.map(([row_a]) => row_a).join('')).toContain('A note.\n\n];')
     })
 
     it('keeps headings with the following paragraph row', () => {
