@@ -231,9 +231,10 @@ export class TypstWorkerClient {
         try {
             await this.send({action: 'set_custom_fonts', fonts: this.custom_fonts})
         } catch (error){
-            // A compile queued ahead of this trapped and took the worker down with it, failing
-            // this too — but the recycle replays this.custom_fonts, so that's what to wait on
-            if (!(error instanceof FatalWorkerError)){
+            // A compile queued ahead of this trapped, or was abandoned, and took the worker down
+            // with it, failing this too — but the recycle replays this.custom_fonts, so that's
+            // what to wait on
+            if (!(error instanceof FatalWorkerError || error instanceof AbandonedCompileError)){
                 throw error
             }
             await this.gate
