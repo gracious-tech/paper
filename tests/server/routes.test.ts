@@ -118,6 +118,7 @@ async function post(server:Server, path:string, body:unknown,
 // Every authenticated light route, with a body that would satisfy its field checks
 const LIGHT_ROUTES:{path:string, body:Record<string, unknown>}[] = [
     {path: '/api/compile', body: {version_id: 'v1'}},
+    {path: '/api/preview', body: {design_id: 'd1', size: 'phone'}},
     {path: '/api/design_invite_preview', body: {design_id: 'd1', token: 't'}},
     {path: '/api/redeem_design_invite', body: {design_id: 'd1', token: 't'}},
     {path: '/api/design_editors', body: {design_id: 'd1'}},
@@ -263,6 +264,16 @@ describe('role gating', () => {
             `Bearer ${token}`)
         expect(result.status).toBe(404)
         expect(result.body).toEqual({error: 'unknown_version'})
+    })
+
+    it('serves /api/preview on the light role, refusing malformed options', async () => {
+        // Its options are checked before the design is looked up
+        const bad = await post(light, '/api/preview', {design_id: 'd1', size: 'tablet'},
+            `Bearer ${token}`)
+        expect(bad).toEqual({status: 400, body: {error: 'bad_request'}})
+        const result = await post(light, '/api/preview',
+            {design_id: 'no_such_design', size: 'phone'}, `Bearer ${token}`)
+        expect(result).toEqual({status: 404, body: {error: 'unknown_design'}})
     })
 })
 

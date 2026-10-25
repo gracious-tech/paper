@@ -5,7 +5,7 @@
 // it's the only place the WASM engine's output is shown before a version is built
 
 import {test, expect, boot, click_button, design_data, UI_TIMEOUT} from './fixtures'
-import {seed_own_design} from './helpers/admin'
+import {seed_own_design, stub_server_preview, PREVIEW_SVG_PAGE} from './helpers/admin'
 
 import type {Page} from '@playwright/test'
 
@@ -191,12 +191,93 @@ test('the preview renders the design', async ({page}) => {
     test.setTimeout(3 * 60 * 1000)
     await open_editor(page)
 
-    const preview = page.locator('.preview .frame iframe')
-    await expect(preview).toHaveAttribute('src', /^blob:/, {timeout: 2 * 60 * 1000})
+    // Each page an image: with no cover, page 1 on its own first, then facing-page spreads, and
+    // no note at either end since the whole book fits
+    const pages = page.locator('.preview .frame img.page')
+    await expect(pages.first()).toBeVisible({timeout: 2 * 60 * 1000})
+    expect(await pages.first().evaluate(img => (img as HTMLImageElement).naturalWidth))
+        .toBeGreaterThan(0)
+    await expect(page.locator('.preview .pages > :first-child')).toHaveClass(/page/)
+    await expect(page.locator('.preview .strip')).toHaveCount(0)
     await expect(page.getByText('Couldn\'t generate preview')).toBeHidden()
 
     // An edit recompiles it into a new document
-    const first = await preview.getAttribute('src')
+    const first = await pages.first().getAttribute('src')
     await page.getByLabel('Verse numbers').uncheck()
-    await expect.poll(() => preview.getAttribute('src'), {timeout: 60_000}).not.toBe(first)
+    await expect.poll(() => pages.first().getAttribute('src'), {timeout: 60_000})
+        .not.toBe(first)
+})
+
+
+test('a desktop switched to the server previews there, on request', async ({page}) => {
+    // A desktop whose browser couldn't cope (see compile_mode.ts): its preview is made on the
+    // server, which is stubbed here (no journey compiles on the server)
+    await page.addInitScript(() => {
+        localStorage.setItem('compile_on_server', '1')
+    })
+    const uid = await boot(page)
+    const previews = await stub_server_preview(page, uid)
+    const design_id = await seed_own_design(uid, {simple_mode: false})
+    await page.goto(`/designs/${design_id}`)
+
+    // One preview as the pane opens, shown as the browser's would be
+    const pages = page.locator('.preview .frame img.page')
+    await expect(pages.first()).toBeVisible({timeout: 60_000})
+    expect(previews).toEqual(['desktop'])
+    const refresh = page.locator('.preview .toolbar').getByRole('button', {name: 'Refresh'})
+    await expect(refresh).not.toHaveClass(/v-btn--variant-elevated/)
+
+    // An edit doesn't ask for another, since each one costs the server, but Refresh stands out
+    // as the preview is now out of date, and asks for one
+    const first = await pages.first().getAttribute('src')
+    await page.getByLabel('Verse numbers').uncheck()
+    await expect.poll(async () => (await design_data(design_id))['blueprint'])
+        .toMatchObject({show_verses: false})
+    await expect(refresh).toHaveClass(/v-btn--variant-elevated/)
+    await page.waitForTimeout(2000)
+    expect(previews).toEqual(['desktop'])
+    await refresh.click()
+    await expect.poll(() => pages.first().getAttribute('src')).not.toBe(first)
+    expect(previews).toEqual(['desktop', 'desktop'])
+    await expect(refresh).not.toHaveClass(/v-btn--variant-elevated/)
+})
+
+
+test('zooming the preview, to print size and back', async ({page}) => {
+    // Previewed on the server (stubbed) so as not to wait on a compile: three 100×140pt pages,
+    // shown as page 1 alone and then a spread, which fills the pane's width
+    await page.addInitScript(() => {
+        localStorage.setItem('compile_on_server', '1')
+    })
+    const uid = await boot(page)
+    await stub_server_preview(page, uid, [PREVIEW_SVG_PAGE, PREVIEW_SVG_PAGE, PREVIEW_SVG_PAGE])
+    const design_id = await seed_own_design(uid, {simple_mode: false})
+    await page.goto(`/designs/${design_id}`)
+    const first = page.locator('.preview .frame img.page').first()
+    await expect(first).toBeVisible({timeout: 60_000})
+    const width = () => first.evaluate(img => img.getBoundingClientRect().width)
+    const fitted = await width()
+
+    // Ctrl+wheel over the pages zooms in on them
+    await first.hover()
+    await page.keyboard.down('Control')
+    await page.mouse.wheel(0, -100)
+    await page.keyboard.up('Control')
+    await expect.poll(width).toBeGreaterThan(fitted * 1.1)
+
+    // The toolbar's zoom shows the paper widths while open, and 1× is print size: a point is
+    // 4/3 of a CSS pixel, so a 100pt page is 133px wide and A4's line 794px
+    await page.locator('.preview .toolbar').getByRole('button', {name: /^Zoom:/}).click()
+    const scale = page.locator('.paper_scale')
+    await expect(scale).toContainText('A4 width (21 cm)')
+    await click_button(page.locator('.zoom_menu'), '1×')
+    await expect.poll(width).toBeCloseTo(100 * 4 / 3, 0)
+    expect(await scale.locator('.paper_line').first().evaluate(line =>
+        line.getBoundingClientRect().width)).toBeCloseTo(793.7, 0)
+
+    // Fit to width undoes it all, and closing the menu takes the paper widths with it
+    await page.locator('.zoom_menu').getByRole('button', {name: 'Fit to width'}).click()
+    await expect.poll(width).toBeCloseTo(fitted, 0)
+    await page.keyboard.press('Escape')
+    await expect(scale).toBeHidden()
 })

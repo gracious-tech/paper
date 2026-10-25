@@ -1,12 +1,10 @@
 
 import {shallowRef, toRaw} from 'vue'
 
-import {locale, locale_dir} from '@/services/i18n'
-import {track_browser_compile} from '@/services/compile_mode'
+import {track_browser_compile, BrowserMemoryError} from '@/services/compile_mode'
 
 import type {CustomFont} from 'typst-fonts'
 import type {TypstRequest, ProgressFn, SvgPage} from 'paper-bible-typst'
-import type {CoverPageGeometry} from 'paper-bible-typst'
 import type {WorkerAction, WorkerResponse} from './typst_worker'
 
 
@@ -207,9 +205,10 @@ export class TypstWorkerClient {
                 return await this.send(action, on_progress)
             } catch (retry_error){
                 // A fresh worker failing the same way means the document itself exceeds the
-                // 32-bit WASM heap — surface something clearer than the raw trap message
+                // 32-bit WASM heap — surface something clearer than the raw trap message, and
+                // something compile_mode.ts can tell is the device's limit
                 if (retry_error instanceof FatalWorkerError){
-                    throw new Error('Document too large to generate in the browser '
+                    throw new BrowserMemoryError('Document too large to generate in the browser '
                         + `(${retry_error.message})`)
                 }
                 throw retry_error
@@ -256,15 +255,6 @@ export class TypstWorkerClient {
         return {bytes: outcome.result as Uint8Array, pages: outcome.pages!}
     }
 
-    // Compile a request to a preview PDF laid out as facing-page book spreads, as if the book
-    // were opened: a blank left page beside page 1 on the right, then 2|3, 4|5, etc. For
-    // on-screen preview only. `pages` counts those spreads, not the book's own pages.
-    async compile_pdf_preview(request:TypstRequest, on_progress?:ProgressFn):Promise<CompiledPdf> {
-        const outcome = await this.send_compile({action: 'compile_pdf_preview', request},
-            on_progress)
-        return {bytes: outcome.result as Uint8Array, pages: outcome.pages!}
-    }
-
     // Compile a single-page request straight to an SVG string, for showing a page as an image
     // on screen (the wizard's minimal-ink cover card) — not a printable path, see compile_svg
     // in typst-web
@@ -272,8 +262,8 @@ export class TypstWorkerClient {
         return (await this.send_compile({action: 'compile_svg', request})).result as string
     }
 
-    // Compile a request to its pages in reading order as standalone SVGs, for a phone's preview
-    // (see generate_svg_preview in paper-bible-typst)
+    // Compile a request to its pages in reading order as standalone SVGs, for the preview (see
+    // generate_svg_preview in paper-bible-typst)
     async compile_svg_preview(request:TypstRequest, on_progress?:ProgressFn):Promise<SvgPage[]> {
         return (await this.send_compile({action: 'compile_svg_preview', request}, on_progress))
             .result as SvgPage[]
@@ -283,23 +273,6 @@ export class TypstWorkerClient {
     // Needs no compiler, so it works even if the WASM init failed
     async page_count(pdf:Uint8Array):Promise<number> {
         return (await this.send({action: 'page_count', pdf})).result as number
-    }
-
-    // Add a short "this is only a preview" / "end of preview" notice strip to the front or back
-    // of a preview PDF. Text is passed in already translated, and typeset in the active locale
-    async preview_strip(pdf:Uint8Array, page_width:string, title:string, subtitle:string,
-            position:'start'|'end'):Promise<Uint8Array> {
-        const outcome = await this.send({action: 'preview_strip', pdf, page_width, title,
-            subtitle, position, locale: locale.value, dir: locale_dir(locale.value)})
-        return outcome.result as Uint8Array
-    }
-
-    // Merge a rendered wraparound cover in as page 1 of a preview PDF, cropped and fold-marked
-    // per the given geometry (see cover_page_geometry in cover.ts)
-    async prepend_cover(cover:Uint8Array, book:Uint8Array, geometry:CoverPageGeometry|null)
-            :Promise<Uint8Array> {
-        return (await this.send({action: 'prepend_cover', cover, book, geometry}))
-            .result as Uint8Array
     }
 }
 

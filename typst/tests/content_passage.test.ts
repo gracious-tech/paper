@@ -102,15 +102,18 @@ describe('gen_passage', () => {
             expect(result).toContain('#let sr(..rest) = none')
         })
 
-        it('drops heading leading space at a float chapter, cell top, or tight flag', () => {
-            // A heading immediately after a 'float' #ch, first in a side-by-side grid cell, or
-            // flagged as tight (opening the passage / following a chapter divider) reads the
-            // shared flag(s) and skips its leading v() (see gen_heading_rules)
+        it('drops heading leading space at a chapter, cell top, or tight flag', () => {
+            // A heading immediately after a 'float' #ch or a chapter heading, first in a
+            // side-by-side grid cell, or flagged as tight (opening the passage / following a
+            // chapter divider) reads the shared flag(s) and skips its leading v() (see
+            // gen_heading_rules)
             const result = call(make_passage({show_headings: true}))
             expect(result).toContain('if not open and not cell_top and not tight { v(')
             expect(result).toContain('let flatten = cell_top or (tight and not open)')
             expect(result).toContain('set text(top-edge: 0pt) if flatten')
-            expect(result).toContain('state("ch-float-open", false).get()')
+            expect(result).toContain('let open = state("ch-float-open", false).get()'
+                + ' or state("ch-heading-open", false).get()')
+            expect(result).toContain('state("ch-heading-open", false).update(false)')
             expect(result).toContain('state("bilingual-cell-top", false).get()')
             expect(result).toContain('state("heading-tight", false).get()')
         })

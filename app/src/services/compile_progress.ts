@@ -13,10 +13,11 @@ import type {Translate} from '@/services/i18n'
 
 // A progress event from the interior compile, or one of the app's own stages: 'cover' (rendered
 // by bookcover after the interior, see cover.ts, so paper-bible-typst never emits it), 'queued'
-// (waiting for this tab's previous build, see claim_compile_turn) and 'offline' (waiting for a
-// connection to publish or hand over what's been done, see network_retry.ts)
+// (waiting for this tab's previous build, see claim_compile_turn), 'offline' (waiting for a
+// connection to publish or hand over what's been done, see network_retry.ts) and 'server' (a
+// preview being made on the server, see server_preview.ts)
 export type CompileProgress = ProgressEvent | {stage:'cover'} | {stage:'queued'}
-    | {stage:'offline'}
+    | {stage:'offline'} | {stage:'server'}
 
 
 // Latest progress event for a version currently compiling in this browser, keyed by version id.
@@ -124,6 +125,9 @@ export function stage_text(event:CompileProgress, t:Translate):string|null {
     }
     if (event.stage === 'queued'){
         return t("display.preview.waiting_previous") + "…"
+    }
+    if (event.stage === 'server'){
+        return t("display.preview.on_server") + "…"
     }
     if (event.stage === 'start'){
         return t("display.preview.getting_started") + "…"

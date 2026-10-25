@@ -64,12 +64,16 @@ export async function render_cover(blueprint:Blueprint, custom_fonts:CustomFont[
 }
 
 
-export async function render_cover_front_svg(blueprint:Blueprint, custom_fonts:CustomFont[],
-        page_count:number, share_url?:string):Promise<string>{
-    // Render just the front panel of a blueprint's cover, as a standalone SVG, for a phone's
-    // preview (see run_preview) — split from the wraparound by bookcover itself
+export async function render_cover_svgs(blueprint:Blueprint, custom_fonts:CustomFont[],
+        page_count:number, share_url?:string)
+        :Promise<{wraparound:string, front:string, back:string}>{
+    // Render a blueprint's cover for a preview (see run_preview): the whole wraparound and its
+    // front and back panels, each a standalone SVG, the panels split from the wraparound by
+    // bookcover itself
     return await render_cover_files(blueprint, custom_fonts, page_count, share_url, 'svg',
-        async result => await readFile(result.split_paths!.front, 'utf-8'))
+        async result => ({wraparound: await readFile(result.output_path, 'utf-8'),
+            front: await readFile(result.split_paths!.front, 'utf-8'),
+            back: await readFile(result.split_paths!.back, 'utf-8')}))
 }
 
 
@@ -231,8 +235,8 @@ async function check_version(uid:string, version_id:string, cover_only = false)
 }
 
 
-export function check_assets(blueprint:Blueprint, fonts_meta:StoredFontMeta[], assets_prefix:string)
-        :string|null{
+export function check_assets(blueprint:Blueprint, fonts_meta:StoredFontMeta[],
+        assets_prefix:string):string|null{
     // Why a blueprint's asset references can't be compiled from, or null if they can. Every one
     // comes off a client-written doc (a version, or a design any co-editor writes), so the Admin
     // SDK must never be pointed at a path or address the doc names unless it's under the

@@ -519,6 +519,16 @@ export function gen_preamble(request:TypstRequest, overrides:PreambleOverrides =
     ${running.chapter}.update(n)
     heading(level: ${CHAPTER_HEADING_LEVEL}, ${chapter_label_expr(request.features.chapter_label)})
 }`
+        // A chapter heading leaves its own gap below, so a section heading straight after it
+        // would stack its leading space on top and float far from the chapter it opens. #ch_tight
+        // (see below) flags that section heading to drop its leading space, so the pair reads as
+        // one break. Its natural top-edge is kept: it sits under another heading, not where a
+        // line of text would, so it isn't flattened like the divider style's (see
+        // gen_heading_rules in content_passage.ts)
+        chapter += `\n#let ch_tight(n, ..rest) = {
+    ch(n)
+    state("ch-heading-open", false).update(true)
+}`
     }
 
     // Quiet chapter marker — advances the running-chapter state without drawing anything. The
@@ -530,11 +540,13 @@ export function gen_preamble(request:TypstRequest, overrides:PreambleOverrides =
 
     // Chapter marker for a chapter that opens straight into a section heading — the generator
     // swaps #ch for it wherever the markup has one directly followed by a heading (see
-    // tighten_chapter_before_heading in content_passage.ts). Only the divider visual has anything
-    // extra to do there, and it defines its own alongside #ch (see gen_ch_divider_binding), so
-    // every other style just aliases #ch_tight to #ch
-    const divider_chapters = features.show_chapters && features.show_chapters_style === 'divider'
-    if (!divider_chapters) {
+    // tighten_chapter_before_heading in content_passage.ts). Only the divider and heading styles
+    // have anything extra to do there, and they define their own alongside #ch (see
+    // gen_ch_divider_binding and the heading style above), so every other style just aliases
+    // #ch_tight to #ch
+    const own_tight = features.show_chapters
+        && ['divider', 'heading'].includes(features.show_chapters_style)
+    if (!own_tight) {
         chapter += '\n#let ch_tight(n, ..rest) = ch(n)'
     }
 

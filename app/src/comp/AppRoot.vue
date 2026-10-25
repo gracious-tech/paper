@@ -46,6 +46,12 @@ v-app.app(v-else)
                                 AppIcon(name='translate')
                             v-list-item-title {{ $t("app.language") }}
                             v-list-item-subtitle {{ LOCALES[locale]?.name }}
+                        //- Whenever the browser itself can install the app, even once the designs
+                        //- list's notice about it is dismissed (see install.ts)
+                        v-list-item(v-if='can_install' @click='install_app')
+                            template(#prepend)
+                                AppIcon(:name='is_mobile ? "install_mobile" : "install_desktop"')
+                            v-list-item-title {{ $t("app.install") }}
 
             AppNavbar(v-if='!on_info_page')
 
@@ -127,6 +133,8 @@ import {is_anonymous, photo_url} from '@/services/auth'
 import {design_needs_editor} from '@/services/versions'
 import {init_coloris} from '@/services/coloris'
 import {use_is_mobile} from '@/services/display'
+import {server_mode} from '@/services/compile_mode'
+import {can_install, install_app} from '@/services/install'
 
 
 const route = useRoute()
@@ -180,7 +188,8 @@ const health_problem = computed(() => {
     if (health.saving === 'offline'){
         return {type: 'warning' as const, message: t("app.save_offline"), reload: false}
     }
-    if (health.engine_failed){
+    // A device without the engine compiles on the server, unless that failed too
+    if (health.engine_failed && !server_mode.value){
         return {type: 'error' as const, message: t("app.engine_failed"), reload: true}
     }
     return null

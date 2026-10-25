@@ -1,6 +1,6 @@
 // Render the new-design wizard's type pictures (src/assets/images/design_types/) in each UI
-// locale's own Bible. English's are hand-cropped screenshots (type_<name>.avif); every other
-// locale gets <locale>/type_<name>.avif: Genesis 1 in fetch.bible's preferred translation for
+// locale's own Bible. English's are hand-cropped screenshots (type_<name>.webp); every other
+// locale gets <locale>/type_<name>.webp: Genesis 1 in fetch.bible's preferred translation for
 // that language, laid out and cropped to match the English screenshot. Each type's settings and
 // crop in TYPES were calibrated once, by rendering English with them and overlaying the result
 // on its screenshot, so a new locale needs nothing but a run of this script.
@@ -167,7 +167,7 @@ for (const loc of locales){
         const dir = join(IMAGES_DIR, loc)
         mkdirSync(dir, {recursive: true})
         for (const [type, png] of Object.entries(pictures)){
-            await sharp(png).avif({quality: 60}).toFile(join(dir, `type_${type}.avif`))
+            await sharp(png).webp({quality: 85}).toFile(join(dir, `type_${type}.webp`))
         }
         await write_review(loc)
         manifest[loc] = {bible: bible.id}
@@ -279,7 +279,7 @@ async function render_page(blueprint:Blueprint, config:TypeConfig):Promise<Buffe
 // The notes picture's dotted lines, taken from the English screenshot (they have no words), on
 // the side of the text away from where it starts
 async function add_note_lines(crop:Buffer, dir:'ltr'|'rtl'):Promise<Buffer>{
-    let lines = sharp(join(IMAGES_DIR, 'type_notes.avif'))
+    let lines = sharp(join(IMAGES_DIR, 'type_notes.webp'))
         .extract({left: NOTES_LINES_X, top: 0, width: WIDTH - NOTES_LINES_X, height: HEIGHT})
     if (dir === 'rtl'){
         lines = lines.flop()
@@ -294,7 +294,7 @@ async function add_note_lines(crop:Buffer, dir:'ltr'|'rtl'):Promise<Buffer>{
 // last line and the notes' rule, as the screenshot has. The page's own gap depends on how much
 // text fits above the notes, so it's closed up (or opened) to match
 async function crop_study(padded:Buffer, left:number):Promise<Buffer>{
-    const shot = await measure_study(await sharp(join(IMAGES_DIR, 'type_study.avif')).png().toBuffer(), 0)
+    const shot = await measure_study(await sharp(join(IMAGES_DIR, 'type_study.webp')).png().toBuffer(), 0)
     const page = await measure_study(padded, left)
     const top = page.first - shot.first
     const top_height = page.last + 4 - top
@@ -342,14 +342,14 @@ async function measure_study(image:Buffer, left:number):Promise<{first:number, l
 // Save a locale's review sheet: each English screenshot beside the locale's saved picture of
 // it (every type, not just those this run rendered)
 async function write_review(loc:string):Promise<void>{
-    const rows = Object.keys(TYPES).filter(type => existsSync(join(IMAGES_DIR, loc, `type_${type}.avif`)))
+    const rows = Object.keys(TYPES).filter(type => existsSync(join(IMAGES_DIR, loc, `type_${type}.webp`)))
     const sheet = sharp({create: {width: WIDTH * 2 + 8, height: rows.length * (HEIGHT + 8),
         channels: 3, background: '#888888'}})
     const png = (path:string) => sharp(path).png().toBuffer()
     const parts = await Promise.all(rows.flatMap((type, i) => [
-        png(join(IMAGES_DIR, `type_${type}.avif`))
+        png(join(IMAGES_DIR, `type_${type}.webp`))
             .then(input => ({input, left: 0, top: i * (HEIGHT + 8)})),
-        png(join(IMAGES_DIR, loc, `type_${type}.avif`))
+        png(join(IMAGES_DIR, loc, `type_${type}.webp`))
             .then(input => ({input, left: WIDTH + 8, top: i * (HEIGHT + 8)})),
     ]))
     mkdirSync(REVIEW_DIR, {recursive: true})

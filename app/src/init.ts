@@ -27,6 +27,7 @@ import Warning from '@material-symbols/svg-400/rounded/warning-fill.svg'
 import Info from '@material-symbols/svg-400/rounded/info-fill.svg'
 import ErrorIcon from '@material-symbols/svg-400/rounded/error-fill.svg'
 import CheckCircle from '@material-symbols/svg-400/rounded/check_circle-fill.svg'
+import Close from '@material-symbols/svg-400/rounded/close.svg'
 
 import AppIcon from './comp/global/AppIcon.vue'
 import AppColor from './comp/global/AppColor.vue'
@@ -47,8 +48,14 @@ import {content, bible_content, load_fonts} from '@/services/content'
 import {typst_generator, TypstWorkerClient, ASSETS_PREFIX} from '@/services/typst'
 import {custom_fonts} from '@/services/custom_fonts'
 import {start_watchers} from '@/services/watchers'
-import {check_crashed_compile} from '@/services/compile_mode'
+import {check_crashed_compile, switch_to_server} from '@/services/compile_mode'
 import {report_error, vue_error_handler, set_error_translator} from '@/services/errors'
+import {listen_for_install} from '@/services/install'
+
+
+// Catch the browser's offer to install the app however early it comes, ahead of the slow boot
+// below (see install.ts)
+listen_for_install(window)
 
 
 // Create app
@@ -144,6 +151,9 @@ const vuetify = createVuetify({
             info: Info,
             error: ErrorIcon,
             success: CheckCircle,
+            // Closable alerts and clearable fields (blank without these)
+            close: Close,
+            clear: Close,
         },
     },
 })
@@ -163,7 +173,7 @@ watch(locale, code => {
 
 
 // Wait for critical services before mounting. Anything that fails here leaves the app unable to
-// start, so it shows the failure splash (nothing else would replace the loading spinner)
+// start, so it shows the failure splash (nothing else would replace the loading screen)
 void (async () => {
 
     // Sign in (anonymously if no persisted user) and init the Bible-content layer in parallel
@@ -220,10 +230,12 @@ void (async () => {
         // upload, and this covers any uploads that happened before the worker was ready
         await typst_client.set_custom_fonts(custom_fonts)
     }).catch((error:unknown) => {
-        // Without the engine nothing can be previewed or generated, so it's flagged to the user
-        // (unless it started and only re-sending the uploaded fonts failed)
+        // Without the engine nothing can be previewed or generated here, so the device compiles
+        // on the server instead (unless it started and only re-sending the uploaded fonts
+        // failed). The user is only told if the server can't do it either (see AppRoot.vue)
         if (!typst_generator.value){
             health.engine_failed = true
+            switch_to_server('engine')
         }
         report_error('silent', error, {critical: true, context: {stage: 'typst_init'}})
     })
@@ -260,6 +272,12 @@ void (async () => {
         await router.replace({...router.currentRoute.value, query: {}})
     }
     app.mount('#app')
+
+    // Fade out the loading screen now the app is beneath it, then remove it (on a timer rather
+    // than transitionend, which never fires in a background tab or when the fade is skipped)
+    const boot_loader = document.getElementById('boot_loader')
+    boot_loader?.classList.add('done')
+    setTimeout(() => boot_loader?.remove(), 400)
 
     // Deferred from above: a sign-in link opened on a device that never requested it. Now the
     // app can render a dialog, ask which address it was sent to and finish the sign-in

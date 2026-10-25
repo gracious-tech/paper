@@ -23,8 +23,8 @@ Live at [paper.bible](https://paper.bible). MIT No Attribution license.
   (`SERVER_ROLES` env picks the handler): `paper-bible-light` (every `/api` route, 512MB),
   behind one API Gateway HTTP API that CloudFront routes `/api/*` to, and `paper-bible-compile`
   (3GB/4GB ephemeral storage, fonts synced from S3 into `/tmp` on cold start — see
-  `server/src/lambda_bootstrap.ts`), which has no HTTP route at all: light's `/api/compile`
-  checks a compile and invokes it asynchronously
+  `server/src/lambda_bootstrap.ts`), which has no HTTP route at all: light's `/api/compile` and
+  `/api/preview` check a job and invoke it asynchronously
 **Shared assets:** the public assets bucket (`https://assets.paper.bible/`, S3 + CloudFront,
   same AWS account) is owned and published by the separate
   [bookcover repo](https://github.com/gracious-tech/bookcover) — top-level dirs: `fonts/`
@@ -44,11 +44,24 @@ Live at [paper.bible](https://paper.bible). MIT No Attribution license.
 2. The user edits a design's `Blueprint` — the reactive `blue` singleton mirrors the
    currently open Firestore `designs/{id}` doc (`designs.ts` syncs both directions, debounced
    field-level writes so co-editors don't clobber each other)
-3. `DisplayPreview.vue` compiles a truncated preview in the browser as they edit. A phone has no
-   room for it, so its editor's button reads **Preview** and opens `DialogPhonePreview.vue`
-   instead: the first ~30 pages as one standalone SVG each, full screen, with Keep editing /
-   Build it. A phone that can't cope (a preview over 20s, or a tab that died mid-compile) is
-   switched to compiling on the server for good (`compile_mode.ts`, localStorage)
+3. `DisplayPreview.vue` shows a truncated preview beside the editor as they edit. A phone has
+   no room for it, so its editor's button reads **Preview** and opens `DialogPhonePreview.vue`
+   instead, with Keep editing / Build it. Both are one standalone SVG per page plus the cover
+   (`preview.ts`), laid out by `DisplayPreviewPages.vue`: a phone's ~30 pages one under another,
+   its cover's front then back panel first; a desktop's ~50 as the PDF preview always showed them, at one
+   scale: the whole cover with its bleed cropped and its spine marked (`crop_cover_svg()`),
+   then facing-page spreads, with a note (HTML now) only at an end the window cuts off.
+   Both zoom (pinch, Ctrl+wheel, or the toolbar's slider, as the bookcover editor does): a
+   desktop's zoom is physical, 1× being print size, with A4/US Letter widths drawn to hold a
+   sheet against while the slider is open; a phone's is relative to its pages filling the
+   width (`preview_zoom.ts`, `DisplayPreviewZoom.vue`).
+   Whenever the browser fails at a preview, the server makes it instead (`POST /api/preview`,
+   see `server_preview.ts`): on a phone after 20s, while on a desktop the server only races a
+   browser that's taken 10s. A phone that can't cope (out of memory, too slow, a tab that died
+   mid-compile) is switched to compiling everything on the server for good; a desktop only
+   once the server keeps winning, and it re-checks its browser every so often (`compile_mode.ts`,
+   localStorage). A desktop in that mode previews on the server once per opening and then on
+   Refresh, not as they edit
 4. On "Build it" (`BtnGenerate.vue`), the design as it is at the click is snapshotted, the
    design force-flushed, and the snapshot frozen into an immutable `versions/{id}` doc (blueprint
    + custom-font snapshot + a `save_token`), then compiled in the browser and uploaded to Storage
@@ -101,7 +114,7 @@ Live at [paper.bible](https://paper.bible). MIT No Attribution license.
 - **Same-origin API:** CloudFront routes `/api/*` to one API Gateway HTTP API, which routes
   everything (`ANY /api/{proxy+}`) to the light Lambda (Vite proxies everything to
   `localhost:8788` in dev) — no CORS anywhere.
-  Light routes: `compile` (accepts and dispatches only), `design_invite_preview`,
+  Light routes: `compile` and `preview` (accept and dispatch only), `design_invite_preview`,
   `redeem_design_invite`, `design_editors`, `copy_version`, `duplicate_design`, `delete_design`, `delete_version`,
   `reconcile_design_assets`, `touch_assets`, `merge_account`, `report_error`
   (unauthenticated), plus `health` on both roles
@@ -253,15 +266,25 @@ paper_bible/
         cover_worker.ts    # The cover render worker
         minimal_cover.ts   # The no-cover "minimal ink" title/copyright content pages
         stories.ts         # Predefined picture stories (fetch + slide assembly)
-        content.ts         # Bible data service (fetch-client via paper-bible-typst)
+        content.ts         # Bible data service (fetch-client via paper-bible-typst), plus
+                            #   fetch.bible's translation descriptions for the picker
+        bible_details.ts   # The picker's line under each translation: year · literalness ·
+                            #   provenance · NT text type, from tags + descriptions (English only)
         blueprints.ts      # Default blueprint + clean_blueprint() validation + display helpers
         page_estimate.ts   # The page-count estimate from a preview-window compile: kept current
                             #   by the live preview on desktop; mobile mounts no preview, so
                             #   its preview/build/cover editor/Paper options ask for it
                             #   (ensure_page_estimate). Never in the browser in server mode
         build.ts           # build_design(): snapshot, freeze, compile (BtnGenerate, phone preview)
-        phone_preview.ts   # The phone's SVG preview compile (20s limit, then server mode)
-        compile_mode.ts    # Whether this phone compiles on the server: the switch + crash marker
+        preview.ts         # A design's preview (SVG pages + cover): browser_preview,
+                            #   phone_preview (20s limit, else server), desktop_preview (the
+                            #   browser/server race, strikes and re-checks)
+        preview_zoom.ts    # Zooming a preview: limits, Ctrl+wheel steps, keeping the point
+                            #   under the pointer in place (1 = print size on a desktop)
+        server_preview.ts  # Previews made on the server (/api/preview): flush, request, await
+                            #   the previews/{id} doc, fetch the file; ensure_server_estimate
+        compile_mode.ts    # Whether this device compiles on the server: failure classification,
+                            #   the provisional switch and its settling, the crash marker
         binding_advice.ts  # auto_binding / binding_page_issue / page_reduction_suggestions —
                             #   advice over a blueprint, never mutating one
         printing_services.ts  # Service picker items over printing-services
@@ -273,6 +296,9 @@ paper_bible/
         typst_worker.ts    # The worker: WASM compiler via paper-bible-typst-web
         watchers.ts        # Auto-fetch book content as the design changes
         errors.ts          # Error capture/reporting (imported first, before everything)
+        install.ts         # Installing the app (public/manifest.json): offered (header menu, and a
+                            #   dismissable notice on /designs) only while a browser fires
+                            #   beforeinstallprompt
         example_designs.ts # The example designs (pure data + translated labels)
         examples.ts        # Building/creating a design from an example
         example_images.ts  # Each example's pre-rendered cover picture, by UI locale
@@ -303,14 +329,21 @@ paper_bible/
     src/dev_server.ts      # Entry point for local dev/tests: serve()s `app` over a real
                             #   listener (see .bin/serve_server, tests/server/routes.test.ts)
     src/lambda.ts           # Production entry point: light wraps `app` with hono/aws-lambda's
-                            #   handle(); compile takes a CompileJob (async invocation from
-                            #   light) and syncs fonts/backgrounds from S3 before compiling
+                            #   handle(); compile takes a CompileJob or PreviewJob (`kind:
+                            #   'preview'`, async invocation from light) and syncs
+                            #   fonts/backgrounds from S3 before running it
     src/lambda_bootstrap.ts # The S3 sync itself (fonts/, backgrounds/ into ASSETS_DIR/tmp),
                             #   memoized per execution environment, retried on failure
     src/types.ts           # HandlerResult — what every handle_* returns
     src/compile.ts         # handle_compile (checks, lock, dispatch, 202) + run_compile
-                            #   (compile_pdf_from_blueprint + upload + doc update)
-    src/quota.ts           # per-uid daily caps on the expensive routes (compile, copy_version)
+                            #   (compile_pdf_from_blueprint + upload + doc update); also the
+                            #   asset checks and cover rendering previews share
+    src/preview.ts         # handle_preview + run_preview: a design's preview window as SVG
+                            #   pages + cover as JSON, a phone's window or a desktop's,
+                            #   into design_cache/
+    src/dispatch.ts        # dispatch_job(): async-invoke the compile function, or run in-process
+    src/quota.ts           # per-uid daily caps on the expensive routes (compile, preview,
+                            #   copy_version)
                             #   + the per-uid server compile lock
     src/content.ts         # Shared BibleContent: collection TTL + LRU book cache
     src/share.ts           # Share-token redemption, shared views, keep-own-copy
@@ -337,11 +370,12 @@ paper_bible/
   coverage/           # .bin/audit_coverage internals: scope.ts (what counts, path normalising),
                       #   mcr.unit.ts (the unit groups' MCR config), e2e.ts (browser collection),
                       #   node_flush.ts (preload for spawned Node), merge.ts; reports/ is output
-  branding/           # Source icon/social/splash artwork
+  branding/           # Source icon/social/splash artwork (icon_maskable.svg is the full-bleed
+                      #   square behind app/public/icons/' maskable + apple-touch PNGs)
   typst/                   # paper-bible-typst: core (Blueprint→TypstRequest, typst gen,
                             #   split_blueprint_doc/join_blueprint_doc for Firestore doc shape;
                             #   assemble.ts puts the page sequence together for both outputs,
-                            #   pdf_postprocess.ts for print, svg_pages.ts for phone previews)
+                            #   pdf_postprocess.ts for print, svg_pages.ts for previews)
     locales/, locales.json #   The strings it prints into books, by Bible language (the i18n
                             #   `doc` domain), compiled into src/generated/doc_strings.ts
   typst-web/               # paper-bible-typst-web: WASM wrapper (browser)
@@ -389,12 +423,18 @@ compile_stats/{id}   # write-only telemetry, one row per interior compile attemp
                      #   server). Never read in-app; analysed offline via Firestore export
 compile_quota/{uid}  # cross-instance per-user daily cap on server compiles
 copy_quota/{uid}     # ditto for "keep own copy" (/api/copy_version)
-                     #   Both are {day, count, expires}, Admin SDK only and matching no client
+preview_quota/{uid}  # ditto for server previews (/api/preview, 300/day)
+                     #   All are {day, count, expires}, Admin SDK only and matching no client
                      #   rule, so a caller can neither read nor reset their own count.
                      #   One helper: quota_allows() in server/src/quota.ts
 compile_lock/{uid}   # {version_id, expires}: the one server compile a user may have running,
                      #   claimed by /api/compile, released by the compile (claim_compile_lock()
                      #   etc. in quota.ts). Listed in QUOTA_COLLECTIONS like the rows above
+previews/{id}        # a server preview: {owner, design_id, size: phone|desktop, status:
+                     #   pending|available|failed, path, pages, page_estimate, truncated,
+                     #   dropped_before, dropped_after, error_id, expires}. Server-written;
+                     #   get-only for its owner, who listens for the outcome. ~1 day TTL, swept
+                     #   with the account
 ```
 
 Every `compile_stats` and `*_quota` row carries an `expires` field with a Firestore native
@@ -423,6 +463,8 @@ version_assets/{design_id}/{hash}.{ext}   # frozen snapshots shared by every ver
                                           #   design. Append-only by rule, so a design edit can
                                           #   never change what a published version renders
 design_cache/{design_id}/*.png            # regenerable painted/torn variants, swept at 90d
+design_cache/{design_id}/preview_{id}.json  # server previews (gzipped {pages, covers} of
+                                          #   SVGs), by the server, swept at 90d
 versions/{version_id}/doc.pdf, cover.pdf  # rendered output only — swept at 365d, then
                                           #   regenerated from the frozen blueprint + snapshots
 errors/{fingerprint}/{id}.json            # error reports, swept at 90d
@@ -487,7 +529,7 @@ neither side knows about the other's setup process.
    content — the compile Lambda reads it directly via same-account IAM, the app fetches from
    its CloudFront domain)
 3. `.bin/deploy_firebase_initial <project-id>` — Storage lifecycle rules, Firestore TTL policies
-   (`compile_stats`, `compile_quota`, `copy_quota`, `compile_lock`)
+   (`compile_stats`, `compile_quota`, `copy_quota`, `preview_quota`, `compile_lock`, `previews`)
 4. Create a GCP service account for the Lambda functions' Admin SDK credential (least
    privilege: `roles/datastore.user`, `roles/storage.objectAdmin` scoped to the Storage
    bucket, `roles/firebaseauth.admin`), download its key — `.bin/deploy_aws` prints where to
@@ -683,13 +725,45 @@ After that, every push to `main` deploys itself. The scripts still work by hand
 - **Page assembly is shared by PDF and SVG** (`typst/src/assemble.ts`): blank padding, title
   sides, half-blank notes pages, facing-page splits and the pinned last page work on references
   to compiled pages, and a backend turns them into output. Change the sequence there, never in
-  `pdf_postprocess.ts`, or the phone preview stops matching print. An SVG page is cut out of
-  typst.ts's whole-document SVG (`split_typst_svg`), carrying only the defs it references, and
-  shown as an `<img>` from a blob URL so its styles stay inside it
-- **Server mode is permanent for now** (`compile_mode.ts`, with a TODO to revisit): in it a
-  phone compiles nothing itself, builds and covers go straight to `/api/compile`, and estimates
-  only come from builds. A crash is a `compile_in_flight` marker left in localStorage, which
-  `pagehide` clears, so closing a tab mid-compile doesn't count
+  `pdf_postprocess.ts`, or the preview stops matching print. An SVG page is cut out of
+  typst.ts's whole-document SVG (`split_typst_svg`), carrying only the defs it references (the
+  Typst CLI writes one per page already, `parse_standalone_svg`), and shown as an `<img>` from a
+  blob URL so its styles stay inside it. Desktop spreads are laid out in HTML, never mirrored for
+  RTL (`dir='ltr'` on each spread), since binding is always on the left (`binding_for_page`).
+  They're sized in the book's own points (`--pt`, a point at the zoom shown), and the pages box
+  is `max-content` wide with auto margins, so zooming past the pane's width scrolls rather than
+  clipping the left side
+- **Server mode** (`compile_mode.ts`): in it a device compiles nothing itself — previews go to
+  `/api/preview`, builds and covers straight to `/api/compile` — and estimates only come from
+  previews and builds (the cover editor asks the server once when its estimate is stale,
+  waiting at most 20s). Only the device's own failures switch it (`is_device_failure()`:
+  `BrowserMemoryError`, `SlowCompileError`, plus the engine failing to start and a crash); an
+  error in generated Typst or a lost connection never does. **Phones and desktops differ**,
+  since a phone that can't cope can lose the tab while a desktop is only slow, and a desktop in
+  server mode loses its live preview. A phone switches on its first failure, for good (a TODO
+  to revisit). A desktop collects strikes (`compile_strikes`: the server winning a race 1, a
+  crash 2, three switch it, a preview finished in time clears them), and once switched tries its
+  browser beside every 20th server preview (doubling to at most 160 while it still can't keep
+  up, `compile_recheck`), switching back as soon as it finishes in 10s — so an old laptop isn't
+  written off by one bad day. A desktop's slow preview is raced, not abandoned: at 10s into the
+  compile the server is asked too and the first to finish is shown, and a superseded preview
+  (the user kept typing) never asks the server. A switch is stored as `provisional` until the
+  server's outcome on the next job settles it: success confirms (`'1'`), failure switches back,
+  since then the document or our code was more likely at fault. A crash is a
+  `compile_in_flight` marker left in localStorage, which `pagehide` clears, so closing a tab
+  mid-compile doesn't count. It covers a whole browser job, not just the worker's compile
+  (`begin_browser_job()`: a build until its PDF is uploaded, a phone's preview until 15s after
+  it's shown), since the main thread's part can lose a phone's tab too, and it names the stages
+  running, which the next boot reports (`The tab died during browser work`). The engine failing to start only shows the health banner once the
+  server can't take over either
+- **The server can't mask images, so server previews need the client's variants.** Before
+  asking, `request_server_preview()` flushes the design (the server reads it from Firestore)
+  and runs `resolve_content_for_style()`, which uploads painted/torn variants as
+  `design_cache/{id}/{style}_v{n}_{hash}.png`. The server finds them by the same numbering
+  (`with_styled_images()` in `preview.ts`, every passage image then every story slide image, in
+  order) and shows an image unmasked where none exists. Server previews are stored gzipped with
+  `Content-Encoding: gzip`; the client also gunzips by magic number, in case whatever served the
+  file didn't pass that header on
 - **`footnote.entry` rules only work from the preamble.** A page resolves its footnote area
   against the style chain in force *before any content is laid out*, so a `#show footnote.entry`
   rule that follows the first piece of content on the page — including one emitted from a
@@ -717,12 +791,9 @@ After that, every push to `main` deploys itself. The scripts still work by hand
   side has to account for RTL itself. `pad()` only takes physical sides (hence `pad_start`), and
   `grid` columns run in text direction (hence `gen_physical_row()` for the page furniture)
 - **Never draw text with pdf-lib's built-in fonts** (`StandardFonts`): they encode WinAnsi only,
-  so Vietnamese, Arabic, Chinese… throw and take the whole preview down, and nothing shapes
-  scripts that need it. Preview notices in the UI's language (the start/end strip, the "inside of
-  cover" slot) are typeset by Typst on typst-web's second, standalone compiler
-  (`compile_standalone()`: the curated base font + `notice_fonts()`'s Noto fallbacks for the
-  text's script), so they never displace the main compiler's fonts; pdf-lib only places the
-  resulting page
+  so Vietnamese, Arabic, Chinese… throw, and nothing shapes scripts that need it. Text in the
+  UI's language around a preview (the start/end notes, the "inside of cover" slot) is plain HTML
+  in `DisplayPreviewPages.vue`, so the browser's own fonts handle any script
 - **Verify Typst output against a real compile, not a minimal `.typ`.** A hand-written repro puts
   the rule under test at the top of an otherwise empty document, which is exactly the position
   where the gotcha above *doesn't* bite — so the bug renders correctly in isolation and wrongly
@@ -778,6 +849,11 @@ After that, every push to `main` deploys itself. The scripts still work by hand
   gitignored `errors/records/` is written and parses, so that directory (triage state
   included) is the *only* copy — back it up, and run the tool from one machine.
   The boot splash and a failed version show the report id in a gracious.tech/contact link.
+  A bundle that never starts (syntax an old browser can't parse, a chunk that failed to load)
+  can't report itself, so `app/public/boot_check.js` (ES5, outside the bundle) does: if
+  `errors.ts` hasn't flagged itself by `DOMContentLoaded`, it shows a splash and files a
+  `Boot check: ...` report. Safari may give no `SyntaxError` for a module that fails to parse
+  (as far as is known, only the `<script>` element's own error event), so don't rely on one
   The cover widget's errors are relayed over the embed protocol (`{type: 'error'}`) and reported
   as `Cover widget: ...` with `context.source = 'cover_widget'`. Triage keeps them out of the
   fixer and fix-commit pinning, since their code and builds belong to the bookcover repo
@@ -814,10 +890,12 @@ After that, every push to `main` deploys itself. The scripts still work by hand
   `STUCK_MS` in the app (6 min), the last two above the function's 5-min timeout — so a queued event never
   starts after its lock lapsed, and a retry offered for a stuck version is never refused by
   the lock a dead compile left. Async retries are off (a retry would only compile again). From
-  source there's no function to invoke (`COMPILE_FUNCTION` unset), so `dispatch_compile()`
+  source there's no function to invoke (`COMPILE_FUNCTION` unset), so `dispatch_job()`
   runs the compile in the same process — but only where that process serves the `compile`
   role too (dev's default). A light-only server without `COMPILE_FUNCTION` throws instead,
-  since a Lambda is frozen the moment its response goes out
+  since a Lambda is frozen the moment its response goes out. Server previews (`/api/preview`)
+  take the same path, with no lock (a preview mustn't wait on a build) and the client giving
+  up after 3 minutes (`SERVER_PREVIEW_TIMEOUT_MS`)
 - **The CSP (`SecurityHeadersPolicy` in `infra/cloudformation.yml`) guards two things only:**
   injected script can't run (the threat is a shared design smuggling markup into a viewer's
   page — nothing renders user content as HTML today, so this is the backstop), and nothing the
@@ -859,7 +937,10 @@ After that, every push to `main` deploys itself. The scripts still work by hand
     of that host serves anyone's public images; a photo elsewhere falls back to the icon
     (`failed_photo` in `AppRoot.vue`)
   - `frame-ancestors` is `'self'`, not `'none'` — a `blob:` URL inherits its creator's CSP, and
-    Safari enforces the inherited directive against `DisplayPreview.vue`'s own blob iframe
+    Safari enforced the inherited directive against the live preview's blob iframe. The preview
+    is SVG images now, with no iframe, so `'none'` would do; it's left until a deploy can be
+    checked in Safari
+  - `blob:` in `default-src` also covers the preview's pages, each an `<img>` of a blob URL
   - Three origins appear in the bundle and are deliberately *not* allowed, because nothing
     reaches them: `packages.typst.org` (no `@preview` imports in generated source),
     `cdn.jsdelivr.net` (typst.ts's default font assets, disabled by `{assets: false}` in
@@ -946,7 +1027,7 @@ After that, every push to `main` deploys itself. The scripts still work by hand
   spine width never churns every picture when fetch.bible's content shifts
 - **Type pictures are rendered, not translated** (`app/src/assets/images/design_types/`). The
   wizard's first step shows each type as a crop of a printed page: English's are hand-cropped
-  screenshots (`type_<name>.avif`), and every other UI locale gets `<tag>/type_<name>.avif`,
+  screenshots (`type_<name>.webp`), and every other UI locale gets `<tag>/type_<name>.webp`,
   Genesis 1 in fetch.bible's preferred translation for its language (else the first in that
   language with Genesis), compiled through `BibleContent.resolve()` + the Typst CLI by
   `.bin/gen_type_images` (a few seconds per locale, no dev servers; fonts are cached in the

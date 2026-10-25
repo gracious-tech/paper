@@ -1,0 +1,23 @@
+<?xml version="1.0" encoding="UTF-8" standalone="no"?>
+<!-- icon.svg as a full-bleed square, for platforms that cut their own shape out of an icon
+     (Android's maskable icons, iOS's home screen). The scroll is shrunk to 70% so its corners
+     stay well inside the circle Android shows, which is only the middle 72/108 of the icon
+     (its safe zone is 66/108), not the 80% the maskable spec promises -->
+<svg width="34.63662" height="34.63662" viewBox="0 0 34.63662 34.63662" version="1.1"
+    xmlns="http://www.w3.org/2000/svg">
+  <rect width="34.63662" height="34.63662" fill="#642b4c" />
+  <g transform="translate(17.31831 17.31831) scale(0.7) translate(-17.31831 -17.31831) translate(7.5151196,6.8111362)">
+    <path
+       style="fill:#ffffff"
+       d="m 3.2148438,0.28125 v 19.4375 H 16.306641 L 17.8125,18.210938 V 0.28125 Z" />
+    <path
+       style="fill:#638cff"
+       d="M 9.6650717,3.1344322 V 5.3844324 H 7.4150721 v 1.499998 H 9.6650717 V 12.134431 H 11.165072 V 6.8844304 h 2.249999 V 5.3844324 H 11.165072 V 3.1344322 Z" />
+    <path
+       style="fill:#f6e9e0"
+       d="m 0.15234375,14.216797 v 3.851562 L 1.8320312,19.746094 H 14.03125 v -5.529297 z" />
+    <path
+       style="fill:#e9c6af"
+       d="M 2.6250001,20 C 1.8958342,20 1.27604,19.744792 0.76562003,19.234378 0.25520599,18.723958 0,18.104164 0,17.374995 V 13.999996 H 3.0000006 V 4.537998e-8 H 17.999999 V 17.374995 c 0,0.729169 -0.255206,1.348963 -0.765619,1.859383 C 16.723959,19.744792 16.104166,20 15.375,20 Z M 15.372801,19.5 C 16.554393,19.5 17.5,18.546017 17.5,17.374995 V 0.5 h -14 v 13.499996 h 10.75 v 3.374999 C 14.25,18.887129 14.788326,19.5 15.372801,19.5 Z m -12.7728012,0 H 13.75 v -5 H 0.5 v 2.874995 C 0.5,18.530697 1.5833436,19.5 2.5999998,19.5 Z" />
+  </g>
+</svg>

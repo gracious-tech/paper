@@ -2,7 +2,7 @@
 import {describe, it, expect} from 'vitest'
 
 import {cover_render_key, cover_config_schema, cover_form_for_render,
-    is_builtin_background, is_known_builtin_background} from '../src/index.js'
+    is_builtin_background, is_known_builtin_background, crop_cover_svg} from '../src/index.js'
 
 import type {Blueprint, CoverConfig} from '../src/types.js'
 
@@ -202,4 +202,29 @@ describe('cover_config_schema', () => {
         expect(result.data?.bg_image).toBe(null)
     })
 
+})
+
+
+describe('crop_cover_svg', () => {
+
+    // A wraparound as Typst writes one: the root sized in points, its viewBox the whole canvas
+    const wraparound = '<svg class="typst-doc" viewBox="0 0 1000 500" width="1000"'
+        + ' height="500" xmlns="http://www.w3.org/2000/svg"><rect/></svg>'
+
+    it('crops to the trim box, hiding the bleed, and keeps everything else', () => {
+        const out = crop_cover_svg(wraparound,
+            {crop: {left: 9, top: 9, width: 982, height: 482}, fold_x: []})
+        expect(out).toMatch(/^<svg viewBox="9 9 982 482" width="982pt" height="482pt"/)
+        expect(out).toContain('class="typst-doc"')
+        expect(out).toContain('<rect/>')
+        expect(out.match(/viewBox=/g)).toHaveLength(1)
+    })
+
+    it('marks each fold with a gray line the full height of the cover', () => {
+        const out = crop_cover_svg(wraparound, {crop: null, fold_x: [480, 520]})
+        expect(out).toMatch(/^<svg viewBox="0 0 1000 500"/)
+        expect(out).toContain('<line x1="480" y1="0" x2="480" y2="500"')
+        expect(out).toContain('<line x1="520" y1="0" x2="520" y2="500"')
+        expect(out.endsWith('</svg>')).toBe(true)
+    })
 })

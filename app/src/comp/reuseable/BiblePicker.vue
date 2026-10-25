@@ -37,10 +37,24 @@ v-card-text(class='overflow-y-auto')
             v-list-subheader(v-if='typeof trans === "string"' :key='trans' class='mt-4') {{ trans }}
             v-list-item(v-else :key='trans.id' color='primary'
                     :active='trans.id === modelValue' density='compact'
-                    @click='change_trans(trans.id)')
-                v-list-item-title
-                    | {{ trans.name_abbrev }} &mdash; {{ trans.name }}
-                v-list-item-subtitle(v-if='trans.name_english !== trans.name') {{ trans.name_english }}
+                    :class='{detailed: trans.details}' @click='change_trans(trans.id)')
+                //- Name and facts, with the info button beside them (not the description)
+                div.head
+                    div.head_text
+                        v-list-item-title
+                            | {{ trans.name_abbrev }} &mdash; {{ trans.name }}
+                        v-list-item-subtitle(v-if='trans.name_english !== trans.name')
+                            | {{ trans.name_english }}
+                        //- Each fact is a chunk of its own, so a line breaks between facts if it can
+                        v-list-item-subtitle.facts(v-if='trans.details?.facts.length')
+                            span.fact(v-for='fact of trans.details.facts' :key='fact') {{ fact }}
+                    //- Translation's own site, without selecting it
+                    v-btn(v-if='trans.details && trans.attribution_url' icon variant='text'
+                            size='small' :href='trans.attribution_url' target='_blank'
+                            rel='noopener' :aria-label='$t("common.about_translation")' @click.stop)
+                        app-icon(name='info')
+                v-list-item-subtitle.description(v-if='trans.details?.description')
+                    | {{ trans.details.description }}
 
     div(class='cant_find text-center')
         v-btn(variant='text' color='primary')
@@ -55,7 +69,8 @@ v-card-text(class='overflow-y-auto')
 
 import {computed, ref, watch} from 'vue'
 
-import {content} from '@/services/content'
+import {content, ensure_bible_descriptions} from '@/services/content'
+import {bible_details} from '@/services/bible_details'
 import {default_bible} from '@/services/blueprints'
 import {useI18n} from '@/services/i18n'
 import DialogPeddlers from '@/comp/dialogs/DialogPeddlers.vue'
@@ -63,6 +78,7 @@ import DialogMissingTranslation from '@/comp/dialogs/DialogMissingTranslation.vu
 
 import type {VList} from 'vuetify/components'
 import type {GetResourcesItem} from '@gracious.tech/fetch-client'
+import type {BibleDetails} from '@/services/bible_details'
 
 
 // Generic language + translation picker (used by the editor's EditorBible wrapper and the
@@ -99,8 +115,17 @@ const translations = computed(() => {
     const niche = content.collection.get_resources({language: displayed_language.value})
         .filter(i => !decent.find(di => di.id === i.id))
 
+    // Details go under English's main translations only for now (no other language has
+    // descriptions yet, and the niche group is there for completeness rather than to choose from)
+    const descriptions = content.descriptions[displayed_language.value]
+    const with_details = displayed_language.value === 'eng'
+
     // Add in separate groups
-    const items:(GetResourcesItem|string)[] = decent
+    const items:((GetResourcesItem & {details?:BibleDetails})|string)[] = decent.map(trans => {
+        return with_details
+            ? {...trans, details: bible_details(trans, descriptions?.[trans.id], t)}
+            : trans
+    })
     if (niche.length){
         items.push(t("common.niche_translations"))
         items.push(...niche)
@@ -116,6 +141,12 @@ const languages_filtered = computed(() => {
 
 
 // Watches
+watch(displayed_language, language => {
+    // Fetch the descriptions shown under English's translations (see translations)
+    if (language === 'eng'){
+        void ensure_bible_descriptions(language)
+    }
+}, {immediate: true})
 watch(languages_show_all, () => {
     // Scroll back to top of lang list when showing all, as new items will be added to top
     lang_list_comp.value?.$el?.scroll({top: 0})
@@ -160,6 +191,48 @@ const change_trans = (id:string) => {
 
 .v-card-text
     padding-bottom: 30vh
+
+// A translation with details is several lines, which need more room around them than the
+// compact density's one-line items (which have none, relying on a min height instead)
+.v-list-item.detailed
+    padding-block: 10px
+
+// A translation's name and facts, beside its info button
+.head
+    display: flex
+    align-items: center
+
+.head_text
+    flex-grow: 1
+    min-width: 0
+
+// Info button out over the item's end padding, to the item's edge (its icon keeps the
+// button's own inset, so the tap target stays whole). The content box would clip it there,
+// and needn't clip anything else: titles and subtitles truncate their own text
+.head .v-btn
+    margin-inline-end: -16px
+
+.v-list-item :deep() .v-list-item__content
+    overflow: visible
+
+// Facts and descriptions (up to 100 characters) wrap on a phone, where Vuetify's one line
+// would cut them off. Facts are bold, to set them apart from the description below
+.v-list-item-subtitle.facts
+    -webkit-line-clamp: 2
+    margin-top: 2px
+    font-weight: 600
+
+// Facts separated by a middle dot, which stays at the end of a line when the next fact wraps
+.fact
+    display: inline-block
+    &:not(:last-child)::after
+        content: '·'
+        padding: 0 0.4em
+        font-weight: 400
+
+.v-list-item-subtitle.description
+    -webkit-line-clamp: 3
+    margin-top: 2px
 
 .cant_find
     margin-top: 24px

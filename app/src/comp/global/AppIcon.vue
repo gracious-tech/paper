@@ -38,6 +38,7 @@ import straighten from '@material-symbols/svg-400/outlined/straighten.svg?compon
 import menu_book from '@material-symbols/svg-400/outlined/menu_book.svg?component'
 import description from '@material-symbols/svg-400/outlined/description.svg?component'
 import print from '@material-symbols/svg-400/outlined/print.svg?component'
+import refresh from '@material-symbols/svg-400/outlined/refresh.svg?component'
 import warning from '@material-symbols/svg-400/outlined/warning.svg?component'
 import check from '@material-symbols/svg-400/outlined/check.svg?component'
 import check_circle from '@material-symbols/svg-400/outlined/check_circle.svg?component'
@@ -48,6 +49,10 @@ import help from '@material-symbols/svg-400/outlined/help.svg?component'
 import mail from '@material-symbols/svg-400/outlined/mail.svg?component'
 import payments from '@material-symbols/svg-400/outlined/payments.svg?component'
 import translate from '@material-symbols/svg-400/outlined/translate.svg?component'
+import zoom_in from '@material-symbols/svg-400/outlined/zoom_in.svg?component'
+import fit_width from '@material-symbols/svg-400/outlined/fit_width.svg?component'
+import install_mobile from '@material-symbols/svg-400/outlined/install_mobile.svg?component'
+import install_desktop from '@material-symbols/svg-400/outlined/install_desktop.svg?component'
 
 import planner_banner from '@/assets/planner_banner.svg?component'
 import donate from '@/assets/icons/donate.svg?component'
@@ -68,8 +73,9 @@ const icons = {
     subject, download, upload, error, info, more_vert, more_horiz, lists, history_toggle_off, donate,
     add, content_copy, 'delete': delete_icon, group, share, account_circle, account_circle_fill,
     straighten,
-    menu_book, description, print, warning, check, check_circle, cancel, search, edit, help, mail,
-    payments, google, no_accounts, translate,
+    menu_book, description, print, refresh, warning, check, check_circle, cancel, search, edit, help, mail,
+    payments, google, no_accounts, translate, zoom_in, fit_width, install_mobile,
+    install_desktop,
 } as Record<string, FunctionalComponent>
 
 

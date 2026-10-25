@@ -5,10 +5,9 @@ import {tmpdir} from 'node:os'
 import {join} from 'node:path'
 
 import {load_fonts_dir, resolve_font_dirs, write_custom_fonts} from 'typst-fonts/node'
-import {base_font} from 'typst-fonts'
 
-import {generate_typst, generate_pdf, generate_pdf_spread_preview, generate_svg_preview,
-    parse_standalone_svg, BibleContent, collect_fonts} from 'paper-bible-typst'
+import {generate_typst, generate_pdf, generate_svg_preview, parse_standalone_svg, BibleContent,
+    collect_fonts} from 'paper-bible-typst'
 
 import type {CustomFont} from 'typst-fonts'
 import type {TypstRequest, CompileFn, ProgressFn, Blueprint, SvgPage, SvgCompileFn}
@@ -69,19 +68,7 @@ export async function compile_pdf(
 }
 
 
-// Compile a TypstRequest to a preview PDF laid out as facing-page book spreads. cover_slot is
-// the compiled "inside of the front cover" page the first spread opens on, when the preview has
-// a front cover (see generate_pdf_spread_preview)
-export async function compile_pdf_spread_preview(
-    request:TypstRequest, options?:NodeCompileOptions, cover_slot?:Uint8Array,
-):Promise<Uint8Array> {
-    const font_paths = await resolve_font_paths(request, options)
-    const compile_fn = make_compile_fn(options, font_paths)
-    return generate_pdf_spread_preview(request, compile_fn, options?.on_progress, cover_slot)
-}
-
-
-// Compile a TypstRequest to its pages in reading order, one standalone SVG each — a phone's
+// Compile a TypstRequest to its pages in reading order, one standalone SVG each — the server's
 // preview (see generate_svg_preview)
 export async function compile_svg_preview(
     request:TypstRequest, options?:NodeCompileOptions,
@@ -89,23 +76,6 @@ export async function compile_svg_preview(
     const font_paths = await resolve_font_paths(request, options)
     return generate_svg_preview(request, make_svg_compile_fn(options, font_paths),
         options?.on_progress)
-}
-
-
-// Compile a small standalone page, such as a preview notice in the UI's language, with the
-// curated base font plus `families` (e.g. the Noto fallbacks its text's script needs). `build`
-// gets that ordered font list and returns the Typst source — the CLI counterpart of typst-web's
-// compile_standalone()
-export async function compile_standalone(
-    families:string[], build:(fonts:string[]) => string,
-    options:NodeCompileOptions & {fonts_dir:string},
-):Promise<Uint8Array> {
-    // The curated manifest names the base font, so it's loaded first
-    await load_fonts_dir(options.fonts_dir)
-    const base = base_font()
-    const fonts = [base, ...families.filter(family => family !== base)]
-    const font_paths = resolve_font_dirs(options.fonts_dir, fonts)
-    return await make_compile_fn({...options, custom_fonts: []}, font_paths)(build(fonts))
 }
 
 

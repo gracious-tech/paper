@@ -1,7 +1,17 @@
 
 import {parse_unit, to_mm} from './helpers.js'
 
-import type {TypstLinesPage} from './types.js'
+import type {LineRuling, TypstLinesPage} from './types.js'
+
+
+// Line spacing for each ruling, as standard US ruled paper defines them: narrow 1/4" (6.35mm),
+// medium aka college 9/32" (7.1mm), wide 11/32" (8.7mm). Metric notebooks sit within this range
+// (6mm/7mm/8mm), so the US standard is used as the reference everywhere
+export const LINE_SPACING:Record<LineRuling, string> = {
+    narrow: '0.25in',
+    medium: '0.28125in',
+    wide: '0.34375in',
+}
 
 
 // Generate Typst markup for a page of dotted lines for notetaking

@@ -178,7 +178,7 @@ async function leave_shared_designs(uid:string):Promise<number>{
 
 async function delete_user_records(uid:string):Promise<void>{
     // The user's own documents: profile, read-access history, every daily throttle counter,
-    // and the compile telemetry rows carrying their uid.
+    // and the compile telemetry and preview rows carrying their uid.
     //
     // NOTE Error reports are deliberately not swept. They're stored by message fingerprint
     // (errors/{fingerprint}/{id}.json), not by uid, so finding this user's would mean listing
@@ -197,10 +197,14 @@ async function delete_user_records(uid:string):Promise<void>{
         batch.delete(admin_db.doc(`${collection}/${uid}`))
     }
 
-    // Single-field equality, so Firestore's automatic index covers this with nothing declared
-    const stats = await admin_db.collection('compile_stats').where('owner', '==', uid).get()
-    for (const row of stats.docs){
-        batch.delete(row.ref)
+    // Single-field equality, so Firestore's automatic index covers this with nothing declared.
+    // The server previews made for the user too, though they'd lapse within a day anyway (their
+    // files are under the designs' cache prefixes, swept with each design)
+    for (const name of ['compile_stats', 'previews']){
+        const rows = await admin_db.collection(name).where('owner', '==', uid).get()
+        for (const row of rows.docs){
+            batch.delete(row.ref)
+        }
     }
 
     await batch.commit()

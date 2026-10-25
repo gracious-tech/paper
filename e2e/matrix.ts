@@ -72,7 +72,7 @@ export const MATRIX:StressConfig[] = [
     {id: 'psa_half', books: ['psa'], overrides: {half_blank: 'right'},
         note: 'poetry with half-blank lined pages'},
     {id: 'psa_half_nolines', books: ['psa'],
-        overrides: {half_blank: 'right', show_lines: false},
+        overrides: {half_blank: 'right', lines: null},
         note: 'poetry with half-blank plain pages'},
     {id: 'jhn_half', books: ['jhn'], overrides: {half_blank: 'right'},
         note: 'prose with half-blank lined pages'},

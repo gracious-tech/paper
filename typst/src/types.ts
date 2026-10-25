@@ -21,6 +21,11 @@ export type MeasureUnit = 'mm'|'inch'
 export type TextDir = 'ltr'|'rtl'
 
 
+// Spacing of the handwriting lines on blank facing pages, named after standard ruled paper
+// (see LINE_SPACING in content_lines.ts)
+export type LineRuling = 'narrow'|'medium'|'wide'
+
+
 // Top-level request for generating a Typst document / PDF
 export interface TypstRequest {
     title:string
@@ -57,10 +62,6 @@ export interface TypstRequest {
     // Binary assets referenced by generated Typst source (virtual filename -> bytes), served via
     // the compiler's shadow filesystem — currently only passage images (see TypstPassageImage)
     assets:Record<string, Uint8Array>
-    // Preview-only label drawn centred on the "inside of front cover" gray slot of the reading
-    // preview's first spread (see arrange_spreads) — translated text supplied by the app, since
-    // this file has no access to i18n
-    preview_cover_label?:string
     // Preview-only: content past this window was dropped, so it isn't the document's real end
     // (see truncate_for_preview). The reading preview pads out to the printed page count so
     // what's on screen matches what gets printed — but only when this is false, since padding a
@@ -212,8 +213,8 @@ export interface TypstPassage {
     headings_italic:boolean
     headings_size:number    // Multiplier relative to text size (1 = same as text)
     show_footnotes:boolean
-    // Dotted lines on blank half-pages
-    show_lines:boolean
+    // Dotted lines on blank half-pages, at this ruling (null = plain blank pages)
+    lines:LineRuling|null
     // Column layout: 'auto' uses book code to decide, 1 or 2 forces column count
     columns:'auto'|1|2
     column_gap:string       // e.g. "5mm"
@@ -414,7 +415,8 @@ export interface Blueprint {
     show_wj_color:string|null
     show_wj_bold:boolean
     show_wj_italic:boolean
-    show_lines:boolean
+    // Ruling of the handwriting lines on half-blank pages (null = leave them blank)
+    lines:LineRuling|null
     notes:string|null
     half_blank:'left'|'right'|null
     // How passages with a title show it: null = never (even if title text is set), 'titlepage' =

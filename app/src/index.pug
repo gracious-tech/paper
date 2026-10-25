@@ -8,6 +8,12 @@ html
         meta(name='description' content="Print your own Bible, customise how it looks, and optionally include multiple translations and study notes.")
         meta(property='og:image' content='https://paper.bible/social.jpg')
         link(rel='icon' href='/icon.png')
+        //- Makes the app installable (see services/install.ts). iOS reads its home-screen icon
+            from apple-touch-icon rather than the manifest, and needs it square since it rounds
+            the corners itself. theme-color tints the browser's (or installed app's) title bar
+        link(rel='manifest' href='/manifest.json')
+        link(rel='apple-touch-icon' href='/icons/apple_touch_180.png')
+        meta(name='theme-color' content='#642b4c')
 
         //- Warm the connections boot blocks on, so their DNS + TLS handshakes overlap
             downloading and parsing the bundle rather than starting after it. All four are hit
@@ -40,30 +46,110 @@ html
                 body
                     margin: 0
 
-                @keyframes loading
-                    from
-                        transform: rotate(0deg)
-                    to
-                        transform: rotate(360deg)
+                // The loading screen sits above #app (not in it) so the app can mount beneath
+                // it and it can then fade out (see init.ts), rather than vanishing the moment
+                // Vue replaces #app's contents. It's the compile timer's gradient and book (see
+                // DisplayDesignVersion.vue, AnimatedBook.vue), so loading and building look alike
+                #boot_loader
+                    position: fixed
+                    top: 0
+                    bottom: 0
+                    left: 0
+                    right: 0
+                    z-index: 9999
+                    overflow: hidden
+                    display: flex
+                    justify-content: center
+                    align-items: center
+                    background-color: #e73c7e
+                    transition: opacity 0.3s ease
+                    pointer-events: none
 
-                #app > svg.loading
-                    // Not reusable in other parts of app
+                    &.done
+                        opacity: 0
+
+                // The gradient, panned by transform rather than background-position: the bundle
+                // is parsing on the main thread meanwhile, and a transform animates on the
+                // compositor, so it neither competes with that nor stutters during it
+                #boot_loader::before
+                    content: ''
                     position: absolute
-                    top: 46%
-                    left: 46%
+                    top: 0
+                    left: 0
+                    width: 400%
+                    height: 400%
+                    background-image: linear-gradient(-45deg, #ee7752, #e73c7e, #23a6d5, #23d5ab)
+                    will-change: transform
+                    animation: boot_pan 8s ease infinite
 
-                svg.loading
-                    height: 50px
-                    width: 50px
-                    animation-name: loading
-                    animation-duration: 2.5s  // NOTE need to adjust steps if this changes
-                    // NOTE 60's quality close to linear, and ~1/2 CPU usage
-                    animation-timing-function: steps(60)
-                    animation-iteration-count: infinite
+                // Translate percentages are of the 400% layer itself, so 75% pans it a full
+                // three viewports, as far as background-position 100% does on the compile timer
+                @keyframes boot_pan
+                    0%
+                        transform: translate(0, 0)
+                    25%
+                        transform: translate(-75%, -37.5%)
+                    50%
+                        transform: translate(0, -75%)
+                    75%
+                        transform: translate(-75%, -75%)
+                    100%
+                        transform: translate(0, 0)
 
-                svg.loading circle
-                    fill: transparent
-                    stroke: #888888
+                // The book, with lines of text on both pages
+                .boot_book
+                    width: 200px
+                    height: 140px
+                    box-sizing: border-box
+                    position: relative
+                    border-radius: 8px
+                    perspective: 1000px
+
+                .boot_book::before
+                    content: ''
+                    position: absolute
+                    left: 10px
+                    right: 10px
+                    top: 10px
+                    bottom: 10px
+                    border-radius: 8px
+                    box-shadow: 0 0 10px rgba(0, 0, 0, 0.3)
+                    background-color: #f0f0f0
+                    background-size: 60px 5px
+                    // Vuetify's reset sets this on everything, but it hasn't loaded yet
+                    background-repeat: no-repeat
+                    background-image: linear-gradient(#ccc 100px, transparent 0), linear-gradient(#ccc 100px, transparent 0), linear-gradient(#ccc 100px, transparent 0), linear-gradient(#ccc 100px, transparent 0), linear-gradient(#ccc 100px, transparent 0), linear-gradient(#ccc 100px, transparent 0), linear-gradient(#ccc 100px, transparent 0), linear-gradient(#ccc 100px, transparent 0), linear-gradient(#ccc 100px, transparent 0), linear-gradient(#ccc 100px, transparent 0)
+                    background-position: 15px 20px, 15px 40px, 15px 60px, 15px 80px, 15px 100px, 105px 20px, 105px 40px, 105px 60px, 105px 80px, 105px 100px
+
+                // The turning page (a plain colour, unlike AnimatedBook's, which also fades its
+                // colour and so repaints every frame; a rotation alone is compositor-only)
+                .boot_book::after
+                    content: ''
+                    position: absolute
+                    width: calc(50% - 10px)
+                    right: 10px
+                    top: 10px
+                    bottom: 10px
+                    border-radius: 8px
+                    background-color: #f8f8f8
+                    background-size: 60px 5px
+                    // Vuetify's reset sets this on everything, but it hasn't loaded yet
+                    background-repeat: no-repeat
+                    background-image: linear-gradient(#ccc 100px, transparent 0), linear-gradient(#ccc 100px, transparent 0), linear-gradient(#ccc 100px, transparent 0), linear-gradient(#ccc 100px, transparent 0), linear-gradient(#ccc 100px, transparent 0)
+                    background-position: 50% 20px, 50% 40px, 50% 60px, 50% 80px, 50% 100px
+                    transform-origin: left center
+                    animation: boot_paging 2s ease-out infinite
+
+                @keyframes boot_paging
+                    from
+                        transform: rotateY(0deg)
+                    to
+                        transform: rotateY(-180deg)
+
+                // Hold still for anyone who's asked for less motion
+                @media (prefers-reduced-motion: reduce)
+                    #boot_loader::before, .boot_book::after
+                        animation: none
 
 
         //- Define scripts
@@ -73,13 +159,11 @@ html
 
     body
         div#app
-            //- Simplified low-CPU-cost Material progress circle (proportions same)
-            svg.loading(viewBox='0 0 100 100' preserveAspectRatio='xMidYMid meet')
-                //- Place in middle with radius 40 (stroke length of 250 surrounds whole circle)
-                circle(cx='50' cy='50' r='40' stroke-width='10' stroke-dasharray='190')
+        div#boot_loader
+            div.boot_book
 
         //- When the bundle never starts (no ES module support, or syntax it can't parse),
-            services/errors.ts never runs either and the spinner above would spin forever —
+            services/errors.ts never runs either and the loading screen above would stay forever —
             this classic script catches both cases (see the file for why it isn't inline).
             Kept in body so document.body exists for the no-modules case, and it still runs
             before the (deferred) module bundle executes

@@ -6,6 +6,7 @@ import {verify_uid} from './auth.ts'
 import {save_error, generate_error_id, get_client_ip, report_allowed,
     handle_report_error} from './errors.ts'
 import {handle_compile} from './compile.ts'
+import {handle_preview, parse_preview_body} from './preview.ts'
 import {handle_design_invite_preview, handle_redeem_design_invite, handle_design_editors,
     handle_copy_version} from './share.ts'
 import {handle_merge} from './merge.ts'
@@ -92,6 +93,19 @@ if (config.roles.includes('light')){
             ...page_count !== undefined && {page_count},
             // Just the cover of a published version, whose cover the browser couldn't render
             ...body['cover_only'] === true && {cover_only: true}})
+    })
+
+    // Accept a preview of a design for the server to make, for a device that can't compile in
+    // its browser (see preview.ts). Answers before the preview runs; the outcome is recorded on
+    // the previews/{id} doc the 202 names
+    authed_post('/api/preview', ['design_id'], async (uid, {design_id}, {context, body}) => {
+        const options = parse_preview_body(body)
+        if (!options){
+            return {status: 400, body: {error: 'bad_request'}}
+        }
+        return await handle_preview({kind: 'preview', uid, design_id, ...options,
+            client_ip: get_client_ip(context),
+            user_agent: context.req.header('User-Agent') ?? null})
     })
 
     // Receive an error report from the browser and store it in the bucket — no auth required

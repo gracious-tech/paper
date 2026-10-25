@@ -7,21 +7,16 @@ export {generate_typst} from './generate.js'
 // Full pipeline: generates, compiles (via provided function), and post-processes to PDF
 export {generate_pdf} from './pdf_postprocess.js'
 
-// Preview pipeline: lays out the printed pages as facing-page book spreads (preview only)
-export {generate_pdf_spread_preview} from './pdf_postprocess.js'
-
-// Preview pipeline for phones: the printed pages in reading order, one standalone SVG each
+// Preview pipeline: the printed pages in reading order, one standalone SVG each (the app lays
+// them out as a phone's column or a desktop's facing-page spreads)
 export {generate_svg_preview, split_typst_svg, parse_standalone_svg, svg_page_markup}
     from './svg_pages.js'
 export type {SvgPage, SvgCompileFn} from './svg_pages.js'
 
-// Adds a short "this is only a preview" / "end of preview" strip to the front/back of a preview PDF
-export {add_preview_strip, gen_preview_strip_typst, gen_cover_slot_typst, notice_fonts,
-    prepend_cover} from './pdf_postprocess.js'
-
 // Preview truncation: cuts an over-long request down to a fast-compiling window of content
-export {truncate_for_preview, PREVIEW_CHAR_LIMIT, ESTIMATE_CHAR_LIMIT} from './preview.js'
-export type {PreviewSection, PreviewTruncation} from './preview.js'
+export {truncate_for_preview, PREVIEW_CHAR_LIMIT, ESTIMATE_CHAR_LIMIT, PREVIEW_LIMITS}
+    from './preview.js'
+export type {PreviewSection, PreviewSize, PreviewTruncation, PreviewPages} from './preview.js'
 
 // Bundled font manifest helpers (used by the web/node compilers to load fonts). The manifest
 // itself is loaded at runtime by typst-fonts/node or typst-fonts/web from the assets tree
@@ -60,7 +55,7 @@ export {make_blueprint_schema, clean_content_items, cover_config_schema} from '.
 // Cover render helpers (blueprint size overlay + render cache key) and the shape check that
 // bounds any builtin background reference
 export {cover_form_for_render, cover_render_key, is_builtin_background,
-    is_known_builtin_background, cover_page_geometry} from './cover.js'
+    is_known_builtin_background, cover_page_geometry, crop_cover_svg} from './cover.js'
 export type {CoverPageGeometry} from './cover.js'
 
 // Trim-size resolution (service + named size, or custom dimensions) and a mm/in converter —
@@ -122,4 +117,5 @@ export type {
     ImageStyle,
     MeasureUnit,
     TextDir,
+    LineRuling,
 } from './types.js'

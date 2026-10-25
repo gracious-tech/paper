@@ -12,7 +12,7 @@
 
 import {cloneDeep} from 'lodash-es'
 import {collection, doc, addDoc, getDoc, setDoc, updateDoc, runTransaction, serverTimestamp,
-    Timestamp} from 'firebase/firestore'
+    Timestamp, onSnapshot} from 'firebase/firestore'
 import type {DocumentReference} from 'firebase/firestore'
 import {ref as storage_ref, uploadBytes, getDownloadURL} from 'firebase/storage'
 import {SCHEMA_VERSION, PDF_LIFETIME_MS, COMPILE_STATS_LIFETIME_MS} from 'paper-bible-typst'
@@ -31,7 +31,7 @@ import {apply_asset_copies} from '@/services/design_assets'
 import {plan_version_cover, render_cover_pdf} from '@/services/cover'
 import {plan_version_images} from '@/services/content_images'
 import {read_wizard_state} from '@/services/new_design'
-import {version_missing_bibles, version_retryable, compiling_on_server}
+import {version_missing_bibles, version_retryable, compiling_on_server, STUCK_MS}
     from '@/services/versions'
 import {page_count_guess, DEFAULT_PAGE_GUESS, alert_dialog} from '@/services/state'
 import {translate} from '@/services/i18n'
@@ -39,7 +39,8 @@ import {report_error, error_to_string} from '@/services/errors'
 import {version_progress, build_requests, hold_page, claim_compile_turn, compiling_here}
     from '@/services/compile_progress'
 import {retry_network} from '@/services/network_retry'
-import {compiles_on_server} from '@/services/compile_mode'
+import {compiles_on_server, is_device_failure, switch_to_server, switch_provisional,
+    settle_server_mode, begin_browser_job} from '@/services/compile_mode'
 
 import type {CustomFont} from 'typst-fonts'
 import type {Blueprint, Version} from '@/services/types'
@@ -386,6 +387,26 @@ async function record_server_unreachable(doc_ref:DocumentReference, design_id:st
 }
 
 
+function settle_on_outcome(doc_ref:DocumentReference):void{
+    // Settle a provisional switch to the server (see settle_server_mode) on the outcome of the
+    // version just handed to it, once its doc says, giving up after STUCK_MS since a compile that
+    // never reports back settles nothing
+    let unsubscribe = () => {}
+    const timer = setTimeout(() => unsubscribe(), STUCK_MS)
+    unsubscribe = onSnapshot(doc_ref, snapshot => {
+        const status = snapshot.data()?.['status'] as string|undefined
+        if (status === 'available' || status === 'failed'){
+            clearTimeout(timer)
+            unsubscribe()
+            settle_server_mode(status === 'available')
+        }
+    }, () => {
+        clearTimeout(timer)
+        unsubscribe()
+    })
+}
+
+
 export async function compile_and_upload(job:VersionCompileJob,
         held_turn:(() => void)|null = null):Promise<void>{
     // Compile a version's PDF in-browser and upload it, updating the doc's status. If the
@@ -433,6 +454,9 @@ export async function compile_and_upload(job:VersionCompileJob,
         version_progress[id] = event
     }
 
+    // Ends the browser's part of this attempt once it started one (see below)
+    let end_job = () => {}
+
     try {
         try {
             // A phone that can't cope compiles nothing itself (see compile_mode.ts), so the
@@ -446,6 +470,11 @@ export async function compile_and_upload(job:VersionCompileJob,
             if (!generator){
                 throw new Error('Typst compiler not ready')
             }
+
+            // The whole of the browser's part counts as running, not just the worker's compile:
+            // fetching the content before it and holding and uploading the PDF after it can lose
+            // a phone's tab as well (see begin_browser_job)
+            end_job = begin_browser_job('build')
             const font_styles = Object.fromEntries(fonts.map(f => [f.family, f.style]))
             interior_start = performance.now()
             const request = await bible_content.resolve(
@@ -476,6 +505,7 @@ export async function compile_and_upload(job:VersionCompileJob,
                 cover = await render_cover_here(id, blueprint, pages, async () => fonts,
                     'cover_render')
             }
+            end_job()
 
             await updateDoc(doc_ref, {
                 status: 'available',
@@ -491,6 +521,7 @@ export async function compile_and_upload(job:VersionCompileJob,
                 await finish_cover_on_server(id)
             }
         } catch (wasm_error){
+            end_job()
             // A refused upload may just mean another attempt got there first (see
             // version_settled), leaving nothing to fall back for
             if (await version_settled(doc_ref)){
@@ -511,9 +542,17 @@ export async function compile_and_upload(job:VersionCompileJob,
                     interior_ms: performance.now() - interior_start, pages: null, ok: false,
                     estimated_pages: page_estimate, gutter_auto: blueprint.margin_gutter_auto})
             }
+            // A failure that was the device's own sends its compiles to the server from now on,
+            // settled by how the server does with this one
+            if (is_device_failure(wasm_error)){
+                switch_to_server('memory')
+            }
             release_page()
             release_turn()
             await request_server_compile(id, page_estimate)
+            if (switch_provisional()){
+                settle_on_outcome(doc_ref)
+            }
         }
     } catch (error){
         await record_server_unreachable(doc_ref, design_id, save_token, error)
@@ -521,6 +560,7 @@ export async function compile_and_upload(job:VersionCompileJob,
         // No more in-browser progress to show once this attempt is over, whether it succeeded,
         // was handed off to the server, or failed outright
         delete version_progress[id]
+        end_job()
         release_page()
         release_turn()
     }

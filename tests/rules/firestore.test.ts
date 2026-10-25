@@ -465,12 +465,41 @@ describe('compile_stats', () => {
 })
 
 
+describe('previews', () => {
+
+    it('lets the user who asked for a preview read it', async () => {
+        await seed(env, [{path: 'previews/p1', data: {owner: OWNER, status: 'pending'}}])
+        await assertSucceeds(getDoc(doc(db_for(env, OWNER), 'previews/p1')))
+    })
+
+    it('reads a preview that isn\'t there yet as empty, for a listener to wait on', async () => {
+        await assertSucceeds(getDoc(doc(db_for(env, OWNER), 'previews/not_yet')))
+    })
+
+    it('denies anyone else, and a signed-out caller', async () => {
+        await seed(env, [{path: 'previews/p1', data: {owner: OWNER, status: 'pending'}}])
+        await assertFails(getDoc(doc(db_for(env, STRANGER), 'previews/p1')))
+        await assertFails(getDoc(doc(db_for(env, null), 'previews/p1')))
+    })
+
+    it('leaves every write to the server, the owner\'s included', async () => {
+        await seed(env, [{path: 'previews/p1', data: {owner: OWNER, status: 'pending'}}])
+        const db = db_for(env, OWNER)
+        await assertFails(setDoc(doc(db, 'previews/p2'), {owner: OWNER, status: 'pending'}))
+        await assertFails(updateDoc(doc(db, 'previews/p1'), {status: 'available'}))
+        await assertFails(deleteDoc(doc(db, 'previews/p1')))
+        await assertFails(getDocs(collection(db, 'previews')))
+    })
+})
+
+
 describe('quota collections', () => {
 
     // These match no rule at all, which is what stops a caller reading or resetting their own
     // count — worth asserting, since adding a rule for them would silently undo that
 
-    for (const collection_id of ['compile_quota', 'copy_quota', 'compile_lock']){
+    for (const collection_id of ['compile_quota', 'copy_quota', 'preview_quota',
+            'compile_lock']){
         it(`denies the owning user reading or writing their ${collection_id} row`, async () => {
             await seed(env, [{path: `${collection_id}/${OWNER}`,
                 data: {day: '2026-01-01', count: 5}}])

@@ -360,6 +360,10 @@ const HEADING_MARGIN_LINES = {
     2: {before: 1.09, after: 0.49},  // == Section: the common subheading
     3: {before: 0.54, after: 0.34},
 }
+// The 'heading' chapter style's "Chapter N" opens a bigger break than any section heading, so it
+// gets the most space above. With only a title's margin it sat as far from the previous chapter's
+// last line as from its own text, reading as a stanza break rather than a new chapter
+const CHAPTER_HEADING_MARGIN_LINES = {before: 1.5, after: 0.51}
 // The values above are calibrated against this heading-size multiplier (the Blueprint
 // show_headings_size default) — both the gap above and the gap below a heading are scaled by
 // headings_size / this, so the space around a heading grows and shrinks with the user's heading
@@ -402,10 +406,12 @@ function gen_heading_rules(passage:TypstPassage, font_size:string, line_height:n
     // Wrap each heading body in a `block` so it isn't treated as a continuation
     // paragraph — otherwise the document's first-line-indent would indent it.
     //
-    // Each rule drops its leading `v()` in three cases, so a heading doesn't get pushed below
+    // Each rule drops its leading `v()` in four cases, so a heading doesn't get pushed below
     // where it should sit:
     //   - "ch-float-open": the heading immediately follows a 'float'-style chapter marker (see
     //     preamble.ts), so it should rise to sit level with the big margin numeral.
+    //   - "ch-heading-open": the heading immediately follows a 'heading'-style chapter heading
+    //     (see #ch_tight in preamble.ts), whose own gap below already separates the two.
     //   - "bilingual-cell-top": the heading is the first thing in its side-by-side grid cell
     //     (see gen_multi_bible_grids). With no content above it in the cell there's nothing to
     //     separate from, and the leading space would drop it a whole line below the other
@@ -417,15 +423,15 @@ function gen_heading_rules(passage:TypstPassage, font_size:string, line_height:n
     //     marker, whose divider carries its own line's gap beneath it (see #ch_tight in
     //     preamble.ts). A heading at a later column top doesn't need this: `sticky` moves it to
     //     the next column and leaves the `v()` behind at the foot of the previous one.
-    // All three flags are read then cleared here, so only the first heading of the
+    // All four flags are read then cleared here, so only the first heading of the
     // chapter/cell/passage is affected. On top of dropping the leading `v()`, the cell-top and
     // heading-tight cases also flatten the heading's top-edge to the baseline (`block(above: 0pt)`
     // alone still leaves the font's ascent as a visible gap above the glyphs) so the heading
     // baseline lands where a line of body text would — level with the other grid cell's first
     // line, or the second column's, whose paragraph top-edge is likewise collapsed to 0, or one
-    // line slot below a chapter divider. The float-chapter case keeps the natural top-edge — its
-    // target is the big margin numeral, not a text baseline — and wins over heading-tight when a
-    // passage opens on a float chapter.
+    // line slot below a chapter divider. The two chapter-open cases keep the natural top-edge —
+    // their target is the big margin numeral or the chapter heading above, not a text baseline —
+    // and win over heading-tight when a passage opens on such a chapter.
     //
     // Justification and hyphenation are always off here regardless of the document-wide settings
     // (see preamble.ts) — a heading that wraps must never be stretched to the measure or broken
@@ -440,8 +446,9 @@ function gen_heading_rules(passage:TypstPassage, font_size:string, line_height:n
     // Major headings (level 1) are centred; the rest stay at the start of the line. Centring
     // needs the full width, since a block of inline content otherwise shrinks to fit it.
     const lead = (before:number, mult:number, centre:boolean) => `it => context {
-    let open = state("ch-float-open", false).get()
+    let open = state("ch-float-open", false).get() or state("ch-heading-open", false).get()
     state("ch-float-open", false).update(false)
+    state("ch-heading-open", false).update(false)
     let cell_top = state("bilingual-cell-top", false).get()
     state("bilingual-cell-top", false).update(false)
     let tight = state("heading-tight", false).get()
@@ -482,11 +489,11 @@ function gen_heading_rules(passage:TypstPassage, font_size:string, line_height:n
 }`
 
     // Reset the base size for every heading, then style the 'heading' chapter style's own level
-    // (see gen_preamble) like a level-1 title. That rule is emitted whatever show_headings says:
+    // (see gen_preamble) at a level-1 title's size, with its own margins. That rule is emitted whatever show_headings says:
     // the setting governs the content's own section headings, while chapter headings are shown or
     // hidden by the separate chapter-number settings
     const rules = [`#show heading: set text(size: ${font_size})`]
-    rules.push(rule(CHAPTER_HEADING_LEVEL, m[1], 1.2))
+    rules.push(rule(CHAPTER_HEADING_LEVEL, CHAPTER_HEADING_MARGIN_LINES, 1.2))
 
     // With section headings off, hide only the levels the fetched content itself uses, and the
     // reference ranges that belong to them

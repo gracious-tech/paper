@@ -109,12 +109,10 @@ export function cover_render_key(cover:CoverConfig, blueprint:Blueprint,
 }
 
 
-// Where a rendered wraparound cover's trim box and fold guide lines fall, in PDF points, as
-// resolved from bookcover's mm-based layout — plain numbers, so the pdf-lib side of a preview's
-// cover merge (prepend_cover) needs no bookcover-core
+// Where a rendered wraparound cover's trim box and fold guide lines fall, in points, as resolved
+// from bookcover's mm-based layout
 export interface CoverPageGeometry {
-    // Trim box to crop to, measured from the page's top-left (bookcover's regions are top-down;
-    // prepend_cover flips y for PDF's bottom-up origin), or null when the cover has no bleed
+    // Trim box to crop to, measured from the page's top-left, or null when the cover has no bleed
     crop:{left:number, top:number, width:number, height:number}|null
     // X positions of the 50%-gray fold guide lines
     fold_x:number[]
@@ -122,7 +120,7 @@ export interface CoverPageGeometry {
 
 
 export function cover_page_geometry(blueprint:Blueprint, page_count:number):CoverPageGeometry {
-    // Where the wraparound cover's trim box and fold guide lines fall on the rendered page, in PDF
+    // Where the wraparound cover's trim box and fold guide lines fall on the rendered page, in
     // points measured from its top-left. Uses the same dimensions bookcover uses to split the
     // wraparound into panels — its layout is mm-based and the page is pt, so this converts mm ->
     // pt exactly as bookcover's splitter does
@@ -147,4 +145,28 @@ export function cover_page_geometry(blueprint:Blueprint, page_count:number):Cove
             dims.cover_region_spine.x.toNumber() + dims.cover_region_spine.w.toNumber()]
         : [front.x.toNumber()]
     return {crop, fold_x: fold_mm.map(mm_to_pt)}
+}
+
+
+export function crop_cover_svg(svg:string, geometry:CoverPageGeometry):string {
+    // A rendered wraparound cover (an SVG whose viewBox is in points, as Typst writes them) as a
+    // preview shows it: cropped to its trim box, so the bleed is hidden, with thin 50%-gray guide
+    // lines on the fold(s). Both are preview aids; the printed cover is rendered separately
+    const open_start = svg.indexOf('<svg')
+    const open_end = svg.indexOf('>', open_start) + 1
+    const view_box = /viewBox="([^"]+)"/.exec(svg.slice(open_start, open_end))?.[1] ?? '0 0 0 0'
+    const [x, y, width, height] = view_box.trim().split(/[\s,]+/).map(Number) as
+        [number, number, number, number]
+    const box = geometry.crop ?? {left: x, top: y, width, height}
+
+    // The root's box and size replaced, everything else about it kept
+    const open_tag = svg.slice(open_start, open_end)
+        .replace(/\s(?:viewBox|width|height)="[^"]*"/g, '')
+        .replace(/^<svg/, `<svg viewBox="${box.left} ${box.top} ${box.width} ${box.height}"`
+            + ` width="${box.width}pt" height="${box.height}pt"`)
+    const lines = geometry.fold_x.map(fold => `<line x1="${fold}" y1="${y}" x2="${fold}"`
+        + ` y2="${y + height}" stroke="rgb(128,128,128)" stroke-width="0.5"/>`).join('')
+    const close = svg.lastIndexOf('</svg>')
+    return svg.slice(0, open_start) + open_tag + svg.slice(open_end, close) + lines
+        + svg.slice(close)
 }

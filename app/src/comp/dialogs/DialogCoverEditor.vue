@@ -30,6 +30,8 @@ import {request_reconcile} from '@/services/design_assets'
 import {cover_bg_suggestions} from '@/services/asset_suggestions'
 import {report_error} from '@/services/errors'
 import {ensure_page_estimate} from '@/services/page_estimate'
+import {ensure_server_estimate} from '@/services/server_preview'
+import {compiles_on_server} from '@/services/compile_mode'
 import {cover_form_for_render, get_cover_title, get_cover_title_from_form,
     is_known_builtin_background} from 'paper-bible-typst'
 
@@ -72,6 +74,10 @@ let sent_bg_suggestions = new Map<string, CoverBgSuggestion>()
 // The page-count estimate the spine width is sized from, started as the overlay opens so it
 // compiles while the widget loads (on mobile, where no live preview keeps it current)
 let estimate_ready:Promise<void> = Promise.resolve()
+
+// Most the editor waits for a server's estimate before opening on the guess it has, since the
+// server takes longer than the widget does to load (its estimate still lands for the next open)
+const SERVER_ESTIMATE_WAIT_MS = 20 * 1000
 
 
 // Answer the widget's 'ready' with the full init message: a complete form preset (stored
@@ -279,7 +285,9 @@ const on_message = (event:MessageEvent) => {
 watch(() => state.cover_editor, open => {
     if (open){
         loaded.value = false
-        estimate_ready = ensure_page_estimate()
+        // A device that compiles on the server asks it, once, when the estimate is stale
+        estimate_ready = compiles_on_server()
+            ? ensure_server_estimate(SERVER_ESTIMATE_WAIT_MS) : ensure_page_estimate()
         window.addEventListener('message', on_message)
     } else {
         window.removeEventListener('message', on_message)

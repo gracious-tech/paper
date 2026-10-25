@@ -179,7 +179,7 @@ v-card-text(class='overflow-y-auto')
 
     h2 {{$t("editor.advanced.blank_pages")}}
 
-    v-checkbox(v-model='blue.show_lines' :label='$t("editor.advanced.draw_lines")' hide-details)
+    AppOptionToggle(v-model='lines' :label='$t("editor.advanced.draw_lines")' :items='lines_items')
 
     v-divider(class='my-8')
 
@@ -212,6 +212,8 @@ import {PATTERNS as patterns, resolve_binding_gutter} from 'paper-bible-typst'
 
 import {blue, state, page_count_guess, supports_wj} from '@/services/state'
 import {unit_label} from '@/services/blueprints'
+
+import type {LineRuling} from 'paper-bible-typst'
 
 const {t} = useI18n()
 
@@ -254,6 +256,15 @@ const image_style_items = computed(() => [
     {value: 'padded', title: t("editor.advanced.image_padded")},
     {value: 'painted', title: t("editor.advanced.image_painted")},
     {value: 'torn', title: t("editor.advanced.image_torn")},
+])
+
+
+// Handwriting lines on blank pages: none, or the spacing of standard ruled paper
+const lines_items = computed(() => [
+    {value: 'null', title: t("common.none")},
+    {value: 'narrow', title: t("editor.advanced.lines_narrow")},
+    {value: 'medium', title: t("editor.advanced.lines_medium")},
+    {value: 'wide', title: t("editor.advanced.lines_wide")},
 ])
 
 
@@ -376,6 +387,15 @@ const titlepage_always = computed({
     get: () => String(blue.titlepage_always),
     set: value => {
         blue.titlepage_always = value === 'null' ? null : (value as 'left'|'right')
+    },
+})
+
+
+// Wrap lines so the toggle can use string values (null isn't a valid option value)
+const lines = computed({
+    get: () => String(blue.lines),
+    set: value => {
+        blue.lines = value === 'null' ? null : (value as LineRuling)
     },
 })
 

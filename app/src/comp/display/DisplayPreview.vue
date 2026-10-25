@@ -3,6 +3,9 @@
 
 div.preview
     div.toolbar
+        //- Zooms the pages, from fitting the pane to print size and beyond (pinching and
+        //- Ctrl+wheel over them do too)
+        DisplayPreviewZoom(v-if='preview' v-model='zoom' :fit='fit_zoom' physical)
         //- Which part of a large document to preview — only shown when the document was
         //- truncated and has more than one book/passage to window across
         v-btn-toggle.sections(v-if='truncated && section_options.length > 1'
@@ -12,6 +15,15 @@ div.preview
             v-btn(v-if="section_options.includes('middle')" value='middle' size='small')
                 | {{ $t("common.middle") }}
             v-btn(value='end' size='small') {{ $t("common.end") }}
+        //- A device that previews on the server doesn't recompile as the design changes, so it
+        //- asks for a fresh preview when wanted, and the button stands out once it's out of date
+        v-btn(v-if='server_mode' @click='refresh' size='small'
+                :variant='stale ? "elevated" : "tonal"'
+                :color='stale ? "secondary-darken-1" : "primary-light"'
+                :loading='!!progress_message')
+            template(#prepend)
+                app-icon(name='refresh')
+            | {{ $t("display.preview.refresh") }}
         //- Hint + build button pushed to the right end of the toolbar via margin-left:auto on the
         //- hint (see style below); the mobile floating button lives in ViewDesignEditor.vue
         //- without the hint, since the preview isn't mounted at all on mobile (see AppRoot.vue)
@@ -23,10 +35,11 @@ div.preview
     div.status(v-if='missing_warnings.length')
         h3(class='mb-4') {{ $t("display.preview.missing_books") }}
         p(v-for='warning of missing_warnings' class='status-detail') {{ warning }}
-    div.frame(v-else-if='pdf_url')
-        iframe(:src='pdf_url')
+    div.frame(v-else-if='preview')
+        DisplayPreviewPages.scroll(:preview='preview' layout='spreads' v-model:zoom='zoom'
+            @fit='fit_zoom = $event')
         //- Semi-transparent readout of the in-progress recompile, layered over the still-visible
-        //- (and still-scrollable, via pointer-events:none) previous PDF
+        //- (and still-scrollable, via pointer-events:none) previous preview
         transition(name='fade')
             div.overlay(v-if='progress_message || overlay_failed')
                 div.overlay_box(:class='{error: overlay_failed}')
@@ -46,33 +59,46 @@ div.preview
 
 <script lang='ts' setup>
 
-import {ref, computed, watch, onUnmounted} from 'vue'
+import {ref, shallowRef, computed, watch, onUnmounted} from 'vue'
 import {debounce} from 'lodash-es'
 import {useI18n} from '@/services/i18n'
 
 import BtnGenerate from '@/comp/views/assets/BtnGenerate.vue'
+import DisplayPreviewPages from '@/comp/display/DisplayPreviewPages.vue'
+import DisplayPreviewZoom from '@/comp/display/DisplayPreviewZoom.vue'
 import {blue} from '@/services/state'
 import {content} from '@/services/content'
 import {collect_passage_books, missing_book_warnings} from '@/services/blueprints'
 import {typst_generator} from '@/services/typst'
-import {render_cover_pdf, prepend_cover_page} from '@/services/cover'
 import {report_error} from '@/services/errors'
 import {stage_text} from '@/services/compile_progress'
-import {compile_preview_window, set_page_estimate, render_signature}
-    from '@/services/page_estimate'
-import {PREVIEW_CHAR_LIMIT} from 'paper-bible-typst'
+import {render_signature} from '@/services/page_estimate'
+import {server_mode, compiles_on_server} from '@/services/compile_mode'
+import {desktop_preview} from '@/services/preview'
+import {ServerPreviewError} from '@/services/server_preview'
 
 import type {PreviewSection} from 'paper-bible-typst'
+import type {Preview} from '@/services/preview'
 import type {CompileProgress} from '@/services/compile_progress'
 
 
 const {t} = useI18n()
 
 
-// Object URL of the current compiled PDF, and whether the last compile failed with no previous
-// PDF to keep showing
-const pdf_url = ref<string|null>(null)
+// The preview being shown, the render_signature() it was made from, and whether the last compile
+// failed with no previous preview to keep showing
+const preview = shallowRef<Preview|null>(null)
+const shown_signature = ref<string|null>(null)
 const failed = ref(false)
+
+// The zoom chosen (null fits the pane's width, see preview_zoom.ts), kept across previews, and the
+// zoom that fits the width, as the pages report it
+const zoom = ref<number|null>(null)
+const fit_zoom = ref(1)
+
+// Whether the design has changed since the preview shown was made — only ever the case for long
+// on a device that previews on the server, where it waits for Refresh
+const stale = computed(() => !!preview.value && shown_signature.value !== render_signature())
 
 // Text for the currently active progress stage, or null between compiles (and for stages the
 // user doesn't need to see — see stage_text() in compile_progress.ts)
@@ -92,9 +118,12 @@ const overlay_error_title = computed(() => t("display.preview.error"))
 // Report a failed preview and show it, over the old preview if there is one
 function show_failure(error:unknown, stage:string):void{
     // Preview failures are transient while editing, so record without any support prompt
-    // (the throttle in errors.ts stops this spamming reports per keystroke)
-    report_error('silent', error, {context: {stage}})
-    if (pdf_url.value){
+    // (the throttle in errors.ts stops this spamming reports per keystroke). One the server
+    // failed at was already reported there
+    if (!(error instanceof ServerPreviewError && error.error_id)){
+        report_error('silent', error, {context: {stage}})
+    }
+    if (preview.value){
         overlay_failed.value = true
     } else {
         failed.value = true
@@ -145,12 +174,13 @@ const missing_warnings = computed(() => {
 let latest_run = 0
 
 
-// Compile the current blueprint to a PDF and display it
+// Show a fresh preview of the current blueprint: made in this browser, or on the server for a
+// device that compiles there or whose browser can't keep up (see desktop_preview)
 async function compile(){
 
-    // Wait until the WASM compiler is ready (watcher retriggers when it becomes available)
-    const generator = typst_generator.value
-    if (!generator){
+    // Wait until the WASM compiler is ready (watcher retriggers when it becomes available),
+    // unless the server makes this device's previews
+    if (!typst_generator.value && !compiles_on_server()){
         return
     }
 
@@ -161,11 +191,12 @@ async function compile(){
     }
 
     const run = ++latest_run
+    const signature = render_signature()
     failed.value = false
     overlay_failed.value = false
 
-    // Forwarded to both the content-fetching and PDF-compiling stages, so the overlay reflects
-    // whichever one is currently running
+    // Forwarded to every stage (the Bible's download, the compile, the cover, the server), so the
+    // overlay reflects whichever one is currently running
     const on_progress = (event:CompileProgress) => {
         if (run !== latest_run){
             return
@@ -177,78 +208,20 @@ async function compile(){
     }
 
     try {
-        // Compile the window chosen by the Start|Middle|End toggle, labelling the "inside of
-        // front cover" gray slot on the first spread so it's clear it's not a missing/blank page.
-        // The dropped_before/dropped_after flags drive the start/end strips added below
-        const preview = await compile_preview_window(generator, effective_section.value,
-            PREVIEW_CHAR_LIMIT, on_progress, t("display.preview.inside_cover"))
-        const {truncation, show_front_cover, share_url, page_estimate} = preview
-        let bytes = preview.bytes
-
-        // Ignore if a newer compile has started since
+        const result = await desktop_preview(effective_section.value, on_progress,
+            () => run === latest_run)
         if (run !== latest_run){
             return
         }
-        truncated.value = truncation.truncated
-
-        // Refresh the shared page-count estimate (the start/end strips aren't in these bytes
-        // yet, so it counts only real pages)
-        set_page_estimate(page_estimate, preview.signature)
-
-        // Merge the rendered cover into the preview (cached in cover.ts — book-only edits reuse
-        // the previous render): the full wraparound cover as page 1, matching the actual print
-        // file. A cover failure is surfaced the same way a book compile failure is, rather than
-        // silently showing a preview that's missing its cover
-        if (show_front_cover){
-            on_progress({stage: 'cover'})
-            try {
-                bytes = await prepend_cover_page(
-                    await render_cover_pdf(blue, page_estimate, 'preview', undefined, share_url),
-                    bytes, blue, page_estimate)
-            } catch (error){
-                if (run !== latest_run){
-                    return
-                }
-                show_failure(error, 'preview_cover')
-                return
-            }
-            if (run !== latest_run){
-                return
-            }
-        }
-
-        // Cap the preview with short orange strips — after every other step (cover included) so
-        // they sit at the very edges in every section. The start strip is always
-        // present: it's the plain "this is only a preview" note, or the "Start of preview"
-        // marker when content before the window was dropped. The end strip is only added when
-        // content past the window was dropped.
-        const [start_title, start_subtitle] = truncation.dropped_before
-            ? [t("display.preview.start_of_preview"), t("display.preview.build_for_rest")]
-            : [t("display.preview.banner_title"), t("display.preview.banner_subtitle")]
-        bytes = await generator.preview_strip(
-            bytes, truncation.request.page.width, start_title, start_subtitle, 'start')
-        if (truncation.dropped_after){
-            bytes = await generator.preview_strip(
-                bytes, truncation.request.page.width,
-                t("display.preview.end_of_preview"), t("display.preview.build_for_rest"), 'end')
-        }
-        if (run !== latest_run){
-            return
-        }
-
-        // Swap in the new PDF and revoke the previous object URL
-        const url = URL.createObjectURL(new Blob([new Uint8Array(bytes)], {type: 'application/pdf'}))
-        if (pdf_url.value){
-            URL.revokeObjectURL(pdf_url.value)
-        }
-        pdf_url.value = url
-
+        truncated.value = result.truncated
+        preview.value = result
+        shown_signature.value = signature
     } catch (error){
         if (run !== latest_run){
             return
         }
         // If an old preview is still showing underneath, the overlay stays up and turns red to
-        // explain the failure, rather than silently reverting to the (now stale) PDF
+        // explain the failure, rather than silently reverting to the (now stale) preview
         show_failure(error, 'preview')
     } finally {
         if (run === latest_run){
@@ -262,15 +235,34 @@ async function compile(){
 const compile_debounced = debounce(compile, 500)
 
 
+// Recompile as the design changes, only where it compiles in this browser: on the server each
+// preview costs us rather than the user's device, so there it's asked for by Refresh instead
+function auto_compile():void{
+    if (!compiles_on_server()){
+        compile_debounced()
+    }
+}
+
+
+// Ask for a fresh preview (a device that previews on the server, which doesn't recompile itself)
+function refresh():void{
+    compile_debounced.cancel()
+    void compile()
+}
+
+
+// One compile as the pane opens, wherever it compiles
+compile_debounced()
+
 // Recompile whenever the blueprint changes. Keyed on render_signature() rather than
 // deep-watching `blue` directly, so a change that doesn't alter what gets rendered (such as a
 // rename) doesn't queue a compile
-watch(render_signature, () => compile_debounced(), {immediate: true})
+watch(render_signature, auto_compile)
 
 // ...and whenever the fetched Typst content or compiler availability changes
 watch(
     [() => content.loaded, () => typst_generator.value],
-    () => compile_debounced(),
+    auto_compile,
     {deep: true},
 )
 
@@ -305,7 +297,7 @@ function discrete_signature():string {
         blue.show_chapters, blue.show_chapters_style, blue.show_verses,
         blue.running_pages, blue.running_headings, blue.running_position, blue.running_align,
         blue.show_footnotes, blue.show_wj, blue.show_wj_bold,
-        blue.show_wj_italic, blue.show_lines, blue.notes,
+        blue.show_wj_italic, blue.lines, blue.notes,
         blue.margin_unit, blue.public_domain, blue.app_link, blue.design_link,
         blue.titlepage_frame, blue.titlepage_always, blue.titlepage_blank_back, blue.passage_title, blue.story_emphasis,
         // The whole cover config — it only ever changes atomically (editor Finished / Remove)
@@ -317,17 +309,16 @@ function discrete_signature():string {
 // Recompile right away whenever a discrete field changes. Registered after the watcher above so
 // it runs later in the same flush, cancelling whatever debounce that one just queued.
 watch(discrete_signature, () => {
-    compile_debounced.cancel()
-    void compile()
+    if (!compiles_on_server()){
+        compile_debounced.cancel()
+        void compile()
+    }
 })
 
 
-// Clean up pending work and the last object URL
+// Clean up pending work (the pages' object URLs are their component's)
 onUnmounted(() => {
     compile_debounced.cancel()
-    if (pdf_url.value){
-        URL.revokeObjectURL(pdf_url.value)
-    }
 })
 
 </script>
@@ -384,12 +375,11 @@ onUnmounted(() => {
     width: 100%
     overflow: hidden
 
-iframe
+.scroll
     position: absolute
     inset: 0
-    width: 100%
-    height: 100%
-    border: none
+    // The gray a browser's PDF viewer shows around the pages, as this preview once was one
+    background-color: rgb(82, 86, 89)
 
 .overlay
     position: absolute

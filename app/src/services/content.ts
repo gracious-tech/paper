@@ -6,7 +6,8 @@ import {BibleContent} from 'paper-bible-typst'
 import {get_fonts} from 'typst-fonts'
 import {load_fonts_prefix, register_preview_fonts} from 'typst-fonts/web'
 
-import type {BibleCollection, GetResourcesItem, GetLanguagesItem, GetBooksItem} from '@gracious.tech/fetch-client'
+import type {BibleCollection, DistDescription, GetResourcesItem, GetLanguagesItem, GetBooksItem}
+    from '@gracious.tech/fetch-client'
 import type {BundledFont} from 'typst-fonts'
 import type {ContentPassage} from './types'
 
@@ -31,6 +32,9 @@ export const content = {
     translations: null as unknown as Record<string, GetResourcesItem>,
     // Per-bible book metadata, filled as translations load
     books: reactive({}) as Record<string, Record<string, GetBooksItem>>,
+    // fetch.bible's descriptions of a language's translations, keyed by language then translation
+    // id, filled as the Bible picker shows a language (see ensure_bible_descriptions())
+    descriptions: reactive({}) as Record<string, Record<string, DistDescription>>,
     // Whether each translation supports words-of-Jesus markup (red letters), keyed by resource id
     wj_markup: reactive({}) as Record<string, boolean>,
     // Which Typst books are cached and ready, keyed `${bible}_${book}` — drives preview refresh
@@ -70,6 +74,25 @@ export async function ensure_bible_books_loaded(bible:string):Promise<void> {
     const {wj_markup} = await bible_content.load_translation(bible)
     content.wj_markup[bible] = wj_markup
     content.books[bible] = bible_content.collection.get_books(bible, {object: true, whole: true})
+}
+
+
+// Fetch a language's translation descriptions into `content.descriptions`, once. A failure
+// rejects (and so is reported) but isn't remembered, so the picker asks again next time it shows
+// the language, and shows it without descriptions meanwhile
+const descriptions_fetching:Record<string, Promise<void>> = {}
+export function ensure_bible_descriptions(language:string):Promise<void> {
+    if (content.descriptions[language]){
+        return Promise.resolve()
+    }
+    descriptions_fetching[language] ??= bible_content.fetch_bible_descriptions(language)
+        .then(descriptions => {
+            content.descriptions[language] = descriptions
+        })
+        .finally(() => {
+            delete descriptions_fetching[language]
+        })
+    return descriptions_fetching[language]
 }
 
 
