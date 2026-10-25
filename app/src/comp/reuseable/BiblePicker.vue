@@ -38,21 +38,23 @@ v-card-text(class='overflow-y-auto')
             v-list-item(v-else :key='trans.id' color='primary'
                     :active='trans.id === modelValue' density='compact'
                     @click='change_trans(trans.id)')
-                v-list-item-title
-                    | {{ trans.name_abbrev }} &mdash; {{ trans.name }}
-                v-list-item-subtitle(v-if='trans.name_english !== trans.name') {{ trans.name_english }}
-                template(v-if='trans.details')
-                    //- Each fact is a chunk of its own, so a line breaks between facts if it can
-                    v-list-item-subtitle.facts(v-if='trans.details.facts.length')
-                        span.fact(v-for='fact of trans.details.facts' :key='fact') {{ fact }}
-                    v-list-item-subtitle.description(v-if='trans.details.description')
-                        | {{ trans.details.description }}
-                //- Translation's own site, without selecting it
-                template(v-if='trans.details && trans.attribution_url' #append)
-                    v-btn(icon variant='text' size='small' :href='trans.attribution_url'
-                            target='_blank' rel='noopener' :aria-label='$t("common.about_translation")'
-                            @click.stop)
+                //- Name and facts, with the info button beside them (not the description)
+                div.head
+                    div.head_text
+                        v-list-item-title
+                            | {{ trans.name_abbrev }} &mdash; {{ trans.name }}
+                        v-list-item-subtitle(v-if='trans.name_english !== trans.name')
+                            | {{ trans.name_english }}
+                        //- Each fact is a chunk of its own, so a line breaks between facts if it can
+                        v-list-item-subtitle.facts(v-if='trans.details?.facts.length')
+                            span.fact(v-for='fact of trans.details.facts' :key='fact') {{ fact }}
+                    //- Translation's own site, without selecting it
+                    v-btn(v-if='trans.details && trans.attribution_url' icon variant='text'
+                            size='small' :href='trans.attribution_url' target='_blank'
+                            rel='noopener' :aria-label='$t("common.about_translation")' @click.stop)
                         app-icon(name='info')
+                v-list-item-subtitle.description(v-if='trans.details?.description')
+                    | {{ trans.details.description }}
 
     div(class='cant_find text-center')
         v-btn(variant='text' color='primary')
@@ -190,11 +192,21 @@ const change_trans = (id:string) => {
 .v-card-text
     padding-bottom: 30vh
 
+// A translation's name and facts, beside its info button
+.head
+    display: flex
+    align-items: center
+
+.head_text
+    flex-grow: 1
+    min-width: 0
+
 // Facts and descriptions (up to 100 characters) wrap on a phone, where Vuetify's one line
-// would cut them off
+// would cut them off. Facts are bold, to set them apart from the description below
 .v-list-item-subtitle.facts
     -webkit-line-clamp: 2
     margin-top: 2px
+    font-weight: 600
 
 // Facts separated by a middle dot, which stays at the end of a line when the next fact wraps
 .fact
@@ -202,6 +214,7 @@ const change_trans = (id:string) => {
     &:not(:last-child)::after
         content: '·'
         padding: 0 0.4em
+        font-weight: 400
 
 .v-list-item-subtitle.description
     -webkit-line-clamp: 3
