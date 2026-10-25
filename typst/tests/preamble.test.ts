@@ -204,7 +204,9 @@ describe('gen_preamble', () => {
                 features: {...TEST_FEATURES, show_chapters: true, show_chapters_style: 'divider'},
             }))
             expect(result).toContain('if n > 1')
-            expect(result).toContain('line(length: 100%, stroke: 0.5pt)')
+            // Tapered rules drawn as polygons in the text's colour, either side of a bold number
+            expect(result).toContain('polygon(fill: text.fill')
+            expect(result).toContain('weight: "bold"')
             // The visual is factored out so the bilingual columns layout can draw it once at
             // full grid width (see gen_multi_bible_grids)
             expect(result).toContain('#let ch_divider(n) =')
