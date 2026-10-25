@@ -223,7 +223,7 @@ describe('gen_preamble', () => {
             }
         })
 
-        it('flags a following heading as tight, under the divider style only', () => {
+        it('flags a following heading, under the divider and heading styles only', () => {
             // A chapter opening straight into a heading uses #ch_tight, which tells that heading
             // to sit one line slot below the divider rather than adding its own leading space
             // (see tighten_chapter_before_heading in content_passage.ts)
@@ -232,13 +232,18 @@ describe('gen_preamble', () => {
             }))
             expect(divider).toContain('#let ch_tight(n, ..rest) = {')
             expect(divider).toContain('state("heading-tight", false).update(true)')
-            // Every other style has nothing to add, so the marker is just the plain one
-            for (const style of ['float', 'heading'] as const) {
-                const result = gen_preamble(make_request({
-                    features: {...TEST_FEATURES, show_chapters: true, show_chapters_style: style},
-                }))
-                expect(result).toContain('#let ch_tight(n, ..rest) = ch(n)')
-            }
+            // A chapter heading tells the section heading under it to drop its leading space,
+            // without flattening it the way the divider's flag does
+            const heading = gen_preamble(make_request({
+                features: {...TEST_FEATURES, show_chapters: true, show_chapters_style: 'heading'},
+            }))
+            expect(heading).toContain('#let ch_tight(n, ..rest) = {\n    ch(n)\n'
+                + '    state("ch-heading-open", false).update(true)')
+            expect(heading).not.toContain('#let ch_tight(n, ..rest) = ch(n)')
+            // The float style has nothing to add, so the marker is just the plain one
+            expect(gen_preamble(make_request({
+                features: {...TEST_FEATURES, show_chapters: true, show_chapters_style: 'float'},
+            }))).toContain('#let ch_tight(n, ..rest) = ch(n)')
             expect(gen_preamble(make_request({
                 features: {...TEST_FEATURES, show_chapters: false},
             }))).toContain('#let ch_tight(n, ..rest) = ch(n)')
