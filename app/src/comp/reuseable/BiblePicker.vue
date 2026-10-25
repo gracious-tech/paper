@@ -37,7 +37,7 @@ v-card-text(class='overflow-y-auto')
             v-list-subheader(v-if='typeof trans === "string"' :key='trans' class='mt-4') {{ trans }}
             v-list-item(v-else :key='trans.id' color='primary'
                     :active='trans.id === modelValue' density='compact'
-                    @click='change_trans(trans.id)')
+                    :class='{detailed: trans.details}' @click='change_trans(trans.id)')
                 //- Name and facts, with the info button beside them (not the description)
                 div.head
                     div.head_text
@@ -191,6 +191,11 @@ const change_trans = (id:string) => {
 
 .v-card-text
     padding-bottom: 30vh
+
+// A translation with details is several lines, which need more room around them than the
+// compact density's one-line items (which have none, relying on a min height instead)
+.v-list-item.detailed
+    padding-block: 10px
 
 // A translation's name and facts, beside its info button
 .head
