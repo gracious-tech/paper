@@ -23,7 +23,7 @@ import {doc_translator, doc_language} from './doc_strings.js'
 
 import type {CjkVariant, FontStyle} from 'typst-fonts'
 import type {QuoteState} from './helpers.js'
-import type {BibleCollection, BibleBookTypst, BibleBookTxt, GetResourcesItem,
+import type {BibleCollection, BibleBookTypst, BibleBookTxt, DistDescription, GetResourcesItem,
     } from '@gracious.tech/fetch-client'
 import type {Blueprint, ContentPassage, ContentCustom, ContentPictureStory, PictureStorySlide,
     TypstRequest, TypstContentItem, TypstPassage, TypstTitlePage, TypstCustomPage,
@@ -201,6 +201,13 @@ export class BibleContent {
     async load_translation(bible:string):Promise<{wj_markup:boolean}> {
         const extra = await this.collection.fetch_translation_extras(bible)
         return {wj_markup: extra.wj_markup}
+    }
+
+    // Fetch fetch.bible's short descriptions of a language's translations, keyed by translation
+    // id (every part optional, and a translation not listed has none). Empty when the collection
+    // was injected, as there's no client to fetch with
+    async fetch_bible_descriptions(language:string):Promise<Record<string, DistDescription>> {
+        return this.client ? this.client.fetch_bible_descriptions(language) : {}
     }
 
     // Fetch (and cache) the Typst content for one book of one translation, or null if the book

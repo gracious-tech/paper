@@ -266,7 +266,10 @@ paper_bible/
         cover_worker.ts    # The cover render worker
         minimal_cover.ts   # The no-cover "minimal ink" title/copyright content pages
         stories.ts         # Predefined picture stories (fetch + slide assembly)
-        content.ts         # Bible data service (fetch-client via paper-bible-typst)
+        content.ts         # Bible data service (fetch-client via paper-bible-typst), plus
+                            #   fetch.bible's translation descriptions for the picker
+        bible_details.ts   # The picker's line under each translation: year · literalness ·
+                            #   provenance · NT text type, from tags + descriptions (English only)
         blueprints.ts      # Default blueprint + clean_blueprint() validation + display helpers
         page_estimate.ts   # The page-count estimate from a preview-window compile: kept current
                             #   by the live preview on desktop; mobile mounts no preview, so

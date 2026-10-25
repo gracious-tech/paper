@@ -41,6 +41,18 @@ v-card-text(class='overflow-y-auto')
                 v-list-item-title
                     | {{ trans.name_abbrev }} &mdash; {{ trans.name }}
                 v-list-item-subtitle(v-if='trans.name_english !== trans.name') {{ trans.name_english }}
+                template(v-if='trans.details')
+                    //- Each fact is a chunk of its own, so a line breaks between facts if it can
+                    v-list-item-subtitle.facts(v-if='trans.details.facts.length')
+                        span.fact(v-for='fact of trans.details.facts' :key='fact') {{ fact }}
+                    v-list-item-subtitle.description(v-if='trans.details.description')
+                        | {{ trans.details.description }}
+                //- Translation's own site, without selecting it
+                template(v-if='trans.details && trans.attribution_url' #append)
+                    v-btn(icon variant='text' size='small' :href='trans.attribution_url'
+                            target='_blank' rel='noopener' :aria-label='$t("common.about_translation")'
+                            @click.stop)
+                        app-icon(name='info')
 
     div(class='cant_find text-center')
         v-btn(variant='text' color='primary')
@@ -55,7 +67,8 @@ v-card-text(class='overflow-y-auto')
 
 import {computed, ref, watch} from 'vue'
 
-import {content} from '@/services/content'
+import {content, ensure_bible_descriptions} from '@/services/content'
+import {bible_details} from '@/services/bible_details'
 import {default_bible} from '@/services/blueprints'
 import {useI18n} from '@/services/i18n'
 import DialogPeddlers from '@/comp/dialogs/DialogPeddlers.vue'
@@ -63,6 +76,7 @@ import DialogMissingTranslation from '@/comp/dialogs/DialogMissingTranslation.vu
 
 import type {VList} from 'vuetify/components'
 import type {GetResourcesItem} from '@gracious.tech/fetch-client'
+import type {BibleDetails} from '@/services/bible_details'
 
 
 // Generic language + translation picker (used by the editor's EditorBible wrapper and the
@@ -99,8 +113,17 @@ const translations = computed(() => {
     const niche = content.collection.get_resources({language: displayed_language.value})
         .filter(i => !decent.find(di => di.id === i.id))
 
+    // Details go under English's main translations only for now (no other language has
+    // descriptions yet, and the niche group is there for completeness rather than to choose from)
+    const descriptions = content.descriptions[displayed_language.value]
+    const with_details = displayed_language.value === 'eng'
+
     // Add in separate groups
-    const items:(GetResourcesItem|string)[] = decent
+    const items:((GetResourcesItem & {details?:BibleDetails})|string)[] = decent.map(trans => {
+        return with_details
+            ? {...trans, details: bible_details(trans, descriptions?.[trans.id], t)}
+            : trans
+    })
     if (niche.length){
         items.push(t("common.niche_translations"))
         items.push(...niche)
@@ -116,6 +139,12 @@ const languages_filtered = computed(() => {
 
 
 // Watches
+watch(displayed_language, language => {
+    // Fetch the descriptions shown under English's translations (see translations)
+    if (language === 'eng'){
+        void ensure_bible_descriptions(language)
+    }
+}, {immediate: true})
 watch(languages_show_all, () => {
     // Scroll back to top of lang list when showing all, as new items will be added to top
     lang_list_comp.value?.$el?.scroll({top: 0})
@@ -160,6 +189,23 @@ const change_trans = (id:string) => {
 
 .v-card-text
     padding-bottom: 30vh
+
+// Facts and descriptions (up to 100 characters) wrap on a phone, where Vuetify's one line
+// would cut them off
+.v-list-item-subtitle.facts
+    -webkit-line-clamp: 2
+    margin-top: 2px
+
+// Facts separated by a middle dot, which stays at the end of a line when the next fact wraps
+.fact
+    display: inline-block
+    &:not(:last-child)::after
+        content: '·'
+        padding: 0 0.4em
+
+.v-list-item-subtitle.description
+    -webkit-line-clamp: 3
+    margin-top: 2px
 
 .cant_find
     margin-top: 24px
