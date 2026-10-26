@@ -65,12 +65,6 @@ const warnings = computed(() => {
     if (requires_copyright.value && !has_copyright.value){
         items.push(t("options.content.copyright_required"))
     }
-    // Book-like layouts always insert a leading blank when the first item needs a recto start
-    if (blue.content[0]?.type === 'passage'
-            && (blue.bibles.length === 2 && blue.bibles_layout === 'alternate'
-                || blue.half_blank !== null)){
-        items.push(t("options.content.blank_first_page"))
-    }
     return items
 })
 
