@@ -302,6 +302,10 @@ function reset_paper_if_invalid():void{
 
 // When the service changes, reset all dependent selections to their first available option
 watch(() => blue.service_id, () => {
+    // The cover's white home-print border only suits a home printer (see OptionsCover)
+    if (!is_home.value && blue.cover?.form['home_print_margin']){
+        blue.cover.form['home_print_margin'] = false
+    }
     if (is_home.value){
         // Home printing: keep it to A4 / US Letter
         if (blue.size_id !== 'a4' && blue.size_id !== 'us_letter'){
