@@ -544,6 +544,12 @@ export function previewed_cover_svg(design_id:string|null, cover:CoverConfig|nul
 }
 
 
+export function builtin_bg_800_url(id:string):string{
+    // The URL of bookcover's 800px copy of a builtin background, small enough to show as is
+    return asset_path(ASSETS_PREFIX, BACKGROUNDS_DIR, BG_PREVIEW_800_DIR, id)
+}
+
+
 // Build the full form preset for a design's first cover: blank widget values with the book's
 // title (or first passage reference), the first included Bible book's icon as the background
 // design, a minimal blurb crediting paper.bible, and the blueprint's own size fields
@@ -685,8 +691,8 @@ export async function render_wizard_cover_preview(kind:CoverPreset, blueprint:Bl
         title_custom: false}
     let image_override:{data:Uint8Array, type:string}|undefined
     if (bg_image_id){
-        const url = asset_path(ASSETS_PREFIX, BACKGROUNDS_DIR, BG_PREVIEW_800_DIR, bg_image_id)
-        image_override = {data: await fetch_bytes_from(url), type: bg_mime_for(bg_image_id)}
+        image_override = {data: await fetch_bytes_from(builtin_bg_800_url(bg_image_id)),
+            type: bg_mime_for(bg_image_id)}
     }
     const result = await render_cover({...blueprint, cover}, page_count_guess(), undefined,
         {format: 'svg', quality: 'preview', ...image_override && {image_override}})

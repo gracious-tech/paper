@@ -460,7 +460,6 @@
   "options.content.title_page": "Титульная страница",
   "options.cover.add_cover": "Добавить обложку",
   "options.cover.edit_cover": "Редактировать обложку",
-  "options.cover.has_cover": "У этой книги есть обложка",
   "options.cover.intro": "В этом макете пока нет обложки.",
   "options.cover.remove_confirm": "Удалить эту обложку?",
   "options.cover.remove_cover": "Удалить обложку",

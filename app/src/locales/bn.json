@@ -460,7 +460,6 @@
   "options.content.title_page": "শিরোনাম পৃষ্ঠা",
   "options.cover.add_cover": "প্রচ্ছদ যোগ করুন",
   "options.cover.edit_cover": "প্রচ্ছদ সম্পাদনা করুন",
-  "options.cover.has_cover": "এই বইয়ের একটি প্রচ্ছদ আছে",
   "options.cover.intro": "এই ডিজাইনে বর্তমানে কোনো প্রচ্ছদ নেই।",
   "options.cover.remove_confirm": "এই প্রচ্ছদটি সরিয়ে দেবেন?",
   "options.cover.remove_cover": "প্রচ্ছদ সরান",

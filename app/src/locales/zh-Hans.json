@@ -460,7 +460,6 @@
   "options.content.title_page": "标题页",
   "options.cover.add_cover": "添加封面",
   "options.cover.edit_cover": "编辑封面",
-  "options.cover.has_cover": "此书已有封面设计",
   "options.cover.intro": "此设计目前不包含封面。",
   "options.cover.remove_confirm": "要移除此封面设计吗？",
   "options.cover.remove_cover": "移除封面",

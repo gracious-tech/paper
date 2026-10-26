@@ -460,7 +460,6 @@
   "options.content.title_page": "Title page",
   "options.cover.add_cover": "Add cover",
   "options.cover.edit_cover": "Edit cover",
-  "options.cover.has_cover": "This book has a cover design",
   "options.cover.intro": "This design does not currently include a cover.",
   "options.cover.remove_confirm": "Remove this cover design?",
   "options.cover.remove_cover": "Remove cover",

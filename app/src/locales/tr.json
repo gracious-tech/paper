@@ -460,7 +460,6 @@
   "options.content.title_page": "Başlık sayfası",
   "options.cover.add_cover": "Kapak ekle",
   "options.cover.edit_cover": "Kapağı düzenle",
-  "options.cover.has_cover": "Bu kitabın bir kapak tasarımı var",
   "options.cover.intro": "Bu tasarımda şu anda kapak bulunmuyor.",
   "options.cover.remove_confirm": "Bu kapak tasarımı kaldırılsın mı?",
   "options.cover.remove_cover": "Kapağı kaldır",

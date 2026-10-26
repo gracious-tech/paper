@@ -460,7 +460,6 @@
   "options.content.title_page": "제목 페이지",
   "options.cover.add_cover": "표지 추가",
   "options.cover.edit_cover": "표지 편집",
-  "options.cover.has_cover": "이 책에는 표지가 있습니다",
   "options.cover.intro": "이 디자인에는 현재 표지가 없습니다.",
   "options.cover.remove_confirm": "이 표지를 삭제하시겠습니까?",
   "options.cover.remove_cover": "표지 삭제",

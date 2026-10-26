@@ -460,7 +460,6 @@
   "options.content.title_page": "Halaman judul",
   "options.cover.add_cover": "Tambahkan sampul",
   "options.cover.edit_cover": "Edit sampul",
-  "options.cover.has_cover": "Buku ini memiliki desain sampul",
   "options.cover.intro": "Desain ini saat ini belum memiliki sampul.",
   "options.cover.remove_confirm": "Hapus desain sampul ini?",
   "options.cover.remove_cover": "Hapus sampul",

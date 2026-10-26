@@ -460,7 +460,6 @@
   "options.content.title_page": "หน้าชื่อเรื่อง",
   "options.cover.add_cover": "เพิ่มปก",
   "options.cover.edit_cover": "แก้ไขปก",
-  "options.cover.has_cover": "หนังสือเล่มนี้มีปกแล้ว",
   "options.cover.intro": "งานออกแบบนี้ยังไม่มีปก",
   "options.cover.remove_confirm": "ต้องการนำปกนี้ออกหรือไม่?",
   "options.cover.remove_cover": "นำปกออก",

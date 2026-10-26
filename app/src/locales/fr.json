@@ -460,7 +460,6 @@
   "options.content.title_page": "Page de titre",
   "options.cover.add_cover": "Ajouter une couverture",
   "options.cover.edit_cover": "Modifier la couverture",
-  "options.cover.has_cover": "Ce livre a une couverture",
   "options.cover.intro": "Ce projet ne comporte pas encore de couverture.",
   "options.cover.remove_confirm": "Supprimer cette couverture ?",
   "options.cover.remove_cover": "Supprimer la couverture",

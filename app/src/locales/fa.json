@@ -460,7 +460,6 @@
   "options.content.title_page": "صفحهٔ عنوان",
   "options.cover.add_cover": "افزودن جلد",
   "options.cover.edit_cover": "ویرایش جلد",
-  "options.cover.has_cover": "این کتاب طرح جلد دارد",
   "options.cover.intro": "این طرح در حال حاضر جلد ندارد.",
   "options.cover.remove_confirm": "این طرح جلد حذف شود؟",
   "options.cover.remove_cover": "حذف جلد",

@@ -460,7 +460,6 @@
   "options.content.title_page": "扉ページ",
   "options.cover.add_cover": "表紙を追加",
   "options.cover.edit_cover": "表紙を編集",
-  "options.cover.has_cover": "この本には表紙のデザインがあります",
   "options.cover.intro": "このデザインには現在、表紙がありません。",
   "options.cover.remove_confirm": "この表紙のデザインを削除しますか？",
   "options.cover.remove_cover": "表紙を削除",

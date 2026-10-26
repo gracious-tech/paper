@@ -49,7 +49,7 @@ test('adding a cover in the widget, then removing it', async ({page}) => {
     await expect.poll(() => stored_cover(design_id), {timeout: 30_000}).not.toBe(null)
     // Once the preview pane has rendered it, the cover options show that render, which opens the
     // editor when clicked
-    await expect(page.locator('button.thumb img')).toBeVisible({timeout: 60_000})
+    await expect(page.locator('button.thumb img.render')).toBeVisible({timeout: 60_000})
 
     // Removing asks first, and discards the config rather than disabling it
     await click_button(page, 'Remove cover')

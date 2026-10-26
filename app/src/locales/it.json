@@ -460,7 +460,6 @@
   "options.content.title_page": "Pagina di titolo",
   "options.cover.add_cover": "Aggiungi copertina",
   "options.cover.edit_cover": "Modifica copertina",
-  "options.cover.has_cover": "Questo libro ha una copertina",
   "options.cover.intro": "Questo progetto al momento non include una copertina.",
   "options.cover.remove_confirm": "Rimuovere questa copertina?",
   "options.cover.remove_cover": "Rimuovi copertina",

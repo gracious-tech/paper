@@ -460,7 +460,6 @@
   "options.content.title_page": "صفحة عنوان",
   "options.cover.add_cover": "إضافة غلاف",
   "options.cover.edit_cover": "تعديل الغلاف",
-  "options.cover.has_cover": "لهذا الكتاب تصميم غلاف",
   "options.cover.intro": "لا يتضمن هذا التصميم غلافًا حاليًا.",
   "options.cover.remove_confirm": "هل تريد إزالة تصميم الغلاف هذا؟",
   "options.cover.remove_cover": "إزالة الغلاف",

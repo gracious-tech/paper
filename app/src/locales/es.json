@@ -460,7 +460,6 @@
   "options.content.title_page": "Página de título",
   "options.cover.add_cover": "Agregar cubierta",
   "options.cover.edit_cover": "Editar cubierta",
-  "options.cover.has_cover": "Este libro tiene un diseño de cubierta",
   "options.cover.intro": "Por ahora, este diseño no incluye cubierta.",
   "options.cover.remove_confirm": "¿Quitar este diseño de cubierta?",
   "options.cover.remove_cover": "Quitar cubierta",
