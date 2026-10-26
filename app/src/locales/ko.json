@@ -354,6 +354,8 @@
   "editor.advanced.auto_gutter_unavailable": "알려진 인쇄 업체에서만 사용할 수 있습니다. 대신 안쪽 여백을 직접 조정하면 됩니다.",
   "editor.advanced.big_text_note": "시력 때문에 꼭 필요한 경우가 아니라면 이 설정은 권장하지 않습니다.",
   "editor.advanced.blank_pages": "빈 페이지",
+  "editor.advanced.chapter_first": "첫 장 번호 표시",
+  "editor.advanced.chapter_first_note": "끄면 첫 장의 번호를 숨깁니다. 예를 들어 책의 \"제1장\"이나, 9장만 인쇄할 때의 \"제9장\"입니다.",
   "editor.advanced.dedicate_pd": "직접 작성한 내용을 퍼블릭 도메인에 헌정",
   "editor.advanced.design_link": "디자인 복사 링크 넣기",
   "editor.advanced.design_link_note": "다른 사람이 이 디자인으로 추가 인쇄본을 만들거나 원하는 대로 바꿀 수 있습니다(원본은 수정할 수 없습니다).",

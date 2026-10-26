@@ -354,6 +354,8 @@
   "editor.advanced.auto_gutter_unavailable": "Fitur ini hanya tersedia untuk jasa percetakan yang dikenal. Sebagai gantinya, Anda cukup menyesuaikan margin dalam secara manual.",
   "editor.advanced.big_text_note": "Pengaturan ini tidak disarankan kecuali Anda memiliki gangguan penglihatan yang memerlukannya.",
   "editor.advanced.blank_pages": "Halaman kosong",
+  "editor.advanced.chapter_first": "Tampilkan nomor pasal pertama",
+  "editor.advanced.chapter_first_note": "Nonaktifkan untuk menyembunyikan nomor pasal pertama, misalnya \"Pasal 1\" dari sebuah kitab, atau \"Pasal 9\" jika hanya pasal 9 yang dicetak.",
   "editor.advanced.dedicate_pd": "Dedikasikan konten Anda sendiri ke domain publik",
   "editor.advanced.design_link": "Sertakan tautan untuk menyalin desain",
   "editor.advanced.design_link_note": "Ini memungkinkan orang lain mencetak eksemplar tambahan dari desain Anda dan/atau menyesuaikannya (mereka tidak akan dapat mengubah salinan Anda).",

@@ -354,6 +354,8 @@
   "editor.advanced.auto_gutter_unavailable": "此功能仅适用于已知的印刷服务。您也可以直接手动调整内侧页边距。",
   "editor.advanced.big_text_note": "除非您因视力问题需要，否则不建议使用此设置。",
   "editor.advanced.blank_pages": "空白页",
+  "editor.advanced.chapter_first": "显示第一章的章号",
+  "editor.advanced.chapter_first_note": "关闭后将隐藏第一章的章号，例如一卷书的“第1章”，或只打印第 9 章时的“第9章”。",
   "editor.advanced.dedicate_pd": "将您自己的内容贡献到公有领域",
   "editor.advanced.design_link": "包含复制此设计的链接",
   "editor.advanced.design_link_note": "这样其他人就可以加印您的设计，和/或对其进行自定义（他们无法修改您的副本）。",

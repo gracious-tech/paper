@@ -65,6 +65,7 @@ function make_request(overrides:Partial<TypstRequest> = {}):TypstRequest {
         features: {
             show_chapters: false,
             show_chapters_style: 'divider',
+            show_chapters_first: true,
             show_verses: true,
             show_wj: false,
             show_wj_color: null,

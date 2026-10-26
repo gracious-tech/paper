@@ -354,6 +354,8 @@
   "editor.advanced.auto_gutter_unavailable": "この機能は対応している印刷サービスでのみ利用できます。代わりに、内側の余白を手動で調整してください。",
   "editor.advanced.big_text_note": "視力の都合で必要な場合を除き、この設定の使用はおすすめしません。",
   "editor.advanced.blank_pages": "白紙ページ",
+  "editor.advanced.chapter_first": "最初の章の番号を表示",
+  "editor.advanced.chapter_first_note": "オフにすると、最初の章の番号を非表示にします。たとえば書の「第1章」や、第9章だけを印刷する場合の「第9章」です。",
   "editor.advanced.dedicate_pd": "自分で作成した内容をパブリックドメインに提供する",
   "editor.advanced.design_link": "デザインをコピーするためのリンクを含める",
   "editor.advanced.design_link_note": "他の人がこのデザインを追加で印刷したり、カスタマイズしたりできるようになります（元のデザインが変更されることはありません）。",

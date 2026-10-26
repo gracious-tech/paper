@@ -301,7 +301,7 @@ export function generate_typst_facing(
         gen_locale_args(typography.lang2, typography.dir2), typography.line_height,
         typography.line_height2,
         `2 * ${page.margin_left}`,
-        typography.poetry_outdent))
+        request.features.show_chapters_first, typography.poetry_outdent))
     return parts.join('\n\n')
 }
 
@@ -397,7 +397,7 @@ function gen_content_item(item:TypstContentItem, request:TypstRequest):string {
                 gen_locale_args(request.typography.lang2, request.typography.dir2),
                 request.typography.line_height, request.typography.line_height2,
                 request.features.show_chapters ? request.features.show_chapters_style : 'none',
-                request.typography.poetry_outdent)
+                request.features.show_chapters_first, request.typography.poetry_outdent)
         case 'title':
             return gen_title(item, request.page, request.titlepage.font,
                 request.titlepage.frame_svg, request.titlepage.color_text,

@@ -24,11 +24,11 @@ function call(
     passage:TypstPassage, font_text2 = FONT_TEXT2, font_headings2 = FONT_HEADINGS2,
     font_fallbacks = FONT_FALLBACKS, font_size2 = FONT_SIZE2, line_height = LINE_HEIGHT,
     chapter_style:ChapterStyle = 'none', poetry_outdent = true, locale2 = '',
-    line_height2 = LINE_HEIGHT2,
+    line_height2 = LINE_HEIGHT2, chapter_first = false,
 ):string {
     return gen_passage(passage, TEST_PAGE, 'padded', FONT_SIZE, font_text2, font_headings2,
         font_size2, font_fallbacks, locale2, line_height, line_height2, chapter_style,
-        poetry_outdent)
+        chapter_first, poetry_outdent)
 }
 
 
@@ -368,19 +368,20 @@ describe('gen_passage', () => {
         // --- Bilingual chapter markers ---
         // The chapter marker sits in both translations' markup, so left alone it draws twice.
 
-        const bilingual_chapters = (chapter_style:ChapterStyle) => {
+        const bilingual_chapters = (chapter_style:ChapterStyle, chapter_first = false) => {
             const content = (name:string) =>
                 `#ch(1)\n\n#vn(1)${name} one.\n\n#ch(2)\n\n#vn(1)${name} two.`
             return call(make_passage({
                 bibles: [{content: content('A')}, {content: content('B')}],
                 multi_layout: 'columns',
                 multi_align: 'chapter',
-            }), FONT_TEXT2, FONT_HEADINGS2, FONT_FALLBACKS, FONT_SIZE2, LINE_HEIGHT, chapter_style)
+            }), FONT_TEXT2, FONT_HEADINGS2, FONT_FALLBACKS, FONT_SIZE2, LINE_HEIGHT, chapter_style,
+                true, '', LINE_HEIGHT2, chapter_first)
         }
 
         it('divider style: one full-width divider per chapter, no in-cell markers', () => {
             const result = bilingual_chapters('divider')
-            // A single divider drawn at grid width for chapter 2 (chapter 1's is suppressed)
+            // A single divider drawn at grid width for chapter 2 (the opening chapter's is quieted)
             expect((result.match(/#ch_divider\(/g) ?? []).length).toBe(1)
             expect(result).toContain('#ch_divider(2)')
             expect(result).not.toContain('#ch_divider(1)')
@@ -411,6 +412,19 @@ describe('gen_passage', () => {
             expect(result).toContain('#ch(2)')
             expect(result).not.toContain('#ch_quiet(2)')
             expect(result).not.toContain('#ch_divider(')
+        })
+
+        it('marks the opening chapter like any other with chapter_first', () => {
+            const divider = bilingual_chapters('divider', true)
+            expect(divider).toContain('#ch_divider(1)')
+            expect(divider).toContain('#ch_divider(2)')
+            expect(divider).not.toMatch(/#ch\(\d+\)/)
+            // Float keeps the primary's numeral and quiets the second's, chapter 1 included
+            const float = bilingual_chapters('float', true)
+            expect(float).toContain('#ch(1)')
+            expect(float.indexOf('#ch(1)')).toBeLessThan(float.indexOf('#ch_quiet(1)'))
+            const heading = bilingual_chapters('heading', true)
+            expect(heading).not.toContain('#ch_quiet(')
         })
 
         it('scopes the second cell to font_text2/font_headings2, leaving the first untouched', () => {
@@ -627,6 +641,17 @@ describe('gen_passage', () => {
             expect(result).not.toContain('#ch(6)')
             // A later chapter within the same passage still renders normally
             expect(result).toContain('#ch(7)')
+        })
+
+        it('keeps a passage\'s own opening #ch marker with chapter_first', () => {
+            const result = call(make_passage({
+                bibles: [{content: '#ch(1)\n== Section\n#vn(1)Verse one.'}],
+                show_headings: true,
+            }), FONT_TEXT2, FONT_HEADINGS2, FONT_FALLBACKS, FONT_SIZE2, LINE_HEIGHT, 'divider',
+                true, '', LINE_HEIGHT2, true)
+            expect(result).not.toContain('#ch_quiet(')
+            // Drawn, so it tightens the heading after it like any other chapter's marker
+            expect(result).toContain('#ch_tight(1)\n== Section')
         })
 
         it('leaves content untouched when the passage starts mid-chapter', () => {

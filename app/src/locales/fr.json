@@ -354,6 +354,8 @@
   "editor.advanced.auto_gutter_unavailable": "Cette option n’est disponible que pour les services d’impression connus. Vous pouvez plutôt ajuster vous-même la marge intérieure.",
   "editor.advanced.big_text_note": "Il est déconseillé d’utiliser ce réglage, sauf si votre vue le nécessite.",
   "editor.advanced.blank_pages": "Pages blanches",
+  "editor.advanced.chapter_first": "Afficher le numéro du premier chapitre",
+  "editor.advanced.chapter_first_note": "Désactivez cette option pour masquer le numéro du premier chapitre, comme « Chapitre 1 » d’un livre, ou « Chapitre 9 » si seul le chapitre 9 est imprimé.",
   "editor.advanced.dedicate_pd": "Placer votre propre contenu dans le domaine public",
   "editor.advanced.design_link": "Inclure un lien pour copier le projet",
   "editor.advanced.design_link_note": "Cela permet à d’autres personnes d’imprimer d’autres exemplaires de votre projet et/ou de le personnaliser (sans pouvoir modifier le vôtre).",

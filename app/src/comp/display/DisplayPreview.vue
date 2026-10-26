@@ -294,7 +294,7 @@ function discrete_signature():string {
         blue.bibles_layout, blue.bibles_align, blue.half_blank, blue.justify, blue.hyphenate,
         blue.columns,
         blue.show_headings, blue.show_headings_bold, blue.show_headings_italic,
-        blue.show_chapters, blue.show_chapters_style, blue.show_verses,
+        blue.show_chapters, blue.show_chapters_style, blue.show_chapters_first, blue.show_verses,
         blue.running_pages, blue.running_headings, blue.running_position, blue.running_align,
         blue.show_footnotes, blue.show_wj, blue.show_wj_bold,
         blue.show_wj_italic, blue.lines, blue.notes,

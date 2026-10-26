@@ -217,7 +217,9 @@ describe('gen_preamble', () => {
             const result = gen_preamble(make_request({
                 features: {...TEST_FEATURES, show_chapters: true, show_chapters_style: 'divider'},
             }))
-            expect(result).toContain('if n > 1')
+            // Every chapter draws one, chapter 1 included
+            expect(result).toContain('    ch_divider(n)\n')
+            expect(result).not.toContain('if n > 1')
             // Tapered rules drawn as polygons in the text's colour, either side of a bold number
             expect(result).toContain('polygon(fill: text.fill')
             expect(result).toContain('weight: "bold"')

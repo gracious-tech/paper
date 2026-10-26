@@ -354,6 +354,8 @@
   "editor.advanced.auto_gutter_unavailable": "Disponibile solo per i servizi di stampa noti. In alternativa, puoi semplicemente regolare a mano il margine interno.",
   "editor.advanced.big_text_note": "Sconsigliamo di usare questa impostazione, a meno che tu non abbia problemi di vista che la rendano necessaria.",
   "editor.advanced.blank_pages": "Pagine bianche",
+  "editor.advanced.chapter_first": "Mostra il numero del primo capitolo",
+  "editor.advanced.chapter_first_note": "Disattiva per nascondere il numero del primo capitolo, come “Capitolo 1” di un libro, o “Capitolo 9” se si stampa solo il capitolo 9.",
   "editor.advanced.dedicate_pd": "Dedica i tuoi contenuti al pubblico dominio",
   "editor.advanced.design_link": "Includi un link per copiare il progetto",
   "editor.advanced.design_link_note": "Permette ad altri di stampare altre copie del tuo progetto e/o di personalizzarlo (non potranno modificare la tua copia).",

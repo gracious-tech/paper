@@ -354,6 +354,8 @@
   "editor.advanced.auto_gutter_unavailable": "Disponível apenas para serviços de impressão conhecidos. Como alternativa, ajuste a margem interna manualmente.",
   "editor.advanced.big_text_note": "Não é recomendado usar esta configuração, a menos que você tenha problemas de visão que a exijam.",
   "editor.advanced.blank_pages": "Páginas em branco",
+  "editor.advanced.chapter_first": "Mostrar o número do primeiro capítulo",
+  "editor.advanced.chapter_first_note": "Desative para ocultar o número do primeiro capítulo, como “Capítulo 1” de um livro, ou “Capítulo 9” se apenas o capítulo 9 for impresso.",
   "editor.advanced.dedicate_pd": "Dedicar seu próprio conteúdo ao domínio público",
   "editor.advanced.design_link": "Incluir link para copiar o design",
   "editor.advanced.design_link_note": "Isso permite que outras pessoas imprimam mais exemplares do seu design e/ou o personalizem (elas não poderão modificar a sua cópia).",

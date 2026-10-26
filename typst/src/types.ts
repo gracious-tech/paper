@@ -75,6 +75,8 @@ export interface TypstRequest {
 export interface FeatureConfig {
     show_chapters:boolean
     show_chapters_style:'divider'|'float'|'heading'
+    // See Blueprint.show_chapters_first
+    show_chapters_first:boolean
     // The 'heading' style's text, with {n} where the number goes (e.g. "Chapter {n}"), already in
     // the document's language (see doc_strings.ts) — the worker that generates the source has
     // no catalogs of its own
@@ -410,6 +412,9 @@ export interface Blueprint {
     show_headings_size:number  // Multiplier relative to text size (1 = same as text)
     show_chapters:boolean
     show_chapters_style:'divider'|'float'|'heading'
+    // Mark the chapter a passage opens on (chapter 1 of a whole book) like any other, rather than
+    // leaving it to the passage's title to announce
+    show_chapters_first:boolean
     show_verses:boolean
     running_pages:boolean
     // Book + chapter shown alongside the page number (e.g. "Genesis 3")

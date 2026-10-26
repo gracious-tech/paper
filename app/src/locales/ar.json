@@ -354,6 +354,8 @@
   "editor.advanced.auto_gutter_unavailable": "لا يتوفر هذا إلا لخدمات الطباعة المعروفة. ويمكنك بدلًا من ذلك ضبط الهامش الداخلي يدويًا.",
   "editor.advanced.big_text_note": "لا يُنصح باستخدام هذا الإعداد إلا إذا كانت لديك مشكلات في البصر تستدعي ذلك.",
   "editor.advanced.blank_pages": "الصفحات الفارغة",
+  "editor.advanced.chapter_first": "إظهار رقم الأصحاح الأول",
+  "editor.advanced.chapter_first_note": "عطّل هذا الخيار لإخفاء رقم الأصحاح الأول، مثل «الأصحاح 1» من سفر، أو «الأصحاح 9» إذا كان الأصحاح 9 وحده هو ما يُطبع.",
   "editor.advanced.dedicate_pd": "إهداء المحتوى الخاص بك إلى الملك العام",
   "editor.advanced.design_link": "تضمين رابط لنسخ التصميم",
   "editor.advanced.design_link_note": "يتيح هذا للآخرين طباعة نسخ إضافية من تصميمك و/أو تخصيصه (لن يتمكنوا من تعديل نسختك).",

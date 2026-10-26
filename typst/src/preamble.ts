@@ -271,8 +271,7 @@ function gen_ch_divider(leading:string):string {
 }
 
 
-// A #ch / #ch_tight pair (named `name` and `name`_tight) that draws the divider visual, hidden
-// for chapter 1 — nothing precedes it there to divide from.
+// A #ch / #ch_tight pair (named `name` and `name`_tight) that draws the divider visual.
 //
 // The _tight variant is what the generator swaps in wherever a chapter opens straight into a
 // section heading (see tighten_chapter_before_heading in content_passage.ts). The divider already
@@ -280,20 +279,15 @@ function gen_ch_divider(leading:string):string {
 // that, leaving the divider hugging the previous chapter's last line and adrift from the chapter
 // it opens. Raising the "heading-tight" flag makes the heading drop that space and sit one line
 // slot below the divider — exactly where the chapter's first line of text would have sat if there
-// were no heading (see gen_heading_rules). The n > 1 test mirrors the divider's: chapter 1 draws
-// nothing, so its heading has nothing to sit against and keeps its normal spacing
+// were no heading (see gen_heading_rules)
 function gen_ch_divider_binding(name:string, chapter_state:string):string {
     return `#let ${name}(n, ..rest) = {
     ${chapter_state}.update(n)
-    if n > 1 {
-        ch_divider(n)
-    }
+    ch_divider(n)
 }
 #let ${name}_tight(n, ..rest) = {
     ${name}(n)
-    if n > 1 {
-        state("heading-tight", false).update(true)
-    }
+    state("heading-tight", false).update(true)
 }`
 }
 

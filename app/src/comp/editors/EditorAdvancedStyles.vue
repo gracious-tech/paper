@@ -106,6 +106,10 @@ v-card-text(class='overflow-y-auto')
         :disabled='!blue.show_chapters' :label='$t("common.style")' variant='outlined'
         :hint='chapter_style_hint' persistent-hint)
 
+    v-checkbox(v-model='blue.show_chapters_first' :disabled='!blue.show_chapters'
+        :label='$t("editor.advanced.chapter_first")' class='mt-4' hide-details)
+    p(class='hint') {{$t("editor.advanced.chapter_first_note")}}
+
     v-divider(class='my-8')
 
     h2 {{$t("editor.advanced.headings")}}

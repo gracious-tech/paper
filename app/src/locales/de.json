@@ -354,6 +354,8 @@
   "editor.advanced.auto_gutter_unavailable": "Dies ist nur für bekannte Druckdienste verfügbar. Sie können stattdessen einfach den inneren Rand manuell anpassen.",
   "editor.advanced.big_text_note": "Diese Einstellung wird nicht empfohlen, es sei denn, Sie benötigen sie wegen einer Sehschwäche.",
   "editor.advanced.blank_pages": "Leere Seiten",
+  "editor.advanced.chapter_first": "Nummer des ersten Kapitels anzeigen",
+  "editor.advanced.chapter_first_note": "Deaktivieren Sie diese Option, um die Nummer des ersten Kapitels auszublenden, etwa „Kapitel 1“ eines Buches oder „Kapitel 9“, wenn nur Kapitel 9 gedruckt wird.",
   "editor.advanced.dedicate_pd": "Eigene Inhalte in die Gemeinfreiheit entlassen",
   "editor.advanced.design_link": "Link zum Kopieren des Entwurfs einfügen",
   "editor.advanced.design_link_note": "So können andere weitere Exemplare Ihres Entwurfs drucken und/oder ihn anpassen (Ihre eigene Fassung können sie nicht verändern).",

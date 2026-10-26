@@ -62,7 +62,7 @@ interface TypeConfig {
     blueprint:Partial<Blueprint>
     // The last verse of Genesis 1 to include
     end_verse:number
-    // Draw the opening chapter numeral, which a passage starting on a chapter normally hides
+    // Draw the opening chapter numeral (Blueprint.show_chapters_first), as the screenshot does
     chapter_numeral:boolean
     // Set English (SECOND_BIBLE) beside the locale's translation
     second_bible?:true
@@ -234,6 +234,7 @@ function make_blueprint(config:TypeConfig, bible:string, language:string):Bluepr
         running_pages: false,
         running_headings: false,
         show_footnotes: false,
+        show_chapters_first: config.chapter_numeral,
         ...config.blueprint,
     })
 }
@@ -242,10 +243,7 @@ function make_blueprint(config:TypeConfig, bible:string, language:string):Bluepr
 // Compile a blueprint's first page to PNG at the type's scale
 async function render_page(blueprint:Blueprint, config:TypeConfig):Promise<Buffer>{
     const request = await content.resolve(blueprint)
-    let source = generate_typst(request)
-    if (config.chapter_numeral){
-        source = source.replace(/^#ch_quiet\(1\)$/m, '#ch(1)')
-    }
+    const source = generate_typst(request)
 
     // Fetch whatever fonts this page needs that aren't cached yet
     const families = collect_fonts(request)

@@ -471,6 +471,7 @@ export class BibleContent {
             features: {
                 show_chapters: blue.show_chapters,
                 show_chapters_style: blue.show_chapters_style,
+                show_chapters_first: blue.show_chapters_first,
                 chapter_label: doc_translator(doc_language(blue, resources))('doc.chapter'),
                 show_verses: blue.show_verses,
                 show_wj: blue.show_wj,

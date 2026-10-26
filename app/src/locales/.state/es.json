@@ -354,6 +354,8 @@
   "editor.advanced.auto_gutter_unavailable": "This is only available for known printing services. You can instead simply adjust the inner margin manually.",
   "editor.advanced.big_text_note": "It's not recommended to use this setting unless you have eyesight issues that require it.",
   "editor.advanced.blank_pages": "Blank pages",
+  "editor.advanced.chapter_first": "Show first chapter's number",
+  "editor.advanced.chapter_first_note": "Disable to hide the number of the first chapter, such as \"Chapter 1\" of a book, or \"Chapter 9\" if only chapter 9 is being printed.",
   "editor.advanced.dedicate_pd": "Dedicate your own content to the public domain",
   "editor.advanced.design_link": "Include link to copy design",
   "editor.advanced.design_link_note": "This allows others to print additional copies of your design and/or customize it (they won't be able to modify your copy).",

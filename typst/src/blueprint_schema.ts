@@ -198,6 +198,7 @@ export function make_blueprint_schema(defaults:Blueprint):z.ZodType<Blueprint>{
         show_chapters: z.boolean().catch(defaults.show_chapters),
         show_chapters_style: z.enum(['divider', 'float', 'heading'])
             .catch(defaults.show_chapters_style),
+        show_chapters_first: z.boolean().catch(defaults.show_chapters_first),
         show_verses: z.boolean().catch(defaults.show_verses),
         running_pages: z.boolean().catch(defaults.running_pages),
         running_headings: z.boolean().catch(defaults.running_headings),

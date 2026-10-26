@@ -354,6 +354,8 @@
   "editor.advanced.auto_gutter_unavailable": "Tính năng này chỉ có với các dịch vụ in đã biết. Thay vào đó, bạn có thể tự điều chỉnh lề trong.",
   "editor.advanced.big_text_note": "Không nên dùng cài đặt này trừ khi bạn có vấn đề về thị lực cần đến nó.",
   "editor.advanced.blank_pages": "Trang trắng",
+  "editor.advanced.chapter_first": "Hiện số của chương đầu tiên",
+  "editor.advanced.chapter_first_note": "Tắt để ẩn số của chương đầu tiên, chẳng hạn \"Chương 1\" của một sách, hoặc \"Chương 9\" nếu chỉ in chương 9.",
   "editor.advanced.dedicate_pd": "Hiến tặng nội dung của bạn cho phạm vi công cộng",
   "editor.advanced.design_link": "Kèm liên kết để sao chép thiết kế",
   "editor.advanced.design_link_note": "Điều này cho phép người khác in thêm bản của thiết kế và/hoặc tùy chỉnh nó (họ sẽ không thể sửa bản của bạn).",

@@ -137,12 +137,13 @@ function gen_passage_title(
 // (used to anchor heading sizes). font_text2/font_headings2/font_size2/font_fallbacks2 are only
 // used when a second translation is actually rendered side-by-side (grid layout with 2 bibles)
 // — see gen_multi_bible_grids. locale2 is the extra `text()` args giving that translation its
-// own language/direction ('' = inherit; see gen_locale_args)
+// own language/direction ('' = inherit; see gen_locale_args). chapter_first is whether the
+// chapter the passage opens on gets its marker (see quiet_leading_chapter_marker)
 export function gen_passage(
     passage:TypstPassage, page:PageConfig, image_style:ImageStyle,
     font_size:string, font_text2:string, font_headings2:string, font_size2:string,
     font_fallbacks2:string[], locale2:string, line_height:number, line_height2:number,
-    chapter_style:ChapterStyle,
+    chapter_style:ChapterStyle, chapter_first:boolean,
     poetry_outdent:boolean,
 ):string {
     const parts:string[] = []
@@ -181,7 +182,7 @@ export function gen_passage(
     // Build the scoped block with passage-specific function definitions and show rules
     const inner = gen_passage_inner(passage, use_grid, font_size, font_text2, font_headings2,
         font_size2, font_fallbacks2, locale2, line_height, line_height2, passage.column_gap,
-        chapter_style, poetry_outdent)
+        chapter_style, chapter_first, poetry_outdent)
 
     // Wrap in a scoped block so settings don't leak to other content
     parts.push(`#[
@@ -201,7 +202,7 @@ export function gen_passage_facing(
     passage:TypstPassage, page:PageConfig, image_style:ImageStyle,
     font_size:string, font_text2:string, font_headings2:string, font_size2:string,
     font_fallbacks2:string[], locale2:string, line_height:number, line_height2:number,
-    gutter:string, poetry_outdent:boolean,
+    gutter:string, chapter_first:boolean, poetry_outdent:boolean,
 ):string {
     const parts:string[] = []
 
@@ -234,7 +235,7 @@ export function gen_passage_facing(
     // a real inside margin — both already correct without the columns-layout adjustment.
     const inner = gen_passage_inner(passage, true, font_size, font_text2, font_headings2,
         font_size2, font_fallbacks2, locale2, line_height, line_height2, gutter,
-        'none', poetry_outdent)
+        'none', chapter_first, poetry_outdent)
     parts.push(`#[
 ${inner}
 ]`)
@@ -270,7 +271,7 @@ function gen_passage_inner(
     font_size:string, font_text2:string, font_headings2:string, font_size2:string,
     font_fallbacks2:string[], locale2:string, line_height:number, line_height2:number,
     gutter:string,
-    chapter_style:ChapterStyle, poetry_outdent:boolean,
+    chapter_style:ChapterStyle, chapter_first:boolean, poetry_outdent:boolean,
 ):string {
     const lines:string[] = []
 
@@ -316,10 +317,11 @@ function gen_passage_inner(
     lines.push('#block(below: 0pt, height: 0pt)')
 
     // Render the content (any 2-column layout comes from the page setting, not a block).
-    // A passage that opens exactly on a chapter boundary has its own opening chapter marker
-    // quieted — the passage reference already announces that chapter (see
-    // quiet_leading_chapter_marker); the grid path does the same per translation
-    const content = use_grid ? null : quiet_leading_chapter_marker(passage.bibles[0]!.content)
+    // Unless chapter_first, a passage that opens exactly on a chapter boundary has its own
+    // opening chapter marker quieted, leaving the passage reference to announce that chapter
+    // (see quiet_leading_chapter_marker); the grid path does the same per translation
+    const content = use_grid ? null : chapter_first ? passage.bibles[0]!.content
+        : quiet_leading_chapter_marker(passage.bibles[0]!.content)
 
     // The "heading-tight" flag, set here only when the passage actually opens with a heading, so
     // that heading drops its leading space and sits where the first line of text would (see
@@ -339,7 +341,7 @@ function gen_passage_inner(
         lines.push(gen_multi_bible_grids(
             passage, gutter, font_text2, font_headings2, font_size2, font_fallbacks2, locale2,
             line_height, line_height2,
-            chapter_style))
+            chapter_style, chapter_first))
     } else {
         // A bilingual book's passage that only one translation has (the other lacks the book)
         // still reads that translation's own way when the document runs the other (see
@@ -549,6 +551,7 @@ function gen_multi_bible_grids(
     passage:TypstPassage, gutter:string,
     font_text2:string, font_headings2:string, font_size2:string, font_fallbacks2:string[],
     locale2:string, line_height:number, line_height2:number, chapter_style:ChapterStyle,
+    chapter_first:boolean,
 ):string {
     const fonts2 = [font_text2, ...font_fallbacks2].map(f => `"${escape_typst_str(f)}"`).join(', ')
 
@@ -616,11 +619,11 @@ function gen_multi_bible_grids(
     const row_lead = `#v(${row_lead_em}em, weak: true)\n`
 
     return rows.map(([a, b], i) => {
-        // The passage's own opening chapter is announced by its reference/title, so quiet that
-        // first #ch marker on both translations of the opening row (see
-        // quiet_leading_chapter_marker). Done here, not before build_aligned_rows, so the
+        // Unless chapter_first, the passage's own opening chapter is left to its reference/title
+        // to announce, so quiet that first #ch marker on both translations of the opening row
+        // (see quiet_leading_chapter_marker). Done here, not before build_aligned_rows, so the
         // chapter-splitting in bilingual.ts still sees every real #ch marker.
-        if (i === 0) {
+        if (i === 0 && !chapter_first) {
             a = quiet_leading_chapter_marker(a)
             b = quiet_leading_chapter_marker(b)
         }
@@ -647,10 +650,7 @@ function gen_multi_bible_grids(
             if (match) {
                 cell_a = quiet_chapter_markers(a)
                 cell_b = quiet_chapter_markers(b)
-                // Chapter 1's divider is suppressed anyway (see #ch in preamble.ts)
-                if (Number(match[1]) > 1) {
-                    full_divider = `#ch_divider(${match[1]})\n`
-                }
+                full_divider = `#ch_divider(${match[1]})\n`
             }
         } else if (chapter_style === 'float') {
             cell_b = quiet_chapter_markers(b)

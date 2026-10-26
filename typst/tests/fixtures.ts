@@ -61,6 +61,7 @@ export const TEST_TITLEPAGE:TitlepageConfig = {
 export const TEST_FEATURES:FeatureConfig = {
     show_chapters: true,
     show_chapters_style: 'divider',
+    show_chapters_first: true,
     chapter_label: 'Chapter {n}',
     show_verses: true,
     show_wj: false,
@@ -189,6 +190,7 @@ export function make_blueprint(overrides:Partial<Blueprint> = {}):Blueprint {
         show_headings_size: 0.9,
         show_chapters: true,
         show_chapters_style: 'divider',
+        show_chapters_first: true,
         show_verses: true,
         running_pages: true,
         running_headings: true,

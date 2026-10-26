@@ -354,6 +354,8 @@
   "editor.advanced.auto_gutter_unavailable": "Bu özellik yalnızca bilinen baskı hizmetleri için kullanılabilir. Bunun yerine iç kenar boşluğunu elle ayarlayabilirsiniz.",
   "editor.advanced.big_text_note": "Gerektiren bir görme sorununuz yoksa bu ayarı kullanmanız önerilmez.",
   "editor.advanced.blank_pages": "Boş sayfalar",
+  "editor.advanced.chapter_first": "İlk bölümün numarasını göster",
+  "editor.advanced.chapter_first_note": "İlk bölümün numarasını gizlemek için devre dışı bırakın; örneğin bir kitabın “1. Bölüm” başlığı ya da yalnızca 9. bölüm yazdırılıyorsa “9. Bölüm”.",
   "editor.advanced.dedicate_pd": "Kendi içeriğinizi kamu malına adayın",
   "editor.advanced.design_link": "Tasarımı kopyalama bağlantısını ekle",
   "editor.advanced.design_link_note": "Bu, başkalarının tasarımınızdan ek kopyalar basmasına ve/veya onu özelleştirmesine olanak tanır (sizin kopyanızı değiştiremezler).",
