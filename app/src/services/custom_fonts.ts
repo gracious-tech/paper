@@ -42,12 +42,52 @@ export const custom_fonts:CustomFont[] = reactive([])
 export const design_font_meta = reactive({} as Record<string, StoredFontMeta>)
 
 
+// The stored files each family in `custom_fonts` holds the bytes of (family -> files_key()), so
+// a snapshot naming the same files again is recognised without downloading anything. A family
+// is only ever held once, however many entries the doc has for it
+const loaded_files = new Map<string, string>()
+
+// Ditto for downloads still in flight, so the snapshots that keep arriving meanwhile (any edit
+// to the design makes one) don't start the same download again
+const loading_files = new Map<string, string>()
+
+
 export function clear_design_fonts():void {
     // Drop the open design's fonts, ready for another design's to load
     custom_fonts.splice(0, custom_fonts.length)
+    loaded_files.clear()
+    loading_files.clear()
     for (const key of Object.keys(design_font_meta)){
         delete design_font_meta[key]
     }
+}
+
+
+function files_key(files:string[]):string {
+    // One string identifying a family's stored files (their paths are content-addressed)
+    return files.join('\n')
+}
+
+
+function hold_font(font:CustomFont, files:string[]):void {
+    // Put a family's bytes in the reactive set, replacing any it already held for that family
+    const index = custom_fonts.findIndex(item => item.family === font.family)
+    if (index === -1){
+        custom_fonts.push(font)
+    } else {
+        custom_fonts.splice(index, 1, font)
+    }
+    loaded_files.set(font.family, files_key(files))
+}
+
+
+function release_font(family:string):void {
+    // Drop a family's bytes from the reactive set
+    const index = custom_fonts.findIndex(font => font.family === family)
+    if (index !== -1){
+        custom_fonts.splice(index, 1)
+    }
+    loaded_files.delete(family)
 }
 
 
@@ -73,34 +113,60 @@ async function push_to_worker():Promise<void> {
 
 export async function load_design_fonts(meta:Record<string, StoredFontMeta>):Promise<void> {
     // Mirror the open design's `fonts` map into the reactive set, downloading the bytes of any
-    // family that has appeared and dropping any that has gone. Diffed rather than rebuilt so a
-    // co-editor's unrelated change doesn't re-download everything — and so the bytes of a font
-    // this client just uploaded are never thrown away and fetched back
-    const wanted = new Set(Object.keys(meta))
+    // family whose files changed and dropping any family that has gone. Diffed by family and
+    // files rather than rebuilt so a co-editor's unrelated change doesn't re-download
+    // everything, and so the bytes of a font this client just uploaded are never thrown away
+    // and fetched back (add_design_fonts records them before its write can echo back here)
     for (const id of Object.keys(design_font_meta)){
-        if (!wanted.has(id)){
-            const family = design_font_meta[id]!.family
+        if (!(id in meta)){
             delete design_font_meta[id]
-            const index = custom_fonts.findIndex(font => font.family === family)
-            if (index !== -1){
-                custom_fonts.splice(index, 1)
-            }
         }
     }
+    Object.assign(design_font_meta, meta)
+
+    // One entry per family. The doc may hold several for one family (a co-editor adding it at
+    // the same moment), and holding the bytes once is what keeps the set one-per-family
+    const wanted = new Map<string, StoredFontMeta>()
+    for (const entry of Object.values(meta)){
+        if (!wanted.has(entry.family)){
+            wanted.set(entry.family, entry)
+        }
+    }
+    const released = custom_fonts.filter(font => !wanted.has(font.family))
+    for (const font of released){
+        release_font(font.family)
+    }
+
+    // Download what isn't held yet, keeping it only if the doc still names those files once the
+    // download is done (a later snapshot may have moved on while this one waited)
     const added:CustomFont[] = []
-    for (const [id, entry] of Object.entries(meta)){
-        if (id in design_font_meta){
+    for (const entry of wanted.values()){
+        const key = files_key(entry.files)
+        if (loaded_files.get(entry.family) === key || loading_files.get(entry.family) === key){
             continue
         }
-        design_font_meta[id] = entry
-        const font = await load_font_from_meta(entry)
-        custom_fonts.push(font)
-        added.push(font)
+        loading_files.set(entry.family, key)
+        let font:CustomFont
+        try {
+            font = await load_font_from_meta(entry)
+        } finally {
+            if (loading_files.get(entry.family) === key){
+                loading_files.delete(entry.family)
+            }
+        }
+        const current = Object.values(design_font_meta)
+            .some(item => item.family === entry.family && files_key(item.files) === key)
+        if (current && loaded_files.get(entry.family) !== key){
+            hold_font(font, entry.files)
+            added.push(font)
+        }
     }
     for (const font of added){
         await register_custom_font_preview(font)
     }
-    await push_to_worker()
+    if (added.length || released.length){
+        await push_to_worker()
+    }
 }
 
 
@@ -117,70 +183,84 @@ export async function upload_custom_fonts(design_id:string, files:File[]):Promis
 
 // Add already-parsed font families to the open design (used by the upload flow above, and for
 // fonts uploaded inside the embedded cover editor, which arrive pre-parsed as CustomFont[]).
-// Uploads the bytes, records them on the design doc, and returns the family names added.
+// Uploads the bytes, records them on the design doc, and returns the families now available.
+//
+// The cover editor hands back its whole font store on every Finished, so a family whose bytes
+// the design already holds is the common case: it costs a hash, never an upload (a CJK family
+// runs to tens of MB) or a doc write, beyond dropping any duplicate entries left for it.
 //
 // NOTE The reactive set is updated here rather than left to the design snapshot to refill.
 // DialogCoverEditor adds the widget's fonts and then immediately computes
 // cover_font_families(), which intersects the form's families with `custom_fonts` — anything
-// missing at that moment is silently dropped from the cover. The doc write is awaited first,
-// so load_design_fonts()'s "drop what the doc no longer has" pass can't race these away
+// missing at that moment is silently dropped from the cover. It's recorded just before the
+// write, since the write's local snapshot reaches load_design_fonts() at once, which then finds
+// these files held rather than downloading them back
 export async function add_design_fonts(design_id:string, fonts:CustomFont[]):Promise<string[]> {
-    const added:string[] = []
+    // One font per family, the last given winning
+    const by_family = new Map(fonts.map(font => [font.family, font]))
+
     const updates:unknown[] = []
-    const entries:[string, StoredFontMeta][] = []
-
-    for (const font of fonts){
-        // A family the design already has is *replaced*, not skipped — re-uploading is how a
-        // user fixes a wrong or incomplete file, and silently keeping the old one looks broken.
-        // The superseded bytes are reclaimed by the reconcile at the end
-        const existing = Object.entries(design_font_meta)
-            .find(([, entry]) => entry.family === font.family)
-        if (existing){
-            updates.push(new FieldPath('fonts', existing[0]), deleteField())
-        }
-
-        const font_id = generate_token()
+    const removed:string[] = []
+    const entries:[string, StoredFontMeta, CustomFont][] = []
+    for (const font of by_family.values()){
+        // Paths are content-addressed, so hashing tells whether the design already has these
         const files:string[] = []
         for (const bytes of font.files){
-            const path = `${design_assets_prefix(design_id)}${await hash_bytes(bytes)}.bin`
-            await uploadBytes(storage_ref(firebase_storage, path), bytes,
-                {contentType: font_mime(bytes)})
-            files.push(path)
+            files.push(`${design_assets_prefix(design_id)}${await hash_bytes(bytes)}.bin`)
         }
+        const existing = Object.entries(design_font_meta)
+            .filter(([, entry]) => entry.family === font.family)
+        const same = existing.find(([, entry]) =>
+            entry.style === font.style && files_key(entry.files) === files_key(files))
+
+        // A family the design already has is *replaced*, not kept — re-uploading is how a user
+        // fixes a wrong or incomplete file, and silently keeping the old one looks broken. Every
+        // other entry for the family goes too, duplicates included. The superseded bytes are
+        // reclaimed by the reconcile at the end
+        for (const [id] of existing){
+            if (id !== same?.[0]){
+                updates.push(new FieldPath('fonts', id), deleteField())
+                removed.push(id)
+            }
+        }
+        if (same){
+            continue
+        }
+
+        for (const [i, bytes] of font.files.entries()){
+            await uploadBytes(storage_ref(firebase_storage, files[i]!), bytes,
+                {contentType: font_mime(bytes)})
+        }
+        const font_id = generate_token()
         const entry:StoredFontMeta = {family: font.family, style: font.style, files}
         updates.push(new FieldPath('fonts', font_id), entry)
-        entries.push([font_id, entry])
-        added.push(font.family)
+        entries.push([font_id, entry, font])
     }
 
     if (!updates.length){
-        return []
+        return [...by_family.keys()]
+    }
+
+    // Record the outcome locally, then write it
+    for (const id of removed){
+        delete design_font_meta[id]
+    }
+    for (const [font_id, entry, font] of entries){
+        design_font_meta[font_id] = entry
+        hold_font(font, entry.files)
     }
     await updateDoc(doc(firestore, 'designs', design_id),
         updates[0] as FieldPath, updates[1], ...updates.slice(2))
 
-    // Now the doc says so, mirror it locally rather than waiting for the snapshot
-    for (const [font_id, entry] of entries){
-        const stale = Object.entries(design_font_meta)
-            .find(([id, item]) => id !== font_id && item.family === entry.family)
-        if (stale){
-            delete design_font_meta[stale[0]]
-        }
-        design_font_meta[font_id] = entry
-    }
-    for (const font of fonts){
-        const index = custom_fonts.findIndex(item => item.family === font.family)
-        if (index === -1){
-            custom_fonts.push(font)
-        } else {
-            custom_fonts.splice(index, 1, font)
-        }
+    for (const [, , font] of entries){
         await register_custom_font_preview(font)
     }
-    await push_to_worker()
+    if (entries.length){
+        await push_to_worker()
+    }
     request_reconcile(design_id)
 
-    return added
+    return [...by_family.keys()]
 }
 
 
@@ -202,10 +282,7 @@ export async function remove_design_font(design_id:string, family:string):Promis
     for (const id of ids){
         delete design_font_meta[id]
     }
-    const index = custom_fonts.findIndex(font => font.family === family)
-    if (index !== -1){
-        custom_fonts.splice(index, 1)
-    }
+    release_font(family)
     await push_to_worker()
     request_reconcile(design_id)
 }
@@ -241,7 +318,10 @@ export function plan_version_fonts(design_id:string, blueprint:Blueprint)
     const meta:StoredFontMeta[] = []
     const copies:AssetCopy[] = []
     for (const font of fonts_for_blueprint(blueprint)){
-        const entry = Object.values(design_font_meta).find(item => item.family === font.family)
+        // The entry whose bytes are the ones held, should the doc have more than one
+        const held = loaded_files.get(font.family)
+        const entry = Object.values(design_font_meta)
+            .find(item => item.family === font.family && files_key(item.files) === held)
         if (!entry){
             continue
         }

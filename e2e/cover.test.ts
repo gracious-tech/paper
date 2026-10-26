@@ -4,8 +4,10 @@
 // their postMessage protocol (InitMessage in, 'ready'/'finished'/'cancelled' out), so this is
 // the one place a change on either side of it would show
 
+import {createHash} from 'node:crypto'
+
 import {test, expect, boot, click_button, confirm_dialog, design_data} from './fixtures'
-import {seed_own_design} from './helpers/admin'
+import {seed_own_design, admin_bucket, admin_db} from './helpers/admin'
 
 import type {Page} from '@playwright/test'
 
@@ -94,4 +96,34 @@ test('saving an edit in the widget stores it in the design', async ({page}) => {
         const cover = await stored_cover(design_id) as {form:{subtitle?:string}}|null
         return cover?.form.subtitle
     }, {timeout: 30_000}).toBe('A journey subtitle')
+})
+
+
+test('saving the cover keeps one entry per uploaded font', async ({page}) => {
+    // The widget hands back every font it was offered, so a font the design already has must
+    // come back as that same font. A design that once listed one family several times (all
+    // naming the same files) is left with a single entry, and its files aren't uploaded again
+    const uid = await boot(page)
+    const family = 'Noto Sans Adlam'
+    const response = await fetch(
+        'https://assets.paper.bible/fonts/_noto/Noto%20Sans%20Adlam/NotoSansAdlam-Regular.otf')
+    const bytes = Buffer.from(await response.arrayBuffer())
+    const design_id = await seed_own_design(uid, {simple_mode: false})
+    const path = `design_assets/${design_id}/${createHash('sha256').update(bytes).digest('hex')}.bin`
+    await admin_bucket.file(path).save(bytes, {contentType: 'font/otf'})
+    const entry = {family, style: 'sans', files: [path]}
+    await admin_db.doc(`designs/${design_id}`).update({fonts: {font_a: entry, font_b: entry, font_c: entry}})
+
+    await page.goto(`/designs/${design_id}`)
+    await expect(page.getByText('This design does not currently include a cover.'))
+        .toBeVisible({timeout: 60_000})
+    await edit_then_finish(page)
+    await page.frameLocator('.cover_editor iframe')
+        .getByRole('button', {name: 'Save', exact: true}).click()
+    await expect(page.locator('.cover_editor')).toBeHidden({timeout: 60_000})
+
+    await expect.poll(async () => {
+        const fonts = (await design_data(design_id))['fonts'] as Record<string, unknown>
+        return Object.values(fonts)
+    }, {timeout: 30_000}).toEqual([entry])
 })
