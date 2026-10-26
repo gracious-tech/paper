@@ -47,7 +47,9 @@ test('adding a cover in the widget, then removing it', async ({page}) => {
     await widget.getByRole('button', {name: /finish/i}).click()
     await expect(overlay).toBeHidden({timeout: 60_000})
     await expect.poll(() => stored_cover(design_id), {timeout: 30_000}).not.toBe(null)
-    await expect(page.getByText('This book has a cover design')).toBeVisible()
+    // Once the preview pane has rendered it, the cover options show that render, which opens the
+    // editor when clicked
+    await expect(page.locator('button.thumb img')).toBeVisible({timeout: 60_000})
 
     // Removing asks first, and discards the config rather than disabling it
     await click_button(page, 'Remove cover')

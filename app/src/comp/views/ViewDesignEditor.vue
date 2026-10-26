@@ -25,7 +25,7 @@ div.cont(v-if='!trigger_rerender')
 
     v-divider(class='my-8')
 
-    h2 {{$t("common.cover")}}
+    //- Has its own heading, which carries the remove action
     OptionsCover
     v-divider(class='my-8')
 

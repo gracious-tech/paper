@@ -21,6 +21,7 @@ import {is_masked_image_style} from '@/services/image_frame'
 import {render_signature, set_page_estimate, fresh_estimate} from '@/services/page_estimate'
 import {retry_network} from '@/services/network_retry'
 import {settle_server_mode} from '@/services/compile_mode'
+import {remember_previewed_cover, cover_json} from '@/services/cover'
 import {report_error} from '@/services/errors'
 
 import type {PreviewPages, PreviewSection, PreviewSize} from 'paper-bible-typst'
@@ -69,6 +70,7 @@ export async function request_server_preview(size:PreviewSize, section:PreviewSe
     }
     on_progress?.({stage: 'server'})
     const signature = render_signature()
+    const rendered_from = cover_json(blue.cover)
 
     // The server reads the design from Firestore, and can't mask images itself
     await flush_changes()
@@ -94,6 +96,9 @@ export async function request_server_preview(size:PreviewSize, section:PreviewSe
         set_page_estimate(result.page_estimate, signature)
     }
     const {pages, covers} = JSON.parse(new TextDecoder().decode(bytes)) as PreviewPages
+    if (size === 'desktop' && covers[0]){
+        remember_previewed_cover(design_id, rendered_from, covers[0])
+    }
     return {pages, covers, truncated: !!result.truncated,
         dropped_before: !!result.dropped_before, dropped_after: !!result.dropped_after}
 }

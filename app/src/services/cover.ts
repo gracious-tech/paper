@@ -5,7 +5,7 @@
 // freeze-time snapshot planning for versions.
 
 import {cloneDeep} from 'lodash-es'
-import {toRaw} from 'vue'
+import {toRaw, shallowRef} from 'vue'
 import {ref as storage_ref, uploadBytes, getBytes} from 'firebase/storage'
 // bookcover-core ships `sideEffects: false` and only exposes its barrel (plus `/patterns-svg`)
 // via package.json `exports`, so Rollup tree-shakes the unused vector-background data,
@@ -510,6 +510,37 @@ export async function render_cover_panels(blueprint:Blueprint, page_count:number
     return {wraparound: result.data as string, front: result.front as string,
         back: result.back as string,
         ...result.spine !== undefined && {spine: result.spine as string}}
+}
+
+
+// The whole cover a desktop's preview last showed (one standalone SVG), with the design and cover
+// config it was rendered from. Kept for the thumbnail beside the cover options, which never
+// renders a cover for its own sake. Phones keep nothing: they preview only on request, and
+// holding and decoding a cover beside the editor costs memory they may not have
+const previewed_cover = shallowRef<{design_id:string, cover:string, svg:string}|null>(null)
+
+
+export function remember_previewed_cover(design_id:string, cover_json:string, svg:string):void{
+    // Keep a preview's cover, given the cover config it was rendered from as cover_json() was at
+    // the start of the render (the user can edit the cover while it renders)
+    previewed_cover.value = {design_id, cover: cover_json, svg}
+}
+
+
+export function cover_json(cover:CoverConfig|null):string{
+    // A cover config's identity, for telling whether a rendered cover still shows it
+    return JSON.stringify(cover)
+}
+
+
+export function previewed_cover_svg(design_id:string|null, cover:CoverConfig|null):string|null{
+    // The last previewed cover's SVG, if it was rendered from this design's current cover
+    const previewed = previewed_cover.value
+    if (!previewed || !cover || previewed.design_id !== design_id
+            || previewed.cover !== cover_json(cover)){
+        return null
+    }
+    return previewed.svg
 }
 
 

@@ -11,7 +11,8 @@ import {PREVIEW_LIMITS, svg_page_markup, cover_page_geometry, crop_cover_svg}
 
 import {blue} from '@/services/state'
 import {typst_generator} from '@/services/typst'
-import {render_cover_panels} from '@/services/cover'
+import {render_cover_panels, remember_previewed_cover, cover_json} from '@/services/cover'
+import {current_design_id} from '@/services/designs'
 import {compile_preview_window, render_signature, set_page_estimate}
     from '@/services/page_estimate'
 import {claim_compile_turn} from '@/services/compile_progress'
@@ -73,9 +74,14 @@ export async function browser_preview(generator:TypstWorkerClient, size:PreviewS
             if (size === 'phone'){
                 generator.release_memory()
             }
+            const design_id = current_design_id.value
+            const rendered_from = cover_json(design.cover)
             const svgs = await render_cover_panels(design, page_estimate, window.share_url)
             covers = size === 'phone' ? [svgs.front, svgs.back] : [crop_cover_svg(
                 svgs.wraparound, cover_page_geometry(design, page_estimate))]
+            if (size === 'desktop' && design_id && covers[0]){
+                remember_previewed_cover(design_id, rendered_from, covers[0])
+            }
         }
         return {
             pages: window.pages.map(page => svg_page_markup(page)),
