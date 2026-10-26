@@ -723,8 +723,9 @@ ${gen_pad_start(typography)}
 #let qd(c, ..rest) = emph(c)
 // Descriptive title (USFM \d) — a Psalm's Hebrew superscription (e.g. "A Psalm of David,
 // to the tune of..."); italicised like the other paratextual notes above, no bespoke
-// indent for now
-#let d(c, ..rest) = emph(c)
+// indent for now. Its own paragraph, since a translation whose verses are plain prose (the
+// Hebrew WLC) would otherwise run the title into verse 1 on the same line
+#let d(c, ..rest) = par(emph(c))
 #let lh(c, ..rest) = strong(c)
 #let lf(c, ..rest) = c
 // Character styles with no native Typst equivalent
