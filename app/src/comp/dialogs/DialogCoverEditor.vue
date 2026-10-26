@@ -146,9 +146,10 @@ const send_init = async () => {
         locale: locale.value,
         // The copyright statement for the widget's preview to show in place of the
         // AUTO-COPYRIGHT marker, as our own renders do (always sent, since the user can type the
-        // marker in while editing). No share link exists until a version does, so like our
-        // previews it has none
-        typst_substitutions: cover_typst_substitutions(toRaw(blue), content.translations),
+        // marker in while editing). A version's link doesn't exist until it's built, so the
+        // link + QR code point at the design, as in our previews (see page_estimate.ts)
+        typst_substitutions: cover_typst_substitutions(toRaw(blue), content.translations,
+            `https://paper.bible/designs/${current_design_id.value}`),
     }
     frame_window.postMessage(message, COVER_EDITOR_ORIGIN)
     loaded.value = true

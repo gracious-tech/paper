@@ -83,6 +83,9 @@ test('the widget previews the copyright statement in place of the blurb\'s marke
         (window as unknown as {init_message:{typst_substitutions?:Record<string, string>}})
             .init_message.typst_substitutions)
     expect(substitutions!['AUTO-COPYRIGHT']).toContain('Resources used:')
+    // With the link + QR code back to the design, as the app's own previews show it
+    expect(substitutions!['AUTO-COPYRIGHT'])
+        .toContain(`#link("https://paper.bible/designs/${design_id}")`)
 
     // While the cover itself keeps the marker, for each render to resolve afresh
     await page.frameLocator('.cover_editor iframe').getByRole('button', {name: /finish/i})
