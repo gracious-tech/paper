@@ -461,6 +461,7 @@
   "options.cover.add_cover": "कव्हर जोडा",
   "options.cover.edit_cover": "कव्हर संपादित करा",
   "options.cover.intro": "या डिझाइनमध्ये सध्या कव्हर नाही.",
+  "options.cover.prints_to_edge": "माझा प्रिंटर कडांपर्यंत (बॉर्डरलेस) छापू शकतो",
   "options.cover.remove_confirm": "हे कव्हर डिझाइन काढायचे?",
   "options.cover.remove_cover": "कव्हर काढा",
   "options.features.book_chapter_name": "पृष्ठाच्या वर/खाली अध्याय",

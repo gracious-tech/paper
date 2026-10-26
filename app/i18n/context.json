@@ -1,4 +1,5 @@
 {
+  "options.cover.prints_to_edge": "A switch under the cover's picture, shown only when printing at home. On means the user's home printer can print borderless (all the way to the paper's edge); off adds a white border around each side of the cover, since most home printers leave an unprinted strip at the edges anyway.",
   "view.designs.install_prompt": "A dismissable notice on the list of the user's designs, offered only when their browser can install this web app (as a home-screen / desktop app). Shown beside a button labelled with view.designs.install.",
   "view.designs.install": "The button on that notice which opens the browser's own install dialog. Use the word the language's browsers use for installing a web app.",
   "app.install": "A header-menu item, shown only when the browser can install this web app, that opens the browser's own dialog to install it on the device (home screen / desktop app). Use the wording the language's browsers use for installing a web app.",

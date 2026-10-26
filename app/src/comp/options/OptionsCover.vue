@@ -17,7 +17,12 @@ button.thumb(v-if='blue.cover' @click='open_editor' type='button')
             span.line.title
             span.line.subtitle
     span.overlay {{$t("options.cover.edit_cover")}}
-template(v-else)
+//- Home printing only: whether the cover needs the white border a printer that can't reach the
+//- paper's edge leaves anyway (bookcover's home-print margin, on by default for home printing)
+v-switch(v-if='blue.cover && blue.service_id === "home"' v-model='prints_to_edge'
+    :label='$t("options.cover.prints_to_edge")' color='primary' density='compact'
+    hide-details class='mt-3')
+template(v-else-if='!blue.cover')
     p(class='hint') {{$t("options.cover.intro")}}
     v-btn(@click='open_editor' variant='tonal' color='secondary') {{$t("options.cover.add_cover")}}
 
@@ -92,6 +97,18 @@ const front_color = computed(() => !bg_url.value && vector_url.value && blue.cov
 const front_ratio = computed(() => {
     const trim = resolve_reading_trim(blue)
     return `${trim.width} / ${trim.height}`
+})
+
+
+// Whether the user's printer prints to the paper's edge: the inverse of the cover's home-print
+// margin, which is the same form field the cover editor's own toggle sets
+const prints_to_edge = computed({
+    get: () => !blue.cover?.form['home_print_margin'],
+    set: (value:boolean) => {
+        if (blue.cover){
+            blue.cover.form['home_print_margin'] = !value
+        }
+    },
 })
 
 

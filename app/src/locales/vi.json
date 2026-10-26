@@ -461,6 +461,7 @@
   "options.cover.add_cover": "Thêm bìa",
   "options.cover.edit_cover": "Chỉnh sửa bìa",
   "options.cover.intro": "Thiết kế này hiện chưa có bìa.",
+  "options.cover.prints_to_edge": "Máy in của tôi in được không viền",
   "options.cover.remove_confirm": "Xóa thiết kế bìa này?",
   "options.cover.remove_cover": "Xóa bìa",
   "options.features.book_chapter_name": "Chương ở đầu/chân trang",

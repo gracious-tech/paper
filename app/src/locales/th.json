@@ -461,6 +461,7 @@
   "options.cover.add_cover": "เพิ่มปก",
   "options.cover.edit_cover": "แก้ไขปก",
   "options.cover.intro": "งานออกแบบนี้ยังไม่มีปก",
+  "options.cover.prints_to_edge": "เครื่องพิมพ์ของฉันพิมพ์แบบไร้ขอบได้",
   "options.cover.remove_confirm": "ต้องการนำปกนี้ออกหรือไม่?",
   "options.cover.remove_cover": "นำปกออก",
   "options.features.book_chapter_name": "ชื่อบทที่หัว/ท้ายกระดาษ",

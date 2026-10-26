@@ -461,6 +461,7 @@
   "options.cover.add_cover": "Tambahkan sampul",
   "options.cover.edit_cover": "Edit sampul",
   "options.cover.intro": "Desain ini saat ini belum memiliki sampul.",
+  "options.cover.prints_to_edge": "Printer saya bisa mencetak tanpa tepi (borderless)",
   "options.cover.remove_confirm": "Hapus desain sampul ini?",
   "options.cover.remove_cover": "Hapus sampul",
   "options.features.book_chapter_name": "Pasal di header/footer",

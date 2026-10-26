@@ -461,6 +461,7 @@
   "options.cover.add_cover": "إضافة غلاف",
   "options.cover.edit_cover": "تعديل الغلاف",
   "options.cover.intro": "لا يتضمن هذا التصميم غلافًا حاليًا.",
+  "options.cover.prints_to_edge": "طابعتي تطبع بلا حواف",
   "options.cover.remove_confirm": "هل تريد إزالة تصميم الغلاف هذا؟",
   "options.cover.remove_cover": "إزالة الغلاف",
   "options.features.book_chapter_name": "الأصحاح في الترويسة/التذييل",

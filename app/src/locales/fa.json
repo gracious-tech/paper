@@ -461,6 +461,7 @@
   "options.cover.add_cover": "افزودن جلد",
   "options.cover.edit_cover": "ویرایش جلد",
   "options.cover.intro": "این طرح در حال حاضر جلد ندارد.",
+  "options.cover.prints_to_edge": "چاپگر من می‌تواند بدون حاشیه چاپ کند",
   "options.cover.remove_confirm": "این طرح جلد حذف شود؟",
   "options.cover.remove_cover": "حذف جلد",
   "options.features.book_chapter_name": "باب در سرصفحه/پاصفحه",

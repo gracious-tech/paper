@@ -461,6 +461,7 @@
   "options.cover.add_cover": "కవర్‌ను జోడించు",
   "options.cover.edit_cover": "కవర్‌ను సవరించు",
   "options.cover.intro": "ఈ డిజైన్‌లో ప్రస్తుతం కవర్ లేదు.",
+  "options.cover.prints_to_edge": "నా ప్రింటర్ అంచుల వరకు (బార్డర్‌లెస్) ముద్రించగలదు",
   "options.cover.remove_confirm": "ఈ కవర్ డిజైన్‌ను తొలగించాలా?",
   "options.cover.remove_cover": "కవర్‌ను తొలగించు",
   "options.features.book_chapter_name": "హెడర్/ఫుటర్‌లో అధ్యాయం",

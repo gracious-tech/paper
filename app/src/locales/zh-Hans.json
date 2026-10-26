@@ -461,6 +461,7 @@
   "options.cover.add_cover": "添加封面",
   "options.cover.edit_cover": "编辑封面",
   "options.cover.intro": "此设计目前不包含封面。",
+  "options.cover.prints_to_edge": "我的打印机支持无边距打印",
   "options.cover.remove_confirm": "要移除此封面设计吗？",
   "options.cover.remove_cover": "移除封面",
   "options.features.book_chapter_name": "在页眉/页脚显示章名",

@@ -461,6 +461,7 @@
   "options.cover.add_cover": "Добавить обложку",
   "options.cover.edit_cover": "Редактировать обложку",
   "options.cover.intro": "В этом макете пока нет обложки.",
+  "options.cover.prints_to_edge": "Мой принтер умеет печатать без полей",
   "options.cover.remove_confirm": "Удалить эту обложку?",
   "options.cover.remove_cover": "Удалить обложку",
   "options.features.book_chapter_name": "Глава в колонтитуле",

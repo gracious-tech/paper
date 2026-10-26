@@ -461,6 +461,7 @@
   "options.cover.add_cover": "Add cover",
   "options.cover.edit_cover": "Edit cover",
   "options.cover.intro": "This design does not currently include a cover.",
+  "options.cover.prints_to_edge": "My printer can print borderless",
   "options.cover.remove_confirm": "Remove this cover design?",
   "options.cover.remove_cover": "Remove cover",
   "options.features.book_chapter_name": "Chapter in header/footer",

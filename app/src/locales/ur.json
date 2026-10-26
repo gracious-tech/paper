@@ -461,6 +461,7 @@
   "options.cover.add_cover": "سرورق شامل کریں",
   "options.cover.edit_cover": "سرورق میں ترمیم کریں",
   "options.cover.intro": "اس ڈیزائن میں فی الحال کوئی سرورق شامل نہیں ہے۔",
+  "options.cover.prints_to_edge": "میرا پرنٹر بغیر بارڈر کے پرنٹ کر سکتا ہے",
   "options.cover.remove_confirm": "کیا یہ سرورق ہٹا دیا جائے؟",
   "options.cover.remove_cover": "سرورق ہٹائیں",
   "options.features.book_chapter_name": "ہیڈر/فوٹر میں باب کا نام",

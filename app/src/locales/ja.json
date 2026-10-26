@@ -461,6 +461,7 @@
   "options.cover.add_cover": "表紙を追加",
   "options.cover.edit_cover": "表紙を編集",
   "options.cover.intro": "このデザインには現在、表紙がありません。",
+  "options.cover.prints_to_edge": "プリンターがフチなし印刷に対応している",
   "options.cover.remove_confirm": "この表紙のデザインを削除しますか？",
   "options.cover.remove_cover": "表紙を削除",
   "options.features.book_chapter_name": "ヘッダー／フッターに章を表示",

@@ -461,6 +461,7 @@
   "options.cover.add_cover": "Adicionar capa",
   "options.cover.edit_cover": "Editar capa",
   "options.cover.intro": "Este design ainda não inclui uma capa.",
+  "options.cover.prints_to_edge": "Minha impressora imprime sem bordas",
   "options.cover.remove_confirm": "Remover esta capa?",
   "options.cover.remove_cover": "Remover capa",
   "options.features.book_chapter_name": "Capítulo no cabeçalho/rodapé",

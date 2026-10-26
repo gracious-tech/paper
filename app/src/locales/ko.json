@@ -461,6 +461,7 @@
   "options.cover.add_cover": "표지 추가",
   "options.cover.edit_cover": "표지 편집",
   "options.cover.intro": "이 디자인에는 현재 표지가 없습니다.",
+  "options.cover.prints_to_edge": "프린터가 테두리 없는 인쇄를 지원합니다",
   "options.cover.remove_confirm": "이 표지를 삭제하시겠습니까?",
   "options.cover.remove_cover": "표지 삭제",
   "options.features.book_chapter_name": "머리글/바닥글에 장 표시",
