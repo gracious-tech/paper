@@ -101,7 +101,7 @@ import {selected_version, selected_version_id, get_pdf_url, get_cover_pdf_url, d
     version_debug_ref, version_contact_url, cover_failed as version_cover_failed,
     cover_pending as version_cover_pending, compiling_on_server} from '@/services/versions'
 import {regenerate_version, retry_version} from '@/services/version_compile'
-import {designs, current_design_id} from '@/services/designs'
+import {current_design_id} from '@/services/designs'
 import {state, report_failure} from '@/services/state'
 import {lulu_pod_package_id} from '@/services/print_cost'
 import {version_progress, build_requests, stage_text} from '@/services/compile_progress'
@@ -195,10 +195,10 @@ const version_warning = computed(() => {
         return {text: t('display.version.not_latest'), tone: 'warning'}
     }
     // Latest version, but the design has changed since it was created. `design_needs_editor`
-    // can't distinguish "no local design" from "has changes", so only trust it when the design
-    // is one the user can actually edit
-    const is_editor = designs.some(item => item.id === current_design_id.value)
-    if (is_editor && design_needs_editor.value){
+    // compares the open design with whichever design's versions are listed, and viewing someone
+    // else's version leaves the user's own last design open, so only trust it when this version
+    // belongs to the open design (only ever one the user can edit, see open_design)
+    if (version.design_id === current_design_id.value && design_needs_editor.value){
         return {text: t('display.version.has_unapplied'), tone: 'warning'}
     }
     // Booklet pages are imposed for folding, so they read out of sequence flat — informational,
