@@ -238,6 +238,21 @@ describe('language', () => {
         expect(out).toContain('Resources used:')
     })
 
+    it('lays the block out in the direction of the language it\'s worded in', () => {
+        // Arabic + English is an LTR book, but its copyright block is in Arabic
+        const resources = {
+            arb_test: make_resource('arb_test', {language: 'arb'}),
+            eng_bsb: make_resource('eng_bsb'),
+        }
+        const out = gen_copyright_typst(make_blueprint({bibles: ['arb_test', 'eng_bsb']}),
+            resources)
+        expect(out.startsWith('#[\n#set text(dir: rtl)\n')).toBe(true)
+        // A language with no strings of its own prints English, so runs LTR
+        const fallback = gen_copyright_typst(make_blueprint({bibles: ['xyz_test']}),
+            {xyz_test: make_resource('xyz_test', {language: 'xyz'})})
+        expect(fallback.startsWith('#[\n#set text(dir: ltr)\n')).toBe(true)
+    })
+
     it('follows the primary translation, not the second', () => {
         const resources = {
             eng_bsb: make_resource('eng_bsb'),

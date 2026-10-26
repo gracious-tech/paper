@@ -223,3 +223,46 @@ describe('title null/empty/string fallback resolution', () => {
         expect(reference_to_string).not.toHaveBeenCalled()
     })
 })
+
+
+describe('BibleContent picture story direction', () => {
+
+    const content = new BibleContent({endpoint: 'http://example.invalid/'})
+    const resources = {
+        heb: make_resource({id: 'heb', language: 'heb', direction: 'rtl'}),
+        eng: make_resource({id: 'eng'}),
+    }
+    // A Hebrew + English book, which is LTR (see document_dir)
+    const blue = {bibles: ['heb', 'eng'], story_emphasis: false} as unknown as Blueprint
+    const story:ContentPictureStory = {
+        type: 'picture_story', id: 's1', title: null, title_subtitle: '', title_icon: null,
+        slides: [{id: 'sl1', image: null, mode: 'passage', book: 'gen', start_chapter: 1,
+            start_verse: null, end_chapter: 1, end_verse: null, doc: {type: 'doc', content: []}}],
+    }
+
+    // Stub the plain-text fetch so each translation either has the book or lacks it
+    const stub_books = (texts:Record<string, string|null>) => {
+        vi.spyOn(content as never, 'fetch_book_txt').mockImplementation(
+            ((bible:string) => Promise.resolve(texts[bible] === null ? null
+                : {get_passage_from_ref: () => texts[bible]})) as never)
+    }
+
+    afterEach(() => {
+        vi.restoreAllMocks()
+    })
+
+    it('scopes the primary translation\'s text to its own direction', async () => {
+        stub_books({heb: 'בראשית', eng: 'In the beginning'})
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        const result = await (content as any).gen_picture_story_item(blue, story, resources)
+        expect(result.slides[0].body).toBe('#[#set text(dir: rtl)\nבראשית\n]')
+    })
+
+    it('leaves the body empty when the primary translation lacks the book', async () => {
+        // An empty body is what makes the slide image-only (see content_picture_story.ts)
+        stub_books({heb: null, eng: 'In the beginning'})
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        const result = await (content as any).gen_picture_story_item(blue, story, resources)
+        expect(result.slides[0].body).toBe('')
+    })
+})

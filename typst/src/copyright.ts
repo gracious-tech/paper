@@ -9,6 +9,7 @@ import {escape_typst_str} from 'typst-utils'
 import {escape_typst} from './helpers.js'
 import {gen_qr_typst} from './qr.js'
 import {doc_translator, doc_language} from './doc_strings.js'
+import {detect_dir} from './lang.js'
 
 import type {Blueprint} from './types.js'
 import type {DocTranslate} from './doc_strings.js'
@@ -163,10 +164,17 @@ export function gen_copyright_typst(
         parts.push(escape_typst(t('doc.copyright.public_domain', {site})))
     }
 
+    // Laid out in the direction of the language it's worded in, which needn't be the page's: a
+    // bilingual Arabic + English book is LTR, and a language with no strings of its own prints
+    // English. Taken from text that's always present, and set for the whole block since a
+    // paragraph's direction comes from the styles all of its content shares
+    const dir = detect_dir(t('doc.copyright.resources')) ?? 'ltr'
+
     // Attribution text — block content so the overrides stay scoped to the copyright block:
     // no first-line indent, and forced 1.5 line/paragraph spacing (leading is the whole
     // baseline-to-baseline advance here — see the leading note in preamble.ts). Ended with `;`
     // since it replaces the AUTO-COPYRIGHT marker mid-text, so the user's text may follow it
-    return `#[\n#set par(first-line-indent: 0em, leading: 1.5em, spacing: 1.5em)\n\n`
+    return `#[\n#set text(dir: ${dir})\n`
+        + `#set par(first-line-indent: 0em, leading: 1.5em, spacing: 1.5em)\n\n`
         + `${parts.filter(Boolean).join('\n\n')}\n];`
 }

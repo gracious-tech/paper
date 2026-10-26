@@ -475,6 +475,38 @@ describe('gen_passage', () => {
             expect(plain).not.toContain('dir:')
         })
 
+        it('keeps the primary cell\'s margin numeral off the column gutter', () => {
+            // An RTL cell's lines start at the gutter, so its numeral is pinned to the left
+            const passage = make_passage({
+                bibles: [
+                    {content: '#vn(1)Bible 1 content', dir: 'rtl'},
+                    {content: '#vn(1)Bible 2 content'},
+                ],
+                multi_layout: 'columns',
+            })
+            const result = call(passage, undefined, undefined, undefined, undefined, undefined,
+                'float')
+            const binding = '#let ch(n, ..rest) = ch_float(n, side: left)'
+            expect(result).toContain(binding)
+            expect(result).toContain('#let ch_tight(n, ..rest) = ch(n)')
+            expect(result.indexOf(binding)).toBeLessThan(result.indexOf('Bible 1 content'))
+            // Only for that style: other chapter styles keep their own #ch
+            expect(call(passage)).not.toContain('ch_float')
+        })
+
+        it('scopes a lone translation to its own direction when the other lacks the book', () => {
+            // A Hebrew + English book whose English lacks this book: no grid, but the Hebrew
+            // still reads right to left in the LTR document
+            const result = call(make_passage({
+                bibles: [{content: '#vn(1)Bible 1 content', dir: 'rtl'}],
+                multi_layout: 'columns',
+            }))
+            const rule = '#set text(dir: rtl)'
+            expect(result).toContain(rule)
+            expect(result.indexOf(rule)).toBeLessThan(result.indexOf('Bible 1 content'))
+            expect(call(make_passage())).not.toContain('dir:')
+        })
+
         it('suppresses footnotes in the second translation only', () => {
             const result = call(make_passage({
                 bibles: [

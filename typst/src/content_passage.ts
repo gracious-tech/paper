@@ -341,6 +341,13 @@ function gen_passage_inner(
             line_height, line_height2,
             chapter_style))
     } else {
+        // A bilingual book's passage that only one translation has (the other lacks the book)
+        // still reads that translation's own way when the document runs the other (see
+        // BiblePassageData.dir) — the rule precedes all of its paragraphs, as it has to
+        const dir = passage.bibles[0]!.dir
+        if (dir) {
+            lines.push(`#set text(dir: ${dir})`)
+        }
         // Only worth rewriting when headings actually render — with them hidden the flag would
         // be set and never consumed, and could then flatten the first heading of a later passage
         lines.push(passage.show_headings ? tighten_chapter_before_heading(content) : content)
@@ -582,7 +589,16 @@ function gen_multi_bible_grids(
     // column reads its own way while the columns keep the document's order (see
     // TypographyConfig.dir)
     const dir1 = passage.bibles[0]?.dir
-    const primary_dir_rule = dir1 ? `#set text(dir: ${dir1})\n` : ''
+    let primary_dir_rule = dir1 ? `#set text(dir: ${dir1})\n` : ''
+    // Its margin numeral would hang off the start of its lines, which here is the column gutter
+    // (over the other translation's text), so it keeps to the document's start side instead —
+    // the page margin (see ch_float in preamble.ts). The facing layout passes 'none' and keeps
+    // the numeral at the start of the lines, since each half's both sides are real margins
+    if (dir1 && chapter_style === 'float') {
+        primary_dir_rule += `#let ch(n, ..rest) = ch_float(n, side: ${dir1 === 'rtl' ? 'left' : 'right'})
+#let ch_tight(n, ..rest) = ch(n)
+`
+    }
 
     const rows = build_aligned_rows(
         passage.bibles[0]!.content, passage.bibles[1]?.content ?? '', passage.multi_align)

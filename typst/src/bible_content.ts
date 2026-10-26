@@ -707,8 +707,9 @@ export class BibleContent {
                     ? emphasize_sentences(text, blue.story_emphasis_color, quote_state)
                     : escape_typst(text)
                 // The primary translation's own direction where the document runs the other way
-                // (a set rule has to enclose the whole paragraph, hence the scope)
-                if (first_dir !== doc_dir) {
+                // (a set rule has to enclose the whole paragraph, hence the scope). Not when the
+                // translation lacks the book: an empty body is what leaves the slide image-only
+                if (body && first_dir !== doc_dir) {
                     body = `#[#set text(dir: ${first_dir})\n${body}\n]`
                 }
 

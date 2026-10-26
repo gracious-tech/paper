@@ -278,8 +278,12 @@ describe('gen_preamble', () => {
             expect(result).toContain('state("ch-float-open", false).update(true)')
             // The zero-height block sticks to the text it opens, so a break right after it can't
             // strand the numeral at the foot of the previous page
-            expect(result).toContain('block(below: 0pt, height: 0pt, sticky: true,')
-            // Hangs in whichever margin the line starts from
+            expect(result).toContain('block(width: 100%, below: 0pt, height: 0pt, sticky: true,')
+            // Hangs in whichever margin the line starts from, unless a side is pinned (see
+            // gen_multi_bible_grids)
+            expect(result).toContain('#let ch_float(n, side: auto) = {')
+            expect(result).toContain('if side == auto { text.dir == rtl } else { side == right }')
+            expect(result).toContain('#let ch(n, ..rest) = ch_float(n)')
             expect(result).toContain('place(top + left, dx: -offset, num)')
             expect(result).toContain('place(top + right, dx: offset, num)')
         })

@@ -479,7 +479,10 @@ export function gen_preamble(request:TypstRequest, overrides:PreambleOverrides =
         //
         // A zero-height block (rather than a bare place()) roots the numeral at #ch(n)'s own
         // position in the flow — non-floating place() anchors to its enclosing container's
-        // origin, so repeated calls would otherwise all stack at the container's top edge.
+        // origin, so repeated calls would otherwise all stack at the container's top edge. It
+        // spans the full measure so its left and right are the text's own edges: holding nothing
+        // but placed content it would otherwise shrink to nothing at the start edge, where
+        // place(left) and place(right) meet and only the offset's sign tells them apart.
         // `below: 0pt` means the marker adds no space beneath itself, so the block that follows
         // sits at the numeral's top edge; the block's default `above` spacing is kept so a new
         // chapter is still separated from the previous one. top-edge/bottom-edge "bounds"
@@ -495,21 +498,28 @@ export function gen_preamble(request:TypstRequest, overrides:PreambleOverrides =
         // the numeral (see gen_heading_rules in content_passage.ts). The flag is cleared by that
         // heading, or by the first verse marker (#vn) when a chapter opens straight into text, so
         // later mid-chapter headings keep their normal spacing.
+        //
+        // The numeral hangs off the start of the lines by default, read from context so a
+        // translation scoped to its own direction gets it on its own start side; #ch_float's
+        // `side` pins it to a physical side instead, for a bilingual column whose start side is
+        // the column gutter (see gen_multi_bible_grids in content_passage.ts)
         const num_size = parseFloat(float_chapter_size(request).toFixed(2))
-        chapter = `#let ch(n, ..rest) = {
+        chapter = `#let ch_float(n, side: auto) = {
     ${running.chapter}.update(n)
     context {
         let num = text(size: ${num_size}em, weight: "bold",
             top-edge: "bounds", bottom-edge: "bounds", str(n))
         let offset = measure(num).width + ${FLOAT_CHAPTER_GAP}em
-        block(below: 0pt, height: 0pt, sticky: true, if ${request.typography.dir === 'rtl'} {
+        let on_right = if side == auto { text.dir == rtl } else { side == right }
+        block(width: 100%, below: 0pt, height: 0pt, sticky: true, if on_right {
             place(top + right, dx: offset, num)
         } else {
             place(top + left, dx: -offset, num)
         })
     }
     state("ch-float-open", false).update(true)
-}`
+}
+#let ch(n, ..rest) = ch_float(n)`
         // A two-column passage has no margin on the left of its text to hang a numeral in — only
         // the inter-column gutter, a few mm against a numeral several times wider, so the second
         // column's numeral would overprint the first column's text. Such passages re-bind #ch to
