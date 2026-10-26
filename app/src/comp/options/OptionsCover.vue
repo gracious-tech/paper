@@ -84,14 +84,16 @@ const remove_cover = async () => {
     h2
         font-size: 18px
 
-// The cover's picture, with "Edit cover" shown over it on hover, and nothing of the button around
-// it
+// The cover's picture, with "Edit cover" shown over it on hover, framed by a thin border (the
+// corners clip the picture and its overlay too)
 .thumb
     position: relative
     display: block
     max-width: 100%
     padding: 0
-    border: none
+    border: 1px solid rgba(var(--v-border-color), var(--v-border-opacity))
+    border-radius: 4px
+    overflow: hidden
     background: none
 
     img
