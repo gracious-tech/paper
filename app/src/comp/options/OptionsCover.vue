@@ -7,11 +7,12 @@ div.heading
     v-btn(v-if='blue.cover' @click='remove_cover' variant='text' size='small')
         | {{$t("options.cover.remove_cover")}}
 //- A picture of the cover that opens the editor: the cover as the desktop's preview last showed
-//- it, else its builtin background on the front cover's proportions, else a placeholder cover
+//- it, else its builtin background (image or vector) on the front cover's proportions, else a
+//- placeholder cover
 button.thumb(v-if='blue.cover' @click='open_editor' type='button')
     img.render(v-if='cover_url' :src='cover_url' alt='' draggable='false')
-    div.front(v-else :style='{aspectRatio: front_ratio}')
-        img(v-if='bg_url' :src='bg_url' alt='' draggable='false')
+    div.front(v-else :style='{aspectRatio: front_ratio, backgroundColor: front_color}')
+        img(v-if='front_url' :src='front_url' alt='' draggable='false')
         div.placeholder(v-else)
             span.line.title
             span.line.subtitle
@@ -31,30 +32,39 @@ import {resolve_reading_trim} from 'paper-bible-typst'
 import {useI18n} from '@/services/i18n'
 import {blue, state, confirm_dialog} from '@/services/state'
 import {current_design_id} from '@/services/designs'
-import {previewed_cover_svg, builtin_bg_800_url} from '@/services/cover'
+import {previewed_cover_svg, builtin_bg_800_url, vector_bg_svg, vector_bg_color}
+    from '@/services/cover'
 
 
 const {t} = useI18n()
 
 
-// An object URL of the cover as last previewed, while it's still the design's cover. Never
-// rendered for this: only a preview that already rendered the cover provides one
-const cover_url = ref<string|null>(null)
-
-watch(() => previewed_cover_svg(current_design_id.value, blue.cover), svg => {
-    revoke()
-    cover_url.value = svg ? URL.createObjectURL(new Blob([svg], {type: 'image/svg+xml'})) : null
-}, {immediate: true})
-
-onUnmounted(revoke)
-
-
-// Release the thumbnail's object URL
-function revoke():void{
-    if (cover_url.value){
-        URL.revokeObjectURL(cover_url.value)
+function svg_url(source:() => string|null|Promise<string|null>){
+    // An object URL of the SVG `source` gives, kept current as what it reads changes, the last
+    // one released (a slower earlier source never replaces a later one's)
+    const url = ref<string|null>(null)
+    let latest = 0
+    const revoke = () => {
+        if (url.value){
+            URL.revokeObjectURL(url.value)
+        }
     }
+    watch(source, async pending => {
+        const call = ++latest
+        const svg = await pending
+        if (call === latest){
+            revoke()
+            url.value = svg ? URL.createObjectURL(new Blob([svg], {type: 'image/svg+xml'})) : null
+        }
+    }, {immediate: true})
+    onUnmounted(revoke)
+    return url
 }
+
+
+// The cover as last previewed, while it's still the design's cover. Never rendered for this:
+// only a preview that already rendered the cover provides one
+const cover_url = svg_url(() => previewed_cover_svg(current_design_id.value, blue.cover))
 
 
 // Without a previewed cover (always on a phone): a builtin background's small copy, which is
@@ -63,6 +73,19 @@ const bg_url = computed(() => {
     const bg = blue.cover?.bg_image
     return bg?.kind === 'builtin' ? builtin_bg_800_url(bg.id) : null
 })
+
+
+// Else a builtin vector background, coloured as the cover colours it (a small bundled SVG)
+const vector_url = svg_url(() => blue.cover ? vector_bg_svg(blue.cover) : null)
+
+
+// Whichever background there is to show on the front cover's proportions
+const front_url = computed(() => bg_url.value ?? vector_url.value ?? undefined)
+
+
+// The colour a vector is drawn over, as it is on the cover itself
+const front_color = computed(() => !bg_url.value && vector_url.value && blue.cover
+    ? vector_bg_color(blue.cover) : undefined)
 
 
 // The front cover's proportions, which the background or placeholder is shown at
@@ -118,9 +141,12 @@ const remove_cover = async () => {
         max-height: 180px
 
     // The front cover's shape, filled by the background (its right end, where the front panel
-    // of a wraparound sits) or the placeholder
+    // of a wraparound sits) or the placeholder. Smaller on a phone, where the editor is the
+    // whole screen
     .front
         height: 180px
+        @media (max-width: 900px)
+            height: 120px
 
         img
             width: 100%

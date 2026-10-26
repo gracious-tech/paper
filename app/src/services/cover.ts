@@ -11,7 +11,9 @@ import {ref as storage_ref, uploadBytes, getBytes} from 'firebase/storage'
 // via package.json `exports`, so Rollup tree-shakes the unused vector-background data,
 // bwip-js and chroma-js out of this main-thread bundle — the cover worker owns all of that
 import {make_blank_form_values, asset_path, BACKGROUNDS_DIR, BG_PREVIEW_DIR,
-    font_families_in_form} from 'bookcover-core'
+    font_families_in_form, find_vector_background, load_vector_background_svg,
+    recolor_vector_svg, generate_palette, hex_override_to_hsl, VECTOR_BG_AUTO_COLOR}
+    from 'bookcover-core'
 import {cover_form_for_render, cover_render_key, doc_has_copyright, gen_copyright_typst,
     COPYRIGHT_MARKER, resolve_reading_trim, convert_unit, COVER_TITLE_KEY, design_assets_prefix,
     to_version_asset, to_design_asset, asset_basename, sniff_image_mime}
@@ -547,6 +549,30 @@ export function previewed_cover_svg(design_id:string|null, cover:CoverConfig|nul
 export function builtin_bg_800_url(id:string):string{
     // The URL of bookcover's 800px copy of a builtin background, small enough to show as is
     return asset_path(ASSETS_PREFIX, BACKGROUNDS_DIR, BG_PREVIEW_800_DIR, id)
+}
+
+
+export function vector_bg_color(cover:CoverConfig):string{
+    // The colour a vector background is drawn over and tinted from, as a CSS colour: the cover's
+    // bg_color, else bookcover's default tint for a vector
+    const bg_color = cover.form['bg_color']
+    return (typeof bg_color === 'string' && hex_override_to_hsl(bg_color)) || VECTOR_BG_AUTO_COLOR
+}
+
+
+export async function vector_bg_svg(cover:CoverConfig):Promise<string|null>{
+    // A cover's builtin vector background as the whole wraparound SVG, coloured as bookcover
+    // colours it (see vector_bg_color), or null when it has none. A background image takes
+    // precedence over a vector, as it does in a render. Everything read from the cover is read
+    // before the first await, so a reactive caller tracks all of it
+    const id = cover.form['bg_vector_id']
+    const design = typeof id === 'string' && !cover.bg_image ? find_vector_background(id) : null
+    const base = vector_bg_color(cover)
+    const svg = design && await load_vector_background_svg(design.id)
+    if (!design || !svg){
+        return null
+    }
+    return recolor_vector_svg(svg, generate_palette(base, design.color_count, design.scheme))
 }
 
 
