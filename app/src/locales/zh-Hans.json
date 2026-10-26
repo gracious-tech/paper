@@ -147,6 +147,7 @@
   "dialog.account.sign_out_generating": "PDF 仍在生成中。现在退出登录将会中止生成。仍要退出登录吗？",
   "dialog.account.signed_in_as": "当前登录账号",
   "dialog.cover.save_failed": "无法保存封面，请重试",
+  "dialog.cover.saving": "正在保存封面…",
   "dialog.cover.title": "封面编辑器",
   "dialog.estimate_cost.books.one": "{n} 本书",
   "dialog.estimate_cost.books.other": "{n} 本书",

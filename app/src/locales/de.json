@@ -147,6 +147,7 @@
   "dialog.account.sign_out_generating": "Es wird noch ein PDF erstellt. Wenn Sie sich jetzt abmelden, wird der Vorgang abgebrochen. Trotzdem abmelden?",
   "dialog.account.signed_in_as": "Angemeldet als",
   "dialog.cover.save_failed": "Der Umschlag konnte nicht gespeichert werden – bitte versuchen Sie es erneut",
+  "dialog.cover.saving": "Umschlag wird gespeichert…",
   "dialog.cover.title": "Umschlag-Editor",
   "dialog.estimate_cost.books.one": "{n} Buch",
   "dialog.estimate_cost.books.other": "{n} Bücher",

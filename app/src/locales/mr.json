@@ -147,6 +147,7 @@
   "dialog.account.sign_out_generating": "एक PDF अजून तयार होत आहे. आता साइन आउट केल्यास ती प्रक्रिया थांबेल. तरीही साइन आउट करायचे?",
   "dialog.account.signed_in_as": "साइन इन केलेले खाते",
   "dialog.cover.save_failed": "कव्हर जतन करता आले नाही — पुन्हा प्रयत्न करा",
+  "dialog.cover.saving": "कव्हर जतन होत आहे...",
   "dialog.cover.title": "कव्हर संपादक",
   "dialog.estimate_cost.books.one": "{n} पुस्तक",
   "dialog.estimate_cost.books.other": "{n} पुस्तके",

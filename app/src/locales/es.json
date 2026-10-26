@@ -147,6 +147,7 @@
   "dialog.account.sign_out_generating": "Todavía se está creando un PDF. Si cierras sesión ahora, se detendrá. ¿Quieres cerrar sesión de todos modos?",
   "dialog.account.signed_in_as": "Sesión iniciada como",
   "dialog.cover.save_failed": "No se pudo guardar la cubierta. Vuelve a intentarlo",
+  "dialog.cover.saving": "Guardando la cubierta...",
   "dialog.cover.title": "Editor de cubierta",
   "dialog.estimate_cost.books.one": "{n} libro",
   "dialog.estimate_cost.books.other": "{n} libros",

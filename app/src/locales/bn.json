@@ -147,6 +147,7 @@
   "dialog.account.sign_out_generating": "একটি PDF এখনও তৈরি হচ্ছে। এখন সাইন আউট করলে তা বন্ধ হয়ে যাবে। তবুও সাইন আউট করবেন?",
   "dialog.account.signed_in_as": "সাইন ইন করা অ্যাকাউন্ট",
   "dialog.cover.save_failed": "প্রচ্ছদটি সংরক্ষণ করা যায়নি — আবার চেষ্টা করুন",
+  "dialog.cover.saving": "প্রচ্ছদ সংরক্ষণ করা হচ্ছে...",
   "dialog.cover.title": "প্রচ্ছদ সম্পাদক",
   "dialog.estimate_cost.books.one": "{n}টি বই",
   "dialog.estimate_cost.books.other": "{n}টি বই",

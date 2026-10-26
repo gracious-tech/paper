@@ -147,6 +147,7 @@
   "dialog.account.sign_out_generating": "Um PDF ainda está sendo criado. Se você sair agora, ele será interrompido. Sair mesmo assim?",
   "dialog.account.signed_in_as": "Conectado como",
   "dialog.cover.save_failed": "Não foi possível salvar a capa — tente novamente",
+  "dialog.cover.saving": "Salvando a capa...",
   "dialog.cover.title": "Editor de capa",
   "dialog.estimate_cost.books.one": "{n} livro",
   "dialog.estimate_cost.books.other": "{n} livros",

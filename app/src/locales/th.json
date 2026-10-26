@@ -147,6 +147,7 @@
   "dialog.account.sign_out_generating": "กำลังสร้าง PDF อยู่ หากออกจากระบบตอนนี้ การสร้างจะหยุดลง ต้องการออกจากระบบต่อหรือไม่?",
   "dialog.account.signed_in_as": "ลงชื่อเข้าใช้ในชื่อ",
   "dialog.cover.save_failed": "บันทึกปกไม่สำเร็จ โปรดลองอีกครั้ง",
+  "dialog.cover.saving": "กำลังบันทึกปก...",
   "dialog.cover.title": "ตัวแก้ไขปก",
   "dialog.estimate_cost.books.one": "{n} เล่ม",
   "dialog.estimate_cost.books.other": "{n} เล่ม",

@@ -147,6 +147,7 @@
   "dialog.account.sign_out_generating": "ایک PDF ابھی تیار ہو رہی ہے۔ ابھی سائن آؤٹ کرنے سے یہ رک جائے گی۔ پھر بھی سائن آؤٹ کریں؟",
   "dialog.account.signed_in_as": "آپ اس اکاؤنٹ سے سائن ان ہیں",
   "dialog.cover.save_failed": "سرورق محفوظ نہیں ہو سکا — دوبارہ کوشش کریں",
+  "dialog.cover.saving": "سرورق محفوظ کیا جا رہا ہے...",
   "dialog.cover.title": "سرورق ایڈیٹر",
   "dialog.estimate_cost.books.one": "{n} کتاب",
   "dialog.estimate_cost.books.other": "{n} کتابیں",

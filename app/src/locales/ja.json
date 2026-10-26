@@ -147,6 +147,7 @@
   "dialog.account.sign_out_generating": "PDFを作成中です。今ログアウトすると作成が中止されます。それでもログアウトしますか？",
   "dialog.account.signed_in_as": "ログイン中のアカウント",
   "dialog.cover.save_failed": "表紙を保存できませんでした。もう一度お試しください。",
+  "dialog.cover.saving": "表紙を保存中…",
   "dialog.cover.title": "表紙エディター",
   "dialog.estimate_cost.books.one": "{n}冊",
   "dialog.estimate_cost.books.other": "{n}冊",

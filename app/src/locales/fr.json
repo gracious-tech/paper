@@ -147,6 +147,7 @@
   "dialog.account.sign_out_generating": "Un PDF est encore en cours de création. Vous déconnecter maintenant l’interrompra. Se déconnecter quand même ?",
   "dialog.account.signed_in_as": "Connecté en tant que",
   "dialog.cover.save_failed": "Impossible d’enregistrer la couverture — réessayez",
+  "dialog.cover.saving": "Enregistrement de la couverture…",
   "dialog.cover.title": "Éditeur de couverture",
   "dialog.estimate_cost.books.one": "{n} livre",
   "dialog.estimate_cost.books.other": "{n} livres",

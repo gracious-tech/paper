@@ -99,24 +99,34 @@ test('saving an edit in the widget stores it in the design', async ({page}) => {
 })
 
 
-test('saving the cover keeps one entry per uploaded font', async ({page}) => {
-    // The widget hands back every font it was offered, so a font the design already has must
-    // come back as that same font. A design that once listed one family several times (all
-    // naming the same files) is left with a single entry, and its files aren't uploaded again
+// Open the full editor on a seeded design with an uploaded font, listed under each of `ids`.
+// Its bytes are stored under `basename` (their own hash unless given), as the entries name
+async function open_editor_with_font(page:Page, ids:string[], basename?:string)
+        :Promise<{design_id:string, entry:Record<string, unknown>}>{
     const uid = await boot(page)
-    const family = 'Noto Sans Adlam'
     const response = await fetch(
         'https://assets.paper.bible/fonts/_noto/Noto%20Sans%20Adlam/NotoSansAdlam-Regular.otf')
     const bytes = Buffer.from(await response.arrayBuffer())
     const design_id = await seed_own_design(uid, {simple_mode: false})
-    const path = `design_assets/${design_id}/${createHash('sha256').update(bytes).digest('hex')}.bin`
+    basename ??= createHash('sha256').update(bytes).digest('hex')
+    const path = `design_assets/${design_id}/${basename}.bin`
     await admin_bucket.file(path).save(bytes, {contentType: 'font/otf'})
-    const entry = {family, style: 'sans', files: [path]}
-    await admin_db.doc(`designs/${design_id}`).update({fonts: {font_a: entry, font_b: entry, font_c: entry}})
+    const entry = {family: 'Noto Sans Adlam', style: 'sans', files: [path]}
+    await admin_db.doc(`designs/${design_id}`)
+        .update({fonts: Object.fromEntries(ids.map(id => [id, entry]))})
 
     await page.goto(`/designs/${design_id}`)
     await expect(page.getByText('This design does not currently include a cover.'))
         .toBeVisible({timeout: 60_000})
+    return {design_id, entry}
+}
+
+
+test('saving the cover keeps one entry per uploaded font', async ({page}) => {
+    // The widget hands back every font it was offered, so a font the design already has must
+    // come back as that same font. A design that once listed one family several times (all
+    // naming the same files) is left with a single entry, and its files aren't uploaded again
+    const {design_id, entry} = await open_editor_with_font(page, ['font_a', 'font_b', 'font_c'])
     await edit_then_finish(page)
     await page.frameLocator('.cover_editor iframe')
         .getByRole('button', {name: 'Save', exact: true}).click()
@@ -126,4 +136,29 @@ test('saving the cover keeps one entry per uploaded font', async ({page}) => {
         const fonts = (await design_data(design_id))['fonts'] as Record<string, unknown>
         return Object.values(fonts)
     }, {timeout: 30_000}).toEqual([entry])
+})
+
+
+test('a slow save shows that the cover is saving', async ({page}) => {
+    // A font stored under a path that isn't its hash is uploaded again at Save, and holding
+    // that upload open stands in for a slow connection
+    await open_editor_with_font(page, ['font_a'], '0'.repeat(64))
+    let release = ():void => undefined
+    const held = new Promise<void>(resolve => {
+        release = resolve
+    })
+    await page.route(/\/v0\/b\/[^/]+\/o\?/, async route => {
+        if (route.request().method() === 'POST'){
+            await held
+        }
+        await route.continue()
+    })
+
+    await edit_then_finish(page)
+    await page.frameLocator('.cover_editor iframe')
+        .getByRole('button', {name: 'Save', exact: true}).click()
+    const saving = page.locator('.cover_editor').getByRole('status')
+    await expect(saving).toHaveText('Saving cover...')
+    release()
+    await expect(page.locator('.cover_editor')).toBeHidden({timeout: 60_000})
 })

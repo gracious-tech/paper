@@ -147,6 +147,7 @@
   "dialog.account.sign_out_generating": "A PDF is still being created. Signing out now will stop it. Sign out anyway?",
   "dialog.account.signed_in_as": "Signed in as",
   "dialog.cover.save_failed": "Couldn't save the cover — try again",
+  "dialog.cover.saving": "Saving cover...",
   "dialog.cover.title": "Cover editor",
   "dialog.estimate_cost.books.one": "{n} book",
   "dialog.estimate_cost.books.other": "{n} books",

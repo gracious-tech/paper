@@ -147,6 +147,7 @@
   "dialog.account.sign_out_generating": "ఒక PDF ఇంకా తయారవుతోంది. ఇప్పుడు సైన్ అవుట్ చేస్తే అది ఆగిపోతుంది. అయినా సైన్ అవుట్ చేయాలా?",
   "dialog.account.signed_in_as": "సైన్ ఇన్ చేసిన ఖాతా",
   "dialog.cover.save_failed": "కవర్‌ను సేవ్ చేయలేకపోయాం — మళ్లీ ప్రయత్నించండి",
+  "dialog.cover.saving": "కవర్ సేవ్ అవుతోంది...",
   "dialog.cover.title": "కవర్ ఎడిటర్",
   "dialog.estimate_cost.books.one": "{n} పుస్తకం",
   "dialog.estimate_cost.books.other": "{n} పుస్తకాలు",

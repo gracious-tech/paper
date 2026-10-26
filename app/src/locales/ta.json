@@ -147,6 +147,7 @@
   "dialog.account.sign_out_generating": "ஒரு PDF இன்னும் உருவாக்கப்பட்டுக்கொண்டிருக்கிறது. இப்போது வெளியேறினால் அது நின்றுவிடும். இருந்தாலும் வெளியேறவா?",
   "dialog.account.signed_in_as": "உள்நுழைந்துள்ள கணக்கு",
   "dialog.cover.save_failed": "அட்டையைச் சேமிக்க முடியவில்லை — மீண்டும் முயலவும்",
+  "dialog.cover.saving": "அட்டை சேமிக்கப்படுகிறது...",
   "dialog.cover.title": "அட்டை திருத்தி",
   "dialog.estimate_cost.books.one": "{n} புத்தகம்",
   "dialog.estimate_cost.books.other": "{n} புத்தகங்கள்",

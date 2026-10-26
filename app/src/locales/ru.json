@@ -147,6 +147,7 @@
   "dialog.account.sign_out_generating": "PDF ещё создаётся. Если выйти сейчас, создание прервётся. Всё равно выйти?",
   "dialog.account.signed_in_as": "Вы вошли как",
   "dialog.cover.save_failed": "Не удалось сохранить обложку — попробуйте ещё раз",
+  "dialog.cover.saving": "Сохранение обложки...",
   "dialog.cover.title": "Редактор обложки",
   "dialog.estimate_cost.books.one": "{n} книга",
   "dialog.estimate_cost.books.other": "Книг: {n}",

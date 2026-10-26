@@ -147,6 +147,7 @@
   "dialog.account.sign_out_generating": "یک PDF هنوز در حال ساخت است. اگر اکنون خارج شوید، ساخت آن متوقف می‌شود. با این حال خارج می‌شوید؟",
   "dialog.account.signed_in_as": "وارد شده با حساب",
   "dialog.cover.save_failed": "جلد ذخیره نشد — دوباره امتحان کنید",
+  "dialog.cover.saving": "در حال ذخیرهٔ جلد…",
   "dialog.cover.title": "ویرایشگر جلد",
   "dialog.estimate_cost.books.one": "{n} کتاب",
   "dialog.estimate_cost.books.other": "{n} کتاب",

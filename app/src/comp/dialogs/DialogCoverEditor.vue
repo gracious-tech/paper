@@ -11,6 +11,11 @@ div.cover_editor(v-if='state.cover_editor')
     v-btn.close(v-if='!loaded' @click='state.cover_editor = false' icon variant='text' color='white'
             size='small' v-tooltip:left='$t("common.close")')
         AppIcon(name='close')
+    //- Covers the widget while its result is stored (uploads can take a while), so the wait
+    //- reads as progress and the widget can't be used to start another save meanwhile
+    div.saving(v-if='saving' role='status')
+        v-progress-circular(indeterminate color='primary')
+        div {{ $t("dialog.cover.saving") }}
 
 </template>
 
@@ -58,6 +63,9 @@ const frame = ref<HTMLIFrameElement|null>(null)
 
 // Whether the widget has completed the 'ready' handshake (hides the fallback close button)
 const loaded = ref(false)
+
+// Whether the widget's 'finished' result is being stored (closing the overlay once it is)
+const saving = ref(false)
 
 // Content hash of the bg image bytes last sent to the widget via send_init(), so
 // handle_finished() can tell an unchanged upload (echoed back byte-for-byte) from a genuinely
@@ -175,6 +183,7 @@ const handle_finished = async (
     // Whether anything the design previously referenced was superseded here, so the server can
     // be asked to reclaim it once the new blueprint has been written
     let replaced_asset = false
+    saving.value = true
     try {
         // Fonts uploaded inside the widget join the design's own font set, so the book's
         // pickers offer them too.
@@ -285,6 +294,7 @@ const on_message = (event:MessageEvent) => {
 watch(() => state.cover_editor, open => {
     if (open){
         loaded.value = false
+        saving.value = false
         // A device that compiles on the server asks it, once, when the estimate is stale
         estimate_ready = compiles_on_server()
             ? ensure_server_estimate(SERVER_ESTIMATE_WAIT_MS) : ensure_page_estimate()
@@ -330,5 +340,28 @@ watch(() => state.cover_editor, open => {
         @media (min-width: 901px)
             top: 36px
             right: 36px
+
+    // Laid over the iframe exactly, blocking it at once but only fading in after a moment, so
+    // the usual near-instant save doesn't flash
+    .saving
+        position: absolute
+        inset: 0
+        display: flex
+        flex-direction: column
+        align-items: center
+        justify-content: center
+        gap: 16px
+        background-color: rgba(255, 255, 255, 0.8)
+        font-size: 18px
+        animation: saving_appear 0.2s 0.3s both
+        @media (min-width: 901px)
+            inset: 24px
+            border-radius: 8px
+
+@keyframes saving_appear
+    from
+        opacity: 0
+    to
+        opacity: 1
 
 </style>

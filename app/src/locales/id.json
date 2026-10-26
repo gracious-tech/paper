@@ -147,6 +147,7 @@
   "dialog.account.sign_out_generating": "PDF masih sedang dibuat. Jika Anda keluar sekarang, prosesnya akan berhenti. Tetap keluar?",
   "dialog.account.signed_in_as": "Masuk sebagai",
   "dialog.cover.save_failed": "Sampul gagal disimpan — coba lagi",
+  "dialog.cover.saving": "Menyimpan sampul...",
   "dialog.cover.title": "Editor sampul",
   "dialog.estimate_cost.books.one": "{n} buku",
   "dialog.estimate_cost.books.other": "{n} buku",

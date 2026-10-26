@@ -147,6 +147,7 @@
   "dialog.account.sign_out_generating": "Hâlâ bir PDF oluşturuluyor. Şimdi oturumu kapatırsanız bu işlem durur. Yine de oturum kapatılsın mı?",
   "dialog.account.signed_in_as": "Oturum açılan hesap",
   "dialog.cover.save_failed": "Kapak kaydedilemedi — tekrar deneyin",
+  "dialog.cover.saving": "Kapak kaydediliyor...",
   "dialog.cover.title": "Kapak düzenleyici",
   "dialog.estimate_cost.books.one": "{n} kitap",
   "dialog.estimate_cost.books.other": "{n} kitap",

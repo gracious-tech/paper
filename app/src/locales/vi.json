@@ -147,6 +147,7 @@
   "dialog.account.sign_out_generating": "Một tệp PDF vẫn đang được tạo. Đăng xuất bây giờ sẽ dừng quá trình đó. Vẫn đăng xuất?",
   "dialog.account.signed_in_as": "Đã đăng nhập với tên",
   "dialog.cover.save_failed": "Không lưu được bìa — hãy thử lại",
+  "dialog.cover.saving": "Đang lưu bìa…",
   "dialog.cover.title": "Trình chỉnh sửa bìa",
   "dialog.estimate_cost.books.one": "{n} cuốn",
   "dialog.estimate_cost.books.other": "{n} cuốn",

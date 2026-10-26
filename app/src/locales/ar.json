@@ -147,6 +147,7 @@
   "dialog.account.sign_out_generating": "لا يزال إنشاء ملف PDF جاريًا. سيؤدي تسجيل الخروج الآن إلى إيقافه. هل تريد تسجيل الخروج على أي حال؟",
   "dialog.account.signed_in_as": "مسجّل الدخول باسم",
   "dialog.cover.save_failed": "تعذّر حفظ الغلاف — حاول مرة أخرى",
+  "dialog.cover.saving": "جارٍ حفظ الغلاف...",
   "dialog.cover.title": "محرّر الغلاف",
   "dialog.estimate_cost.books.one": "{n} كتاب",
   "dialog.estimate_cost.books.other": "عدد الكتب: {n}",

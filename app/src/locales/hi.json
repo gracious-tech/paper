@@ -147,6 +147,7 @@
   "dialog.account.sign_out_generating": "एक PDF अभी बन रहा है। अभी साइन आउट करने पर वह रुक जाएगा। फिर भी साइन आउट करें?",
   "dialog.account.signed_in_as": "इस खाते से साइन इन हैं",
   "dialog.cover.save_failed": "कवर सहेजा नहीं जा सका — फिर से कोशिश करें",
+  "dialog.cover.saving": "कवर सहेजा जा रहा है...",
   "dialog.cover.title": "कवर संपादक",
   "dialog.estimate_cost.books.one": "{n} पुस्तक",
   "dialog.estimate_cost.books.other": "{n} पुस्तकें",

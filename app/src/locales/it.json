@@ -147,6 +147,7 @@
   "dialog.account.sign_out_generating": "Un PDF è ancora in fase di creazione. Se esci ora, verrà interrotta. Vuoi uscire comunque?",
   "dialog.account.signed_in_as": "Accesso effettuato come",
   "dialog.cover.save_failed": "Impossibile salvare la copertina — riprova",
+  "dialog.cover.saving": "Salvataggio della copertina...",
   "dialog.cover.title": "Editor della copertina",
   "dialog.estimate_cost.books.one": "{n} libro",
   "dialog.estimate_cost.books.other": "{n} libri",
