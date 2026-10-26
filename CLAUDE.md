@@ -782,8 +782,11 @@ After that, every push to `main` deploys itself. The scripts still work by hand
 - **Text direction is always set explicitly, never inferred from `lang`.** Typst works direction
   out from `lang`, but only for a handful of ISO 639-1 codes: `hbo` (Ancient Hebrew), `arb`,
   `ckb`, `uig` etc. silently lay out LTR, and `pa` is assumed RTL though fetch.bible's Punjabi is
-  Gurmukhi. The document takes fetch.bible's declared `direction` for the primary translation
-  (`TypographyConfig.dir`/`dir2`); user-written text (custom pages, story text slides, titles)
+  Gurmukhi. The translations take fetch.bible's declared `direction`
+  (`TypographyConfig.dir`/`dir1`/`dir2`), but the *document's* is RTL only when every translation
+  is: a Hebrew + English book is LTR whichever comes first, so Hebrew stays in the left column
+  and only its own cell and footnotes are scoped `dir: rtl` (`dir1`, and `BiblePassageData.dir`
+  for the grid cell); user-written text (custom pages, story text slides, titles)
   takes the direction of its own first letter instead (`detect_dir()` in `lang.ts`), since an
   RTL Bible often has English introductions. Two consequences: a paragraph's direction comes from
   the styles *all* its content shares, so a direction scope has to enclose the whole paragraph

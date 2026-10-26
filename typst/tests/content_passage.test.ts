@@ -453,6 +453,28 @@ describe('gen_passage', () => {
             expect(cells[1]).toContain('Bible 2 content')
         })
 
+        it('gives the primary cell its own direction when the document runs the other way', () => {
+            // A Hebrew + English book is LTR, so Hebrew stays in the left column and only its
+            // own cell reads right to left
+            const result = call(make_passage({
+                bibles: [
+                    {content: '#vn(1)Bible 1 content', dir: 'rtl'},
+                    {content: '#vn(1)Bible 2 content'},
+                ],
+                multi_layout: 'columns',
+            }))
+            const rule = '#set text(dir: rtl)'
+            expect(result).toContain(rule)
+            expect(result.indexOf(rule)).toBeLessThan(result.indexOf('Bible 1 content'))
+            expect(result.indexOf(rule)).toBeLessThan(result.indexOf('#let footnote(..args)'))
+            // Nothing is set when the primary shares the document's direction
+            const plain = call(make_passage({
+                bibles: [{content: '#vn(1)Bible 1 content'}, {content: '#vn(1)Bible 2 content'}],
+                multi_layout: 'columns',
+            }))
+            expect(plain).not.toContain('dir:')
+        })
+
         it('suppresses footnotes in the second translation only', () => {
             const result = call(make_passage({
                 bibles: [

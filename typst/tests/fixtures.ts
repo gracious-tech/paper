@@ -31,6 +31,7 @@ export const TEST_TYPOGRAPHY:TypographyConfig = {
     lang: 'en',
     lang2: null,
     dir: 'ltr',
+    dir1: null,
     dir2: null,
     notes_lang: null,
     notes_dir: null,

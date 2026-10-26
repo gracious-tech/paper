@@ -128,11 +128,16 @@ export interface TypographyConfig {
     // The second translation's own language, when it differs from `lang` (null = same, or no
     // second translation) — applied to just that translation's own text scopes
     lang2:string|null
-    // Text direction of the primary translation. Never left to Typst's own inference from
-    // `lang`, which only knows a handful of ISO 639-1 codes: an unmapped code (e.g. `hbo`,
-    // Ancient Hebrew) silently lays out LTR, and `pa` is assumed RTL though fetch.bible's Punjabi
-    // is Gurmukhi
+    // The document's direction, which also orders its page furniture and bilingual columns. It is
+    // the translations' own direction when they agree, and LTR when one is LTR and the other RTL
+    // (so a Hebrew + English book keeps Hebrew on the left, English on the right, whichever was
+    // chosen first). Never left to Typst's own inference from `lang`, which only knows a handful
+    // of ISO 639-1 codes: an unmapped code (e.g. `hbo`, Ancient Hebrew) silently lays out LTR,
+    // and `pa` is assumed RTL though fetch.bible's Punjabi is Gurmukhi
     dir:TextDir
+    // The primary translation's own direction, when it differs from `dir` (null = same) — applied
+    // to just its bilingual column and footnotes. Only ever set beside a second translation
+    dir1:TextDir|null
     // The second translation's own direction, when it differs from `dir` (null = same, or no
     // second translation) — applied alongside lang2 to that translation's own text scopes
     dir2:TextDir|null
@@ -242,6 +247,10 @@ export interface TypstPassage {
 // Pre-rendered Typst markup for one translation's passage
 export interface BiblePassageData {
     content:string
+    // This translation's own direction where it differs from the document's (see
+    // TypographyConfig.dir), else null. Only the primary translation's is acted on: the second
+    // translation's scope is built from TypographyConfig.dir2
+    dir?:TextDir|null
 }
 
 

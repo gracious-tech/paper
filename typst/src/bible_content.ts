@@ -94,10 +94,17 @@ export function resolve_declared_cjk_variant(
 }
 
 
-// The document's text direction: the primary translation's, as fetch.bible declares it (see
-// TypographyConfig.dir)
-function primary_dir(blue:Blueprint, resources:Record<string, GetResourcesItem>):TextDir {
-    return resources[blue.bibles[0]]?.direction ?? 'ltr'
+// A translation's own text direction, as fetch.bible declares it (see TypographyConfig.dir)
+function own_dir(resources:Record<string, GetResourcesItem>, bible:string):TextDir {
+    return resources[bible]?.direction ?? 'ltr'
+}
+
+
+// The document's text direction: the translations' own when they agree, else LTR, so adding a
+// translation never flips the book around (see TypographyConfig.dir)
+function document_dir(blue:Blueprint, resources:Record<string, GetResourcesItem>):TextDir {
+    const dirs = blue.bibles.slice(0, 2).map(bible => own_dir(resources, bible))
+    return dirs.length && dirs.every(dir => dir === 'rtl') ? 'rtl' : 'ltr'
 }
 
 
@@ -366,7 +373,7 @@ export class BibleContent {
                             title_icon: item.title_icon},
                         titlepage_color_icon))
                 }
-                items.push(await this.gen_passage_item(blue, item, report_fetch))
+                items.push(await this.gen_passage_item(blue, item, resources, report_fetch))
             } else if (item.type === 'title') {
                 items.push(await this.gen_title_page(item, titlepage_color_icon))
             } else if (item.type === 'custom') {
@@ -381,7 +388,7 @@ export class BibleContent {
                         titlepage_color_icon))
                 }
                 items.push(await this.gen_picture_story_item(
-                    blue, item, primary_dir(blue, resources), report_fetch))
+                    blue, item, resources, report_fetch))
             }
         }
 
@@ -400,9 +407,12 @@ export class BibleContent {
             : null
         const lang2 = second_lang === lang ? null : second_lang
         // Direction likewise, but taken from what fetch.bible declares rather than derived from
-        // the language code (see TypographyConfig.dir)
-        const dir = primary_dir(blue, resources)
-        const second_dir = blue.bibles[1] ? resources[blue.bibles[1]]?.direction ?? 'ltr' : null
+        // the language code, and the document's own may differ from either translation's (see
+        // TypographyConfig.dir)
+        const dir = document_dir(blue, resources)
+        const first_dir = own_dir(resources, blue.bibles[0])
+        const dir1 = blue.bibles[1] && first_dir !== dir ? first_dir : null
+        const second_dir = blue.bibles[1] ? own_dir(resources, blue.bibles[1]) : null
         const dir2 = second_dir === dir ? null : second_dir
         const notes = blue.notes ? this.resolve_notes_locale(blue.notes) : null
 
@@ -446,6 +456,7 @@ export class BibleContent {
                 lang,
                 lang2,
                 dir,
+                dir1,
                 dir2,
                 notes_lang: notes && notes.lang !== lang ? notes.lang : null,
                 notes_dir: notes && notes.dir !== dir ? notes.dir : null,
@@ -525,10 +536,12 @@ export class BibleContent {
 
     // Build the resolved Typst content for each translation of a passage
     private async gen_passage_bibles(
-        blue:Blueprint, passage:ContentPassage, report_fetch?:(label:string) => void,
+        blue:Blueprint, passage:ContentPassage, resources:Record<string, GetResourcesItem>,
+        report_fetch?:(label:string) => void,
     ):Promise<BiblePassageData[]> {
         const ref = new PassageReference(passage)
         const bibles:BiblePassageData[] = []
+        const doc_dir = document_dir(blue, resources)
 
         // Collect content for each selected translation that has this book available
         for (const bible of blue.bibles) {
@@ -536,7 +549,11 @@ export class BibleContent {
             if (!instance) {
                 continue
             }
-            bibles.push({content: instance.get_passage_from_ref(ref, {attribute: false})})
+            const dir = own_dir(resources, bible)
+            bibles.push({
+                content: instance.get_passage_from_ref(ref, {attribute: false}),
+                dir: dir === doc_dir ? null : dir,
+            })
         }
 
         // Guarantee at least one entry so the renderer always has content to work with
@@ -559,7 +576,8 @@ export class BibleContent {
 
     // Convert a passage content item to its Typst equivalent
     private async gen_passage_item(
-        blue:Blueprint, passage:ContentPassage, report_fetch?:(label:string) => void,
+        blue:Blueprint, passage:ContentPassage, resources:Record<string, GetResourcesItem>,
+        report_fetch?:(label:string) => void,
     ):Promise<TypstPassage> {
         // Computed once regardless of passage_title mode, since progress_label always needs it
         const reference = this.passage_reference(blue, passage)
@@ -586,7 +604,7 @@ export class BibleContent {
         }
         return {
             type: 'passage',
-            bibles: await this.gen_passage_bibles(blue, passage, report_fetch),
+            bibles: await this.gen_passage_bibles(blue, passage, resources, report_fetch),
             image,
             multi_layout: blue.bibles_layout,
             multi_align: blue.bibles_align,
@@ -658,9 +676,11 @@ export class BibleContent {
     // image-side alternation are decided at generate time,
     // not here — see gen_picture_story in content_picture_story.ts
     private async gen_picture_story_item(
-        blue:Blueprint, story:ContentPictureStory, doc_dir:TextDir,
+        blue:Blueprint, story:ContentPictureStory, resources:Record<string, GetResourcesItem>,
         report_fetch?:(label:string) => void,
     ):Promise<TypstPictureStory> {
+        const doc_dir = document_dir(blue, resources)
+        const first_dir = own_dir(resources, blue.bibles[0])
         const slides:TypstPictureStorySlide[] = []
         // Carried across slides (one array per translation, mutated in place by
         // emphasize_sentences) so dialogue split across slides — e.g. one slide per verse — is
@@ -686,6 +706,11 @@ export class BibleContent {
                 body = blue.story_emphasis
                     ? emphasize_sentences(text, blue.story_emphasis_color, quote_state)
                     : escape_typst(text)
+                // The primary translation's own direction where the document runs the other way
+                // (a set rule has to enclose the whole paragraph, hence the scope)
+                if (first_dir !== doc_dir) {
+                    body = `#[#set text(dir: ${first_dir})\n${body}\n]`
+                }
 
                 // Second translation (when selected), same passage, rendered below the first
                 if (blue.bibles[1]) {
@@ -766,7 +791,7 @@ export class BibleContent {
         share_url?:string,
     ):TypstCustomPage {
         // Blank lines are kept here (unlike a story slide) — a custom page lays out as written
-        let markup = prose_to_typst(custom.doc, true, primary_dir(blue, resources))
+        let markup = prose_to_typst(custom.doc, true, document_dir(blue, resources))
 
         // Replace the AUTO-COPYRIGHT marker with the generated copyright block
         markup = replace_copyright_marker(markup, gen_copyright_typst(blue, resources, share_url))

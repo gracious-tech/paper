@@ -578,6 +578,12 @@ function gen_multi_bible_grids(
 #set par(leading: ${leading2}, spacing: ${leading2})
 #show heading: set text(font: "${escape_typst_str(font_headings2)}")`
 
+    // The primary translation's own direction where the document runs the other way, so its
+    // column reads its own way while the columns keep the document's order (see
+    // TypographyConfig.dir)
+    const dir1 = passage.bibles[0]?.dir
+    const primary_dir_rule = dir1 ? `#set text(dir: ${dir1})\n` : ''
+
     const rows = build_aligned_rows(
         passage.bibles[0]!.content, passage.bibles[1]?.content ?? '', passage.multi_align)
 
@@ -652,7 +658,7 @@ function gen_multi_bible_grids(
     column-gutter: ${gutter},
     align: top,
 [
-${cell_open(a_heading)}
+${primary_dir_rule}${cell_open(a_heading)}
 ${cell_a}
 ],
 [

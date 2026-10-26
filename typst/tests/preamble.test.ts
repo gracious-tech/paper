@@ -129,12 +129,26 @@ describe('gen_preamble', () => {
         }))
         expect(mixed).toContain('context pad(..if text.dir == rtl')
 
+        // ...and likewise when it's the primary translation that does
+        const mixed_primary = gen_preamble(make_request({
+            typography: {...TEST_TYPOGRAPHY, dir: 'ltr', dir1: 'rtl'},
+        }))
+        expect(mixed_primary).toContain('context pad(..if text.dir == rtl')
+
         // Every indenting binding goes through it, and right-aligned lines follow the end edge
         const result = gen_preamble(make_request())
         for (const binding of ['q_base', 'qm_base', 'li', 'lim']) {
             expect(result).toMatch(new RegExp(`#let ${binding}\\([^)]*\\) = pad_start\\(`))
         }
         expect(result).toContain('#let qr(c, ..rest) = align(end, c)')
+    })
+
+    it('runs translator footnotes in the primary translation\'s own direction', () => {
+        const result = gen_preamble(make_request({
+            typography: {...TEST_TYPOGRAPHY, dir: 'ltr', dir1: 'rtl'},
+        }))
+        expect(result).toMatch(/\} else \{\s+set text\(dir: rtl\)\s+it\s+\}/)
+        expect(gen_preamble(make_request())).not.toContain('#show footnote.entry: it => if')
     })
 
     it('includes first-line-indent', () => {

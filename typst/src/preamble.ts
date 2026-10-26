@@ -326,18 +326,20 @@ const STUDYNOTE_LABEL = 'pb-studynote'
 // TypographyConfig.notes_lang). It has to be a footnote.entry rule in the preamble: an entry is
 // laid out with the page's styles, so a set rule where the note is called, or inside its body,
 // would leave the entry's paragraph running the document's way. Translator footnotes are in the
-// translation's own language, so they're left alone
+// translation's own language, so only their direction is set
 function gen_notes_locale(typography:TypographyConfig):string {
     const args = gen_locale_args(typography.notes_lang, typography.notes_dir)
-    if (!args) {
+    // Translator footnotes run the primary translation's own way, which is only not the
+    // document's when a bilingual book's other translation sets the document's direction
+    const footnote_dir = typography.dir1 ? `set text(dir: ${typography.dir1})\n    ` : ''
+    if (!args && !footnote_dir) {
         return ''
     }
     const is_studynote = `it.note.at("label", default: none) == <${STUDYNOTE_LABEL}>`
     return `#show footnote.entry: it => if ${is_studynote} {
-    set text(${args.slice(2)})
-    it
+    ${args ? `set text(${args.slice(2)})\n    ` : ''}it
 } else {
-    it
+    ${footnote_dir}it
 }`
 }
 
@@ -356,10 +358,10 @@ function gen_footnote_entry_width(width:string|undefined):string {
 
 // Indent from the start edge of the text: the left in LTR text, the right in RTL. pad() only
 // takes physical sides, so the side is fixed here when every translation shares one direction,
-// and read from context only when a second translation's differs (its text scopes set their own
-// dir, so the same poetry/list binding has to serve both)
+// and read from context only when a translation's differs from the document's (its text scopes
+// set their own dir, so the same poetry/list binding has to serve both)
 function gen_pad_start(typography:TypographyConfig):string {
-    if (typography.dir2 === null) {
+    if (typography.dir1 === null && typography.dir2 === null) {
         const side = typography.dir === 'rtl' ? 'right' : 'left'
         return `#let pad_start(amount, c) = pad(${side}: amount, c)`
     }
@@ -500,7 +502,7 @@ export function gen_preamble(request:TypstRequest, overrides:PreambleOverrides =
         let num = text(size: ${num_size}em, weight: "bold",
             top-edge: "bounds", bottom-edge: "bounds", str(n))
         let offset = measure(num).width + ${FLOAT_CHAPTER_GAP}em
-        block(below: 0pt, height: 0pt, sticky: true, if text.dir == rtl {
+        block(below: 0pt, height: 0pt, sticky: true, if ${request.typography.dir === 'rtl'} {
             place(top + right, dx: offset, num)
         } else {
             place(top + left, dx: -offset, num)
