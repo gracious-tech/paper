@@ -14,7 +14,7 @@ import {make_blank_form_values, asset_path, BACKGROUNDS_DIR, BG_PREVIEW_DIR,
     font_families_in_form, find_vector_background, load_vector_background_svg,
     recolor_vector_svg, generate_palette, hex_override_to_hsl, VECTOR_BG_AUTO_COLOR}
     from 'bookcover-core'
-import {cover_form_for_render, cover_render_key, doc_has_copyright, gen_copyright_typst,
+import {cover_form_for_render, cover_render_key, doc_has_copyright, cover_typst_substitutions,
     COPYRIGHT_MARKER, resolve_reading_trim, convert_unit, COVER_TITLE_KEY, design_assets_prefix,
     to_version_asset, to_design_asset, asset_basename, sniff_image_mime}
     from 'paper-bible-typst'
@@ -438,16 +438,16 @@ async function render_cover(blueprint:Blueprint, page_count:number, fonts?:Custo
 
     // The default cover blurb carries the AUTO-COPYRIGHT marker (see default_cover_preset) —
     // resolve it to the design's full attribution statement here, where the blueprint and
-    // translation licensing metadata live, and hand the finished Typst block to the worker to
-    // splice into the rendered blurb (the cover-side counterpart to bible_content's interior
-    // handling). Covers whose blurb has no marker send nothing extra
-    const copyright_block = doc_has_copyright(cover.form['blurb'] as PmDoc | undefined)
-        ? gen_copyright_typst(blueprint, content.translations, opts?.share_url)
+    // translation licensing metadata live, for bookcover to put in place of the marker (the
+    // cover-side counterpart to bible_content's interior handling). Covers whose blurb has no
+    // marker send nothing extra
+    const typst_substitutions = doc_has_copyright(cover.form['blurb'] as PmDoc | undefined)
+        ? cover_typst_substitutions(blueprint, content.translations, opts?.share_url)
         : undefined
 
     const key = cover_render_key(cover, blueprint, page_count) + '|' + fonts_key + '|' + format
         + '|' + quality + (opts?.image_override ? '|override' : '')
-        + (copyright_block ? '|copyright:' + copyright_block : '')
+        + (typst_substitutions ? '|subs:' + JSON.stringify(typst_substitutions) : '')
     const cached = render_cache.find(entry => entry.key === key)
     if (cached){
         return cached.result
@@ -481,7 +481,7 @@ async function render_cover(blueprint:Blueprint, page_count:number, fonts?:Custo
         image: image && {data: image.data, type: image.type, key: image_key},
         ...image_builtin !== undefined && {image_builtin},
         ...quality === 'preview' && {image_max_dpi: PREVIEW_MAX_DPI},
-        ...copyright_block !== undefined && {copyright_block},
+        ...typst_substitutions !== undefined && {typst_substitutions},
         format,
     }) as CoverRenderResult
     render_cache.push({key, result})

@@ -24,6 +24,7 @@ import {generate as generate_cover, build_schema} from 'bookcover-node'
 import {handle_compile, run_compile} from '../../server/src/compile.ts'
 import {claim_compile_lock} from '../../server/src/quota.ts'
 import {config} from '../../server/src/config.ts'
+import {shared_content} from '../../server/src/content.ts'
 import {admin_db, admin_bucket, reset_firestore, reset_storage, design_doc, version_doc, new_id,
     list_paths, OWNER} from '../helpers/server.ts'
 
@@ -376,6 +377,33 @@ describe('run_compile, cover only', () => {
         // The spine is sized from the published interior
         expect(vi.mocked(build_schema).mock.calls[0]![0]).toMatchObject({page_count: 48})
         expect(await lock_free()).toBe(true)
+    })
+
+    it('has bookcover put the copyright statement in place of the blurb\'s marker', async () => {
+        // The default cover's blurb: the AUTO-COPYRIGHT marker alone in a paragraph
+        const blueprint = {...with_cover(null), bibles: []} as
+            {cover:{form:Record<string, unknown>}}
+        blueprint.cover.form['blurb'] = {type: 'doc', content: [{type: 'paragraph',
+            content: [{type: 'text', text: 'AUTO-COPYRIGHT'}]}]}
+        const {id} = await make_pending({version: {status: 'available', cover_status: 'pending',
+            pages: 48, blueprint}})
+        await admin_bucket.file(`versions/${id}/doc.pdf`).save(Buffer.from('the interior'))
+        await claim_compile_lock(OWNER, id)
+        // No translations, so the statement needs nothing from fetch.bible
+        const init_spy = vi.spyOn(shared_content, 'init').mockResolvedValue()
+        const collection_spy = vi.spyOn(shared_content, 'collection', 'get').mockReturnValue(
+            {get_resources: () => ({})} as unknown as typeof shared_content.collection)
+        try {
+            await run_compile(cover_job(id))
+        } finally {
+            init_spy.mockRestore()
+            collection_spy.mockRestore()
+        }
+
+        expect(await version(id)).toMatchObject({cover_status: 'available'})
+        const options = vi.mocked(build_schema).mock.lastCall![2]
+        expect(Object.keys(options!.typst_substitutions!)).toEqual(['AUTO-COPYRIGHT'])
+        expect(options!.typst_substitutions!['AUTO-COPYRIGHT']).toMatch(/^#\[[\s\S]*\];$/)
     })
 
     it('a cover the server can\'t render either is failed, and reported as critical',

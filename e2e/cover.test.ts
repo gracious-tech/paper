@@ -59,6 +59,42 @@ test('adding a cover in the widget, then removing it', async ({page}) => {
 })
 
 
+test('the widget previews the copyright statement in place of the blurb\'s marker',
+        async ({page}) => {
+    // Keep the init message where the widget receives it (init scripts run in every frame)
+    await page.addInitScript(() => {
+        window.addEventListener('message', event => {
+            const data = event.data as {type?:string}|null
+            if (data?.type === 'init'){
+                (window as unknown as {init_message:unknown}).init_message = data
+            }
+        })
+    })
+    const design_id = await open_editor(page)
+
+    await click_button(page, 'Add cover')
+    await expect(page.locator('.cover_editor').getByRole('button'))
+        .toBeHidden({timeout: 2 * 60 * 1000})
+
+    // The widget is handed the statement for its preview. Had it failed to compile there, the
+    // widget would have relayed an error, which fails the journey (see e2e/fixtures.ts)
+    const widget_frame = page.frames().find(frame => frame.url().includes('cover-widget'))
+    const substitutions = await widget_frame!.evaluate(() =>
+        (window as unknown as {init_message:{typst_substitutions?:Record<string, string>}})
+            .init_message.typst_substitutions)
+    expect(substitutions!['AUTO-COPYRIGHT']).toContain('Resources used:')
+
+    // While the cover itself keeps the marker, for each render to resolve afresh
+    await page.frameLocator('.cover_editor iframe').getByRole('button', {name: /finish/i})
+        .click()
+    await expect(page.locator('.cover_editor')).toBeHidden({timeout: 60_000})
+    await expect.poll(async () => {
+        const cover = await stored_cover(design_id) as {form:{blurb?:unknown}}|null
+        return JSON.stringify(cover?.form.blurb ?? null)
+    }, {timeout: 30_000}).toContain('AUTO-COPYRIGHT')
+})
+
+
 // Open the widget, type a subtitle, then press Finished, which asks what to do with an edit
 async function edit_then_finish(page:Page):Promise<void>{
     await click_button(page, 'Add cover')

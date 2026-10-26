@@ -79,7 +79,7 @@ export type {PmDoc} from 'pm-to-typst'
 
 // Copyright/attribution statement builder — shared by the interior compile (bible_content) and
 // the cover blurb (the default cover seeds the AUTO-COPYRIGHT marker into its rear text)
-export {gen_copyright_typst} from './copyright.js'
+export {gen_copyright_typst, cover_typst_substitutions} from './copyright.js'
 export {doc_translator, doc_language} from './doc_strings.js'
 export type {DocKey, DocTranslate} from './doc_strings.js'
 

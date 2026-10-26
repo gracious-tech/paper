@@ -37,8 +37,9 @@ import {report_error} from '@/services/errors'
 import {ensure_page_estimate} from '@/services/page_estimate'
 import {ensure_server_estimate} from '@/services/server_preview'
 import {compiles_on_server} from '@/services/compile_mode'
+import {content} from '@/services/content'
 import {cover_form_for_render, get_cover_title, get_cover_title_from_form,
-    is_known_builtin_background} from 'paper-bible-typst'
+    is_known_builtin_background, cover_typst_substitutions} from 'paper-bible-typst'
 
 import type {EmbedFormState} from 'bookcover-core'
 import type {InitMessage, HostMessage, WidgetMessage} from 'bookcover-web'
@@ -143,6 +144,11 @@ const send_init = async () => {
         // Our UI locale, a browser tag the widget matches against its own catalogs the way it
         // would the browser's (English for one it lacks)
         locale: locale.value,
+        // The copyright statement for the widget's preview to show in place of the
+        // AUTO-COPYRIGHT marker, as our own renders do (always sent, since the user can type the
+        // marker in while editing). No share link exists until a version does, so like our
+        // previews it has none
+        typst_substitutions: cover_typst_substitutions(toRaw(blue), content.translations),
     }
     frame_window.postMessage(message, COVER_EDITOR_ORIGIN)
     loaded.value = true

@@ -1,10 +1,13 @@
 
 import {describe, it, expect} from 'vitest'
 
-import {gen_copyright_typst} from '../src/copyright.js'
+import {build_schema, make_blank_form_values} from 'bookcover-core'
+
+import {gen_copyright_typst, cover_typst_substitutions} from '../src/copyright.js'
 
 import {make_blueprint} from './fixtures.js'
 
+import type {EmbedFormState} from 'bookcover-core'
 import type {GetResourcesItem, RuntimeLicense} from '@gracious.tech/fetch-client'
 
 
@@ -210,6 +213,32 @@ describe('block structure', () => {
     it('renders with no translations selected at all', () => {
         const out = gen_copyright_typst(make_blueprint({bibles: [] as unknown as [string]}), {})
         expect(out).toContain('Resources used:')
+    })
+})
+
+
+describe('cover substitutions', () => {
+
+    // Bookcover's schema for a cover whose blurb is the given paragraph content
+    function blurb_with(...content:Record<string, unknown>[]):string {
+        const form = make_blank_form_values() as unknown as Record<string, unknown>
+        form['blurb'] = {type: 'doc', content: [{type: 'paragraph', content}]}
+        const typst_substitutions = cover_typst_substitutions(make_blueprint(), RESOURCES)
+        return build_schema(form as unknown as EmbedFormState, [],
+            {typst_substitutions})['blurb'] as string
+    }
+
+    it('has bookcover put the statement in place of the marker', () => {
+        const blurb = blurb_with({type: 'text', text: 'AUTO-COPYRIGHT'})
+        expect(blurb).toContain(gen_copyright_typst(make_blueprint(), RESOURCES))
+        expect(blurb).not.toContain('COPYRIGHT')
+    })
+
+    it('replaces a marker inside styled text', () => {
+        const blurb = blurb_with({type: 'text', text: 'See AUTO-COPYRIGHT below',
+            marks: [{type: 'bold'}]})
+        expect(blurb).toContain('Resources used:')
+        expect(blurb).not.toContain('COPYRIGHT')
     })
 })
 

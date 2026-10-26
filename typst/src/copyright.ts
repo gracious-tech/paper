@@ -10,6 +10,7 @@ import {escape_typst} from './helpers.js'
 import {gen_qr_typst} from './qr.js'
 import {doc_translator, doc_language} from './doc_strings.js'
 import {detect_dir} from './lang.js'
+import {COPYRIGHT_MARKER} from './prose.js'
 
 import type {Blueprint} from './types.js'
 import type {DocTranslate} from './doc_strings.js'
@@ -177,4 +178,15 @@ export function gen_copyright_typst(
     return `#[\n#set text(dir: ${dir})\n`
         + `#set par(first-line-indent: 0em, leading: 1.5em, spacing: 1.5em)\n\n`
         + `${parts.filter(Boolean).join('\n\n')}\n];`
+}
+
+
+// The `typst_substitutions` map a cover passes to bookcover (build_schema() for our own renders,
+// InitMessage for the widget's preview), so the AUTO-COPYRIGHT marker in its blurb prints the
+// same statement the interior does. The block is one `#[...];` expression, which bookcover's
+// rules require of multi-line markup so it survives a marker inside bold, a list item or a heading
+export function cover_typst_substitutions(
+    blue:Blueprint, resources:Record<string, GetResourcesItem>, share_url?:string,
+):Record<string, string> {
+    return {[COPYRIGHT_MARKER]: gen_copyright_typst(blue, resources, share_url)}
 }

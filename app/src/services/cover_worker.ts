@@ -6,7 +6,6 @@
 import {version as compiler_version} from '@myriaddreamin/typst-ts-web-compiler/package.json'
 import {version as renderer_version} from '@myriaddreamin/typst-ts-renderer/package.json'
 import {init as init_bookcover, build_schema} from 'bookcover-web'
-import {replace_copyright_marker} from 'paper-bible-typst'
 
 import type {CoverGenerator, EmbedFormState} from 'bookcover-web'
 import type {CustomFont} from 'typst-fonts'
@@ -25,14 +24,15 @@ import type {CustomFont} from 'typst-fonts'
 // `image.key` is a stable identity for the bytes (builtin id or upload hash, plus which copy):
 // bookcover recognises a repeat image across messages by a File's name + modified time, which
 // is what lets a run of preview renders reuse its one downscaled copy instead of redoing it.
-// `copyright_block`, when set, is pre-built Typst markup that replaces the AUTO-COPYRIGHT marker
-// in the rendered blurb (the default cover seeds that marker into its rear text — see
-// default_cover_preset in cover.ts)
+// `typst_substitutions`, when set, is Typst markup bookcover puts in place of marker text in the
+// blurb (the AUTO-COPYRIGHT marker the default cover seeds into its rear text — see
+// default_cover_preset and cover_typst_substitutions)
 export type CoverWorkerAction =
     | {action:'init', assets_prefix:string}
     | {action:'generate', fonts_key:string, fonts?:CustomFont[], form:Record<string, unknown>,
         image:{data:Uint8Array, type:string, key:string}|null, image_builtin?:string,
-        image_max_dpi?:number, copyright_block?:string, format?:'pdf'|'svg'}
+        image_max_dpi?:number, typst_substitutions?:Record<string, string>,
+        format?:'pdf'|'svg'}
 
 // A generate always also asks bookcover to split the full wraparound render into its individual
 // panels (a cheap post-process, not a second compile) — the front/back panels are what the
@@ -109,16 +109,11 @@ async function handle_action(message:CoverWorkerRequest):Promise<CoverRenderResu
         throw new Error('Cover fonts out of sync with the client')
     }
     // Derive the renderable schema from the (size-overlaid) form, then generate —
-    // build_schema needs each custom font's sniffed style to pick correct Noto fallbacks
+    // build_schema needs each custom font's sniffed style to pick correct Noto fallbacks, and
+    // replaces any substitution markers as it renders the blurb
     const schema = build_schema(message.form as unknown as EmbedFormState,
-        custom_fonts.map(font => ({family: font.family, style: font.style})))
-    // Splice the generated copyright block into the blurb wherever the AUTO-COPYRIGHT marker
-    // sits — build_schema has already rendered the blurb ProseMirror doc to Typst markup, so
-    // this mirrors bible_content's interior handling (cover.ts builds the block)
-    const blurb = schema['blurb']
-    if (message.copyright_block !== undefined && typeof blurb === 'string'){
-        schema['blurb'] = replace_copyright_marker(blurb, message.copyright_block)
-    }
+        custom_fonts.map(font => ({family: font.family, style: font.style})),
+        message.typst_substitutions && {typst_substitutions: message.typst_substitutions})
     // A File named by the stable key with a fixed modified time, so the same bytes posted again
     // are recognised as the same image (see image.key above)
     const image = message.image

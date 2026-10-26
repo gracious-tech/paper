@@ -8,7 +8,7 @@ import {PDFDocument} from 'pdf-lib'
 import {PDF_LIFETIME_MS, COMPILE_STATS_LIFETIME_MS,
     cover_form_for_render, is_builtin_background, is_known_builtin_background,
     is_fetchable_image_url, sniff_image_mime, doc_has_copyright,
-    replace_copyright_marker, gen_copyright_typst, version_assets_prefix,
+    cover_typst_substitutions, version_assets_prefix,
     migrate_version_blueprint} from 'paper-bible-typst'
 import {compile_pdf_from_blueprint} from 'paper-bible-typst-node'
 import {generate as generate_cover, build_schema} from 'bookcover-node'
@@ -88,20 +88,21 @@ async function render_cover_files<T>(blueprint:Blueprint, custom_fonts:CustomFon
     // identical logic to the in-browser path (see cover.ts / cover_worker.ts in the app)
     const cover = blueprint.cover!
     const cover_fonts = custom_fonts.filter(font => cover.font_families.includes(font.family))
-    const schema = build_schema(
-        cover_form_for_render(cover, blueprint, page_count) as unknown as EmbedFormState,
-        cover_fonts.map(font => ({family: font.family, style: font.style})))
 
     // Resolve the AUTO-COPYRIGHT marker the blurb may carry (the default cover seeds it into
-    // its rear text) into the design's full attribution statement — mirrors the interior
-    // compile and the in-browser cover path (see cover.ts / cover_worker.ts in the app)
-    const blurb = schema['blurb']
-    if (doc_has_copyright(cover.form['blurb'] as PmDoc | undefined) && typeof blurb === 'string'){
+    // its rear text) into the design's full attribution statement, which bookcover puts in
+    // place of the marker — mirrors the interior compile and the in-browser cover path (see
+    // cover.ts / cover_worker.ts in the app)
+    let typst_substitutions:Record<string, string>|undefined
+    if (doc_has_copyright(cover.form['blurb'] as PmDoc | undefined)){
         await shared_content.init()
         const resources = shared_content.collection.get_resources({object: true})
-        schema['blurb'] = replace_copyright_marker(
-            blurb, gen_copyright_typst(blueprint, resources, share_url))
+        typst_substitutions = cover_typst_substitutions(blueprint, resources, share_url)
     }
+    const schema = build_schema(
+        cover_form_for_render(cover, blueprint, page_count) as unknown as EmbedFormState,
+        cover_fonts.map(font => ({family: font.family, style: font.style})),
+        typst_substitutions && {typst_substitutions})
 
     // bookcover-node works on disk: it discovers a background image in the input dir (or, for
     // a builtin, an explicit filename set via schema.images.background — a side channel
