@@ -352,7 +352,8 @@ function gen_passage_inner(
         }
         // Only worth rewriting when headings actually render — with them hidden the flag would
         // be set and never consumed, and could then flatten the first heading of a later passage
-        lines.push(passage.show_headings ? tighten_chapter_before_heading(content) : content)
+        lines.push(mark_opening_chapter_marker(
+            passage.show_headings ? tighten_chapter_before_heading(content) : content))
     }
 
     return lines.join('\n')
@@ -650,7 +651,8 @@ function gen_multi_bible_grids(
             if (match) {
                 cell_a = quiet_chapter_markers(a)
                 cell_b = quiet_chapter_markers(b)
-                full_divider = `#ch_divider(${match[1]})\n`
+                const opening = i === 0 ? ', opening: true' : ''
+                full_divider = `#ch_divider(${match[1]}${opening})\n`
             }
         } else if (chapter_style === 'float') {
             cell_b = quiet_chapter_markers(b)
@@ -662,6 +664,10 @@ function gen_multi_bible_grids(
         if (passage.show_headings) {
             cell_a = tighten_chapter_before_heading(cell_a)
             cell_b = tighten_chapter_before_heading(cell_b)
+        }
+        if (i === 0) {
+            cell_a = mark_opening_chapter_marker(cell_a)
+            cell_b = mark_opening_chapter_marker(cell_b)
         }
 
         // The row-level heading margin is skipped when a full-width divider opens the row: the
@@ -717,4 +723,14 @@ function quiet_chapter_markers(markup:string):string {
 // no-op there.
 function quiet_leading_chapter_marker(markup:string):string {
     return markup.replace(/^(\s*)#ch\((\d+)\)/, '$1#ch_quiet($2)')
+}
+
+
+// Flag a passage's drawn opening chapter marker as such, so the divider style drops the space it
+// otherwise keeps above itself (see gen_ch_divider): nothing precedes it to divide from, and the
+// gap would stack on the passage title's own bottom margin. Every style's #ch takes and ignores
+// extra arguments, so only the divider needs to know. Run after tighten_chapter_before_heading,
+// whose pattern doesn't expect arguments after the number; a quieted marker is left alone
+function mark_opening_chapter_marker(markup:string):string {
+    return markup.replace(/^(\s*)#ch(_tight)?\((\d+)\)/, '$1#ch$2($3, opening: true)')
 }

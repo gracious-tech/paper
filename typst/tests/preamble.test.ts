@@ -218,17 +218,17 @@ describe('gen_preamble', () => {
                 features: {...TEST_FEATURES, show_chapters: true, show_chapters_style: 'divider'},
             }))
             // Every chapter draws one, chapter 1 included
-            expect(result).toContain('    ch_divider(n)\n')
+            expect(result).toContain('    ch_divider(n, opening: opening)\n')
             expect(result).not.toContain('if n > 1')
             // Tapered rules drawn as polygons in the text's colour, either side of a bold number
             expect(result).toContain('polygon(fill: text.fill')
             expect(result).toContain('weight: "bold"')
             // The visual is factored out so the bilingual columns layout can draw it once at
             // full grid width (see gen_multi_bible_grids)
-            expect(result).toContain('#let ch_divider(n) =')
+            expect(result).toContain('#let ch_divider(n, opening: false) =')
             // No font: override — inherits font_text + its fallbacks, same as regular body text
             const divider_source = result.slice(
-                result.indexOf('#let ch_divider(n)'), result.indexOf('#let vn(n, ..rest)'))
+                result.indexOf('#let ch_divider(n, opening: false)'), result.indexOf('#let vn(n, ..rest)'))
             expect(divider_source).not.toContain('font:')
         })
 
@@ -322,17 +322,17 @@ describe('gen_preamble', () => {
             const result = gen_preamble(make_request({
                 features: {...TEST_FEATURES, show_chapters: true, show_chapters_style: 'float'},
             }))
-            expect(result).toContain('#let ch_divider(n) =')
-            expect(result).toContain('#let ch_columns(n, ..rest) = {')
+            expect(result).toContain('#let ch_divider(n, opening: false) =')
+            expect(result).toContain('#let ch_columns(n, opening: false, ..rest) = {')
             expect(result).toContain('#let ch_columns_tight(n, ..rest) = {')
             // Defined before use — Typst closures capture the scope they're created in
-            expect(result.indexOf('#let ch_divider(n)'))
-                .toBeLessThan(result.indexOf('#let ch_columns(n, ..rest)'))
+            expect(result.indexOf('#let ch_divider(n, opening: false)'))
+                .toBeLessThan(result.indexOf('#let ch_columns(n, opening: false, ..rest)'))
             // No other style needs it
             for (const style of ['divider', 'heading'] as const) {
                 expect(gen_preamble(make_request({
                     features: {...TEST_FEATURES, show_chapters: true, show_chapters_style: style},
-                }))).not.toContain('#let ch_columns(n, ..rest)')
+                }))).not.toContain('#let ch_columns(n, opening: false, ..rest)')
             }
         })
 

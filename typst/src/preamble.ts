@@ -254,9 +254,13 @@ function float_chapter_size(request:TypstRequest):number {
 // zero-height box on its baseline (see gen_preamble's leading calc), so the line *following* the
 // divider hangs its capitals up into the gap beneath it, while the divider's own figures
 // (~0.65 x 1.1em) rise the same distance into the gap above it.
+//
+// A passage's opening divider (`opening: true`, see mark_opening_chapter_marker in
+// content_passage.ts) keeps no space above itself, so it sits where the passage's first line
+// would have, the same distance below the passage title as the first heading or line of text.
 function gen_ch_divider(leading:string):string {
-    return `#let ch_divider(n) = block(width: 100%, sticky: true,
-    above: 1.5 * ${leading}, below: 1.5 * ${leading},
+    return `#let ch_divider(n, opening: false) = block(width: 100%, sticky: true,
+    above: if opening { 0pt } else { 1.5 * ${leading} }, below: 1.5 * ${leading},
     align(center, text(size: 1.1em, weight: "bold", dir: ltr, top-edge: 0pt, bottom-edge: 0pt,
             context {
         // Filled in the text's own colour, so the rules follow the text colour option
@@ -281,12 +285,12 @@ function gen_ch_divider(leading:string):string {
 // slot below the divider — exactly where the chapter's first line of text would have sat if there
 // were no heading (see gen_heading_rules)
 function gen_ch_divider_binding(name:string, chapter_state:string):string {
-    return `#let ${name}(n, ..rest) = {
+    return `#let ${name}(n, opening: false, ..rest) = {
     ${chapter_state}.update(n)
-    ch_divider(n)
+    ch_divider(n, opening: opening)
 }
 #let ${name}_tight(n, ..rest) = {
-    ${name}(n)
+    ${name}(n, ..rest)
     state("heading-tight", false).update(true)
 }`
 }
