@@ -70,7 +70,7 @@ v-app.app(v-else)
 div.display(v-if='!show_splash && !is_mobile')
     DisplayPreview(v-if='showing_editor')
     DisplayDesignVersion(v-else-if='route.name === "design"')
-    div.intro(v-else-if='route.name === "about"')
+    div.intro(v-else-if='route.name === "about" || route.name === "publishers"')
         IntroVideo.video
     DisplayExamples(v-else-if='route.name === "designs"')
 

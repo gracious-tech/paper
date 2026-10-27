@@ -25,6 +25,7 @@ div
                 p(class='text-body-large') {{ reply.text }}
                 footer(class='text-body-small text-medium-emphasis mt-1')
                     | {{ reply.org }} · {{ format_month(reply.sent) }}
+        p(v-if='item.note' class='text-body-medium text-medium-emphasis mt-3') {{ item.note }}
     //- Where to read more about why so many translations are restricted
     v-divider(class='mt-6')
     div(class='more d-flex flex-wrap justify-center ga-2 mt-6')
@@ -53,6 +54,7 @@ interface Request {
     name:string
     replies:Reply[]
     unanswered?:string  // The organisation that never replied, when there are no replies
+    note?:string  // Our own comment on the replies, shown after them
 }
 
 
@@ -73,23 +75,6 @@ const request:Reply = {
 // Every request, with the main parts of each reply
 const requests:Request[] = [
     {
-        name: "NIV — New International Version",
-        replies: [
-            {
-                org: "Biblica",
-                sent: '2023-10',
-                text: "We look at a number of things when granting requests for use of our texts. "
-                    + "One being novelty and/or innovation – does the website or app differ "
-                    + "significantly from what is already available online? Is the website/app in "
-                    + "question truly unique and innovative, offering functionalities outside of "
-                    + "what is currently offered by YouVersion and BibleGateway? In this case, to "
-                    + "simply offer the user the option to print out a portion of the text "
-                    + "(currently available on YV, BG, and Biblica.com) would not be unique nor "
-                    + "innovative, and unfortunately, we would have to deny that as well.",
-            },
-        ],
-    },
-    {
         name: "ESV — English Standard Version",
         replies: [
             {
@@ -102,6 +87,36 @@ const requests:Request[] = [
                     + "regardless of the amount of text they're printing.",
             },
         ],
+    },
+    {
+        name: "NIV — New International Version",
+        replies: [
+            {
+                org: "Biblica",
+                sent: '2023-10',
+                text: "We have had an opportunity to consider this matter and unfortunately, we "
+                    + "have decided to deny your request. Biblica does not allow our licensees "
+                    + "and/or their end users to create additional adaptations of any of its "
+                    + "texts, especially for uncontrolled onward distribution.",
+            },
+            {
+                org: "Biblica",
+                sent: '2023-10',
+                lead: "We then offered to allow only printing the pure NIV text, with no "
+                    + "custom content.",
+                text: "We look at a number of things when granting requests for use of our texts. "
+                    + "One being novelty and/or innovation – does the website or app differ "
+                    + "significantly from what is already available online? Is the website/app in "
+                    + "question truly unique and innovative, offering functionalities outside of "
+                    + "what is currently offered by YouVersion and BibleGateway? In this case, to "
+                    + "simply offer the user the option to print out a portion of the text "
+                    + "(currently available on YV, BG, and Biblica.com) would not be unique nor "
+                    + "innovative, and unfortunately, we would have to deny that as well.",
+            },
+        ],
+        note: "(YouVersion shows only one chapter, BibleGateway doesn't allow "
+            + "printing more than 250 verses, and neither is designed for printing books or "
+            + "booklets.)",
     },
     {
         name: "NLT — New Living Translation",
@@ -140,13 +155,13 @@ const requests:Request[] = [
             {
                 org: "National Council of Churches",
                 sent: '2023-10',
-                lead: "While the NCC did offer access to their translation, this was in exchange "
-                    + "for money despite our app being completely free for users. We declined for "
-                    + "financial and theological reasons (2 Cor 2:17).",
                 text: "The NCC does license the NRSVue for use in gratis applications. The general "
                     + "terms are an annual licensing fee: $1,000.",
             },
         ],
+        note: "While the NCC did offer access to their translation, this was in exchange for "
+            + "money despite our app being completely free for users. We declined for financial "
+            + "and theological reasons (2 Cor 2:17).",
     },
 ]
 
