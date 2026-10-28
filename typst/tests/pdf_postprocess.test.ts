@@ -156,6 +156,47 @@ describe('generate_pdf', () => {
 })
 
 
+describe('facing pages and portrait booklets', () => {
+
+    // Facing passages compile at double width; everything else as fake_compile does
+    async function facing_compile(source:string):Promise<Uint8Array> {
+        const doc = await PDFDocument.create()
+        const wide = source.includes('width: 2 * ')
+        for (let i = 0; i < (wide ? 2 : 1); i++) {
+            const page = doc.addPage([wide ? 200 : 100, 200])
+            page.drawLine({start: {x: 0, y: 0}, end: {x: 1, y: 1}})
+        }
+        return doc.save()
+    }
+
+    it('cuts each double-width page of a facing passage into two pages', async () => {
+        const passage = make_passage({
+            bibles: [{content: '#vn(1)NIV'}, {content: '#vn(1)ESV'}],
+            multi_layout: 'alternate',
+        })
+        const bytes = await generate_pdf(make_request({content: [passage]}), facing_compile)
+        const doc = await PDFDocument.load(bytes)
+        expect(doc.getPages().map(page => [page.getWidth(), page.getHeight()]))
+            .toEqual([[100, 200], [100, 200], [100, 200], [100, 200]])
+    })
+
+    // Fronts turn 90°, backs 270°, baking in the short-edge flip for long-edge duplexing
+    it('rotates a portrait booklet\'s sheets, backs the other way round', async () => {
+        const request = make_request({arrangement: 'booklet', booklet_portrait: true,
+            content: [make_passage()]})
+        const doc = await PDFDocument.load(await generate_pdf(request, fake_compile))
+        expect(doc.getPages().map(page => page.getRotation().angle)).toEqual([90, 270])
+    })
+
+    it('leaves a landscape booklet\'s sheets unrotated', async () => {
+        const request = make_request({arrangement: 'booklet', content: [make_passage()]})
+        const doc = await PDFDocument.load(await generate_pdf(request, fake_compile))
+        expect(doc.getPages().map(page => page.getRotation().angle)).toEqual([0, 0])
+    })
+
+})
+
+
 describe('last_item_at_end', () => {
 
     // The text page to land on the document's final page (a copyright notice, in practice)

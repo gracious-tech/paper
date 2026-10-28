@@ -193,6 +193,54 @@ describe('grid layout', () => {
         const out = gen(make_story({slides: [image_slide('a.jpg', 'Body')]}), 'grid')
         expect(out).toContain('inset: (left: 15mm)')
     })
+
+    it('spans the full row width with a text-only slide, fit to the row', () => {
+        const out = gen(make_story({slides: [make_slide({image: null, body: 'Only text'})]}),
+            'grid')
+        expect(out).toContain('#place(top + left, dx: 0pt, dy: (((210mm - 15mm - 15mm) / 4)) * 0,'
+            + '\n    block(width: (148mm) - (15mm) - (15mm), height: ((210mm - 15mm - 15mm) / 4),'
+            + ' clip: true, inset: 0pt,')
+        expect(out).toContain('Only text')
+        expect(out).not.toContain('image(')
+    })
+
+    describe('borderless', () => {
+
+        // Rows: a full-width image on top, image right, image left, full-width at the bottom
+        const slides = [image_slide('a.jpg', null), image_slide('b.jpg', 'B'),
+            image_slide('c.jpg', 'C'), image_slide('d.jpg', null)]
+        const out = gen(make_story({slides}), 'grid', true, 'borderless')
+        // The image() call placed for a file, with its #place line
+        const placed = (file:string) => new RegExp(
+            `#place\\(top \\+ left, dx: ([^,]+), dy: ([^\\n]+),\\n {4}image\\("${file}", `
+            + 'width: ([^\\n]+), height: ([^\\n]+), fit: "cover"\\)\\)').exec(out)!
+
+        it('bleeds a full-width top row past both sides and the top edge', () => {
+            const [, dx, dy, width, height] = placed('a.jpg')
+            expect(dx).toBe('-15mm')
+            expect(dy).toBe('-15mm')
+            expect(width).toBe('(((148mm) - (15mm) - (15mm)) + (15mm)) + (15mm)')
+            expect(height).toBe('(((210mm - 15mm - 15mm) / 4)) + (15mm)')
+        })
+
+        it('bleeds a side image past its own page edge only', () => {
+            // Right: keeps its cell's dx, widens by the right margin
+            const right = placed('b.jpg')
+            expect(right[1]).toBe('(((148mm) - (15mm) - (15mm)) / 2)')
+            expect(right[3]).toBe('((((148mm) - (15mm) - (15mm)) / 2)) + (15mm)')
+            expect(right[4]).toBe('((210mm - 15mm - 15mm) / 4)')
+            // Left: pulled out past the left margin
+            const left = placed('c.jpg')
+            expect(left[1]).toBe('-15mm')
+            expect(left[3]).toBe('((((148mm) - (15mm) - (15mm)) / 2)) + (15mm)')
+        })
+
+        it('bleeds the bottom row past the bottom edge, without moving it', () => {
+            const [, , dy, , height] = placed('d.jpg')
+            expect(dy).toBe('(((210mm - 15mm - 15mm) / 4)) * 3')
+            expect(height).toBe('(((210mm - 15mm - 15mm) / 4)) + (15mm)')
+        })
+    })
 })
 
 

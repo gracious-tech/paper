@@ -2,7 +2,7 @@
 import {describe, it, expect} from 'vitest'
 
 import {truncate_for_preview, PREVIEW_CHAR_LIMIT, ESTIMATE_CHAR_LIMIT} from '../src/preview.js'
-import {make_request, make_passage, make_title} from './fixtures.js'
+import {make_request, make_passage, make_title, make_custom} from './fixtures.js'
 
 import type {TypstPassage} from '../src/types.js'
 
@@ -218,6 +218,36 @@ describe('truncate_for_preview', () => {
             expect(bible.content.length).toBeLessThan(PREVIEW_CHAR_LIMIT / 2 * 1.01)
             expect(bible.content.length).toBeGreaterThan(PREVIEW_CHAR_LIMIT / 2 * 0.9)
         }
+    })
+
+    // The midpoint falls in the last book, and everything from there to the end fits
+    it('runs a middle window to the end when the rest of the document fits', () => {
+        const request = make_request({content: [make_book(60, 'gen'), make_book(85, 'exo')]})
+        const result = truncate_for_preview(request, 'middle', 10_000)
+        expect((result.request.content as TypstPassage[]).map(marker)).toEqual(['exo'])
+        expect(result.dropped_before).toBe(true)
+        expect(result.dropped_after).toBe(false)
+    })
+
+    // A window opening on a custom page would show no Bible text at all
+    it('steps a middle window back from a non-passage midpoint to the passage before it', () => {
+        const request = make_request({content: [
+            make_book(30, 'gen'), make_custom({content: 'c'.repeat(12_000)})]})
+        const result = truncate_for_preview(request, 'middle', 10_000)
+        expect(result.request.content.map(item => item.type)).toEqual(['passage'])
+        expect(marker(result.request.content[0] as TypstPassage)).toBe('gen')
+        expect(result.dropped_before).toBe(false)
+        expect(result.dropped_after).toBe(true)
+    })
+
+    // A trailing blank line is no place to cut, so it changes nothing about the window
+    it('clips a book ending in a blank line just as one without', () => {
+        const book = make_book(3000, 'gen')
+        const trailing = make_passage({bibles: [{content: book.bibles[0]!.content + '\n\n'}]})
+        const clipped = (item:TypstPassage) => (truncate_for_preview(
+            make_request({content: [item]}), 'start').request.content[0] as TypstPassage)
+            .bibles[0]!.content
+        expect(clipped(trailing)).toBe(clipped(book))
     })
 
 })

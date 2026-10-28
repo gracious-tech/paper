@@ -584,6 +584,15 @@ describe('gen_passage', () => {
                 .not.toContain('<pb-title>')
         })
 
+        // Square, at the smaller of 40% of the width and 30% of the height (148mm: 59.2mm)
+        it('embeds the title icon beneath it, sized to the page', () => {
+            const icon = '<svg viewBox="0 0 1 1"><path d="M0 0"/></svg>'
+            const result = call(make_passage({passage_title: 'Genesis 1', passage_icon: icon}))
+            expect(result).toContain('align(center, image.decode(bytes("<svg viewBox=\\"0 0 1 1\\">')
+            expect(result).toContain(', width: 59.20mm))')
+            expect(result.indexOf('Genesis 1')).toBeLessThan(result.indexOf('image.decode('))
+        })
+
         it('omits the subtitle line when passage_subtitle is null', () => {
             const result = call(make_passage({
                 passage_title: 'Genesis 1:1-31',

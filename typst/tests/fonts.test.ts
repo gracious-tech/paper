@@ -3,7 +3,7 @@ import {describe, it, expect} from 'vitest'
 
 import {init_fonts} from 'typst-fonts'
 import {collect_fonts} from '../src/fonts.js'
-import {make_request, TEST_TYPOGRAPHY} from './fixtures.js'
+import {make_request, make_title, make_passage, TEST_TYPOGRAPHY, TEST_TITLEPAGE} from './fixtures.js'
 
 
 describe('collect_fonts', () => {
@@ -40,5 +40,14 @@ describe('collect_fonts', () => {
         }))
         expect(result).toContain('Second Body Font')
         expect(result).toContain('Second Heading Font')
+    })
+
+    // The title font only loads when there's a title page for it to set
+    it('includes the title-page font only when a title page is present', () => {
+        const titlepage = {...TEST_TITLEPAGE, font: 'Title Only Font'}
+        expect(collect_fonts(make_request({titlepage, content: [make_passage()]})))
+            .not.toContain('Title Only Font')
+        expect(collect_fonts(make_request({titlepage, content: [make_title(), make_passage()]})))
+            .toContain('Title Only Font')
     })
 })

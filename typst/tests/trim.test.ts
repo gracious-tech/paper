@@ -2,6 +2,8 @@
 import {describe, it, expect} from 'vitest'
 
 import {resolve_trim, convert_unit, typst_unit, usable_length} from '../src/index.js'
+import {resolve_binding_gutter} from '../src/trim.js'
+import {make_blueprint} from './fixtures.js'
 
 import type {Blueprint} from '../src/types.js'
 
@@ -80,4 +82,40 @@ describe('resolve_trim', () => {
         expect(resolve_trim(blue)).toEqual({width: 4, height: 6, unit: 'inch'})
     })
 
+})
+
+
+describe('resolve_binding_gutter', () => {
+
+    // A Lulu US-trade paperback, in mm
+    const lulu = (overrides:Partial<Blueprint> = {}):Blueprint => make_blueprint({
+        service_id: 'lulu', size_id: 'us_trade', binding_type: 'paperback', booklet: false,
+        margin_unit: 'mm', ...overrides} as Partial<Blueprint>)
+
+    it('asks the printing service, and a thicker book needs a deeper gutter', () => {
+        const thin = resolve_binding_gutter(lulu(), 100)
+        expect(thin).toBeCloseTo(3.175)
+        expect(resolve_binding_gutter(lulu(), 600)).toBeGreaterThan(thin)
+    })
+
+    it('measures a custom trim size by its dimensions', () => {
+        const custom = lulu({size_id: '', custom_unit: 'mm', custom_trim_width: 152,
+            custom_trim_height: 229} as Partial<Blueprint>)
+        expect(resolve_binding_gutter(custom, 100)).toBeGreaterThan(0)
+    })
+
+    it('adds nothing where no service binds the book', () => {
+        for (const service_id of ['home', 'custom', '']){
+            expect(resolve_binding_gutter(lulu({service_id} as Partial<Blueprint>), 100)).toBe(0)
+        }
+        expect(resolve_binding_gutter(lulu({booklet: true}), 100)).toBe(0)
+    })
+
+    // Neither an unknown service nor a binding it doesn't offer may break the compile
+    it('adds nothing for a service or binding printing-services does not know', () => {
+        expect(resolve_binding_gutter(lulu({service_id: 'no_such_service'} as Partial<Blueprint>),
+            100)).toBe(0)
+        expect(resolve_binding_gutter(lulu({binding_type: 'no_such_binding'} as Partial<Blueprint>),
+            100)).toBe(0)
+    })
 })

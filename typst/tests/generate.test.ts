@@ -381,6 +381,23 @@ describe('generate_typst_facing', () => {
         expect(result).toContain('footer: none')
     })
 
+    // The header slot also restarts footnote numbering per double page, so even with nothing
+    // to print there it can't simply be none
+    it('still restarts footnote numbers from an empty header', () => {
+        const request = {...facing_request(), running_pages: false,
+            running_position: 'header' as const}
+        const result = generate_typst_facing(request, facing_passage())
+        expect(result).toContain('header: context counter(footnote).update(0)')
+    })
+
+    it('repeats a passage image over both halves', () => {
+        const image = {filename: 'passage_img_x.jpg', bytes: new Uint8Array([1])}
+        const result = generate_typst_facing(facing_request(), {...facing_passage(), image})
+        expect(result).toContain('#grid(columns: (1fr, 1fr), column-gutter: 2 * 10mm,')
+        expect(result.split('image("passage_img_x.jpg"')).toHaveLength(3)
+        expect(result.indexOf('passage_img_x.jpg')).toBeLessThan(result.indexOf('NIV content'))
+    })
+
     it('seeds the running heading from the passage, so the first spread is not blank', () => {
         const result = generate_typst_facing(
             {...facing_request(), running_headings: true},

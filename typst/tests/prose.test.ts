@@ -1,7 +1,8 @@
 
 import {describe, it, expect} from 'vitest'
 
-import {prose_to_typst, prose_to_text, resolve_prose_dir} from '../src/prose.js'
+import {prose_to_typst, prose_to_text, resolve_prose_dir, doc_has_copyright, COPYRIGHT_MARKER}
+    from '../src/prose.js'
 
 import type {PmDoc} from 'pm-to-typst'
 
@@ -138,5 +139,21 @@ describe('prose_to_text', () => {
     it('is empty for a missing or wholly blank doc', () => {
         expect(prose_to_text(undefined)).toBe('')
         expect(prose_to_text(make_doc(undefined, undefined))).toBe('')
+    })
+})
+
+
+describe('doc_has_copyright', () => {
+
+    it('finds the marker in any paragraph, however deep', () => {
+        expect(doc_has_copyright(make_doc('Intro', `Before ${COPYRIGHT_MARKER} after`))).toBe(true)
+        expect(doc_has_copyright({type: 'doc', content: [{type: 'blockquote', content: [
+            {type: 'paragraph', content: [{type: 'text', text: COPYRIGHT_MARKER}]}]}]}))
+            .toBe(true)
+    })
+
+    it('is false without the marker, or without a document at all', () => {
+        expect(doc_has_copyright(make_doc('Intro', undefined, 'Outro'))).toBe(false)
+        expect(doc_has_copyright(undefined)).toBe(false)
     })
 })
