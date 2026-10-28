@@ -2,7 +2,7 @@
 import {reactive, ref, watch} from 'vue'
 import {cloneDeep, isEqual, debounce} from 'lodash-es'
 import {collection, doc, query, where, orderBy, onSnapshot, getDoc, setDoc, updateDoc,
-    deleteField, arrayRemove, serverTimestamp, FieldPath, Timestamp, writeBatch}
+    deleteDoc, deleteField, arrayRemove, serverTimestamp, FieldPath, Timestamp, writeBatch}
     from 'firebase/firestore'
 import type {DocumentData, QuerySnapshot, Unsubscribe} from 'firebase/firestore'
 import {split_blueprint_doc, join_blueprint_doc, resolve_design_name, get_cover_title,
@@ -741,6 +741,20 @@ export async function remove_design_editor(id:string, uid:string):Promise<void>{
 }
 
 
+export async function leave_design(id:string):Promise<void>{
+    // Give up edit access to someone else's design (rules allow an editor removing themselves).
+    // The open design is flushed and closed first, as its listener and writes are refused once
+    // access is gone. A failed leave just leaves it closed, still listed and openable again
+    const uid = (await signed_in_user()).uid
+    if (current_design_id.value === id){
+        await flush_changes()
+        close_design()
+    }
+    await updateDoc(doc(firestore, 'designs', id),
+        'editor_uids', arrayRemove(uid), new FieldPath('editors', uid), deleteField())
+}
+
+
 export async function fetch_design_invite_preview(id:string, token:string):Promise<{name:string}>{
     // Look up what an invite link points to, without redeeming it (see DialogAcceptInvite.vue —
     // shown before the user decides whether to accept)
@@ -923,4 +937,11 @@ export async function start_viewed_sync():Promise<void>{
         error => {
             report_error('silent', error, {context: {listener: 'viewed_list'}})
         })
+}
+
+
+export async function forget_viewed(design_id:string):Promise<void>{
+    // Remove a design from the "Read access" list (until its version link is opened again)
+    const uid = (await signed_in_user()).uid
+    await deleteDoc(doc(firestore, 'users', uid, 'viewed', design_id))
 }

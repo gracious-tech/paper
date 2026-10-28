@@ -8,7 +8,8 @@
 
 import {assertSucceeds, assertFails} from '@firebase/rules-unit-testing'
 import {doc, collection, getDoc, getDocs, setDoc, updateDoc, deleteDoc, query, where,
-    serverTimestamp, addDoc, Timestamp} from 'firebase/firestore'
+    serverTimestamp, addDoc, Timestamp, arrayRemove, deleteField, FieldPath}
+    from 'firebase/firestore'
 import {describe, it, expect, beforeAll, afterAll, beforeEach} from 'vitest'
 
 import {make_test_env, db_for, seed, design_data, version_data, OWNER, EDITOR, STRANGER}
@@ -229,6 +230,24 @@ describe('designs', () => {
                 {share_token: 'rotated_by_owner'}))
             await assertSucceeds(updateDoc(doc(db, 'designs/design_main'),
                 {share_token: null}))
+        })
+
+        it('lets an editor leave', async () => {
+            await assertSucceeds(updateDoc(doc(db_for(env, EDITOR), 'designs/design_main'),
+                'editor_uids', arrayRemove(EDITOR), new FieldPath('editors', EDITOR), deleteField()))
+        })
+
+        it('denies an editor leaving while changing anything else', async () => {
+            await assertFails(updateDoc(doc(db_for(env, EDITOR), 'designs/design_main'),
+                'editor_uids', arrayRemove(EDITOR), new FieldPath('editors', EDITOR), deleteField(),
+                'share_token', 'attacker_chosen'))
+            await assertFails(updateDoc(doc(db_for(env, EDITOR), 'designs/design_main'),
+                {editor_uids: [STRANGER], [`editors.${EDITOR}`]: deleteField()}))
+        })
+
+        it('denies an editor removing someone else the way they would leave', async () => {
+            await assertFails(updateDoc(doc(db_for(env, EDITOR), 'designs/design_main'),
+                'editor_uids', arrayRemove(OWNER)))
         })
 
         it('denies an editor granting themselves ownership via editor_uids alone', async () => {

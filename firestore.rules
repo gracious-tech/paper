@@ -48,7 +48,24 @@ service cloud.firestore {
                 && request.resource.data.owner == resource.data.owner
                 && (request.auth.uid == resource.data.owner
                     || !request.resource.data.diff(resource.data).affectedKeys()
-                        .hasAny(['editor_uids', 'editors', 'share_token', 'owner']));
+                        .hasAny(['editor_uids', 'editors', 'share_token', 'owner'])
+                    || is_leaving());
+
+            // An editor removing themselves and nothing else (leave_design() in designs.ts) —
+            // the owner can't leave, as the design would be left with nobody able to manage it
+            function is_leaving(){
+                let uid = request.auth.uid;
+                return uid != resource.data.owner
+                    && request.resource.data.diff(resource.data).affectedKeys()
+                        .hasOnly(['editor_uids', 'editors'])
+                    && request.resource.data.editor_uids.toSet()
+                        == resource.data.editor_uids.toSet().difference([uid].toSet())
+                    && request.resource.data.editor_uids.size()
+                        == resource.data.editor_uids.size() - 1
+                    && request.resource.data.get('editors', {}).diff(resource.data.get('editors', {}))
+                        .affectedKeys().hasOnly([uid])
+                    && !(uid in request.resource.data.get('editors', {}));
+            }
 
             // Deleting is server-mediated (/api/delete_design): it has to remove Storage
             // objects clients can't touch, and versions belonging to other editors

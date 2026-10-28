@@ -54,6 +54,14 @@ div.cont
                     @click='open_viewed(viewed)' color='primary')
                 v-list-item-title {{ viewed.title || $t("common.unnamed_design") }}
                 v-list-item-subtitle {{ format_relative_time(viewed.last_viewed) }}
+                template(#append)
+                    v-menu
+                        template(#activator='{props}')
+                            v-btn(v-bind='props' icon variant='text' color='black' @click.stop)
+                                app-icon(name='more_vert')
+                        v-list
+                            v-list-item(@click='forget(viewed)')
+                                v-list-item-title {{$t("view.designs.forget")}}
 
     //- Guests only exist in this browser, so warn them their designs are one clear-data away
     //-     from being lost. Sits outside the list so searching/filtering can never hide it
@@ -111,10 +119,11 @@ import DesignListItem from './assets/DesignListItem.vue'
 import DisplayExamples from '@/comp/display/DisplayExamples.vue'
 import {use_is_mobile} from '@/services/display'
 import {user, is_anonymous} from '@/services/auth'
-import {designs, viewed_designs, rename_category, clear_category} from '@/services/designs'
+import {designs, viewed_designs, rename_category, clear_category, forget_viewed}
+    from '@/services/designs'
 // LEGACY Remove with app/src/legacy/ once old data no longer needs recovering
 import {legacy} from '@/legacy/legacy'
-import {state, confirm_dialog, prompt_dialog} from '@/services/state'
+import {state, confirm_dialog, prompt_dialog, report_failure} from '@/services/state'
 import {format_relative_time} from '@/services/utils'
 import {offer_install, dismiss_install, install_app} from '@/services/install'
 
@@ -302,6 +311,13 @@ const toggle_suggestions = async () => {
 
 const open_viewed = (viewed:ViewedDesign) => {
     void router.push({name: 'design', params: {id: viewed.design_id, version: viewed.last_version_id}})
+}
+
+// Remove a design from the read access list
+const forget = (viewed:ViewedDesign) => {
+    forget_viewed(viewed.design_id).catch((error:unknown) => {
+        report_failure(error, t("view.designs.forget_failed"))
+    })
 }
 
 </script>
