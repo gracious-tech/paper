@@ -3,6 +3,9 @@
 // on ports of their own. Run via .bin/audit_e2e (journeys) or .bin/audit_stress, so the
 // project-local browser dir (e2e/browsers/) is used.
 
+import {mkdirSync} from 'node:fs'
+import {tmpdir} from 'node:os'
+
 import {defineConfig, devices} from '@playwright/test'
 
 import {API_PORT, APP_PORT, APP_URL, EMULATOR_CONFIG, PROJECT, ROOT} from './stack.ts'
@@ -14,6 +17,12 @@ const CI = !!process.env['CI']
 // A stack already listening can be reused, except by a coverage run: its API server wouldn't be
 // collecting any
 const REUSE = !CI && process.env['COVERAGE'] !== '1'
+
+// The emulators' temp dir: every Storage emulator keeps its files in <temp>/firebase/storage/blobs
+// and empties it on start, so this stack gets one of its own rather than wiping the dev or test
+// stack's (one per stack suffices, since its ports already stop two running at once)
+const EMULATOR_TMP = `${tmpdir()}/paper-bible-e2e`
+mkdirSync(EMULATOR_TMP, {recursive: true})
 
 
 export default defineConfig({
@@ -72,7 +81,8 @@ export default defineConfig({
             cwd: ROOT,
             url: `http://localhost:${API_PORT}/api/health`,
             // The server's coverage too, on a coverage run (the browser's is the fixtures')
-            env: {FIREBASE_EMULATORS_PATH: `${ROOT}.emulator_cache`, ...child_coverage_env()},
+            env: {FIREBASE_EMULATORS_PATH: `${ROOT}.emulator_cache`, TMPDIR: EMULATOR_TMP,
+                ...child_coverage_env()},
             reuseExistingServer: REUSE,
             timeout: 3 * 60 * 1000,
             // Lets the emulators shut their Java processes down rather than orphaning them

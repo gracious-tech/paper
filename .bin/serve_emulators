@@ -9,4 +9,11 @@ set -euo pipefail
 cd "$(dirname "$0")/.."
 
 export FIREBASE_EMULATORS_PATH="$PWD/.emulator_cache"
+
+# Every Storage emulator keeps its files in $TMPDIR/firebase/storage/blobs and empties it on
+# start, so each stack gets a temp dir of its own (one per stack suffices: its ports already
+# stop two of the same running at once)
+export TMPDIR="${TMPDIR:-/tmp}/paper-bible-dev"
+mkdir -p "$TMPDIR"
+
 npx firebase emulators:start --import .emulator_data --export-on-exit "$@"

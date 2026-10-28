@@ -85,7 +85,11 @@ run_emulator_suites(){
         echo "(reusing the test emulators already on :$FIRESTORE_PORT)"
         eval "$command"
     else
-        npx firebase emulators:exec \
+        # A temp dir of the test stack's own: every Storage emulator empties
+        # $TMPDIR/firebase/storage/blobs on start, which would wipe the dev or e2e stack's files
+        local emulator_tmp="${TMPDIR:-/tmp}/paper-bible-test"
+        mkdir -p "$emulator_tmp"
+        TMPDIR="$emulator_tmp" npx firebase emulators:exec \
             --config firebase_test.json \
             --project paper-bible-test \
             --only auth,firestore,storage \

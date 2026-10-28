@@ -579,6 +579,11 @@ After that, every push to `main` deploys itself. The scripts still work by hand
   logging (4500) and Firestore's websocket (9150) aren't derived from the emulator ports — left
   at their defaults, starting a test run while the dev stack is up **kills the dev emulators**,
   which surfaces as an unrelated "socket hang up" in whatever was talking to them
+- **Each emulator stack has a temp dir of its own** (`$TMPDIR/paper-bible-dev|test|e2e`, set
+  by the scripts that start them and `e2e/playwright.config.ts`). Every Storage emulator keeps
+  its files in `<temp>/firebase/storage/blobs` and empties it on start, so two stacks sharing
+  `/tmp` delete each other's files, which surfaces as the Firebase CLI dying with "An
+  unexpected error has occurred" and suites hanging or timing out
 - **`env.clearStorage()` is not usable** — it only deletes objects `listAll()` reports at the
   bucket root and never descends into prefixes, so every object this app writes would survive
   it, silently inverting the create-once rules. Use `clear_storage()` from

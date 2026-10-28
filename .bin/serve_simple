@@ -14,5 +14,11 @@ cd "$(dirname "$0")/.."
 export USE_PROD_SERVICES=true
 export FIREBASE_EMULATORS_PATH="$PWD/.emulator_cache"
 
+# Every Storage emulator keeps its files in $TMPDIR/firebase/storage/blobs and empties it on
+# start, so each stack gets a temp dir of its own (shared with .bin/serve_emulators, whose
+# ports it uses, so the two never run at once)
+export TMPDIR="${TMPDIR:-/tmp}/paper-bible-dev"
+mkdir -p "$TMPDIR"
+
 # emulators:exec starts the app only once the emulators are ready, and stops them when it exits
 npx firebase emulators:exec --only auth,firestore,storage --ui .bin/serve_app

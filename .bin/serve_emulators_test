@@ -11,5 +11,12 @@ set -euo pipefail
 cd "$(dirname "$0")/.."
 
 export FIREBASE_EMULATORS_PATH="$PWD/.emulator_cache"
+
+# Every Storage emulator keeps its files in $TMPDIR/firebase/storage/blobs and empties it on
+# start, so each stack gets a temp dir of its own (shared with the ones .bin/audit_unit starts,
+# on the same ports)
+export TMPDIR="${TMPDIR:-/tmp}/paper-bible-test"
+mkdir -p "$TMPDIR"
+
 npx firebase emulators:start --config firebase_test.json --project paper-bible-test \
     --only auth,firestore,storage "$@"
