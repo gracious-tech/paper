@@ -224,3 +224,70 @@ describe('estimate_print_cost refusals', () => {
             .rejects.toThrow(NotPrintable)
     })
 })
+
+
+describe('estimate_print_cost quotes', () => {
+
+    // A product Lulu sells, at a page count it prints
+    const SKU = '0583X0827.BW.STD.PB.060UW444.MXX'
+
+    // Lulu's shipping-options answer, in its own field names
+    const option = (level:string, cost:number|null, is_active = true) => ({
+        level, carrier_service_name: `${level} carrier`, cost_excl_tax: cost, is_active,
+        total_days_min: 3, total_days_max: 7,
+    })
+
+    // Have Lulu's endpoint answer with these options (or a status), recording what was asked
+    function stub_lulu(answer:unknown[]|number){
+        const fetch_mock = vi.fn(async () => typeof answer === 'number'
+            ? new Response('', {status: answer})
+            : new Response(JSON.stringify(answer)))
+        vi.stubGlobal('fetch', fetch_mock)
+        return fetch_mock
+    }
+
+    it('adds the cheapest active delivery to the books, keeping the rest as alternatives', async () => {
+        const fetch_mock = stub_lulu([option('EXPRESS', 30), option('MAIL', 5.5),
+            option('GROUND', 9), option('PRIORITY', 2, false), option('UNPRICED', null)])
+        const estimate = await estimate_print_cost(SKU, 100, 3, 'AU')
+
+        // Priced in the destination's own currency column, never converted
+        expect(estimate.currency).toBe(currency_for_country('AU'))
+        expect(estimate.quantity).toBe(3)
+        expect(estimate.books_total).toBeCloseTo(estimate.unit_cost * 3, 2)
+        // Inactive and unpriced speeds are dropped; the rest run cheapest first
+        expect(estimate.shipping).toEqual({level: 'MAIL', carrier: 'MAIL carrier', cost: 5.5,
+            days_min: 3, days_max: 7})
+        expect(estimate.alternatives.map(item => item.level)).toEqual(['GROUND', 'EXPRESS'])
+        expect(estimate.total).toBeCloseTo(estimate.books_total + 5.5, 2)
+
+        // Asked by country alone, for this product, page count and quantity
+        const [url, init] = fetch_mock.mock.calls[0] as unknown as [string, RequestInit]
+        expect(url).toBe('https://api.lulu.com/shipping-options/')
+        expect(JSON.parse(init.body as string)).toEqual({
+            currency: estimate.currency,
+            line_items: [{page_count: 100, pod_package_id: SKU, quantity: 3}],
+            shipping_address: {country: 'AU'},
+        })
+    })
+
+    it('rounds totals to the cent', async () => {
+        stub_lulu([option('MAIL', 4.333)])
+        const estimate = await estimate_print_cost(SKU, 100, 7, 'US')
+        expect(Math.round(estimate.books_total * 100)).toBe(estimate.books_total * 100)
+        expect(Math.round(estimate.total * 100)).toBeCloseTo(estimate.total * 100, 6)
+    })
+
+    it('refuses a destination Lulu offers no active delivery to', async () => {
+        stub_lulu([option('MAIL', 5, false)])
+        await expect(estimate_print_cost(SKU, 100, 1, 'US')).rejects.toThrow(NotPrintable)
+    })
+
+    it('fails, rather than quoting, when Lulu\'s endpoint does', async () => {
+        stub_lulu(503)
+        const error = await estimate_print_cost(SKU, 100, 1, 'US').catch((caught:unknown) => caught)
+        expect(error).toBeInstanceOf(Error)
+        expect(error).not.toBeInstanceOf(NotPrintable)
+        expect((error as Error).message).toMatch(/503/)
+    })
+})
