@@ -5,7 +5,7 @@
 // it's the only place the WASM engine's output is shown before a version is built
 
 import {test, expect, boot, click_button, design_data, UI_TIMEOUT} from './fixtures'
-import {seed_own_design, stub_server_preview, PREVIEW_SVG_PAGE} from './helpers/admin'
+import {admin_db, seed_own_design, stub_server_preview, PREVIEW_SVG_PAGE} from './helpers/admin'
 
 import type {Page} from '@playwright/test'
 
@@ -280,4 +280,106 @@ test('zooming the preview, to print size and back', async ({page}) => {
     await expect.poll(width).toBeCloseTo(fitted, 0)
     await page.keyboard.press('Escape')
     await expect(scale).toBeHidden()
+})
+
+
+test('either of two translations can be removed, and another added', async ({page}) => {
+    const uid = await boot(page)
+    const design_id = await seed_own_design(uid, {simple_mode: false})
+    const design = await design_data(design_id)
+    await admin_db.doc(`designs/${design_id}`).update({blueprint: {
+        ...design['blueprint'] as object, bibles: ['eng_bsb', 'eng_web']}})
+    await page.goto(`/designs/${design_id}`)
+    const translations = page.locator('h2:has-text("Bible translations") + .v-list .v-list-item')
+    await expect(translations.last()).toContainText('World English Bible', {timeout: 60_000})
+
+    // Removing the first leaves the second as the only one, which can't itself be removed
+    await translations.first().getByRole('button').click()
+    await expect.poll(() => stored_option(design_id, 'bibles'), {timeout: 30_000})
+        .toEqual(['eng_web'])
+    await expect(translations.first()).toContainText('World English Bible')
+    await expect(translations.first().getByRole('button')).toHaveCount(0)
+    await expect(translations.last()).toContainText('Add additional translation')
+
+    // Opening the additional slot and cancelling adds nothing
+    await translations.last().click()
+    await click_button(page, 'Cancel')
+    await expect(translations.last()).toContainText('Add additional translation')
+    expect(await stored_option(design_id, 'bibles')).toEqual(['eng_web'])
+
+    // Choosing the translation already there wouldn't make a pairing, so nothing changes
+    const picker = page.locator('.v-card')
+        .filter({has: page.getByRole('button', {name: 'Languages', exact: true})})
+    await translations.last().click()
+    await picker.locator('.v-list-item').filter({hasText: 'World English Bible'}).first().click()
+    await expect(picker).toBeHidden()
+    await expect(translations.last()).toContainText('Add additional translation')
+    expect(await stored_option(design_id, 'bibles')).toEqual(['eng_web'])
+
+    // Choosing another adds it
+    await translations.last().click()
+    await picker.locator('.v-list-item').filter({hasText: 'Berean Standard Bible'}).first().click()
+    await expect.poll(() => stored_option(design_id, 'bibles'), {timeout: 30_000})
+        .toEqual(['eng_web', 'eng_bsb'])
+})
+
+
+test('a preview zoomed past the pane pans by dragging, and a Mac\'s pinch zooms it',
+        async ({page}) => {
+    // Previewed on the server (stubbed), as in the zoom journey above
+    await page.addInitScript(() => {
+        localStorage.setItem('compile_on_server', '1')
+    })
+    const uid = await boot(page)
+    await stub_server_preview(page, uid, [PREVIEW_SVG_PAGE, PREVIEW_SVG_PAGE, PREVIEW_SVG_PAGE])
+    const design_id = await seed_own_design(uid, {simple_mode: false})
+    await page.goto(`/designs/${design_id}`)
+    const first = page.locator('.preview .frame img.page').first()
+    await expect(first).toBeVisible({timeout: 60_000})
+    const viewport = page.locator('.preview .viewport')
+    const width = () => first.evaluate(img => img.getBoundingClientRect().width)
+    const fitted = await width()
+
+    // Safari's own gesture events (a Mac trackpad's pinch) zoom the preview, not the page
+    await viewport.evaluate(element => {
+        const gesture = (type:string, scale:number) => Object.assign(
+            new Event(type, {cancelable: true}), {scale, clientX: 300, clientY: 300})
+        element.dispatchEvent(gesture('gesturestart', 1))
+        element.dispatchEvent(gesture('gesturechange', 3))
+    })
+    // (as far as the zoom goes, which stops short of three times this pane's fit)
+    await expect.poll(width).toBeGreaterThan(fitted * 1.1)
+    await expect(viewport).toHaveClass(/pannable/)
+
+    // Wider than the pane now, so a mouse drags the pages around
+    const scroll = () => viewport.evaluate(element => [element.scrollLeft, element.scrollTop])
+    const [left, top] = await scroll()
+    const box = (await viewport.boundingBox())!
+    await page.mouse.move(box.x + box.width / 2, box.y + box.height / 2)
+    await page.mouse.down()
+    await expect(viewport).toHaveClass(/panning/)
+    await page.mouse.move(box.x + box.width / 2 - 120, box.y + box.height / 2 - 80, {steps: 5})
+    await page.mouse.up()
+    await expect(viewport).not.toHaveClass(/panning/)
+    const [panned_left, panned_top] = await scroll()
+    expect(panned_left).toBeGreaterThan(left!)
+    expect(panned_top).toBeGreaterThan(top!)
+})
+
+
+test('study notes ask for a copyright page until there is one', async ({page}) => {
+    // Tyndale's notes can't be printed without attribution
+    const uid = await boot(page)
+    const design_id = await seed_own_design(uid, {simple_mode: false})
+    const design = await design_data(design_id)
+    await admin_db.doc(`designs/${design_id}`).update({blueprint: {
+        ...design['blueprint'] as object, notes: 'eng_tyndale'}})
+    await page.goto(`/designs/${design_id}`)
+    const warning = page.getByText('A copyright statement is required for one or more'
+        + ' translations.')
+    await expect(warning).toBeVisible({timeout: 60_000})
+
+    // A copyright page satisfies it
+    await page.locator('.add').getByRole('button', {name: 'Copyright'}).click()
+    await expect(warning).toBeHidden()
 })

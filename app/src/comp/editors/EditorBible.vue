@@ -20,17 +20,15 @@ import BiblePicker from '@/comp/reuseable/BiblePicker.vue'
 // design's bibles and closes the editor pane
 const props = defineProps<{bibles_index:number}>()
 
-// Pre-fill the slot being edited so cancelling still leaves a valid selection (e.g. opening
-// the "add additional translation" slot immediately mirrors the primary)
-if (!blue.bibles[props.bibles_index]){
-    blue.bibles[props.bibles_index] = blue.bibles[0]!
-}
-
-
 // Methods
 
+// Write the choice into the slot (an empty "additional translation" slot stays empty until
+// one is chosen, so cancelling adds nothing). The same translation twice is never a valid
+// pairing, so choosing the one the other slot already holds changes nothing
 const select = (id:string) => {
-    blue.bibles[props.bibles_index] = id
+    if (!blue.bibles.some((bible, i) => bible === id && i !== props.bibles_index)){
+        blue.bibles[props.bibles_index] = id
+    }
     state.editor = null
 }
 
