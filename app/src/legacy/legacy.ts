@@ -246,8 +246,11 @@ function format_ref(chapter:number|null, verse:number|null):string{
 // Describe a passage in readable form, e.g. "Genesis 1:1 – 3:24"
 function format_passage(item:OldContentPassage):string{
     const name = book_names_english[item.book] ?? item.book.toUpperCase()
-    const start = format_ref(item.start_chapter, item.start_verse)
     const end = format_ref(item.end_chapter, item.end_verse)
+    // A range with only an end runs from the start of the book, written as precisely as the end
+    const start = item.start_chapter === null && end
+        ? format_ref(1, item.end_verse === null ? null : 1)
+        : format_ref(item.start_chapter, item.start_verse)
     if (!start && !end){
         return `${name} (whole book)`
     }

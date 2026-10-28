@@ -166,6 +166,14 @@ describe('passage references', () => {
             end_verse: 3}))).toBe('Genesis 1 – 2:3')
     })
 
+    // Only an end means from the start of the book, written as precisely as the end
+    it('starts an end-only range at the book\'s beginning', () => {
+        expect(passage_heading(passage('gen', {end_chapter: 4}))).toBe('Genesis 1 – 4')
+        expect(passage_heading(passage('gen', {end_chapter: 4, end_verse: 5})))
+            .toBe('Genesis 1:1 – 4:5')
+        expect(passage_heading(passage('gen', {end_chapter: 1}))).toBe('Genesis 1')
+    })
+
     // A verse without its chapter can't be shown, so it's dropped
     it('ignores a verse with no chapter', () => {
         expect(passage_heading(passage('gen', {start_verse: 5}))).toBe('Genesis (whole book)')

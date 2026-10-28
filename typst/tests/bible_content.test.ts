@@ -389,6 +389,22 @@ describe('BibleContent.resolve', () => {
         ])
     })
 
+    it('counts a book a passage and a story slide both use as two downloads', async () => {
+        // The passage takes Genesis as Typst, the slide as plain text: two downloads, and
+        // Exodus only from eng_a (eng_b lacks it, so it never downloads there)
+        const blue = make_blueprint({bibles: ['eng_a', 'eng_b'], content: [
+            make_passage({book: 'gen'}),
+            make_passage({id: 'p2', book: 'exo'}),
+            make_story([make_slide('sl1', 'gen')]),
+        ]})
+        const progress = vi.fn()
+        await make_content().resolve(blue, undefined, progress)
+        const fetches = progress.mock.calls.map(([event]) => event)
+            .filter(event => event.stage === 'fetch')
+        expect(fetches.map(event => [event.i, event.total]))
+            .toEqual([[1, 5], [2, 5], [3, 5], [4, 5], [5, 5]])
+    })
+
     it('puts a title page before each passage and story in titlepage mode', async () => {
         const blue = make_blueprint({passage_title: 'titlepage', titlepage_color_icon: '#123456',
             content: [

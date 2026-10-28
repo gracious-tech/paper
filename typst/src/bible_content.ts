@@ -326,28 +326,34 @@ export class BibleContent {
         // License metadata for the copyright statement (computed once, shared by custom pages)
         const resources = this.collection.get_resources({object: true})
 
-        // Distinct bible+book pairs the content needs that aren't already cached, so fetch
-        // progress can report "downloading N of M" rather than just a bare book name
-        const fetch_keys = new Set<string>()
+        // Distinct downloads the content needs, so fetch progress can report "downloading N of M"
+        // rather than just a bare book name. Passages take a book in the Typst format and story
+        // slides in plain text, each a download (and a cache) of its own
+        const typst_books = new Map<string, [string, string]>()
+        const txt_books = new Map<string, [string, string]>()
         for (const item of blue.content) {
             if (item.type === 'passage') {
                 for (const bible of blue.bibles) {
-                    fetch_keys.add(`${bible}_${item.book}`)
+                    typst_books.set(`${bible}_${item.book}`, [bible, item.book])
                 }
             } else if (item.type === 'picture_story') {
                 // Each passage slide fetches its book from the primary translation, plus the
                 // second one (when selected) for the stacked second-translation body
                 for (const slide of item.slides) {
                     if (slide.mode === 'passage' && slide.book) {
-                        fetch_keys.add(`${blue.bibles[0]}_${slide.book}`)
-                        if (blue.bibles[1]) {
-                            fetch_keys.add(`${blue.bibles[1]}_${slide.book}`)
+                        for (const bible of blue.bibles.slice(0, 2)) {
+                            txt_books.set(`${bible}_${slide.book}`, [bible, slide.book])
                         }
                     }
                 }
             }
         }
-        const fetch_total = [...fetch_keys].filter(key => !this.books_typst.has(key)).length
+        // Only what will actually download: not cached, and a book the translation has
+        const downloads = (books:Map<string, [string, string]>, cache:LruCache<unknown>) =>
+            [...books].filter(([key, [bible, book]]) => !cache.has(key)
+                && this.collection.get_books(bible, {object: true})[book]?.available).length
+        const fetch_total = downloads(typst_books, this.books_typst)
+            + downloads(txt_books, this.books_txt)
         let fetch_i = 0
         const report_fetch = (label:string) => {
             fetch_i += 1
