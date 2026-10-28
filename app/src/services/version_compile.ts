@@ -444,7 +444,9 @@ export async function compile_and_upload(job:VersionCompileJob,
 
     // Wall-clock of the interior compile (content resolve + Typst render), stamped for the
     // compile_stats telemetry — mirrors what the server times around compile_pdf_from_blueprint.
-    // Stays null until the compile actually starts so the failure path only logs a real attempt
+    // Stays null until the compile actually starts, and goes back to null once its outcome is
+    // logged, so the failure path only logs a real attempt, and never one already logged as ok
+    // (an upload failing after the compile succeeded)
     let interior_start:number|null = null
 
     // Forwarded to both the content-fetching and PDF-compiling stages, so DisplayDesignVersion.vue
@@ -490,6 +492,7 @@ export async function compile_and_upload(job:VersionCompileJob,
             void record_compile_stat({
                 version_id: id, design_id, engine: 'browser', interior_ms, pages, ok: true,
                 estimated_pages: page_estimate, gutter_auto: blueprint.margin_gutter_auto})
+            interior_start = null
 
             // Publish the PDF, then mark the version available
             await upload_pdf(id, 'doc', bytes)

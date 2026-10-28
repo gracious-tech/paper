@@ -62,9 +62,10 @@ template(v-else)
         v-switch(v-if='is_custom' v-model='blue.booklet' :label='$t("common.booklet_home")'
             color='primary' density='compact' hide-details)
 
-    //- Regular-service mode: binding, ink and paper type (page count isn't asked for — it's
-    //- determined by the document itself, estimated from the preview until a version compiles)
-    template(v-else)
+    //- Regular-service mode, named or custom size: binding, ink and paper type (page count isn't
+    //- asked for — it's determined by the document itself, estimated from the preview until a
+    //- version compiles)
+    template(v-if='!is_custom')
         v-select(v-if='binding_items.length > 1' v-model='blue.binding_type' :items='binding_items'
             :label='$t("options.paper.binding")' variant='underlined' density='compact' hide-details
             style='max-width: 240px' class='mb-6')
