@@ -1,8 +1,8 @@
 
-// Accounts: a guest signing in by email link (and keeping their work), signing out, deleting
-// everything, and the things only a signed-in owner can do — inviting editors. Google sign-in
-// needs a real Google popup, so the email link is the sign-in exercised here; the auth emulator
-// never sends mail, it keeps every link it "sent" for this file to read back
+// Accounts: a guest signing in by email link or Google (and keeping their work), signing out,
+// deleting everything, and the things only a signed-in owner can do — inviting editors. The auth
+// emulator never sends mail, it keeps every link it "sent" for this file to read back, and it
+// stands in for Google with a popup of its own that makes up whichever account it's asked for
 
 import {test, expect, boot, active_dialog, click_button, design_data, owned_designs, UI_TIMEOUT}
     from './fixtures'
@@ -93,6 +93,85 @@ test('a guest signs in by email link and keeps their designs', async ({page}) =>
     // And the account dialog says who they are
     await page.locator('header .account').click()
     await expect(active_dialog(page).getByText(email)).toBeVisible()
+})
+
+
+// Start signing in with Google from the account dialog, returning the emulator's popup
+async function open_google(page:Page):Promise<Page>{
+    await page.locator('header .account').click()
+    const popup = page.waitForEvent('popup')
+    await click_button(active_dialog(page), 'Sign in with Google')
+    return await popup
+}
+
+
+test('a guest signs in with Google and keeps their designs', async ({page}) => {
+    const guest = await boot(page)
+    await seed_design(guest, 'Made as a guest')
+    await expect(listed(page, 'Made as a guest')).toBeVisible()
+
+    // A Google account the emulator makes up there and then
+    const email = new_email()
+    const popup = await open_google(page)
+    // Its script comes from a CDN, and a click before that has loaded does nothing
+    await popup.waitForLoadState('load')
+    await expect(async () => {
+        await popup.getByRole('button', {name: 'Add new account'}).click()
+        await expect(popup.locator('#email-input')).toBeVisible({timeout: 2000})
+    }).toPass({timeout: 60_000})
+    await popup.locator('#email-input').fill(email)
+    await popup.locator('#display-name-input').fill('Google User')
+    await popup.locator('#sign-in').click()
+
+    // Linked in place: the same account, now with Google on it, and the dialog done with
+    await expect(page.locator('header .account')).not.toHaveClass(/guest/, {timeout: 30_000})
+    await expect(active_dialog(page)).toBeHidden()
+    const user = await admin_auth.getUser(guest)
+    expect(user.providerData.map(provider => [provider.providerId, provider.email]))
+        .toEqual([['google.com', email]])
+    await expect(listed(page, 'Made as a guest')).toBeVisible()
+})
+
+
+test('a Google account that already has an account takes the guest\'s designs into it',
+    async ({page}) => {
+        // Someone who signed in with Google before, on another device
+        const email = new_email()
+        const existing = new_id()
+        await admin_auth.importUsers([{uid: existing, email, displayName: 'Returning User',
+            providerData: [{uid: `google_${existing}`, email, displayName: 'Returning User',
+                providerId: 'google.com'}]}])
+        await seed_design(existing, 'Made on the other device')
+
+        const guest = await boot(page)
+        const design_id = await seed_design(guest, 'Made as a guest')
+        await expect(listed(page, 'Made as a guest')).toBeVisible()
+
+        // Picking that account can't link it to the guest, so the guest is merged into it
+        const popup = await open_google(page)
+        await popup.waitForLoadState('load')
+        await popup.getByText(email).click()
+        await expect.poll(() => browser_uid(page), {timeout: 30_000}).toBe(existing)
+        await expect.poll(() => owned_designs(existing), {timeout: 30_000})
+            .toContain(design_id)
+        await expect(listed(page, 'Made as a guest')).toBeVisible()
+        await expect(listed(page, 'Made on the other device')).toBeVisible()
+        await expect(active_dialog(page)).toBeHidden()
+    })
+
+
+test('closing the Google window leaves the dialog for another try', async ({page}) => {
+    await boot(page)
+    const popup = await open_google(page)
+    await popup.close()
+    // Nothing reported or shown: dismissing it is the user's choice, and they can try again
+    const google = active_dialog(page).getByRole('button', {name: 'Sign in with Google'})
+    await expect(google).toBeEnabled()
+    const again = page.waitForEvent('popup')
+    await google.click()
+    await (await again).close()
+    await expect(google).toBeEnabled()
+    await expect(page.locator('header .account')).toHaveClass(/guest/)
 })
 
 
