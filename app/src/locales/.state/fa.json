@@ -612,7 +612,7 @@
   "view.design_item.shared": "Shared design",
   "view.design_item.unrendered_changes": "This design has changes since its last created version",
   "view.designs.create_first": "Create your first design",
-  "view.designs.forget": "Forget",
+  "view.designs.forget": "Remove from list",
   "view.designs.forget_failed": "This design couldn't be removed from the list — try again",
   "view.designs.hide_suggestions": "Hide suggestions",
   "view.designs.install": "Install",
