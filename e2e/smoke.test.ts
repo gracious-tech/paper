@@ -30,7 +30,7 @@ test('the app boots, signed in as a guest', async ({page}) => {
 test.describe('a bundle that never starts', () => {
 
     // public/boot_check.js reports these itself, since errors.ts never ran
-    test.use({expected_reports: [/^Boot check: /]})
+    test.use({expected_reports: /^Boot check: /})
 
     // The app's entry module, as index.pug asks the dev server for it
     const ENTRY = /\/src\/init\.ts(\?|$)/

@@ -166,7 +166,7 @@ test('pinching zooms in on the preview\'s pages', async ({page}) => {
 test.describe('a tab that died mid-compile', () => {
 
     // Nothing else learns of it, so it's reported, with what was running
-    test.use({expected_reports: [/The tab died during browser work/]})
+    test.use({expected_reports: /The tab died during browser work/})
 
     test('switches the phone to the server, reporting what was running',
             async ({page, error_reports}) => {

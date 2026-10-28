@@ -649,7 +649,7 @@ After that, every push to `main` deploys itself. The scripts still work by hand
 - **Every journey fails if the app filed an error report** (the auto fixture in
   `e2e/fixtures.ts`). Errors are reported, not shown, so a journey whose clicks all landed can
   still have thrown along the way. A test that provokes one on purpose declares it with
-  `test.use({expected_reports: [...]})`
+  `test.use({expected_reports: /pattern/})` (one pattern; join several with `|`)
 - **Name buttons exactly** (`click_button()`, or `exact: true`): `getByRole` matches
   substrings, and "OK" is inside the wizard's "Books". A design's name also shows twice on most
   pages (the navbar's recent-designs tab and the list row), so scope text lookups

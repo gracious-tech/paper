@@ -6,7 +6,7 @@
 // exception or a failed background save only ever surfaces as a POST to /api/report_error. So a
 // journey whose clicks all landed can still have broken something along the way, and watching
 // those reports is how a test finds out. A test that provokes a failure on purpose declares the
-// reports it expects with `test.use({expected_reports: [...]})`
+// reports it expects with `test.use({expected_reports: /pattern/})`
 
 import {test as base, expect} from '@playwright/test'
 
@@ -28,11 +28,12 @@ interface ErrorReport {
 }
 
 
-export const test = base.extend<{expected_reports:RegExp[], error_reports:ErrorReport[],
+export const test = base.extend<{expected_reports:RegExp|null, error_reports:ErrorReport[],
         browser_coverage:void}>({
 
-    // Messages a test expects its pages to report, so they don't fail it
-    expected_reports: [[], {option: true}],
+    // Messages a test expects its pages to report, so they don't fail it. One pattern (join
+    // several with |), since Playwright would read a list of two as a value plus fixture options
+    expected_reports: [null, {option: true}],
 
     // Every report any page in the test's context posted, checked once the test is done.
     // The app throttles reports to one per 3s, so this sees the first of a burst, not all of it
@@ -45,7 +46,7 @@ export const test = base.extend<{expected_reports:RegExp[], error_reports:ErrorR
         })
         await use(reports)
         const unexpected = reports.filter(report =>
-            !expected_reports.some(pattern => pattern.test(report.message)))
+            !expected_reports?.test(report.message))
         expect(unexpected, 'error reports the app filed during this test').toEqual([])
     }, {auto: true}],
 
