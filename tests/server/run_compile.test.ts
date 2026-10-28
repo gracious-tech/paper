@@ -10,7 +10,7 @@
 // own suites' business (and e2e/compile.test.ts's); what's under test is everything around them,
 // against the real emulators
 
-import {mkdtemp, readdir, rm, writeFile} from 'node:fs/promises'
+import {mkdir, mkdtemp, readdir, rm, writeFile} from 'node:fs/promises'
 import {tmpdir} from 'node:os'
 import path from 'node:path'
 
@@ -328,6 +328,25 @@ describe('run_compile', () => {
         expect(reports).toHaveLength(1)
         expect(reports[0]).toMatchObject({severity: 'silent',
             context: {version_id: id, stage: 'cover_render'}})
+    })
+
+    it('renders a builtin background from the synced assets tree, under its own name', async () => {
+        const {id} = await make_pending({version: {blueprint: with_cover(
+            {kind: 'builtin', id: 'hills.jpg'})}})
+        await mkdir(path.join(assets_dir, 'backgrounds'))
+        await writeFile(path.join(assets_dir, 'backgrounds', 'hills.jpg'), PNG_BYTES)
+        cover_mock.mockImplementation(async options => {
+            // bookcover-node has no fallback lookup for an explicit name, so it must match
+            expect(await readdir(options.input_path)).toEqual(['hills.jpg'])
+            return await write_cover(options)
+        })
+
+        await run_compile(job(id))
+
+        expect(await version(id)).toMatchObject({status: 'available', cover_status: 'available'})
+        // The schema names the file, and the id goes along for bookcover's baked colours
+        expect(cover_mock.mock.lastCall![0]).toMatchObject({
+            schema: {images: {background: 'hills.jpg'}}, image_builtin: 'hills.jpg'})
     })
 
     it('a builtin background bookcover no longer ships costs only the cover', async () => {

@@ -154,6 +154,23 @@ describe('designs owned by someone else', () => {
 })
 
 
+describe('versions whose design is already gone', () => {
+
+    it('removes them and their PDFs, with no design left to sweep or repoint', async () => {
+        // The owner deleted the design meanwhile, leaving this user's version behind
+        const id = await make_version('deleted_design', {owner: user})
+        await put_object(`versions/${id}/doc.pdf`, 'application/pdf')
+
+        const result = await handle_delete_account(user)
+
+        expect(summary(result.body).versions).toBe(1)
+        expect((await admin_db.doc(`versions/${id}`).get()).exists).toBe(false)
+        expect(await object_exists(`versions/${id}/doc.pdf`)).toBe(false)
+        expect((await admin_db.doc('designs/deleted_design').get()).exists).toBe(false)
+    })
+})
+
+
 describe('user records', () => {
 
     it('removes the profile and read-access history', async () => {
@@ -214,6 +231,12 @@ describe('the auth account', () => {
         const result = await handle_delete_account(user)
         expect(result.status).toBe(200)
         expect(result.body).toEqual({ok: true, designs: 0, versions: 0, left: 0})
+    })
+
+    it('fails rather than report success when the account can\'t be removed', async () => {
+        // A uid Auth refuses outright (over its 128-character limit): anything but "already
+        // gone" must reach the client, so it retries rather than believing it's done
+        await expect(handle_delete_account('u'.repeat(200))).rejects.toThrow()
     })
 
     it('reports all zeroes for an account that owned nothing', async () => {

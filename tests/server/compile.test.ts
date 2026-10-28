@@ -8,12 +8,13 @@
 
 import {describe, it, expect, beforeEach} from 'vitest'
 
-import {handle_compile, run_compile} from '../../server/src/compile.ts'
+import {check_assets, handle_compile, run_compile} from '../../server/src/compile.ts'
 import {claim_compile_lock, QUOTA_COMPILE, DAILY_COMPILE_LIMIT} from '../../server/src/quota.ts'
-import {admin_db, reset_firestore, design_doc, version_doc, new_id, OWNER, STRANGER}
-    from '../helpers/server.ts'
+import {admin_db, reset_firestore, design_doc, version_doc, new_id, passage_with_image, OWNER,
+    STRANGER} from '../helpers/server.ts'
 
 import type {CompileJob} from '../../server/src/compile.ts'
+import type {Blueprint} from 'paper-bible-typst-node'
 
 
 beforeEach(async () => {
@@ -121,5 +122,47 @@ describe('run_compile', () => {
         await run_compile(job(id))
         expect((await admin_db.doc(`versions/${id}`).get()).data()!['status']).toBe('available')
         expect(await claim_compile_lock(OWNER, 'another_version')).toBe('claimed')
+    })
+})
+
+
+describe('check_assets', () => {
+
+    // A design's own snapshot prefix, and a blueprint whose cover names some background
+    const PREFIX = 'version_assets/design_a/'
+    const with_bg = (bg_image:unknown) => ({content: [], cover: {bg_image}}) as unknown as Blueprint
+
+    it('accepts a background under the design\'s prefix, or a plainly named builtin', () => {
+        expect(check_assets(with_bg(null), [], PREFIX)).toBe(null)
+        expect(check_assets(with_bg({kind: 'custom', path: `${PREFIX}abc.jpg`}), [], PREFIX))
+            .toBe(null)
+        expect(check_assets(with_bg({kind: 'builtin', id: 'hills.jpg'}), [], PREFIX)).toBe(null)
+    })
+
+    it('refuses a custom background anywhere but the design\'s own prefix', () => {
+        for (const path of ['version_assets/design_b/abc.jpg', 'errors/x/y.json', 42, undefined]){
+            expect(check_assets(with_bg({kind: 'custom', path}), [], PREFIX))
+                .toBe('bad_cover_path')
+        }
+    })
+
+    it('refuses a builtin id that could become anything but a plain filename', () => {
+        // Traversal, a subdirectory of backgrounds/, not an image, not a string
+        for (const id of ['../../etc/passwd.jpg', 'previews_800/hills.jpg', 'hills.sh', 7]){
+            expect(check_assets(with_bg({kind: 'builtin', id}), [], PREFIX))
+                .toBe('bad_cover_image')
+        }
+    })
+
+    it('refuses a background of no known shape', () => {
+        for (const bg_image of ['hills.jpg', {kind: 'url', url: 'https://example.com/x.jpg'}, {}]){
+            expect(check_assets(with_bg(bg_image), [], PREFIX)).toBe('bad_cover_image')
+        }
+    })
+
+    it('refuses a passage image no server should fetch', () => {
+        const blueprint = {cover: null, content: [passage_with_image('p1',
+            {source: 'url', url: 'file:///etc/passwd', path: null, hash: null})]}
+        expect(check_assets(blueprint as unknown as Blueprint, [], PREFIX)).toBe('bad_image_url')
     })
 })

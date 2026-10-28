@@ -348,6 +348,33 @@ describe('error reporting', () => {
 })
 
 
+describe('uncaught route errors', () => {
+
+    it('answer a bare 500 and are saved as a server report', async () => {
+        // An id with a slash names a collection, not a document, so Firestore throws inside the
+        // handler — nothing of the error reaches the caller, but it's kept for triage
+        const result = await post(light, '/api/design_editors', {design_id: 'a/b'},
+            `Bearer ${token}`)
+        expect(result).toEqual({status: 500, body: {error: 'internal'}})
+
+        // Saved without being awaited, so give it a moment to land
+        const deadline = Date.now() + 5_000
+        let report:Record<string, unknown>|undefined
+        while (!report && Date.now() < deadline){
+            for (const path of await list_paths('errors/')){
+                const [contents] = await admin_bucket.file(path).download()
+                const parsed = JSON.parse(contents.toString()) as Record<string, unknown>
+                if (parsed['source'] === 'server' && parsed['url'] === '/api/design_editors'){
+                    report = parsed
+                }
+            }
+            await new Promise(resolve => setTimeout(resolve, 100))
+        }
+        expect(report).toMatchObject({severity: 'error', uid: null})
+    })
+})
+
+
 describe('unknown routes', () => {
 
     it('404s anything not declared', async () => {

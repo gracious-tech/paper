@@ -346,6 +346,41 @@ describe('run_preview (phone)', () => {
         expect(images[1]?.url).toContain(encodeURIComponent(variant))
     })
 
+    it('numbers story slides after passage images, counting an image with no hash', async () => {
+        const design_id = new_id()
+        // An outside image with no hash to find a variant by, an imageless passage, then a
+        // story whose second slide is an upload
+        const external = {source: 'url', url: 'https://example.com/a.jpg', path: null,
+            hash: null, original: null}
+        const upload = {...upload_image(`design_assets/${design_id}/three.png`), hash: 'three'}
+        const slide = (id:string, image:unknown) => ({id, image, mode: 'text', book: '',
+            start_chapter: null, start_verse: null, end_chapter: null, end_verse: null,
+            doc: {type: 'doc', content: []}})
+        await admin_db.doc(`designs/${design_id}`).set(design_doc({
+            blueprint: {font_size: 10, cover: null, image_style: 'torn'},
+            content_items: {
+                p1: passage_with_image('p1', external),
+                p2: passage_with_image('p2', null),
+                s1: {type: 'picture_story', id: 's1', title: 'Story', title_subtitle: '',
+                    title_icon: null, slides: [slide('a', null), slide('b', upload)]},
+            },
+            content_order: ['p1', 'p2', 's1'],
+        }))
+        // The unhashed image still took v0, so the slide's upload is v1
+        const variant = `design_cache/${design_id}/torn_v1_three.png`
+        await admin_bucket.file(variant).save(Buffer.from('png'), {contentType: 'image/png'})
+
+        await run_preview(await make_job(design_id))
+
+        const resolved = vi.mocked(shared_content.resolve).mock.calls[0]![0]
+        const [first, second, story] = resolved.content
+        expect(first?.type === 'passage' && first.image).toEqual(external)
+        expect(second?.type === 'passage' && second.image).toBe(null)
+        const slides = story?.type === 'picture_story' ? story.slides : []
+        expect(slides[0]?.image).toBe(null)
+        expect(slides[1]?.image?.path).toBe(variant)
+    })
+
     it('records the failure and an error report when the compile fails', async () => {
         const design_id = await make_design()
         const job = await make_job(design_id)
