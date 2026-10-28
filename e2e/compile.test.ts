@@ -52,10 +52,14 @@ test('building compiles a real PDF and uploads it', async ({page}) => {
     expect(bytes.length).toBeGreaterThan(1000)
 
     // The design's denormalised summary follows the version it just produced, so the designs
-    // list doesn't keep offering to generate what was already generated
+    // list doesn't keep offering to generate what was already generated. It's a write of its
+    // own after the version's, so it can land a moment after the version reads as available
+    const summary_of = (data:Record<string, unknown>) =>
+        data['latest_version'] as {status:string, pages:number, save_token:string}
+    await expect.poll(async () => summary_of(await design_data(design_id)).status)
+        .toBe('available')
     const design = await design_data(design_id)
-    const summary = design['latest_version'] as {status:string, pages:number, save_token:string}
-    expect(summary.status).toBe('available')
+    const summary = summary_of(design)
     expect(summary.pages).toBe(version.data['pages'])
     // design_needs_editor compares these by equality, so a copied token means "nothing
     // unrendered since" — the whole point of freezing it at click time
