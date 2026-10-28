@@ -200,8 +200,9 @@ paper_bible/
                             #   repository variables deploy.yml reads
     i18n_status/_job/_apply/_check/_sync/_extract  # Translation tooling (logic in app/i18n/);
                             #   see the i18n section and .claude/skills/translate
-    audit_unit             # Every unit/integration suite (typst, typst-node, app, rules,
-                            #   server, i18n) — starts its own emulators; see the Testing section
+    audit_unit             # Every unit/integration suite (typst, typst-web, typst-node, app,
+                            #   rules, server, i18n) — starts its own emulators; see the Testing
+                            #   section
     audit_e2e              # Playwright journeys, desktop + mobile — starts its own stack, runs
                             #   in CI (see e2e/ and the Testing section)
     audit_stress           # Compile stress ladder, browser (WASM) + server (see e2e/tiers.ts)
@@ -552,7 +553,8 @@ After that, every push to `main` deploys itself. The scripts still work by hand
 
 ```bash
 .bin/audit_unit                 # everything below (~1 min; starts its own emulators)
-.bin/audit_unit app             # one group: typst | typst-node | app | rules | server | i18n
+.bin/audit_unit app             # one group: typst | typst-web | typst-node | app | rules |
+                                #   server | i18n
 .bin/audit_unit rules storage   # a group plus a vitest filter
 .bin/audit_e2e                  # Playwright journeys, desktop + mobile (starts its own stack)
 .bin/audit_e2e cover.test.ts    # one file (any other playwright test arguments pass through)
@@ -561,7 +563,7 @@ After that, every push to `main` deploys itself. The scripts still work by hand
 
 | Suite | Where | Needs |
 |---|---|---|
-| `typst`, `typst-node` | `typst/tests/`, `typst-node/tests/` | nothing |
+| `typst`, `typst-web`, `typst-node` | `typst/tests/`, `typst-web/tests/`, `typst-node/tests/` | nothing |
 | app service logic | `app/tests/` | nothing |
 | security rules | `tests/rules/` | the test emulators |
 | server handlers + routes | `tests/server/` | the test emulators |
@@ -802,7 +804,9 @@ After that, every push to `main` deploys itself. The scripts still work by hand
   where the gotcha above *doesn't* bite — so the bug renders correctly in isolation and wrongly
   in the app. Drive `compile_pdf_from_blueprint` (typst-node) with a real passage instead. Note
   also that a green `typst-node` suite says nothing about the browser: it shells out to the
-  Typst CLI and never touches the WASM engine the app actually compiles with
+  Typst CLI and never touches the WASM engine the app actually compiles with. `typst-web`'s
+  suite does run that engine, in Node with every fetch answered locally, but its font files
+  404, so it checks the engine's plumbing (fonts, errors, SVG, blob URLs), not how text looks
 - **clean_blueprint()** (`blueprints.ts`) validates untrusted blueprints (Firestore docs
   from co-editors) via the zod schemas in `typst/src/blueprint_schema.ts`, content items
   included. Those schemas are type-locked to the interfaces in `typst/src/types.ts` with

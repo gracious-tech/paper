@@ -12,7 +12,8 @@
     },
     "scripts": {
         "build": "tsc",
-        "watch": "tsc --watch"
+        "watch": "tsc --watch",
+        "test": "vitest run"
     },
     "dependencies": {
         "@myriaddreamin/typst-ts-renderer": "0.7.0",
@@ -20,5 +21,10 @@
         "@myriaddreamin/typst.ts": "0.7.0",
         "paper-bible-typst": "*",
         "typst-fonts": "^0.1.4"
+    },
+    "devDependencies": {
+        "@types/node": "^22.0.0",
+        "pdf-lib": "^1.17.1",
+        "vitest": "^5.0.5"
     }
 }

@@ -2,7 +2,8 @@
 
 # Run every unit and integration suite:
 #
-#   typst, typst-node   pure packages (vitest, no infrastructure)
+#   typst, typst-web,   pure packages (vitest, no infrastructure; typst-web runs the WASM
+#   typst-node          engine in Node, typst-node the Typst CLI)
 #   app                 the app's service logic (vitest; see app/vitest.config.mts)
 #   tests/rules         firestore.rules + firebase_storage.rules, against the emulators
 #   tests/server        the API server's handlers and routes, against the emulators
@@ -19,8 +20,8 @@
 #
 # Usage:
 #   .bin/audit_unit                 everything
-#   .bin/audit_unit typst           just that group (typst | typst-node | app | rules | server |
-#                                   i18n)
+#   .bin/audit_unit typst           just that group (typst | typst-web | typst-node | app |
+#                                   rules | server | i18n)
 #   .bin/audit_unit rules storage   a group, plus a filter passed through to vitest
 #
 # With COVERAGE=1 each vitest run also exports raw V8 coverage, under its group name, for
@@ -102,6 +103,7 @@ case "$GROUP" in
     all)
         run_i18n
         run_group "typst" typst
+        run_group "typst-web" typst-web
         run_group "typst-node" typst-node
         run_group "app" app
         echo
@@ -110,6 +112,9 @@ case "$GROUP" in
         ;;
     typst)
         run_group "typst" typst
+        ;;
+    typst-web)
+        run_group "typst-web" typst-web
         ;;
     typst-node)
         run_group "typst-node" typst-node
@@ -129,7 +134,7 @@ case "$GROUP" in
         run_i18n
         ;;
     *)
-        echo "Unknown group '$GROUP' (typst | typst-node | app | rules | server | i18n | all)" >&2
+        echo "Unknown group '$GROUP' (typst | typst-web | typst-node | app | rules | server | i18n | all)" >&2
         exit 1
         ;;
 esac

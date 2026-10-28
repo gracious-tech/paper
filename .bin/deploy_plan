@@ -41,7 +41,8 @@ AWS_SETUP=(.bin/deploy_aws)
 
 # The static app (the local Typst packages are built into it)
 APP=(app typst typst-web package.json package-lock.json .bin/deploy_app .bin/build_app
-    .bin/build_typst ':!app/tests' ':!app/i18n' ':!app/tools' ':!typst/tests')
+    .bin/build_typst ':!app/tests' ':!app/i18n' ':!app/tools' ':!typst/tests'
+    ':!typst-web/tests')
 
 
 needs_deploy(){

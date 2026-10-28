@@ -23,6 +23,6 @@ status=0
 # Every run that should have contributed, so a run that silently collected nothing is an error
 # rather than a smaller total
 node --disable-warning=ExperimentalWarning coverage/merge.ts \
-    typst typst-node app emulators e2e node || status=1
+    typst typst-web typst-node app emulators e2e node || status=1
 
 exit $status
