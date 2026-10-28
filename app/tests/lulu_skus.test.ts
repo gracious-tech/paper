@@ -128,6 +128,10 @@ describe('agreement with the generated price table', () => {
         expect(unpriced).toEqual([])
     })
 
+    it('prices nothing that isn\'t a Lulu product id', () => {
+        expect(lulu_book_price('not-a-package', 100, 'USD')).toBe(null)
+    })
+
     it('has page limits for every product the app can produce', () => {
         const unlimited = ids.filter(id => lulu_page_limits(id) === null)
         expect(unlimited).toEqual([])

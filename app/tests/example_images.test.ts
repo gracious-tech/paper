@@ -44,6 +44,10 @@ describe('example pictures', () => {
         expect(example_image(id, loc)).toContain(`/examples/${loc}/${id}.webp`)
     })
 
+    it('says to render the pictures when an example has none at all', () => {
+        expect(() => example_image('no_such_example', 'en')).toThrow(/gen_example_images/)
+    })
+
     it("falls back to English's picture", () => {
         const id = EXAMPLE_DESIGNS[0]!.id
         expect(example_image(id, 'xx')).toContain(`/examples/en/${id}.webp`)

@@ -23,6 +23,10 @@ function set_browser_languages(languages:string[]):void{
 
 describe('best_locale', () => {
 
+    it('skips a supported entry that isn\'t a valid tag', () => {
+        expect(best_locale('fr', ['not a tag!', 'fr-CA'])).toBe('fr-CA')
+    })
+
     const supported = ['en', 'vi', 'pt-BR', 'zh-Hans', 'zh-Hant', 'sr-Latn']
 
     it('takes an exact match', () => {
@@ -127,6 +131,10 @@ describe('country_namer', () => {
         const name = country_namer('en')('zz')
         expect(typeof name).toBe('string')
         expect(name.length).toBeGreaterThan(0)
+    })
+
+    it('falls back to the code itself for a locale Intl can\'t parse', () => {
+        expect(country_namer('not a tag!')('au')).toBe('AU')
     })
 
     it('still returns a usable namer for a locale Intl has never heard of', () => {
