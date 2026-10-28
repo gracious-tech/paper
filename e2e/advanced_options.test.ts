@@ -129,3 +129,40 @@ test('a font uploaded to another design is copied in when picked', async ({page}
                 `design_assets/${design_id}/`)]
     }, {timeout: 60_000}).toEqual(['Noto Sans Adlam', ['Noto Sans Adlam'], true])
 })
+
+
+test('a font uploaded through the picker becomes the chosen one', async ({page}) => {
+    // A real font (the same one cover.test.ts uploads), fetched to hand to the file input
+    test.setTimeout(2 * 60 * 1000)
+    const response = await fetch(
+        'https://assets.paper.bible/fonts/_noto/Noto%20Sans%20Adlam/NotoSansAdlam-Regular.otf')
+    const bytes = Buffer.from(await response.arrayBuffer())
+    const design_id = await seed_own_design(await boot(page), {simple_mode: false})
+    const panel = await open_advanced(page, design_id)
+
+    // The upload entry follows the list, and opens the upload dialog
+    await panel.getByLabel('Font for headings', {exact: true}).click({force: true})
+    await page.getByRole('option').filter({hasText: 'Upload custom font...'}).click()
+    const dialog = page.getByRole('dialog').filter({hasText: 'Upload custom fonts'})
+    await expect(dialog).toBeVisible()
+    const input = dialog.locator('input[type=file]')
+
+    // Bytes that aren't a font add nothing, and the dialog says so and stays open
+    await input.setInputFiles({name: 'notes.ttf', mimeType: 'font/ttf',
+        buffer: Buffer.from('not a font at all')})
+    await expect(dialog.getByText(/No new font families found|Failed to process fonts/))
+        .toBeVisible()
+
+    // A real one is stored in the design, picked for the headings, and closes the dialog
+    await input.setInputFiles({name: 'NotoSansAdlam-Regular.otf', mimeType: 'font/otf',
+        buffer: bytes})
+    await expect(dialog).toBeHidden({timeout: UI_TIMEOUT})
+    await expect.poll(async () => {
+        const design = await design_data(design_id)
+        const fonts = Object.values(design['fonts'] as Record<string, {family:string,
+            files:string[]}>)
+        return [(design['blueprint'] as Record<string, unknown>)['font_headings'],
+            fonts.map(font => font.family), fonts[0]?.files[0]?.startsWith(
+                `design_assets/${design_id}/`)]
+    }, {timeout: 60_000}).toEqual(['Noto Sans Adlam', ['Noto Sans Adlam'], true])
+})
