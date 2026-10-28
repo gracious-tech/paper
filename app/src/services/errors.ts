@@ -63,13 +63,6 @@ function detect_browser_support():boolean{
 // Require a somewhat modern browser
 const browser_supported = detect_browser_support()
 
-// Show the unsupported-browser splash immediately rather than waiting for some later feature to
-// actually fail and trip an error report first (`show_unsupported` is defined further down, but
-// function declarations are hoisted so calling it here is fine)
-if (!browser_supported){
-    show_unsupported()
-}
-
 // Whether this visitor is a crawler rather than a person
 const is_crawler = crawler_ua.test(navigator.userAgent)
 
@@ -89,6 +82,13 @@ let auth_token_getter:(() => Promise<string|null>)|null = null
 // Translator for the failure splash, set via `set_error_translator()` once i18n is registered
 // (same reason as above). Until then, or if the failure was i18n's own, the splash is English
 let splash_translate:((key:string) => string)|null = null
+
+// Show the unsupported-browser splash immediately rather than waiting for some later feature to
+// actually fail and trip an error report first. It must follow the state above: the function
+// declaration is hoisted, but the `let`s it writes to aren't initialised until reached
+if (!browser_supported){
+    show_unsupported()
+}
 
 
 // UTILS

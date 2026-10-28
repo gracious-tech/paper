@@ -225,9 +225,7 @@ describe('report_error', () => {
         expect(phone.report_error('silent', 'Real failure')).not.toBe('')
     })
 
-    // TODO Fails: show_unsupported() runs at import before `let splash_displayed` is initialised,
-    //      so the module throws a ReferenceError instead of showing the message
-    it.fails('shows unsupported browsers the too-old message instead of reporting', async () => {
+    it('shows unsupported browsers the too-old message instead of reporting', async () => {
         const {report_error} = await load_errors({supported: false})
         // Shown at import already, before anything has failed
         expect(shown[0]!.all_text()).toContain('your browser is too old')
