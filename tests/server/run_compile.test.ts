@@ -232,6 +232,27 @@ describe('run_compile', () => {
             gutter_auto: false})
     })
 
+    it('still publishes when the telemetry row can\'t be written', async () => {
+        const {id} = await make_pending()
+        // compile_stats refuses the write; every other collection is the real one
+        const collection = admin_db.collection.bind(admin_db)
+        const refuse = vi.spyOn(admin_db, 'collection').mockImplementation(name =>
+            name === 'compile_stats'
+                ? {add: () => Promise.reject(new Error('quota exceeded'))} as never
+                : collection(name))
+        const logged = vi.spyOn(console, 'error').mockImplementation(() => {})
+        try {
+            await run_compile(job(id))
+            expect((await version(id))['status']).toBe('available')
+            // The lost row is only logged, after the outcome (it's written without being awaited)
+            await expect.poll(() => logged.mock.calls.flat().map(String))
+                .toContain('Error: quota exceeded')
+        } finally {
+            refuse.mockRestore()
+            logged.mockRestore()
+        }
+    })
+
     it('leaves the design\'s summary alone when regenerating an older version', async () => {
         // A newer version since wrote its own token over the summary
         const {id, design_id} = await make_pending({latest: false})

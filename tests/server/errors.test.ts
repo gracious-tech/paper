@@ -131,3 +131,46 @@ describe('report_allowed', () => {
         expect(report_allowed(ip)).toBe(true)
     })
 })
+
+
+describe('errors outside any request', () => {
+
+    // Call what index.ts registers on the process directly: emitting the events for real would
+    // reach the test runner's own listeners too, which fail the run on any unhandled error
+    async function process_handlers():Promise<Record<string, (error:unknown) => void>>{
+        const events = ['unhandledRejection', 'uncaughtException'] as const
+        const before = new Map(events.map(event => [event, new Set(process.listeners(event))]))
+        await import('../../server/src/index.ts')
+        return Object.fromEntries(events.map(event => {
+            const added = process.listeners(event).filter(listener =>
+                !before.get(event)!.has(listener))
+            expect(added).toHaveLength(1)
+            // Taken off again so nothing outlives this suite
+            process.removeListener(event, added[0]!)
+            return [event, added[0] as unknown as (error:unknown) => void]
+        }))
+    }
+
+    // The one report in the bucket, once its fire-and-forget write has landed
+    async function only_report():Promise<ErrorRecord>{
+        await expect.poll(() => list_paths('errors/')).toHaveLength(1)
+        const [path] = await list_paths('errors/')
+        return JSON.parse((await admin_bucket.file(path!).download())[0].toString()) as ErrorRecord
+    }
+
+    it('are kept as critical server reports, named by how they escaped', async () => {
+        const handlers = await process_handlers()
+        vi.spyOn(console, 'error').mockImplementation(() => {})
+
+        handlers['unhandledRejection']!(new Error('a promise nobody awaited'))
+        const rejection = await only_report()
+        expect(rejection).toMatchObject({source: 'server', severity: 'critical', uid: null,
+            url: null})
+        expect(rejection.message).toMatch(/^unhandledRejection: Error: a promise nobody awaited\n/)
+
+        // Something thrown that isn't an Error is kept as its text
+        await reset_storage()
+        handlers['uncaughtException']!('a bare string')
+        expect((await only_report()).message).toBe('uncaughtException: a bare string')
+    })
+})

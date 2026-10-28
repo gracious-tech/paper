@@ -5,7 +5,7 @@
 // checks around that token are the security boundary: only a genuinely anonymous account may be
 // absorbed, and only by someone holding its credential.
 
-import {describe, it, expect, beforeEach} from 'vitest'
+import {describe, it, expect, beforeEach, vi} from 'vitest'
 
 import {handle_merge} from '../../server/src/merge.ts'
 import {admin_db, admin_auth, reset_firestore, reset_auth, make_anon_user, id_token_for,
@@ -70,6 +70,23 @@ describe('token validation', () => {
         const result = await handle_merge(keeper, guest.id_token)
         expect(result.status).toBe(401)
         expect(result.body).toEqual({error: 'bad_anon_token'})
+    })
+
+    it('refuses when the account goes between its token checking out and being read', async () => {
+        // The race the unknown_account branch exists for: a token that verified, for an account
+        // that's gone by the lookup (the emulator's own verify reads the account, so it's the
+        // verify that stands in here)
+        const verify = vi.spyOn(admin_auth, 'verifyIdToken').mockResolvedValueOnce(
+            {uid: 'uid_since_deleted'} as Awaited<ReturnType<typeof admin_auth.verifyIdToken>>)
+        try {
+            const result = await handle_merge(keeper, guest.id_token)
+            expect(result.status).toBe(404)
+            expect(result.body).toEqual({error: 'unknown_account'})
+        } finally {
+            verify.mockRestore()
+        }
+        // Nothing of the guest's was touched
+        expect(await admin_auth.getUser(guest.uid)).toBeTruthy()
     })
 })
 

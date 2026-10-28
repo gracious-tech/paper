@@ -293,6 +293,28 @@ describe('run_preview (phone)', () => {
         expect(pages[1]).toContain('<rect height="101"/>')
     })
 
+    it('still publishes the preview when its telemetry row can\'t be written', async () => {
+        const design_id = await make_design()
+        const job = await make_job(design_id)
+        // compile_stats refuses the write; every other collection is the real one
+        const collection = admin_db.collection.bind(admin_db)
+        const refuse = vi.spyOn(admin_db, 'collection').mockImplementation(name =>
+            name === 'compile_stats'
+                ? {add: () => Promise.reject(new Error('quota exceeded'))} as never
+                : collection(name))
+        const logged = vi.spyOn(console, 'error').mockImplementation(() => {})
+        try {
+            await run_preview(job)
+            expect((await preview(job.preview_id))['status']).toBe('available')
+            // The lost row is only logged, after the outcome (it's written without being awaited)
+            await expect.poll(() => logged.mock.calls.flat().map(String))
+                .toContain('Error: quota exceeded')
+        } finally {
+            refuse.mockRestore()
+            logged.mockRestore()
+        }
+    })
+
     it('resolves the design as it is, with its own link and the client\'s estimate', async () => {
         const design_id = await make_design({name: 'Psalms for Sam'})
         const job = await make_job(design_id, {page_count: 64})
