@@ -27,6 +27,44 @@ test('the app boots, signed in as a guest', async ({page}) => {
 })
 
 
+test.describe('fetch.bible blocked by the network', () => {
+
+    // The failed boot is reported as well as shown
+    test.use({expected_reports: /FetchNetworkError/})
+
+    test('stops the boot, saying what to try', async ({page}) => {
+        await page.addInitScript(() => {
+            localStorage.setItem('welcome_seen', 'true')
+        })
+        await page.route('https://v1.fetch.bible/**', route => route.abort('internetdisconnected'))
+        const report = page.waitForRequest(/\/api\/report_error$/)
+        await page.goto('/')
+        await expect(page.getByText('Couldn\'t connect to fetch.bible')).toBeVisible({timeout: 60_000})
+        // With what the message can't say: whether the browser thought it was online
+        const context = (await report).postDataJSON().context as Record<string, string>
+        expect(context['online']).toBe('true')
+        expect(context['webdriver']).toBe('true')
+    })
+})
+
+
+test.describe('the PDF engine failing to start', () => {
+
+    // (the worker's fetch of the engine is what fails)
+    test.use({expected_reports: /Failed to fetch/})
+
+    test('hands this device\'s compiles to the server, with nothing to fix', async ({page}) => {
+        // The engine's WebAssembly never arrives
+        await page.route(/assets\.paper\.bible\/typst\//, route => route.abort())
+        await boot(page)
+        await expect.poll(() => page.evaluate(() => localStorage.getItem('compile_on_server')),
+            {timeout: 60_000}).not.toBe(null)
+        // The server can do it instead, so there's no banner telling the user to reload
+        await expect(page.getByText('The PDF generator couldn\'t load')).toBeHidden()
+    })
+})
+
+
 test.describe('a bundle that never starts', () => {
 
     // public/boot_check.js reports these itself, since errors.ts never ran

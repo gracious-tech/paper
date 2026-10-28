@@ -81,7 +81,7 @@ export async function browser_uid(page:Page):Promise<string>{
 // blueprint directly (paper size, binding, translations), so a half-filled one doesn't fail the
 // assertion — it takes the component down before the buttons under test ever render.
 // Mirrors get_default_blueprint() in app/src/services/blueprints.ts, minus content and name
-function blueprint_options():Record<string, unknown>{
+export function blueprint_options():Record<string, unknown>{
     return {
         cover: null,
         service_id: 'home',

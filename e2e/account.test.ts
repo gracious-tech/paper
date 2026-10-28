@@ -105,6 +105,24 @@ async function open_google(page:Page):Promise<Page>{
 }
 
 
+test('a sign-in link that\'s spent or expired says so', async ({page}) => {
+    // Requested in this browser (so the address is known), but its code no longer valid by the
+    // time it's opened, as when it was used already or sat in the inbox too long
+    const guest = await boot(page)
+    const email = new_email()
+    await request_link(page, email)
+    const link = (await sent_link(email)).replace(/oobCode=[^&]+/, 'oobCode=no_longer_valid')
+    await page.goto(link)
+    await expect(page.locator('#app *').first()).toBeAttached({timeout: 60_000})
+
+    // The user is told rather than left wondering, and is still the same guest
+    await expect(page.getByText('That sign-in link has already been used or has expired.'))
+        .toBeVisible()
+    expect(await browser_uid(page)).toBe(guest)
+    await expect(page.locator('header .account.guest')).toBeVisible()
+})
+
+
 test('a guest signs in with Google and keeps their designs', async ({page}) => {
     const guest = await boot(page)
     await seed_design(guest, 'Made as a guest')
@@ -257,6 +275,49 @@ test('guests are asked to sign in before inviting editors', async ({page}) => {
         .filter({hasText: 'Invite an editor'}).click()
     // A design shared from a guest account would be lost with the session
     await expect(page.getByText(/must first sign in to be able to invite/)).toBeVisible()
+
+    // ...which the dialog takes them straight to
+    await click_button(active_dialog(page), 'Sign in')
+    await expect(active_dialog(page).getByLabel('Email address')).toBeVisible()
+})
+
+
+test.describe('an owner\'s invite dialog when the access list can\'t be loaded', () => {
+    test.use({expected_reports: /api\/design_editors failed \(500/})
+
+    test('still mints a link for a design without one, ready to copy', async ({page,
+            context}) => {
+        await context.grantPermissions(['clipboard-read', 'clipboard-write'])
+        await boot(page)
+        const email = new_email()
+        await request_link(page, email)
+        const uid = await open_link(page, email)
+        const design_id = await seed_design(uid, 'Never shared')
+        await admin_db.doc(`designs/${design_id}`).update({share_token: null})
+        await page.route('**/api/design_editors', route => route.fulfill({status: 500,
+            contentType: 'application/json', body: JSON.stringify({error: 'internal'})}))
+
+        await listed(page, 'Never shared').getByRole('button').last().click()
+        await page.locator('.v-overlay--active .v-list-item')
+            .filter({hasText: 'Invite an editor'}).click()
+        const dialog = active_dialog(page)
+
+        // Sharing is always on, so opening the dialog gives the design its link
+        await expect.poll(async () => (await design_data(design_id))['share_token'],
+            {timeout: 30_000}).not.toBe(null)
+        const token = (await design_data(design_id))['share_token'] as string
+        const link = `${APP_URL}/designs/${design_id}/invite/${token}`
+        await expect(dialog.locator('input[readonly]')).toHaveValue(link)
+        // Who has access couldn't be worked out, which it says rather than listing nobody
+        await expect(page.getByText('Couldn\'t load who has access')).toBeVisible()
+
+        await click_button(dialog, 'Copy')
+        await expect(dialog.getByRole('button', {name: 'Copied!', exact: true})).toBeVisible()
+        expect(await page.evaluate(() => navigator.clipboard.readText())).toBe(link)
+
+        await click_button(dialog, 'Close')
+        await expect(dialog).toBeHidden()
+    })
 })
 
 

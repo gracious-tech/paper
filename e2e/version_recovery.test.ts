@@ -301,3 +301,76 @@ test('a failed cover is finished by the server on a device that builds there', a
     // Meanwhile the cover's button says it's on its way
     await expect(page.locator('.version .toolbar .mode button').last()).toBeDisabled()
 })
+
+
+test('a failed build is tried again from the summary above the versions', async ({page}) => {
+    // The summary's alert is a phone's only way to retry (it has no preview pane), but it's on
+    // a desktop too, and both recompile in this browser
+    const uid = await boot(page)
+    const design_id = await seed_own_design(uid, {
+        latest_version: {status: 'failed', pages: null, save_token: 'save_token_value'}})
+    const id = await seed_version(uid, design_id, {status: 'failed', pages: null,
+        pdf_expires: null, error: 'Typst compilation failed', error_id: 'report_abc'})
+
+    await page.goto(`/designs/${design_id}`)
+    const alert = page.locator('.summary .v-alert')
+    await expect(alert).toContainText("This document couldn't be generated", {timeout: 60_000})
+    await until_engine_ready(page)
+    await click_button(alert, 'Retry')
+
+    await expect.poll(async () => (await version_data(id))['status'],
+        {timeout: 4 * 60 * 1000, intervals: [1000]}).toBe('available')
+    expect(await pdf_exists(id)).toBe(true)
+    await expect(alert).toBeHidden()
+})
+
+
+test('an older failed build is tried again from its row', async ({page}) => {
+    const uid = await boot(page)
+    const design_id = await seed_own_design(uid)
+    await seed_finished(uid, design_id)
+    const failed = await seed_version(uid, design_id, {status: 'failed', pages: null,
+        pdf_expires: null, error: 'Typst compilation failed', created: minutes_ago(60),
+        save_token: 'an_older_save_token'})
+
+    // Only the latest gets the summary's alert, so an older one's status icon explains instead
+    await page.goto(`/designs/${design_id}`)
+    await until_engine_ready(page)
+    await older_row(page).locator('.status button').click({timeout: 60_000})
+    await expect(active_dialog(page)).toContainText("This document couldn't be generated")
+    await expect(active_dialog(page).getByRole('link', {name: 'Contact Us'})).toBeVisible()
+    await click_button(active_dialog(page), 'Retry')
+
+    await expect.poll(async () => (await version_data(failed))['status'],
+        {timeout: 4 * 60 * 1000, intervals: [1000]}).toBe('available')
+    expect(await pdf_exists(failed)).toBe(true)
+    await expect(older_row(page).locator('.status button')).toHaveCount(0)
+})
+
+
+test('an older version\'s failed cover is retried from its row', async ({page}) => {
+    // On a device that builds on the server, so the retry is handed over as cover-only
+    await page.addInitScript(() => {
+        localStorage.setItem('compile_on_server', '1')
+    })
+    const uid = await boot(page)
+    const design_id = await seed_own_design(uid)
+    const cover = {form: {}, bg_image: null, font_families: [], title_custom: false}
+    const design = await design_data(design_id)
+    await admin_db.doc(`designs/${design_id}`).update(
+        {blueprint: {...design['blueprint'] as object, cover}})
+    await seed_finished(uid, design_id)
+    const older = await seed_finished(uid, design_id, {cover_status: 'failed',
+        created: minutes_ago(60), save_token: 'an_older_save_token'})
+    const requests = await stub_compile(page, {status: 202})
+
+    await page.goto(`/designs/${design_id}`)
+    await older_row(page).locator('.status button').click({timeout: 60_000})
+    await expect(active_dialog(page)).toContainText("The cover couldn't be generated")
+    await click_button(active_dialog(page), 'Retry')
+
+    await expect.poll(() => requests).toEqual([{version_id: older, cover_only: true}])
+    expect((await version_data(older))['cover_status']).toBe('pending')
+    // While the server renders it, the row shows it's on its way rather than failed
+    await expect(older_row(page).locator('.status .v-progress-circular')).toBeVisible()
+})

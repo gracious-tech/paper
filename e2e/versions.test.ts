@@ -7,7 +7,8 @@ import {Timestamp} from 'firebase-admin/firestore'
 
 import {test, expect, boot, click_button, design_data, owned_designs, versions_of, UI_TIMEOUT}
     from './fixtures'
-import {admin_db, seed_shared_version, version_doc, new_id} from './helpers/admin'
+import {admin_bucket, admin_db, design_doc, MINIMAL_PDF, seed_shared_version, version_doc, new_id}
+    from './helpers/admin'
 
 import type {Page, Locator} from '@playwright/test'
 
@@ -204,4 +205,145 @@ test('opening a design hands its abandoned compiles to the server', async ({page
     await expect(page).toHaveURL(new RegExp(`/designs/${design_id}`))
     await page.waitForTimeout(2000)
     expect(requested).toEqual([abandoned])
+})
+
+
+// Change one of a seeded version's fields, and its frozen blueprint's (merged over what it has)
+async function update_version(id:string, fields:Record<string, unknown>,
+        blueprint:Record<string, unknown> = {}):Promise<void>{
+    const data = (await admin_db.doc(`versions/${id}`).get()).data()!
+    await admin_db.doc(`versions/${id}`).update({...fields,
+        blueprint: {...data['blueprint'] as object, ...blueprint}})
+}
+
+
+test('an older version that broke its binding explains itself', async ({page}) => {
+    const uid = await boot(page)
+    const {design_id, latest, older} = await seed_versions(uid)
+    // Saddle stitching takes at most 48 pages, which this older version ran well past
+    await update_version(older, {pages: 120}, {service_id: 'lulu', size_id: 'novella',
+        binding_type: 'paperback_stitch', booklet: false})
+
+    await page.goto(`/designs/${design_id}/${latest}`)
+    await version_row(page, 'older').locator('.status button').click({timeout: 60_000})
+    await expect(page.locator('.v-overlay--active .v-card').last()).toContainText(
+        'Paperback Saddle Stitch binding allows at most 48 pages, but this document\'s final'
+        + ' page count is 120.')
+})
+
+
+test('a version\'s menu opens its PDFs in a new tab', async ({page}) => {
+    const uid = await boot(page)
+    const {design_id, latest} = await seed_versions(uid)
+    const cover = {form: {}, bg_image: null, font_families: [], title_custom: false}
+    await update_version(latest, {cover_status: 'available'}, {cover})
+    await admin_bucket.file(`versions/${latest}/cover.pdf`)
+        .save(MINIMAL_PDF, {contentType: 'application/pdf'})
+    await page.goto(`/designs/${design_id}/${latest}`)
+    await expect(version_row(page, 'latest')).toBeVisible({timeout: 60_000})
+
+    // Each opens its own stored PDF, in a tab opened by the click itself (headless Chromium
+    // downloads a PDF rather than showing it, so the tab's request is what's checked)
+    for (const [action, file] of [['Open interior', 'doc'], ['Open cover', 'cover']]){
+        const popup = page.waitForEvent('popup')
+        const request = page.context().waitForEvent('request',
+            asked => asked.url().includes(`${latest}%2F${file!}.pdf`))
+        await version_action(page, version_row(page, 'latest'), action!)
+        await popup
+        await request
+    }
+})
+
+
+test('sharing shows the link to copy by hand when the clipboard is out of reach',
+        async ({page}) => {
+    // No share sheet and a clipboard that refuses, as in a browser that allows neither
+    await page.addInitScript(() => {
+        delete (Navigator.prototype as {share?:unknown}).share
+        Object.defineProperty(navigator, 'clipboard', {value: {
+            writeText: () => Promise.reject(new Error('Not allowed'))}})
+    })
+    const uid = await boot(page)
+    const {design_id, latest} = await seed_versions(uid)
+    await page.goto(`/designs/${design_id}/${latest}`)
+
+    await version_action(page, version_row(page, 'latest'), 'Share')
+    const dialog = page.locator('.v-overlay--active .v-card').last()
+    await expect(dialog).toContainText('Share version')
+    const field = dialog.getByRole('textbox')
+    await expect(field).toHaveValue(`${new URL(page.url()).origin}/designs/${design_id}/${latest}`)
+
+    // Focusing the link selects all of it, ready to copy
+    await field.focus()
+    expect(await field.evaluate(input => {
+        const element = input as HTMLInputElement
+        return [element.selectionStart, element.selectionEnd]
+    })).toEqual([0, `${new URL(page.url()).origin}/designs/${design_id}/${latest}`.length])
+    await click_button(dialog, 'Close')
+    await expect(dialog).toBeHidden()
+})
+
+
+test('a thick booklet warns about folding, and suggests how to shrink it', async ({page}) => {
+    const uid = await boot(page)
+    const {design_id, latest} = await seed_versions(uid)
+    // 34 pages fold from 17 sheets: tricky by hand
+    await update_version(latest, {pages: 34})
+    await page.goto(`/designs/${design_id}/${latest}`)
+    const summary = page.locator('.summary')
+    await expect(summary).toContainText('17 sheets may be tricky to fold by hand',
+        {timeout: 60_000})
+
+    // Over 20 sheets it's too much to fold at all
+    await update_version(latest, {pages: 44})
+    await expect(summary).toContainText('22 sheets will be too hard to fold')
+
+    // The suggestions apply to the design itself, ready for the next build
+    await click_button(summary, 'View suggestions')
+    const dialog = page.locator('.v-overlay--active .v-card').last()
+    await expect(dialog).toContainText('Ways to reduce the page count')
+    const font_size = dialog.getByLabel(/^Reduce text size from/)
+    await expect(click_apply(dialog)).toBeDisabled()
+    await font_size.check()
+    await click_apply(dialog).click()
+    await expect(dialog).toBeHidden()
+    await expect.poll(async () => ((await design_data(design_id))['blueprint'] as
+        {font_size:number})['font_size'], {timeout: 30_000}).toBeLessThan(10)
+})
+
+
+// A dialog's "Apply selected" button
+function click_apply(dialog:Locator):Locator{
+    return dialog.getByRole('button', {name: 'Apply selected', exact: true})
+}
+
+
+test('the summary describes the latest version\'s translations and content', async ({page}) => {
+    const uid = await boot(page)
+    const {design_id, latest} = await seed_versions(uid)
+    // Two passages, and a translation no longer in fetch.bible's collection (shown by its id)
+    await update_version(latest, {}, {bibles: ['eng_bsb', 'zzz_withdrawn'],
+        content: [passage('p1', 'jud'), passage('p2', 'phm')]})
+    await page.goto(`/designs/${design_id}/${latest}`)
+    const pills = page.locator('.summary_pills')
+    await expect(pills).toContainText('2 passages', {timeout: 60_000})
+    await expect(pills).toContainText('zzz_withdrawn')
+
+    // And a version with nothing in it says so
+    await update_version(latest, {}, {content: []})
+    await expect(pills).toContainText('No passages')
+})
+
+
+test('a version link to a build that was never saved leads back to the editor', async ({page}) => {
+    // A tab reloaded mid-build can leave a link to a version that was never created
+    const uid = await boot(page)
+    const design_id = new_id()
+    await admin_db.doc(`designs/${design_id}`).set(design_doc(uid))
+    await page.goto(`/designs/${design_id}/${new_id()}`)
+
+    await expect(page.getByText('No versions (yet)')).toBeVisible({timeout: 60_000})
+    await click_button(page, 'Edit')
+    await expect(page.getByLabel('Name')).toBeVisible()
+    await expect(page).toHaveURL(new RegExp(`/designs/${design_id}$`))
 })

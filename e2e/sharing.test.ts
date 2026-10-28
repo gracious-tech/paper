@@ -7,6 +7,8 @@
 // *is* the whole capability: it's an unguessable token, so viewing needs no grant at all, and
 // "keep my own copy" is the only part that needs the server.
 
+import {Timestamp} from 'firebase-admin/firestore'
+
 import {test, expect, boot, UI_TIMEOUT} from './fixtures'
 import {admin_db, seed_shared_version, new_id} from './helpers/admin'
 
@@ -112,6 +114,68 @@ test.describe('shared versions', () => {
             (await admin_db.doc(`users/${uid}/viewed/${design_id}`).get()).exists,
         {timeout: 30_000}).toBe(true)
         expect(await editors_of(design_id)).toEqual([OTHER_USER])
+    })
+
+    test('declining a shared version records nothing, and goes back to the list',
+        async ({page}) => {
+            const uid = await boot(page)
+            const {design_id, version_id} = await seed_shared_version(OTHER_USER)
+
+            await page.goto(`/designs/${design_id}/${version_id}`)
+            await expect(page.getByText('Someone shared this document with you.'))
+                .toBeVisible({timeout: 30_000})
+            await page.getByRole('button', {name: 'Cancel', exact: true}).click()
+
+            await expect(page).toHaveURL(/\/designs$/)
+            await expect(page.getByText('Someone shared this document with you.')).toBeHidden()
+            expect((await admin_db.doc(`users/${uid}/viewed/${design_id}`).get()).exists)
+                .toBe(false)
+        })
+
+    test('a design viewed before opens without asking again', async ({page}) => {
+        const uid = await boot(page)
+        const {design_id, version_id} = await seed_shared_version(OTHER_USER)
+        await admin_db.doc(`users/${uid}/viewed/${design_id}`).set({design_id,
+            title: 'A shared document', last_version_id: 'an_older_version',
+            last_viewed: Timestamp.fromMillis(Date.now() - 24 * 60 * 60 * 1000)})
+
+        await page.goto(`/designs/${design_id}/${version_id}`)
+        await expect(page.getByRole('button', {name: 'Keep my own copy', exact: true}))
+            .toBeVisible({timeout: 30_000})
+        await expect(page.getByText('Someone shared this document with you.')).toBeHidden()
+        // The record follows the version they've now seen
+        await expect.poll(async () => (await admin_db.doc(`users/${uid}/viewed/${design_id}`)
+            .get()).data()?.['last_version_id'], {timeout: 30_000}).toBe(version_id)
+    })
+
+    test('a link to a version that\'s gone says so', async ({page}) => {
+        await boot(page)
+        const {design_id} = await seed_shared_version(OTHER_USER)
+
+        await page.goto(`/designs/${design_id}/${new_id()}`)
+        await expect(page.getByText('This share link is invalid or has been disabled.'))
+            .toBeVisible({timeout: 30_000})
+        await page.getByRole('button', {name: 'Close', exact: true}).click()
+        await expect(page).toHaveURL(/\/designs$/)
+    })
+
+    test('keeping a copy says why when the server won\'t make one yet', async ({page}) => {
+        // Still compiling, then the day's copies used up: refusals, not faults, so each is
+        // explained rather than reported
+        await boot(page)
+        const {design_id, version_id} = await seed_shared_version(OTHER_USER)
+        const refusals = ['still_pending', 'quota_exceeded']
+        await page.route('**/api/copy_version', route => route.fulfill({status: 409,
+            contentType: 'application/json', body: JSON.stringify({error: refusals.shift()})}))
+
+        await page.goto(`/designs/${design_id}/${version_id}`)
+        await page.getByRole('button', {name: 'View', exact: true}).click({timeout: 30_000})
+        const keep = page.getByRole('button', {name: 'Keep my own copy', exact: true})
+        await keep.click({timeout: 30_000})
+        await expect(page.getByText('This document is still being generated')).toBeVisible()
+        await keep.click()
+        await expect(page.getByText('You\'ve made a lot of copies today')).toBeVisible()
+        await expect(page).toHaveURL(new RegExp(`/designs/${design_id}/${version_id}$`))
     })
 
     test('the short link resolves to the same version', async ({page}) => {

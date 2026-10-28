@@ -9,7 +9,8 @@
 
 import {test, expect, boot, build_version, click_button, owned_designs, versions_of, UI_TIMEOUT}
     from './fixtures'
-import {seed_own_design, stub_server_preview} from './helpers/admin'
+import {admin_bucket, admin_db, design_doc, MINIMAL_PDF, new_id, seed_own_design,
+    stub_server_preview, version_doc} from './helpers/admin'
 
 
 test.describe.configure({timeout: UI_TIMEOUT})
@@ -223,4 +224,50 @@ test('the about page plays the intro video inline', async ({page}) => {
     await boot(page, '/about')
     await expect(page.locator('.display')).toHaveCount(0)
     await expect(page.locator('iframe[src*="lets.church/embed"]')).toBeAttached()
+})
+
+
+test('a finished version\'s cover, cost and printing guidance are in the versions list',
+        async ({page}) => {
+    // A Lulu paperback with a cover, so every action the phone moves into the list is offered
+    const uid = await boot(page)
+    const design_id = new_id()
+    const version_id = new_id()
+    const base = version_doc(design_id, version_id, uid)
+    const cover = {form: {}, bg_image: null, font_families: [], title_custom: false}
+    await admin_db.doc(`designs/${design_id}`).set(design_doc(uid, {
+        latest_version: {status: 'available', pages: 120, save_token: 'save_token_value'}}))
+    await admin_db.doc(`versions/${version_id}`).set(version_doc(design_id, version_id, uid, {
+        pages: 120, cover_status: 'available', blueprint: {...base['blueprint'] as object, cover,
+            service_id: 'lulu', size_id: 'a5', binding_type: 'paperback', ink_type: 'bw',
+            paper_type: 'white', booklet: false}}))
+    for (const name of ['doc', 'cover']){
+        await admin_bucket.file(`versions/${version_id}/${name}.pdf`)
+            .save(MINIMAL_PDF, {contentType: 'application/pdf'})
+    }
+    // Lulu's delivery quote, answered here so nothing reaches lulu.com
+    await page.route('https://api.lulu.com/shipping-options/', async route => {
+        const cors = {'access-control-allow-origin': '*', 'access-control-allow-headers': '*'}
+        await route.fulfill(route.request().method() === 'OPTIONS' ? {status: 204, headers: cors}
+            : {headers: cors, contentType: 'application/json', body: JSON.stringify([
+                {level: 'MAIL', carrier_service_name: 'Mail', cost_excl_tax: 4.5,
+                    is_active: true, total_days_min: 10, total_days_max: 14}])})
+    })
+    await page.goto(`/designs/${design_id}`)
+    const actions = page.locator('.mobile_actions')
+
+    // The cover opens in a new tab like the interior does (see the build journey above)
+    const navigating = page.context().waitForEvent('request',
+        request => request.isNavigationRequest() && request.url().includes('cover.pdf'))
+    await click_button(actions, 'Open cover')
+    await navigating
+
+    // The cost estimate and the printing guidance open over the list
+    const dialog = page.locator('.v-overlay--active .v-card').last()
+    await click_button(actions, 'Estimate cost')
+    await expect(dialog).toContainText('Lulu')
+    await page.keyboard.press('Escape')
+    await expect(dialog).toBeHidden()
+    await click_button(actions, 'How to print')
+    await expect(dialog).toContainText('Lulu')
 })

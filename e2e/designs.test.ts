@@ -3,10 +3,13 @@
 // does — rename, duplicate, categorise, delete. Designs are seeded under the browser's own uid
 // once it's known, and arrive through the app's live listener just as a co-editor's would
 
+import {readFile} from 'node:fs/promises'
+
 import {Timestamp} from 'firebase-admin/firestore'
 
 import {test, expect, boot, design_data, owned_designs, UI_TIMEOUT} from './fixtures'
-import {admin_db, admin_bucket, design_doc, new_id} from './helpers/admin'
+import {admin_db, admin_bucket, design_doc, MINIMAL_PDF, new_id, version_doc}
+    from './helpers/admin'
 
 import type {Page, Locator} from '@playwright/test'
 
@@ -313,4 +316,92 @@ test('opening a design from the list and coming back', async ({page}) => {
     await page.locator('.navbar .tab_btn').first().click()
     await expect(page).toHaveURL(/\/designs$/)
     await expect(row(page, 'Open me')).toBeVisible()
+})
+
+
+test('creations from the old version of the app can still be saved', async ({page}) => {
+    // What the previous app left in this browser's IndexedDB: a saved creation (whose PDF is
+    // still on the old bucket) and the draft that was never made into one
+    await boot(page, '/designs')
+    await page.evaluate(async () => {
+        const db = await new Promise<IDBDatabase>((resolve, reject) => {
+            const request = indexedDB.open('paper_bible', 1)
+            request.onupgradeneeded = () => {
+                request.result.createObjectStore('creations', {keyPath: 'request_id'})
+                request.result.createObjectStore('config', {keyPath: 'key'})
+            }
+            request.onsuccess = () => resolve(request.result)
+            request.onerror = () => reject(request.error)
+        })
+        const blueprint = (title:string) => ({title, content: [{type: 'passage', id: 'p1',
+            book: 'jhn', start_chapter: 3, start_verse: 16, end_chapter: null, end_verse: null,
+            title: true}]})
+        const transaction = db.transaction(['creations', 'config'], 'readwrite')
+        transaction.objectStore('creations').put({request_id: 'req_1', creation_id: 'old_pdf',
+            created: new Date(2024, 4, 1), blueprint: blueprint('Youth <camp>'),
+            status: 'available', pages: 12})
+        transaction.objectStore('config').put({key: 'draft', value: blueprint('')})
+        await new Promise(resolve => {
+            transaction.oncomplete = resolve
+        })
+        db.close()
+    })
+    await page.reload()
+
+    // Found on the next load, behind a button of its own
+    await page.getByRole('button', {name: 'My Old Creations'}).click({timeout: 60_000})
+    const dialog = page.locator('.v-overlay--active .v-card').last()
+    const items = dialog.locator('.item')
+    await expect(items).toHaveCount(2)
+    // The draft first, as it's the one thing that never became a PDF
+    await expect(items.first()).toContainText('Unsaved draft')
+    await expect(items.first()).toContainText('Never made into a PDF')
+    await expect(items.last()).toContainText('Youth <camp>')
+    await expect(items.last()).toContainText('12 pages')
+    await expect(items.last().getByRole('link', {name: 'PDF'})).toHaveAttribute('href',
+        'https://paper-bible-prod.s3.us-west-2.amazonaws.com/creations/old_pdf.pdf')
+
+    // Its content saves as a page of its own, named after it
+    const downloading = page.waitForEvent('download')
+    await items.last().getByRole('button', {name: 'Content (HTML)'}).click()
+    const download = await downloading
+    expect(download.suggestedFilename()).toBe('Youth -camp- (old paper.bible).html')
+    const html = await readFile(await download.path(), 'utf8')
+    expect(html).toContain('<h1>Youth &lt;camp&gt;</h1>')
+    expect(html).toContain('John 3:16')
+
+    await dialog.getByRole('button', {name: 'Close', exact: true}).click()
+    await expect(dialog).toBeHidden()
+})
+
+
+test('a design someone shared is listed until removed, and opens on its version',
+        async ({page}) => {
+    // Someone else's design, viewed before from a version link
+    const uid = await boot(page, '/designs')
+    const design_id = new_id()
+    const version_id = new_id()
+    await admin_db.doc(`designs/${design_id}`).set(design_doc('e2e_other_user'))
+    await admin_db.doc(`versions/${version_id}`).set(version_doc(design_id, version_id,
+        'e2e_other_user', {title: 'Their study guide'}))
+    await admin_bucket.file(`versions/${version_id}/doc.pdf`)
+        .save(MINIMAL_PDF, {contentType: 'application/pdf'})
+    const viewed = admin_db.doc(`users/${uid}/viewed/${design_id}`)
+    await viewed.set({design_id, title: 'Their study guide', last_version_id: version_id,
+        last_viewed: Timestamp.now()})
+
+    // Listed under read access, and opening it shows the version last seen, read-only (which
+    // records the view again, under that version's title)
+    await expect(page.getByText('Shared read access')).toBeVisible({timeout: 30_000})
+    await row(page, 'Their study guide').click()
+    await expect(page).toHaveURL(new RegExp(`/designs/${design_id}/${version_id}$`))
+    await expect(page.getByRole('button', {name: 'Keep my own copy', exact: true}))
+        .toBeVisible({timeout: 30_000})
+
+    // Removing it from the list forgets the record, not the design
+    await page.goto('/designs')
+    await row_action(page, 'Their study guide', 'Remove from list')
+    await expect(row(page, 'Their study guide')).toHaveCount(0)
+    await expect.poll(async () => (await viewed.get()).exists, {timeout: 30_000}).toBe(false)
+    expect((await admin_db.doc(`designs/${design_id}`).get()).exists).toBe(true)
 })
