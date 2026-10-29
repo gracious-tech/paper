@@ -2,7 +2,7 @@
 // the cover background and every passage/story image move from version_assets/ into the
 // design's own design_assets/ prefix by the same basename, a masked image comes back as its
 // unmasked original, what's already durable is left alone, and a failed copy keeps the design
-// usable rather than blocking the duplicate/restore. The path planning is the real
+// usable (on the snapshot's reference) rather than blocking the duplicate/restore. The path planning is the real
 // content_images.ts; only Storage and the copy itself are stand-ins
 
 import {describe, it, expect, beforeEach, vi} from 'vitest'
@@ -151,15 +151,37 @@ describe('rehydrate_version_blueprint', () => {
         expect(copies_made()).toEqual([])
     })
 
-    // A copy that fails is reported, and the design still gets made with what could be planned
-    it('reports a failed copy instead of failing the duplicate or restore', async () => {
-        const failure = new Error('storage/unauthorized')
+    // A copy that fails is reported, and the design still gets made, pointing at the snapshot
+    // for whatever didn't copy: a reference to the copy that never landed would name nothing
+    it('keeps the snapshot\'s reference for a copy that failed', async () => {
+        const failure = new Error('storage/retry-limit-exceeded')
         apply_asset_copies.mockRejectedValueOnce(failure)
-        const live:Blueprint = await rehydrate_version_blueprint(make_blueprint({content: [
-            make_passage('p1', {image: uploaded('version_assets/src/a.png')})]}), 'd2')
-        expect(live.content).toHaveLength(1)
+        const masked = uploaded('version_assets/src/masked.png',
+            {source: 'upload', url: 'url:version_assets/src/orig.jpg',
+                path: 'version_assets/src/orig.jpg', hash: 'orig'})
+        const live:Blueprint = await rehydrate_version_blueprint(make_blueprint({
+            cover: cover_with({kind: 'custom', path: 'version_assets/src/bg1.jpg', hash: 'bg1'}),
+            content: [make_passage('p1', {image: masked})],
+        }), 'd2')
+        // The background's copy failed, the image's went through
+        expect(live.cover!.bg_image).toMatchObject({path: 'version_assets/src/bg1.jpg'})
+        expect((live.content[0] as {image:ContentPassageImage}).image).toMatchObject(
+            {path: 'design_assets/d2/orig.jpg', original: null})
         expect(report_error).toHaveBeenCalledWith('silent', failure,
             {context: {stage: 'rehydrate_version_assets'}})
+    })
+
+    // Unmasked either way, since the design's own style masks it again
+    it('still unmasks an image whose copy failed', async () => {
+        apply_asset_copies.mockRejectedValueOnce(new Error('offline'))
+        const masked = uploaded('version_assets/src/masked.png',
+            {source: 'upload', url: 'url:version_assets/src/orig.jpg',
+                path: 'version_assets/src/orig.jpg', hash: 'orig'})
+        const live = await rehydrate_version_blueprint(make_blueprint({content: [
+            make_passage('p1', {image: masked})]}), 'd2')
+        expect((live.content[0] as {image:ContentPassageImage}).image).toEqual({
+            source: 'upload', url: 'url:version_assets/src/orig.jpg',
+            path: 'version_assets/src/orig.jpg', hash: 'orig', original: null})
     })
 
 })
