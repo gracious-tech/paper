@@ -416,6 +416,12 @@ addEventListener('securitypolicyviolation', event => {
         return
     }
 
+    // Ignore the script Facebook's iOS in-app browser injects into every page it opens (its
+    // Private Click Measurement, pcm.js). The app loads nothing from Facebook
+    if (event.blockedURI.startsWith('https://connect.facebook.net/')) {
+        return
+    }
+
     // Ignore what an extension caused, when the browser attributes it: the blocked resource or
     // the script that triggered the violation lives in an extension. Firefox labels code run in
     // an extension's sandbox (e.g. a userscript manager's) 'sandbox eval code', which page

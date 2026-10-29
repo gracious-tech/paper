@@ -384,7 +384,7 @@ describe('CSP violations', () => {
         })
     })
 
-    it('ignores extensions and Google\'s tracking pixel', async () => {
+    it('ignores extensions, Google\'s tracking pixel and Facebook\'s injected script', async () => {
         await load_errors()
         const fire = listeners['securitypolicyviolation']!
         fire(violation({blockedURI: 'chrome-extension'}))
@@ -393,6 +393,7 @@ describe('CSP violations', () => {
         fire(violation({sourceFile: 'sandbox eval code'}))
         fire(violation({blockedURI: 'https://www.google.com/images/cleardot.gif'}))
         fire(violation({blockedURI: 'https://apis.google.com/js/gen_204?x=1'}))
+        fire(violation({blockedURI: 'https://connect.facebook.net/en_US/pcm.js'}))
         expect(await sent_reports()).toEqual([])
     })
 
