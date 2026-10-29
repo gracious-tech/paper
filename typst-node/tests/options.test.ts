@@ -113,6 +113,22 @@ describe('compile_pdf options', () => {
 
 describe('compile_svg_preview options', () => {
 
+    it('reads back every page of a long book, in order', async () => {
+        // A stand-in CLI writing 1500 pages. Read all at once, they ran out of file descriptors
+        // on Lambda (1024), though a dev machine's limit is usually far too high to show it
+        const many_path = join(dir, 'typst-many-pages')
+        await writeFile(many_path, '#!/bin/sh\nout="$3"\n'
+            + 'dir=$(dirname "$out")\n'
+            + 'for i in $(seq -w 1 1500); do\n'
+            + '  printf \'<svg viewBox="0 0 10 20"><g>%s</g></svg>\' "$i" > "$dir/page-$i.svg"\n'
+            + 'done\n')
+        await chmod(many_path, 0o755)
+        const pages = await compile_svg_preview(make_request(), {typst_path: many_path})
+        expect(pages).toHaveLength(1500)
+        expect(pages.map(page => Number(/<g>(\d+)/.exec(page.inner)?.[1])))
+            .toEqual(Array.from({length: 1500}, (_, index) => index + 1))
+    }, 30000)
+
     it('writes assets and custom fonts for the SVG compile too', async () => {
         await writeFile(log_path, '')
         const pages = await compile_svg_preview(image_request(), {typst_path,

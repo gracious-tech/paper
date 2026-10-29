@@ -223,8 +223,13 @@ function make_svg_compile_fn(options:NodeCompileOptions|undefined, font_paths:st
                 .map(name => ({name, number: Number(/(\d+)\.svg$/.exec(name)?.[1] ?? NaN)}))
                 .filter(file => !Number.isNaN(file.number))
                 .sort((a, b) => a.number - b.number)
-            return await Promise.all(files.map(async file =>
-                parse_standalone_svg(await readFile(join(out_dir, file.name), 'utf-8'))))
+            // One file at a time: a long book is a thousand pages, and opening them all at once
+            // runs out of file descriptors (EMFILE)
+            const pages:SvgPage[] = []
+            for (const file of files) {
+                pages.push(parse_standalone_svg(await readFile(join(out_dir, file.name), 'utf-8')))
+            }
+            return pages
         } finally {
             await rm(tmp_dir, {recursive: true, force: true})
         }
