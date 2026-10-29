@@ -25,6 +25,9 @@ const ignore_errors = [
     // Scripts that in-app browsers inject into every page (Brave iOS, Facebook's Android IAB)
     '__firefox__',
     'iabjs://',
+    // A Safari extension messaging its own background page (DuckDuckGo's), which reaches the
+    // page with no stack to attribute it by. The app never messages an extension
+    'Invalid call to runtime.sendMessage()',
     // The user or OS cleared site data while Firebase's IndexedDB stores were open
     'Database deleted by request of the user',
     // A crawler's IndexedDB shared with other sites holds another project's Firestore cache
@@ -332,6 +335,19 @@ function is_abort(error:unknown):boolean{
 }
 
 
+function thrown_by_extension(error:unknown):boolean{
+    // Whether an uncaught error was thrown by a browser extension's own script: the top frame of
+    // its stack lives in one. Only the top frame, since an extension that wraps a page API sits
+    // further down the stack of the app's own failures too
+    // A frame is `    at fn (url:line:col)` in Chromium and `fn@url:line:col` elsewhere, which
+    // tells it apart from the message Chromium starts a stack with
+    const stack = (error as {stack?:unknown}|null)?.stack
+    const top = typeof stack === 'string'
+        ? stack.split('\n').find(line => /^\s+at\s|@\S+:\d+/.test(line)) : undefined
+    return !!top && extension_frame.test(top)
+}
+
+
 addEventListener('error', (event:ErrorEvent):void => {
     // Report uncaught errors, silently: nothing was waiting on the code that threw, so whether
     // the user was affected can't be known from here (and is usually not — a large share come
@@ -356,8 +372,9 @@ addEventListener('error', (event:ErrorEvent):void => {
         return
     }
 
-    // Ignore cancelled requests
-    if (is_abort(event.error)){
+    // Ignore cancelled requests, and errors from an extension's own script
+    if (is_abort(event.error) || extension_frame.test(event.filename ?? '')
+            || thrown_by_extension(event.error)){
         return
     }
 
@@ -367,8 +384,9 @@ addEventListener('error', (event:ErrorEvent):void => {
 
 
 addEventListener('unhandledrejection', event => {
-    // Report uncaught errors in promises (silently, as above), except cancelled requests
-    if (is_abort(event.reason)){
+    // Report uncaught errors in promises (silently, as above), except cancelled requests and
+    // an extension's own failures
+    if (is_abort(event.reason) || thrown_by_extension(event.reason)){
         return
     }
     report_error('silent', event.reason)
@@ -380,6 +398,8 @@ addEventListener('unhandledrejection', event => {
 const extension_schemes = ['chrome-extension', 'moz-extension', 'safari-extension',
     'safari-web-extension', 'ms-browser-extension', 'webkit-masked-url']
 const extension_url = new RegExp(`^(${extension_schemes.join('|')})(:|$)`)
+// The same, anywhere in a stack frame or script URL (see thrown_by_extension)
+const extension_frame = new RegExp(`(^|[\\s(@])(${extension_schemes.join('|')}):`)
 
 // Violations already reported this page load (directive + blocked URL + source), so a blocked
 // resource that keeps retrying, or an extension re-injecting on every render, reports once

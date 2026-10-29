@@ -198,6 +198,8 @@ describe('report_error', () => {
         const {report_error} = await load_errors()
         expect(report_error('silent', 'Database deleted by request of the user')).toBe('')
         expect(report_error('silent', new Error('at @safari-extension://x/y.js'))).toBe('')
+        expect(report_error('silent', 'Invalid call to runtime.sendMessage(). Tab not found.'))
+            .toBe('')
         expect(await sent_reports()).toEqual([])
         expect(report_error('silent', 'Database deleted by request of the user', {force: true}))
             .not.toBe('')
@@ -327,6 +329,31 @@ describe('uncaught errors', () => {
         listeners['error']!(error_event({error: abort}))
         listeners['unhandledrejection']!({reason: abort})
         expect(await sent_reports()).toEqual([])
+    })
+
+    it('ignores errors an extension\'s own script threw', async () => {
+        await load_errors()
+        const chromium = new Error('Cannot read properties of undefined (reading \'M_ID\')')
+        chromium.stack = `TypeError: ${chromium.message}\n`
+            + '    at W (chrome-extension://nimlm/executors/200.js:1:761)\n'
+            + '    at Q (chrome-extension://nimlm/executors/200.js:1:1442)'
+        const safari = new Error('Oops')
+        safari.stack = 'run@safari-web-extension://ABC/content.js:3:9\n@https://paper.bible/a.js:1:1'
+        listeners['error']!(error_event({error: chromium}))
+        listeners['error']!(error_event({message: 'Oops',
+            filename: 'moz-extension://abc/content.js'}))
+        listeners['unhandledrejection']!({reason: safari})
+        expect(await sent_reports()).toEqual([])
+    })
+
+    it('still reports the app\'s own errors that pass through an extension', async () => {
+        // An extension wrapping fetch sits further down the stack of the app's own failures
+        await load_errors()
+        const error = new Error('Mine')
+        error.stack = 'Error: Mine\n    at load (https://paper.bible/assets/index.js:1:2)\n'
+            + '    at fetch (chrome-extension://abc/wrap.js:1:1)'
+        listeners['unhandledrejection']!({reason: error})
+        expect((await sent_reports())[0]!.message).toContain('Mine')
     })
 
 })
