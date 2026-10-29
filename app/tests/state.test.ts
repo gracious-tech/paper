@@ -76,6 +76,15 @@ describe('report_failure', () => {
         expect(report_error).toHaveBeenCalledWith('silent', error, {critical: false})
     })
 
+    // Storage's SDK retries a transfer itself, and gives up with this code once it's out of time
+    it('counts a Storage transfer that ran out of retries as a lost connection', () => {
+        const error = Object.assign(new Error('Max retry time for operation exceeded'),
+            {code: 'storage/retry-limit-exceeded'})
+        report_failure(error, 'Could not upload the image')
+        expect(state.toast).toMatch(/connection/i)
+        expect(report_error).toHaveBeenCalledWith('silent', error, {critical: false})
+    })
+
 })
 
 

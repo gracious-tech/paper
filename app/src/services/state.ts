@@ -125,9 +125,11 @@ export function show_toast(message:string):void{
 // Tell the user something they just did didn't happen, and report why. Reported as critical,
 // since unlike an uncaught error this one is known to have reached the user. Losing the
 // connection gets its own message (and isn't critical), as that's the one cause the user can do
-// something about
+// something about: an API call that never reached the server, or a Storage transfer the SDK gave
+// up on after retrying it for minutes
 export function report_failure(error:unknown, message:string):void{
     const offline = error instanceof ApiOfflineError
+        || (error as {code?:unknown}|null)?.code === 'storage/retry-limit-exceeded'
     report_error('silent', error, {critical: !offline})
     show_toast(offline ? translate('common.offline') : message)
 }
