@@ -154,6 +154,13 @@ export function switch_to_server(reason:SwitchReason):void{
 }
 
 
+export function use_server_this_session():void{
+    // Send this page's compiles to the server without recording anything about the device: for
+    // a failure that was the connection's, not the device's (the engine couldn't be downloaded)
+    server_mode.value = true
+}
+
+
 function switch_to_browser(reason:'server_failed'|'recheck'):void{
     // Have this device compile in its own browser again, with a clean slate
     server_mode.value = false

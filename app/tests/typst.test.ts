@@ -25,6 +25,8 @@ vi.mock('@/services/compile_mode', () => compile_mode)
 // by itself (a recycle waits on both) unless a test holds those back
 class FakeWorker {
     static instances:FakeWorker[] = []
+    // Messages the next workers' inits fail with, one per worker
+    static init_failures:string[] = []
     sent:WorkerRequest[] = []
     terminated = false
     onmessage:((event:{data:WorkerResponse}) => void)|null = null
@@ -36,7 +38,10 @@ class FakeWorker {
 
     postMessage(message:WorkerRequest){
         this.sent.push(message)
-        if (message.action === 'init' || message.action === 'set_custom_fonts'){
+        const init_failure = message.action === 'init' ? FakeWorker.init_failures.shift() : undefined
+        if (init_failure){
+            queueMicrotask(() => this.fail(message.id, init_failure))
+        } else if (message.action === 'init' || message.action === 'set_custom_fonts'){
             queueMicrotask(() => this.ok(message.id, null))
         }
     }
@@ -92,12 +97,14 @@ async function make_client(){
 
 beforeEach(() => {
     FakeWorker.instances = []
+    FakeWorker.init_failures = []
     compile_mode.track_browser_compile.mockClear()
     vi.stubGlobal('Worker', FakeWorker)
 })
 
 afterEach(() => {
     vi.unstubAllGlobals()
+    vi.useRealTimers()
 })
 
 
@@ -167,6 +174,43 @@ describe('requests', () => {
         await worker().next('page_count')
         worker().onerror!({message: ''})
         await expect(third).rejects.toThrow('Typst worker failed')
+    })
+
+})
+
+
+describe('init', () => {
+
+    it('tries a failed download again on a fresh worker', async () => {
+        vi.useFakeTimers({toFake: ['setTimeout']})
+        FakeWorker.init_failures = ['Failed to fetch', 'Load failed']
+        const {TypstWorkerClient} = await import('@/services/typst')
+        const init = new TypstWorkerClient().init('https://assets.test/')
+        await vi.runAllTimersAsync()
+        await init
+        expect(FakeWorker.instances).toHaveLength(3)
+        expect(FakeWorker.instances.map(instance => instance.terminated)).toEqual([true, true, false])
+    })
+
+    it('gives up once every try has failed to download', async () => {
+        vi.useFakeTimers({toFake: ['setTimeout']})
+        FakeWorker.init_failures = Array(4).fill('NetworkError when attempting to fetch resource.')
+        const {TypstWorkerClient, is_fetch_failure} = await import('@/services/typst')
+        const init = new TypstWorkerClient().init('https://assets.test/')
+        const failed = init.catch((error:unknown) => error)
+        await vi.runAllTimersAsync()
+        expect(is_fetch_failure(await failed)).toBe(true)
+        expect(FakeWorker.instances).toHaveLength(4)
+    })
+
+    it('throws anything else straight away', async () => {
+        FakeWorker.init_failures = ['call to eval() blocked by CSP']
+        const {TypstWorkerClient, is_fetch_failure} = await import('@/services/typst')
+        const error = await new TypstWorkerClient().init('https://assets.test/')
+            .catch((caught:unknown) => caught)
+        expect(error).toEqual(new Error('call to eval() blocked by CSP'))
+        expect(is_fetch_failure(error)).toBe(false)
+        expect(FakeWorker.instances).toHaveLength(1)
     })
 
 })

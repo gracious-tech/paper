@@ -89,6 +89,16 @@ describe('switch_to_server', () => {
         expect(next.switch_provisional()).toBe(true)
     })
 
+    it('can switch for this page alone, recording nothing about the device', async () => {
+        const mode = await load()
+        mode.use_server_this_session()
+        expect(mode.compiles_on_server()).toBe(true)
+        expect(mode.switch_provisional()).toBe(false)
+        expect(storage.size).toBe(0)
+        expect(add_doc).not.toHaveBeenCalled()
+        expect((await load()).compiles_on_server()).toBe(false)
+    })
+
     it('does nothing more for a device already switched', async () => {
         const mode = await load({compile_on_server: '1'})
         mode.switch_to_server('memory')

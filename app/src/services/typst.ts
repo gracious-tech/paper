@@ -48,6 +48,19 @@ class FatalWorkerError extends Error {}
 export class AbandonedCompileError extends Error {}
 
 
+// Gaps between tries at starting the compiler when its files can't be downloaded (a connection
+// dropping as the page loads)
+const INIT_RETRY_GAPS_MS = [2000, 5000, 15000]
+
+
+export function is_fetch_failure(error:unknown):boolean {
+    // Whether an error relayed from the worker is fetch() failing to reach the network at all,
+    // in each engine's wording (Chromium, WebKit, Firefox)
+    return error instanceof Error
+        && /^(Failed to fetch|Load failed|NetworkError when attempting to fetch)/.test(error.message)
+}
+
+
 // Client for the Typst Web Worker: same async API as typst-web's TypstWeb class, but every call
 // is relayed to the worker (see typst_worker.ts) so WASM compilation never blocks the UI thread.
 // The worker is treated as disposable: its WASM compiler permanently accumulates memory for
@@ -217,9 +230,23 @@ export class TypstWorkerClient {
     }
 
     // Initialise the WASM compiler in the worker (base fonts only — fonts are (re)loaded per
-    // compile based on what each request needs)
+    // compile based on what each request needs). Its files failing to download is tried again
+    // after each of INIT_RETRY_GAPS_MS, on a fresh worker so nothing of the failed try lingers
     async init(assets_prefix:string):Promise<void> {
         this.assets_prefix = assets_prefix
+        for (const gap of INIT_RETRY_GAPS_MS){
+            try {
+                await this.send({action: 'init', assets_prefix})
+                return
+            } catch (error){
+                if (!is_fetch_failure(error)){
+                    throw error
+                }
+            }
+            await new Promise(resolve => setTimeout(resolve, gap))
+            this.worker.terminate()
+            this.spawn_worker()
+        }
         await this.send({action: 'init', assets_prefix})
     }
 

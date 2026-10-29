@@ -45,10 +45,11 @@ import {ensure_signed_in, is_email_link, stored_email_for_link, complete_email_l
 import {finish_email_link} from '@/services/account'
 import {init_designs, start_design_sync, start_viewed_sync} from '@/services/designs'
 import {content, bible_content, load_fonts} from '@/services/content'
-import {typst_generator, TypstWorkerClient, ASSETS_PREFIX} from '@/services/typst'
+import {typst_generator, TypstWorkerClient, ASSETS_PREFIX, is_fetch_failure} from '@/services/typst'
 import {custom_fonts} from '@/services/custom_fonts'
 import {start_watchers} from '@/services/watchers'
-import {check_crashed_compile, switch_to_server} from '@/services/compile_mode'
+import {check_crashed_compile, switch_to_server, use_server_this_session}
+    from '@/services/compile_mode'
 import {report_error, vue_error_handler, set_error_translator} from '@/services/errors'
 import {listen_for_install} from '@/services/install'
 
@@ -232,10 +233,15 @@ void (async () => {
     }).catch((error:unknown) => {
         // Without the engine nothing can be previewed or generated here, so the device compiles
         // on the server instead (unless it started and only re-sending the uploaded fonts
-        // failed). The user is only told if the server can't do it either (see AppRoot.vue)
+        // failed): from now on, unless only the connection kept the engine from downloading.
+        // The user is only told if the server can't do it either (see AppRoot.vue)
         if (!typst_generator.value){
             health.engine_failed = true
-            switch_to_server('engine')
+            if (is_fetch_failure(error)){
+                use_server_this_session()
+            } else {
+                switch_to_server('engine')
+            }
         }
         report_error('silent', error, {critical: true, context: {stage: 'typst_init'}})
     })
