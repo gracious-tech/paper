@@ -5,7 +5,10 @@
 //- not a v-dialog: those teleport inside the width-capped .v-application, while this must
 //- cover the whole viewport (the widget brings its own sidebar + preview)
 div.cover_editor(v-if='state.cover_editor')
-    iframe(ref='frame' :src='COVER_EDITOR_URL' :title='$t("dialog.cover.title")')
+    //- The widget can paste a background image in, which a cross-origin frame may only do when
+    //- this page delegates reading the clipboard to it
+    iframe(ref='frame' :src='COVER_EDITOR_URL' :title='$t("dialog.cover.title")'
+        allow='clipboard-read')
     //- Escape hatch for a wedged/failed iframe only — normal exits are the widget's own
     //- Finished/Cancel buttons
     v-btn.close(v-if='!loaded' @click='state.cover_editor = false' icon variant='text' color='white'
