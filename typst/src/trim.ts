@@ -33,16 +33,39 @@ export function usable_length(value:number):number {
 }
 
 
+// The size a cleared custom trim dimension stands in for (the default blueprint's), and the
+// smallest side laid out at all. A field mid-edit passes through every value on the way to the
+// one meant (typing 355 is 3 first), and a page a few mm across leaves Typst no room at all
+const FALLBACK_TRIM_MM = {width: 152, height: 229}
+const MIN_TRIM_MM = 25.4
+
+
+// The custom trim dimensions as a size that can be laid out. Like usable_length's fields, these
+// have no bounds: a cleared one hands back '' (which Typst reads as a bare unit, and bookcover
+// rejects), so that falls back to the default size, and a tiny one is raised to MIN_TRIM_MM
+export function usable_custom_trim(blue:Blueprint)
+        :{width:number, height:number, unit:MeasureUnit} {
+    const unit = blue.custom_unit
+    const side = (value:number, fallback_mm:number):number => {
+        if (typeof value !== 'number' || !Number.isFinite(value) || value <= 0) {
+            return convert_unit(fallback_mm, 'mm', unit)
+        }
+        return Math.max(value, convert_unit(MIN_TRIM_MM, 'mm', unit))
+    }
+    return {
+        width: side(blue.custom_trim_width, FALLBACK_TRIM_MM.width),
+        height: side(blue.custom_trim_height, FALLBACK_TRIM_MM.height),
+        unit,
+    }
+}
+
+
 // Work out the trim dimensions from the selected printing service + named size, or the
 // manually entered custom dimensions
 export function resolve_trim(blue:Blueprint):{width:number, height:number, unit:MeasureUnit} {
 
     // Custom dimensions (no named size selected)
-    const custom = {
-        width: blue.custom_trim_width,
-        height: blue.custom_trim_height,
-        unit: blue.custom_unit,
-    }
+    const custom = usable_custom_trim(blue)
     if (blue.size_id === '') {
         return custom
     }

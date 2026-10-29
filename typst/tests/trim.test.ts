@@ -76,6 +76,24 @@ describe('resolve_trim', () => {
         expect(trim.height).toBeGreaterThan(trim.width)
     })
 
+    it('lays out a cleared custom dimension at the default size', () => {
+        // A cleared field hands back '', which reached Typst as the bare unit (`width: mm`)
+        const cleared = custom_blueprint('' as unknown as number, 8, 'inch')
+        expect(resolve_trim(cleared)).toEqual({width: 152 / 25.4, height: 8, unit: 'inch'})
+        expect(resolve_trim(custom_blueprint(120, 0, 'mm')))
+            .toEqual({width: 120, height: 229, unit: 'mm'})
+        expect(resolve_trim(custom_blueprint(-5, NaN, 'mm')))
+            .toEqual({width: 152, height: 229, unit: 'mm'})
+    })
+
+    it('raises a tiny custom dimension to an inch', () => {
+        // Typing 355 passes through 3, and a 3mm page traps the WASM compiler
+        expect(resolve_trim(custom_blueprint(3, 190, 'mm')))
+            .toEqual({width: 25.4, height: 190, unit: 'mm'})
+        expect(resolve_trim(custom_blueprint(0.5, 8, 'inch')))
+            .toEqual({width: 1, height: 8, unit: 'inch'})
+    })
+
     it('falls back to custom dimensions for an unknown named size', () => {
         const blue = {size_id: 'not_a_real_size', service_id: 'home', custom_unit: 'inch',
             custom_trim_width: 4, custom_trim_height: 6} as unknown as Blueprint

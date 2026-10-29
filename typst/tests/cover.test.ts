@@ -67,6 +67,17 @@ describe('cover_form_for_render size_mode', () => {
         expect(form['size_mode']).toBe('custom')
     })
 
+    it('never sends bookcover a cleared custom dimension', () => {
+        // bookcover validates the custom size even for a preset, so '' failed every render
+        const cleared = {...minimal_blueprint, custom_unit: 'mm', custom_trim_width: 120,
+            custom_trim_height: ''} as unknown as Blueprint
+        for (const blueprint of [cleared, {...cleared, size_id: 'a5'} as Blueprint]){
+            const form = cover_form_for_render(make_cover(null), blueprint, 100)
+            expect(form['custom_trim_width']).toBe(120)
+            expect(form['custom_trim_height']).toBe(229)
+        }
+    })
+
     it('is preset for a non-booklet with a named size', () => {
         const preset = {...minimal_blueprint, size_id: 'a5', booklet: false} as Blueprint
         const form = cover_form_for_render(make_cover(null), preset, 100)

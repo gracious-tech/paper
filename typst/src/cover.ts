@@ -8,7 +8,7 @@
 
 import {get_builtin_bg, resolve_dimensions} from 'bookcover-core'
 
-import {resolve_reading_trim, usable_length} from './trim.js'
+import {resolve_reading_trim, usable_length, usable_custom_trim} from './trim.js'
 
 import type {DimensionInputs} from 'bookcover-core'
 import type {Blueprint, CoverConfig} from './types.js'
@@ -73,9 +73,12 @@ export function cover_form_for_render(cover:CoverConfig, blueprint:Blueprint,
     // blank-size_id sentinel; size_id is still sent but is only meaningful when 'preset'
     const size_mode = (blueprint.booklet || !blueprint.size_id) ? 'custom' : 'preset'
     const size_id = size_mode === 'preset' ? blueprint.size_id : ''
-    const unit = blueprint.booklet ? trim.unit : blueprint.custom_unit
-    const trim_width = blueprint.booklet ? trim.width : blueprint.custom_trim_width
-    const trim_height = blueprint.booklet ? trim.height : blueprint.custom_trim_height
+    // bookcover validates the custom size even for a preset, so a cleared field (see
+    // usable_custom_trim) would fail every cover render until it was filled in again
+    const custom = usable_custom_trim(blueprint)
+    const unit = blueprint.booklet ? trim.unit : custom.unit
+    const trim_width = blueprint.booklet ? trim.width : custom.width
+    const trim_height = blueprint.booklet ? trim.height : custom.height
 
     return {
         ...cover.form,
