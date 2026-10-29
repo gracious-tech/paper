@@ -4,7 +4,7 @@
 
 import {describe, it, expect, vi, beforeEach, afterEach} from 'vitest'
 
-import {retry_network} from '@/services/network_retry'
+import {retry_network, retry_startup} from '@/services/network_retry'
 import {version_progress} from '@/services/compile_progress'
 
 
@@ -101,4 +101,42 @@ describe('retry_network', () => {
         expect(await result).toBe('done')
         expect('v' in version_progress).toBe(false)
     })
+})
+
+
+describe('retry_startup', () => {
+
+    const network_error = new TypeError('Failed to fetch')
+    const is_network = (error:unknown) => error === network_error
+
+    it('tries a step that couldn\'t reach the network twice more, after short gaps', async () => {
+        const attempt = vi.fn()
+            .mockRejectedValueOnce(network_error)
+            .mockRejectedValueOnce(network_error)
+            .mockResolvedValue('manifest')
+        const result = retry_startup(attempt, is_network)
+        await vi.advanceTimersByTimeAsync(999)
+        expect(attempt).toHaveBeenCalledTimes(1)
+        await vi.advanceTimersByTimeAsync(1)
+        expect(attempt).toHaveBeenCalledTimes(2)
+        await vi.advanceTimersByTimeAsync(3000)
+        expect(await result).toBe('manifest')
+        expect(attempt).toHaveBeenCalledTimes(3)
+    })
+
+    it('throws the last try\'s failure', async () => {
+        const attempt = vi.fn().mockRejectedValue(network_error)
+        const result = retry_startup(attempt, is_network).catch((error:unknown) => error)
+        await vi.runAllTimersAsync()
+        expect(await result).toBe(network_error)
+        expect(attempt).toHaveBeenCalledTimes(3)
+    })
+
+    it('throws anything else at once', async () => {
+        const other = new Error('Bad manifest')
+        const attempt = vi.fn().mockRejectedValue(other)
+        await expect(retry_startup(attempt, is_network)).rejects.toBe(other)
+        expect(attempt).toHaveBeenCalledOnce()
+    })
+
 })

@@ -162,6 +162,22 @@ describe('ensure_signed_in', () => {
         expect(sdk.signInAnonymously).toHaveBeenCalledOnce()
     })
 
+    // A connection that drops as the page loads costs a second try, not the boot
+    it('tries signing in again when it couldn\'t reach the network', async () => {
+        vi.useFakeTimers({toFake: ['setTimeout']})
+        sdk.signInAnonymously.mockRejectedValueOnce(auth_error('auth/network-request-failed'))
+        const signed_in = ensure_signed_in()
+        await vi.runAllTimersAsync()
+        expect((await signed_in).uid).toBe('guest')
+        expect(sdk.signInAnonymously).toHaveBeenCalledTimes(2)
+    })
+
+    it('doesn\'t retry any other sign-in failure', async () => {
+        sdk.signInAnonymously.mockRejectedValueOnce(auth_error('auth/operation-not-allowed'))
+        await expect(ensure_signed_in()).rejects.toThrow('auth/operation-not-allowed')
+        expect(sdk.signInAnonymously).toHaveBeenCalledOnce()
+    })
+
 })
 
 

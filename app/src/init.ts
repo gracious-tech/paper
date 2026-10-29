@@ -43,6 +43,7 @@ import {router} from '@/services/router'
 import {ensure_signed_in, is_email_link, stored_email_for_link, complete_email_link}
     from '@/services/auth'
 import {finish_email_link} from '@/services/account'
+import {retry_startup} from '@/services/network_retry'
 import {init_designs, start_design_sync, start_viewed_sync} from '@/services/designs'
 import {content, bible_content, load_fonts} from '@/services/content'
 import {typst_generator, TypstWorkerClient, ASSETS_PREFIX, is_fetch_failure} from '@/services/typst'
@@ -184,7 +185,9 @@ void (async () => {
     // `content.collection`/`content.translations` throughout (clean_blueprint and
     // get_default_blueprint in blueprints.ts, content_summary via meta_from_doc), so nothing
     // below this line can run without it
-    await Promise.all([ensure_signed_in(), bible_content.init(), locale_ready])
+    await Promise.all([ensure_signed_in(),
+        retry_startup(() => bible_content.init(), error => error instanceof FetchNetworkError),
+        locale_ready])
 
     // A phone whose last session died mid-compile compiles on the server from now on (signed in
     // first, so the switch is recorded against the user)

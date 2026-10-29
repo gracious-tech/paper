@@ -8,6 +8,7 @@ import type {User, AuthError} from 'firebase/auth'
 import {firebase_auth} from '@/services/firebase'
 import {api} from '@/services/api'
 import {set_error_auth} from '@/services/errors'
+import {retry_startup} from '@/services/network_retry'
 
 
 // localStorage key holding the address an email sign-in link was sent to (per Firebase docs)
@@ -70,7 +71,8 @@ export async function ensure_signed_in():Promise<User>{
     // NOTE Auth state persists in IndexedDB, so returning visitors keep their anonymous uid
     await firebase_auth.authStateReady()
     if (!firebase_auth.currentUser){
-        await signInAnonymously(firebase_auth)
+        await retry_startup(() => signInAnonymously(firebase_auth), error =>
+            (error as {code?:unknown}|null)?.code === 'auth/network-request-failed')
     }
     user.value = firebase_auth.currentUser
     return firebase_auth.currentUser!

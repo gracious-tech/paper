@@ -2,6 +2,7 @@
 // Riding out a lost connection partway through a version's compile. What a compile has produced
 // by then (a finished PDF, a version ready to hand to the server) exists only in this tab, so a
 // step that can't reach the network waits for it to come back rather than throwing that away.
+// Starting the app gets a few quick retries of its own too (see retry_startup).
 
 import {version_progress} from '@/services/compile_progress'
 
@@ -58,4 +59,29 @@ export async function retry_network<T>(attempt:() => Promise<T>,
             await new Promise(resolve => setTimeout(resolve, gap))
         }
     }
+}
+
+
+// Gaps between tries at a step the app can't start without (signing in, fetch.bible's manifest)
+// that failed to reach the network. Few and short, since the loading screen is all the user sees
+// meanwhile, and a network that blocks the service outright fails every try
+const STARTUP_RETRY_GAPS_MS = [1000, 3000]
+
+
+export async function retry_startup<T>(attempt:() => Promise<T>,
+        is_network:(error:unknown) => boolean):Promise<T>{
+    // Run a step of starting the app, trying again after STARTUP_RETRY_GAPS_MS when it fails for
+    // want of a connection (a mobile signal dropping as the page loads). Anything else, and the
+    // last try's failure, it throws
+    for (const gap of STARTUP_RETRY_GAPS_MS){
+        try {
+            return await attempt()
+        } catch (error){
+            if (!is_network(error)){
+                throw error
+            }
+        }
+        await new Promise(resolve => setTimeout(resolve, gap))
+    }
+    return await attempt()
 }
