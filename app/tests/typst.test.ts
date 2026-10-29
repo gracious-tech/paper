@@ -203,6 +203,23 @@ describe('init', () => {
         expect(FakeWorker.instances).toHaveLength(4)
     })
 
+    it('tries a worker that failed to start again', async () => {
+        vi.useFakeTimers({toFake: ['setTimeout']})
+        const {TypstWorkerClient} = await import('@/services/typst')
+        const client = new TypstWorkerClient()
+        // The first worker's script never loads: no answer, only an error event
+        const first = worker()
+        first.postMessage = (message:WorkerRequest) => {
+            first.sent.push(message)
+            queueMicrotask(() => first.onerror?.({message: ''}))
+        }
+        const init = client.init('https://assets.test/')
+        await vi.runAllTimersAsync()
+        await init
+        expect(FakeWorker.instances).toHaveLength(2)
+        expect(first.terminated).toBe(true)
+    })
+
     it('throws anything else straight away', async () => {
         FakeWorker.init_failures = ['call to eval() blocked by CSP']
         const {TypstWorkerClient, is_fetch_failure} = await import('@/services/typst')

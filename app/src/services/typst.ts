@@ -43,6 +43,10 @@ interface PendingHandlers {
 // the fresh worker (see send_compile)
 class FatalWorkerError extends Error {}
 
+// The worker script itself failing (it never loaded, or threw outside any request), which comes
+// with no detail beyond the browser's ErrorEvent
+class WorkerCrashError extends Error {}
+
 
 // Failure of a request whose worker was thrown away before it answered (see abandon)
 export class AbandonedCompileError extends Error {}
@@ -132,7 +136,7 @@ export class TypstWorkerClient {
         // A crash of the worker script itself (rather than a handled compile error) fails all
         // in-flight calls, since no response will ever arrive for them
         this.worker.onerror = event => {
-            const error = new Error(event.message || 'Typst worker failed')
+            const error = new WorkerCrashError(event.message || 'Typst worker failed')
             for (const handlers of this.pending.values()){
                 handlers.reject(error)
             }
@@ -230,8 +234,9 @@ export class TypstWorkerClient {
     }
 
     // Initialise the WASM compiler in the worker (base fonts only — fonts are (re)loaded per
-    // compile based on what each request needs). Its files failing to download is tried again
-    // after each of INIT_RETRY_GAPS_MS, on a fresh worker so nothing of the failed try lingers
+    // compile based on what each request needs). Its files failing to download, or the worker
+    // failing to start at all, is tried again after each of INIT_RETRY_GAPS_MS, on a fresh worker
+    // so nothing of the failed try lingers
     async init(assets_prefix:string):Promise<void> {
         this.assets_prefix = assets_prefix
         for (const gap of INIT_RETRY_GAPS_MS){
@@ -239,7 +244,7 @@ export class TypstWorkerClient {
                 await this.send({action: 'init', assets_prefix})
                 return
             } catch (error){
-                if (!is_fetch_failure(error)){
+                if (!is_fetch_failure(error) && !(error instanceof WorkerCrashError)){
                     throw error
                 }
             }
