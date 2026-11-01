@@ -745,7 +745,9 @@ After that, every push to `main` deploys itself. The scripts still work by hand
   previews and builds (the cover editor asks the server once when its estimate is stale,
   waiting at most 20s). Only the device's own failures switch it (`is_device_failure()`:
   `BrowserMemoryError`, `SlowCompileError`, plus the engine failing to start and a crash); an
-  error in generated Typst or a lost connection never does. **Phones and desktops differ**,
+  error in generated Typst or a lost connection never does. An old iOS device (16 or earlier,
+  `is_old_ios()`: Safari's `Version/`, else the OS token) starts in server mode and never
+  re-checks, recording nothing. **Phones and desktops differ**,
   since a phone that can't cope can lose the tab while a desktop is only slow, and a desktop in
   server mode loses its live preview. A phone switches on its first failure, for good (a TODO
   to revisit). A desktop collects strikes (`compile_strikes`: the server winning a race 1, a

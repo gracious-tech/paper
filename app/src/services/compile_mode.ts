@@ -19,6 +19,8 @@
 // if the server fails it too, the fault was more likely the document or our own code than the
 // device, which is switched back.
 //
+// An old iOS device (see is_old_ios) skips all of that and starts on the server.
+//
 // The choice is this browser's alone, in localStorage: it's about the device, so it mustn't
 // follow the account to another one.
 //
@@ -105,8 +107,31 @@ function write_key(key:string, value:string|null):void{
 }
 
 
+// The newest iOS counted as old. A device still on 16 or earlier is almost always one that can't
+// run iOS 17 (an iPhone X or 8 at the newest), and old iPhones are the ones the browser compiler
+// runs out of memory on, which on iOS loses the user's tab rather than raising an error
+const OLD_IOS_MAX = 16
+
+
+export function is_old_ios(user_agent:string):boolean{
+    // Whether a browser runs on an old iPhone/iPad (see OLD_IOS_MAX). Safari gives its real
+    // version as `Version/26.1` while freezing the OS token (iOS 26 still says `OS 18_7`); in-app
+    // browsers and Chrome only carry the OS token, which they don't freeze. An iPad asking for the
+    // desktop site claims to be a Mac, so it can't be told apart and compiles in its browser
+    if (!/\b(iPhone|iPad|iPod)\b/.test(user_agent)){
+        return false
+    }
+    const version = /\bVersion\/(\d+)/.exec(user_agent) ?? /\bOS (\d+)_/.exec(user_agent)
+    return !!version && Number(version[1]) <= OLD_IOS_MAX
+}
+
+
+// An old iOS device compiles on the server from the start, without ever trying its own browser
+// (or recording a switch, since nothing was learnt about it)
+const old_ios = is_old_ios(navigator.userAgent)
+
 // Whether this device has been switched to compiling on the server (provisionally or for good)
-export const server_mode = ref(read_key(MODE_KEY) !== null)
+export const server_mode = ref(old_ios || read_key(MODE_KEY) !== null)
 
 // Whether that switch still awaits the server doing the same kind of job (see settle_server_mode)
 let provisional = read_key(MODE_KEY) === 'provisional'
@@ -162,8 +187,9 @@ export function use_server_this_session():void{
 
 
 function switch_to_browser(reason:'server_failed'|'recheck'):void{
-    // Have this device compile in its own browser again, with a clean slate
-    server_mode.value = false
+    // Have this device compile in its own browser again, with a clean slate (unless it's an old
+    // iOS device, which always compiles on the server)
+    server_mode.value = old_ios
     provisional = false
     write_key(MODE_KEY, null)
     write_key(STRIKES_KEY, null)
@@ -192,7 +218,7 @@ export function clear_strikes():void{
 export function recheck_due():boolean{
     // Whether a desktop in server mode should try its own browser beside this server preview
     // (see recheck_passed/recheck_failed), counting this preview towards the next re-check
-    if (!server_mode.value || is_mobile_now()){
+    if (!server_mode.value || is_mobile_now() || old_ios){
         return false
     }
     let state = {left: RECHECK_FIRST, interval: RECHECK_FIRST}

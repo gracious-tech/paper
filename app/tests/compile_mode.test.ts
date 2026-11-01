@@ -33,9 +33,20 @@ let storage:Map<string, string>
 let listeners:Record<string, () => void>
 
 
-async function load(stored:Record<string, string> = {}){
-    // A fresh compile_mode.ts, as a page load finds it with the given storage
+// User agents: a current iPhone's Safari (whose OS token iOS 26 freezes at 18_x), and Chrome on
+// a desktop
+const IPHONE_NEW = 'Mozilla/5.0 (iPhone; CPU iPhone OS 18_7 like Mac OS X) AppleWebKit/605.1.15'
+    + ' (KHTML, like Gecko) Version/26.6.1 Mobile/15E148 Safari/604.1'
+const IPHONE_OLD = 'Mozilla/5.0 (iPhone; CPU iPhone OS 15_8_8 like Mac OS X) AppleWebKit/605.1.15'
+    + ' (KHTML, like Gecko) Version/15.6.8 Mobile/15E148 Safari/604.1'
+const DESKTOP = 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko)'
+    + ' Chrome/155.0.0.0 Safari/537.36'
+
+
+async function load(stored:Record<string, string> = {}, user_agent = DESKTOP){
+    // A fresh compile_mode.ts, as a page load finds it with the given storage and browser
     vi.resetModules()
+    vi.stubGlobal('navigator', {userAgent: user_agent})
     storage = new Map(Object.entries(stored))
     listeners = {}
     vi.stubGlobal('localStorage', {
@@ -105,6 +116,45 @@ describe('switch_to_server', () => {
         expect(mode.switch_provisional()).toBe(false)
         expect(add_doc).not.toHaveBeenCalled()
     })
+})
+
+
+describe('old iOS devices', () => {
+
+    it('tells old iOS apart by Safari\'s version, or the OS token where there\'s none', async () => {
+        const {is_old_ios} = await load()
+        expect(is_old_ios(IPHONE_OLD)).toBe(true)
+        expect(is_old_ios(IPHONE_NEW)).toBe(false)
+        expect(is_old_ios(DESKTOP)).toBe(false)
+        // An iPad's Safari, and in-app browsers (Facebook, Chrome) with no Version/ at all
+        expect(is_old_ios('Mozilla/5.0 (iPad; CPU OS 16_7_10 like Mac OS X) AppleWebKit/605.1.15'
+            + ' (KHTML, like Gecko) Version/16.6 Mobile/15E148 Safari/604.1')).toBe(true)
+        expect(is_old_ios('Mozilla/5.0 (iPhone; CPU iPhone OS 16_7_12 like Mac OS X)'
+            + ' AppleWebKit/605.1.15 (KHTML, like Gecko) Mobile/20H364 [FBAN/FBIOS;FBAV/584.0]'))
+            .toBe(true)
+        expect(is_old_ios('Mozilla/5.0 (iPhone; CPU iPhone OS 26_6_2 like Mac OS X)'
+            + ' AppleWebKit/605.1.15 (KHTML, like Gecko) CriOS/156.0 Mobile/15E148 Safari/604.1'))
+            .toBe(false)
+    })
+
+    it('start on the server, without recording a switch', async () => {
+        const mode = await load({}, IPHONE_OLD)
+        expect(mode.compiles_on_server()).toBe(true)
+        expect(mode.switch_provisional()).toBe(false)
+        expect(storage.size).toBe(0)
+        expect(add_doc).not.toHaveBeenCalled()
+        expect((await load({}, IPHONE_NEW)).compiles_on_server()).toBe(false)
+    })
+
+    it('stay on the server, re-check or not', async () => {
+        mobile.value = false
+        const mode = await load({compile_on_server: 'provisional',
+            compile_recheck: JSON.stringify({left: 1, interval: 20})}, IPHONE_OLD)
+        expect(mode.recheck_due()).toBe(false)
+        mode.settle_server_mode(false)
+        expect(mode.compiles_on_server()).toBe(true)
+    })
+
 })
 
 
