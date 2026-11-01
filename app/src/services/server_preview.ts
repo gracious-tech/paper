@@ -9,7 +9,7 @@
 // in the design's cache prefix: the same pages and cover the browser makes (see preview.ts), as
 // JSON.
 
-import {doc, onSnapshot} from 'firebase/firestore'
+import {doc, onSnapshot, waitForPendingWrites} from 'firebase/firestore'
 import {ref as storage_ref, getBytes} from 'firebase/storage'
 
 import {blue, page_count_guess} from '@/services/state'
@@ -72,8 +72,12 @@ export async function request_server_preview(size:PreviewSize, section:PreviewSe
     const signature = render_signature()
     const rendered_from = cover_json(blue.cover)
 
-    // The server reads the design from Firestore, and can't mask images itself
+    // The server reads the design from Firestore, and can't mask images itself. Every write has to
+    // have landed, not just the latest edits: a new design shows in this tab (and can be opened)
+    // before its creation reaches Firestore, which on a slow connection took minutes, during
+    // which the server knew no such design
     await flush_changes()
+    await waitForPendingWrites(firestore)
     if (is_masked_image_style(blue.image_style)){
         await resolve_content_for_style(design_id, blue.content, blue.image_style)
     }

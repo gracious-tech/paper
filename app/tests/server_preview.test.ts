@@ -21,6 +21,7 @@ const mocks = vi.hoisted(() => ({
     api: vi.fn(),
     get_bytes: vi.fn(),
     flush_changes: vi.fn(async () => undefined),
+    wait_for_pending_writes: vi.fn(async () => undefined),
     resolve_content_for_style: vi.fn(async () => undefined),
     set_page_estimate: vi.fn(),
     fresh_estimate: vi.fn(() => null as number|null),
@@ -38,6 +39,7 @@ vi.mock('firebase/firestore', () => ({
         listener.on_error = on_error
         return listener.unsubscribe
     },
+    waitForPendingWrites: mocks.wait_for_pending_writes,
 }))
 vi.mock('firebase/storage', () => ({
     ref: (_storage:unknown, path:string) => path,
@@ -134,6 +136,21 @@ describe('request_server_preview', () => {
         expect(mocks.api).not.toHaveBeenCalled()
     })
 
+    // A new design is visible here before its creation reaches Firestore, and the server only
+    // knows what Firestore has
+    it('asks only once every pending write has landed', async () => {
+        let land = () => {}
+        mocks.wait_for_pending_writes.mockReturnValueOnce(new Promise<undefined>(resolve => {
+            land = () => resolve(undefined)
+        }))
+        const pending = request_server_preview('desktop', 'end')
+        await vi.waitFor(() => expect(mocks.wait_for_pending_writes).toHaveBeenCalled())
+        expect(mocks.api).not.toHaveBeenCalled()
+        land()
+        await vi.waitFor(() => expect(mocks.api).toHaveBeenCalled())
+        void pending.catch(() => undefined)
+    })
+
     it('flushes, asks, and returns the pages and covers the server made', async () => {
         mocks.get_bytes.mockResolvedValue(await file_bytes())
         const progress = vi.fn()
@@ -145,6 +162,7 @@ describe('request_server_preview', () => {
 
         expect(progress).toHaveBeenCalledWith({stage: 'server'})
         expect(mocks.flush_changes).toHaveBeenCalled()
+        expect(mocks.wait_for_pending_writes).toHaveBeenCalled()
         expect(mocks.api).toHaveBeenCalledWith('/api/preview',
             {design_id: 'design_1', page_count: 0, size: 'desktop', section: 'end'})
         expect(mocks.get_bytes).toHaveBeenCalledWith('design_cache/design_1/preview_1.json')
