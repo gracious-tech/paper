@@ -75,7 +75,9 @@ Live at [paper.bible](https://paper.bible). MIT No Attribution license.
    `cover_only` (the interior is published first, its cover `pending`). A tab that dies
    mid-compile throws nothing to fall back from (iOS reloads a page that runs out of memory),
    so opening a design hands the user's pending versions the server hasn't started to it
-   (`resume_abandoned_versions()`), and a stuck version's Retry always goes to the server
+   (`resume_abandoned_versions()`), and a stuck version's Retry always goes to the server —
+   unless its `doc.pdf` already landed and only the status write was lost, which Retry adopts
+   in place (`adopt_pending_pdf()`; create-once means it couldn't be re-uploaded anyway)
 6. PDFs live in Storage for 1 year (GCS lifecycle rule); *only the PDFs expire* — the
    metadata and the design's frozen `version_assets/` snapshots stay, so the PDF can be
    regenerated (same hybrid path) afterwards
@@ -689,6 +691,10 @@ After that, every push to `main` deploys itself. The scripts still work by hand
   `Dialog*`, `App*` (global)
 - State: module-level Vue reactives in services (no Pinia); `blue` is the open design;
   routing is vue-router (`services/router.ts`), not a reactive field
+- **No native `confirm()`/`prompt()`/`alert()`**: use `confirm_dialog()`/`prompt_dialog()`/
+  `alert_dialog()` from `state.ts` (promise-based, rendered by the `Dialog*` mounted in `AppRoot`)
+- `app/src/vendor/coloris/` is bookcover's **fork** of Coloris (numeric RGB/HSL fields, always-hex
+  output, swatch groups), copied verbatim and not on npm — re-copy it when bookcover patches theirs
 
 
 ## Gotchas
@@ -699,6 +705,10 @@ After that, every push to `main` deploys itself. The scripts still work by hand
   `-_~`), not dotted strings — see `gen_updates()` in `designs.ts`
 - **Snapshot echoes:** design sync skips `metadata.hasPendingWrites` snapshots and
   advances its `synced` base optimistically on flush — read `designs.ts` before touching
+- **A read rule on a doc the client listens to must allow `resource == null`.** Reading
+  `resource.data` on a missing doc is an evaluation error, not `false`, so the listener gets an
+  error instead of the snapshot that shows the doc was deleted (`open_design()`/`delete_design()`
+  rely on seeing it). Harmless with unguessable ids — see `designs`/`previews` in `firestore.rules`
 - **Storage create-once:** clients can never overwrite/delete `versions/*/doc.pdf`;
   regen works because the lifecycle rule deleted the object (create passes again)
 - **Deleting is server-only.** `/api/delete_design` and `/api/delete_version` exist because
@@ -728,7 +738,19 @@ After that, every push to `main` deploys itself. The scripts still work by hand
   the turn and the estimate first, the one window where a dying tab still loses the build
 - **Lambda-era leftovers** live under `.private/generator/` — dead code, ignore
 - **WASM memory:** the Typst worker leaks per unique source; `TypstWorkerClient`
-  recycles worn workers automatically (see `typst.ts`)
+  recycles worn workers automatically (see `typst.ts`). Terminating the worker is the only fix:
+  the wasm-bindgen module is a per-realm singleton, so `compiler.reset()` or a fresh
+  `createTypstCompiler()` frees nothing (tried)
+- **Vue reactive state can't be posted to a worker or iframe as is.** A shallow spread of
+  something inside `blue` still holds nested `Proxy`s, which structured clone rejects with a
+  `DataCloneError`; deep-copy first (`cloneDeep(toRaw(...))`, as `cover.ts` does)
+- **Every PDF output goes through `apply_metadata()`** (`pdf_postprocess.ts`), which runs
+  `optimize_pdf()`: pdf-lib's copy/embedPages duplicate Typst's font subsets on every call and
+  leave orphaned pages behind, so an output path that skips it comes out several times the size
+- **User-uploaded fonts may keep overlapping glyph contours**, which print as white gaps on
+  even-odd RIPs (Lulu). Curated fonts are fixed upstream (bookcover's `--remove-overlaps`); for
+  custom fonts the user ruled it out of scope, so don't fix or warn about it, and leave
+  `FontUploadModal`'s guidance as is
 - **Page assembly is shared by PDF and SVG** (`typst/src/assemble.ts`): blank padding, title
   sides, half-blank notes pages, facing-page splits and the pinned last page work on references
   to compiled pages, and a backend turns them into output. Change the sequence there, never in
@@ -781,13 +803,24 @@ After that, every push to `main` deploys itself. The scripts still work by hand
   in `gen_footnote_rules()` for a long time this way. Anything that styles the footnote area
   (size, separator, width cap) belongs in `gen_preamble()`; per-passage variation can only be
   expressed as a *binding*, like the `#let footnote(..args) = none` shadow that disables notes,
-  which resolves where the content calls it rather than where the page lays the entry out.
+  which resolves where the content calls it rather than where the page lays the entry out
+  (`#show footnote: none` would hide only the in-text call; the entry and separator still print).
   Preamble rules do stack: a `show footnote.entry: set text(...)` and a
   `show footnote.entry: it => box(...)` recipe compose fine. Entries also ignore the styles where
   the note was *called*: a footnote from an LTR scope, or one whose body opens with
   `set text(dir: ltr)`, still lays its entry out in the page's direction. That's why study notes
   carry a `<pb-studynote>` label, which a preamble rule picks out to give them their own
   language and direction (`gen_notes_locale()` in `preamble.ts`)
+- **Never put a book's worth of content in one layout container.** Footnotes inside a breakable
+  `#columns`/`#grid`/block make Typst re-lay the whole region per footnote: Psalms in one
+  2-column block peaked near 7GB, a bilingual book as one two-cell grid 22GB, beyond both the
+  compile Lambda and the browser's 4GB WASM heap. Hence page-level columns (`#set page(columns:
+  2)` from `gen_page_columns()`, emitted at top level, breaking the page when the count changes)
+  and bilingual as one `#grid` *per alignment row* (`gen_multi_bible_grids()`, `bibles_align`) —
+  a single multi-row grid is still one region. Per-chapter `#columns` blocks bound memory but
+  each eats the rest of its page (+45% pages in Psalms). The bilingual `alternate` layout is
+  facing pages: compiled double-width, then halved by `split_facing()` (embedPage's bbox already
+  normalises to the origin, so `drawPage` must not translate as well)
 - **Text direction is always set explicitly, never inferred from `lang`.** Typst works direction
   out from `lang`, but only for a handful of ISO 639-1 codes: `hbo` (Ancient Hebrew), `arb`,
   `ckb`, `uig` etc. silently lay out LTR, and `pa` is assumed RTL though fetch.bible's Punjabi is
@@ -813,17 +846,39 @@ After that, every push to `main` deploys itself. The scripts still work by hand
   also that a green `typst-node` suite says nothing about the browser: it shells out to the
   Typst CLI and never touches the WASM engine the app actually compiles with. `typst-web`'s
   suite does run that engine, in Node with every fetch answered locally, but its font files
-  404, so it checks the engine's plumbing (fonts, errors, SVG, blob URLs), not how text looks
+  404, so it checks the engine's plumbing (fonts, errors, SVG, blob URLs), not how text looks.
+  The CLI and the browser engine are the same Typst version by rule (`.typst-version`, mapped to
+  the exact `@myriaddreamin/*` versions in `.bin/setup_typst`) — bump them together, never one
 - **clean_blueprint()** (`blueprints.ts`) validates untrusted blueprints (Firestore docs
   from co-editors) via the zod schemas in `typst/src/blueprint_schema.ts`, content items
   included. Those schemas are type-locked to the interfaces in `typst/src/types.ts` with
   `satisfies z.ZodType<...>`, so adding a Blueprint field without a schema entry (or vice
   versa) is a compile error. `clean_wizard_draft()`/`read_wizard_state()` in `new_design.ts`
   do the same job for the wizard draft, which is stored beside the blueprint
+- **Stored data is live, so a shape change needs a forward migration.** A Blueprint rename,
+  retype, or anything that needs the old value to work out the new one gets a step in
+  `MIGRATIONS` (`typst/src/migrate.ts`) and a `SCHEMA_VERSION` bump (`typst/src/consts.ts`) in
+  the same commit; added or dropped fields need none, since `clean_blueprint()` defaults and
+  strips them. Docs are never rewritten, so steps run on every read and can't be edited once
+  shipped, only followed; a version migrates a clone (`migrate_version_blueprint`), never written
+  back. Other stored shapes (Firestore fields, Storage paths) need their migration worked out first
+- **A content item's `title` has three states:** `null` is auto (a heading generated from the
+  item's own reference at render time, `effective_passage_title()` in `bible_content.ts`), `''`
+  is deliberately no heading, anything else is custom. Never coalesce `null` and `''` — the
+  editors' "Auto" checkbox is `title === null`, and the schema catches junk as `null`
+- **`AUTO-COPYRIGHT` (`COPYRIGHT_MARKER`) prints the generated copyright statement** wherever
+  the user's text holds it: custom pages via `replace_copyright_marker()`, the cover's blurb via
+  bookcover's `typst_substitutions` (`cover_typst_substitutions()` in `typst/src/copyright.ts`,
+  passed by every cover render and in the widget's `InitMessage` so its preview matches while
+  the form keeps the literal marker). New covers seed it into the rear blurb, so `has_copyright`
+  (`state.ts`) counts the cover too
 - **Units are printing-services' spelling everywhere** (`MeasureUnit = 'mm'|'inch'`, used by
   both `custom_unit` and `margin_unit`). Typst wants `in`, not `inch` — `typst_unit()` in
   `typst/src/trim.ts` is the single place that converts, applied where a length *string* is
-  built. Don't reintroduce a second unit vocabulary into the Blueprint
+  built. Don't reintroduce a second unit vocabulary into the Blueprint. Nor is page size read off
+  the Blueprint: `resolve_trim()` turns `service_id` + `size_id` (or the custom dims) into the
+  chosen size, and pages and covers take `resolve_reading_trim()`, which halves a booklet's
+  (its chosen size is the sheet that gets folded)
 - **A cover background crosses the embed protocol as an id *or* bytes, never both.** A builtin
   travels as `bg_image_builtin: '<filename>'` with `bg_image: null`, both ways — the app never
   downloads it to open the editor, and never keys it on bytes or a hash (bookcover re-encodes
@@ -1095,7 +1150,7 @@ it says otherwise.
   fallback; `useI18n()` returns `{t, locale}`; the default export is a Vue plugin that adds
   `$t`. Rationale: the app targets 800+ machine-translated locales, where an ICU/format
   library is dead weight (MT mangles ICU syntax; CLDR plural data doesn't exist for most
-  targets) — see [[i18n-symbolic-keys-migration]].
+  targets).
 - **Symbolic keys**, not English strings: `$t('options.style.justify')`. Catalogs are flat
   JSON keyed by browser language tag (`app/src/locales/en.json` = source of truth with real
   English, `vi.json`, `pt-BR.json`, `zh-Hans.json`, ...). `en` is bundled + is the fallback;
