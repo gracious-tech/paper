@@ -7,7 +7,8 @@
 import {FetchClient, PassageReference} from '@gracious.tech/fetch-client'
 
 import {LruCache, estimate_bytes, escape_typst, emphasize_sentences} from './helpers.js'
-import {resolve_reading_trim, convert_unit, resolve_binding_gutter, typst_unit, usable_length}
+import {resolve_reading_trim, convert_unit, resolve_binding_gutter, typst_unit, usable_length,
+    fit_margins}
     from './trim.js'
 import {prose_to_typst, replace_copyright_marker} from './prose.js'
 import {gen_copyright_typst} from './copyright.js'
@@ -508,21 +509,17 @@ export class BibleContent {
         // The reading-page size (half the chosen sheet for fold-at-home booklets)
         const trim = resolve_reading_trim(blue)
 
-        // Clamp each margin to 50% of the corresponding trim dimension (in the margin's own
-        // unit, since trim/margin units can differ) so a bad/extreme value can't collapse or
-        // invert the content area and blow up layout/compile
-        const max_vertical = convert_unit(trim.height, trim.unit, blue.margin_unit) / 2
-        const max_horizontal = convert_unit(trim.width, trim.unit, blue.margin_unit) / 2
-
         // Optionally deepen the inner margin by the printing service's calculated binding gutter
         // so text near the spine isn't lost into the fold (no-op for home/booklet/custom modes)
         const gutter = blue.margin_gutter_auto ? resolve_binding_gutter(blue, page_count) : 0
 
-        // A blank or negative margin (see usable_length) is no margin rather than invalid Typst
-        const margin_top = Math.min(usable_length(blue.margin_top), max_vertical)
-        const margin_bottom = Math.min(usable_length(blue.margin_bottom), max_vertical)
-        const margin_inner = Math.min(usable_length(blue.margin_inner) + gutter, max_horizontal)
-        const margin_outer = Math.min(usable_length(blue.margin_outer), max_horizontal)
+        // A blank or negative margin (see usable_length) is no margin rather than invalid Typst,
+        // and each opposite pair must leave room for text between them (see fit_margins), in the
+        // margins' own unit since trim and margin units can differ
+        const [margin_top, margin_bottom] = fit_margins(usable_length(blue.margin_top),
+            usable_length(blue.margin_bottom), convert_unit(trim.height, trim.unit, blue.margin_unit))
+        const [margin_inner, margin_outer] = fit_margins(usable_length(blue.margin_inner) + gutter,
+            usable_length(blue.margin_outer), convert_unit(trim.width, trim.unit, blue.margin_unit))
 
         // Typst spells inches 'in' where the blueprint spells them 'inch' (see typst_unit)
         const trim_unit = typst_unit(trim.unit)

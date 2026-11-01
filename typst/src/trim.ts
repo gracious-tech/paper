@@ -33,6 +33,24 @@ export function usable_length(value:number):number {
 }
 
 
+// The least of a page's width or height its margins may leave for text: below that the text area
+// collapses (or inverts) and the compiler struggles with thousands of pages or traps outright
+const MIN_TEXT_FRACTION = 1 / 3
+
+
+export function fit_margins(start:number, end:number, page:number):[number, number] {
+    // A pair of opposite margins (top/bottom, or inner/outer) shrunk together, keeping their
+    // proportions, just enough to leave MIN_TEXT_FRACTION of the page between them. Margins that
+    // already leave that much are returned as they are. All three in the same unit
+    const most = page * (1 - MIN_TEXT_FRACTION)
+    const total = start + end
+    if (total <= most) {
+        return [start, end]
+    }
+    return [start * most / total, end * most / total]
+}
+
+
 // The size a cleared custom trim dimension stands in for (the default blueprint's)
 const FALLBACK_TRIM_MM = {width: 152, height: 229}
 

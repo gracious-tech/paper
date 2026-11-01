@@ -3,7 +3,7 @@ import {describe, it, expect} from 'vitest'
 
 import {resolve_trim, resolve_reading_trim, convert_unit, typst_unit, usable_length}
     from '../src/index.js'
-import {resolve_binding_gutter} from '../src/trim.js'
+import {resolve_binding_gutter, fit_margins} from '../src/trim.js'
 import {make_blueprint} from './fixtures.js'
 
 import type {Blueprint} from '../src/types.js'
@@ -41,6 +41,28 @@ describe('usable_length', () => {
         expect(usable_length('' as unknown as number)).toBe(0)
         expect(usable_length(NaN)).toBe(0)
         expect(usable_length(Infinity)).toBe(0)
+    })
+
+})
+
+
+describe('fit_margins', () => {
+
+    it('leaves margins that leave a third of the page for text as they are', () => {
+        expect(fit_margins(20, 25, 229)).toEqual([20, 25])
+        // One margin over half the page is fine while the pair still leaves room
+        expect(fit_margins(120, 10, 229)).toEqual([120, 10])
+    })
+
+    it('shrinks a pair that leaves too little, keeping their proportions', () => {
+        // 90mm page: at most 60mm of margin in all
+        const [top, bottom] = fit_margins(60, 30, 90)
+        expect(top + bottom).toBeCloseTo(60)
+        expect(top / bottom).toBeCloseTo(2)
+        // Margins wider than the page itself
+        const [inner, outer] = fit_margins(100, 100, 108)
+        expect(inner).toBeCloseTo(36)
+        expect(outer).toBeCloseTo(36)
     })
 
 })
