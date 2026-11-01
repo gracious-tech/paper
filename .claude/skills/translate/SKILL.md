@@ -9,6 +9,9 @@ Every translation is written by Claude through one loop. Catalogs and their base
 (`.state/`) are **never edited by hand** — the tools write them, so staleness tracking and
 validation can't be skipped.
 
+Run every command below from the paper_bible repo root (`cd paper_bible` first when working from
+the parent workspace).
+
 There are two catalog **domains**, handled identically by every command:
 
 | Domain | What | Catalogs | Locale list | Keyed by |
