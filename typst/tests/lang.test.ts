@@ -71,6 +71,18 @@ describe('detect_dir', () => {
         expect(detect_dir('Привет')).toBe('ltr')
     })
 
+    it('knows every right-to-left script, the newest included', () => {
+        // Thaana, NKo, Samaritan, Mandaic, Hanifi Rohingya, Yezidi, Mende Kikakui, Adlam, and
+        // Hebrew/Arabic presentation forms
+        for (const cp of [0x0780, 0x07CA, 0x0800, 0x0840, 0x10D00, 0x10E80, 0x1E800, 0x1E900,
+                0xFB1D, 0xFB50, 0xFE70]){
+            expect(detect_dir(String.fromCodePoint(cp))).toBe('rtl')
+        }
+        // Latin and Armenian ligatures sit just below the Hebrew presentation forms
+        expect(detect_dir('\uFB00')).toBe('ltr')
+        expect(detect_dir('\uFB13')).toBe('ltr')
+    })
+
     it('skips digits, punctuation and spaces', () => {
         expect(detect_dir('1. "שלום"')).toBe('rtl')
         expect(detect_dir('  (3) Hello')).toBe('ltr')

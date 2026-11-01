@@ -54,11 +54,21 @@ export function gen_locale_args(lang:string|null, dir:TextDir|null):string {
 
 
 // Living scripts written right to left. JS regexes can't match on Unicode's Bidi_Class, so the
-// strong-RTL characters are approximated by script — every letter in these is R or AL
+// strong-RTL characters are approximated by script — every letter in these is R or AL. Written
+// as code point blocks rather than \p{Script=...}: an engine that doesn't know one script name
+// (Chrome 91 has no Yezidi) rejects the whole pattern, and as this is built when the module loads
+// that stopped the app starting at all. Only letters are ever tested (see detect_dir), so the
+// blocks' digits and marks don't matter
 const RTL_LETTER = new RegExp('[' + [
-    'Hebrew', 'Arabic', 'Syriac', 'Thaana', 'Nko', 'Samaritan', 'Mandaic', 'Adlam',
-    'Hanifi_Rohingya', 'Yezidi', 'Mende_Kikakui',
-].map(script => `\\p{Script=${script}}`).join('') + ']', 'u')
+    '\\u0590-\\u08FF',  // Hebrew, Arabic, Syriac, Thaana, NKo, Samaritan, Mandaic + supplements
+    '\\uFB1D-\\uFDFF',  // Hebrew and Arabic presentation forms
+    '\\uFE70-\\uFEFF',  // Arabic presentation forms B
+    '\\u{10D00}-\\u{10D3F}',  // Hanifi Rohingya
+    '\\u{10E60}-\\u{10EFF}',  // Rumi numerals, Yezidi, Arabic extended C
+    '\\u{1E800}-\\u{1E8DF}',  // Mende Kikakui
+    '\\u{1E900}-\\u{1E95F}',  // Adlam
+    '\\u{1EE00}-\\u{1EEFF}',  // Arabic mathematical letters
+].join('') + ']', 'u')
 
 
 // The direction of a piece of text from its first letter, the way a browser resolves
