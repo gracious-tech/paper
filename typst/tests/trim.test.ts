@@ -1,7 +1,8 @@
 
 import {describe, it, expect} from 'vitest'
 
-import {resolve_trim, convert_unit, typst_unit, usable_length} from '../src/index.js'
+import {resolve_trim, resolve_reading_trim, convert_unit, typst_unit, usable_length}
+    from '../src/index.js'
 import {resolve_binding_gutter} from '../src/trim.js'
 import {make_blueprint} from './fixtures.js'
 
@@ -86,12 +87,24 @@ describe('resolve_trim', () => {
             .toEqual({width: 152, height: 229, unit: 'mm'})
     })
 
-    it('raises a tiny custom dimension to an inch', () => {
+    it('raises a tiny custom dimension to 70mm', () => {
         // Typing 355 passes through 3, and a 3mm page traps the WASM compiler
         expect(resolve_trim(custom_blueprint(3, 190, 'mm')))
-            .toEqual({width: 25.4, height: 190, unit: 'mm'})
+            .toEqual({width: 70, height: 190, unit: 'mm'})
         expect(resolve_trim(custom_blueprint(0.5, 8, 'inch')))
-            .toEqual({width: 1, height: 8, unit: 'inch'})
+            .toEqual({width: 70 / 25.4, height: 8, unit: 'inch'})
+        // An A7 page is still laid out as entered
+        expect(resolve_trim(custom_blueprint(74, 105, 'mm')))
+            .toEqual({width: 74, height: 105, unit: 'mm'})
+    })
+
+    it('holds a booklet\'s half-sheet to 70mm too', () => {
+        const booklet = (width:number, height:number):Blueprint =>
+            ({...custom_blueprint(width, height, 'mm'), booklet: true} as Blueprint)
+        // An A6 sheet folds to an A7 page, which is fine
+        expect(resolve_reading_trim(booklet(105, 148))).toEqual({width: 74, height: 105, unit: 'mm'})
+        // A 100mm sheet would fold to 50mm pages
+        expect(resolve_reading_trim(booklet(80, 100))).toEqual({width: 70, height: 80, unit: 'mm'})
     })
 
     it('falls back to custom dimensions for an unknown named size', () => {

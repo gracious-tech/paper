@@ -33,16 +33,25 @@ export function usable_length(value:number):number {
 }
 
 
-// The size a cleared custom trim dimension stands in for (the default blueprint's), and the
-// smallest side laid out at all. A field mid-edit passes through every value on the way to the
-// one meant (typing 355 is 3 first), and a page a few mm across leaves Typst no room at all
+// The size a cleared custom trim dimension stands in for (the default blueprint's)
 const FALLBACK_TRIM_MM = {width: 152, height: 229}
-const MIN_TRIM_MM = 25.4
+
+// The smallest side a page is ever laid out at, whatever was entered: a field mid-edit passes
+// through every value on the way to the one meant (typing 355 is 3 first), and a tiny page sends
+// the compiler into thousands of pages or traps it outright. Below any size worth printing (the
+// smallest a printing service offers is 108mm wide), but it still allows an A7 pocket booklet
+const MIN_PAGE_MM = 70
+
+
+function at_least_min_page(value:number, unit:MeasureUnit):number {
+    // A page side raised to MIN_PAGE_MM, in the side's own unit
+    return Math.max(value, convert_unit(MIN_PAGE_MM, 'mm', unit))
+}
 
 
 // The custom trim dimensions as a size that can be laid out. Like usable_length's fields, these
 // have no bounds: a cleared one hands back '' (which Typst reads as a bare unit, and bookcover
-// rejects), so that falls back to the default size, and a tiny one is raised to MIN_TRIM_MM
+// rejects), so that falls back to the default size, and a tiny one is raised to MIN_PAGE_MM
 export function usable_custom_trim(blue:Blueprint)
         :{width:number, height:number, unit:MeasureUnit} {
     const unit = blue.custom_unit
@@ -50,7 +59,7 @@ export function usable_custom_trim(blue:Blueprint)
         if (typeof value !== 'number' || !Number.isFinite(value) || value <= 0) {
             return convert_unit(fallback_mm, 'mm', unit)
         }
-        return Math.max(value, convert_unit(MIN_TRIM_MM, 'mm', unit))
+        return at_least_min_page(value, unit)
     }
     return {
         width: side(blue.custom_trim_width, FALLBACK_TRIM_MM.width),
@@ -93,13 +102,15 @@ export function resolve_trim(blue:Blueprint):{width:number, height:number, unit:
 // places two reading pages side by side
 export function resolve_reading_trim(blue:Blueprint)
         :{width:number, height:number, unit:MeasureUnit} {
+    // A booklet's half-sheet is held to MIN_PAGE_MM too, since halving can undercut it
     const trim = resolve_trim(blue)
     if (!blue.booklet) {
         return trim
     }
     const longer = Math.max(trim.width, trim.height)
     const shorter = Math.min(trim.width, trim.height)
-    return {width: longer / 2, height: shorter, unit: trim.unit}
+    return {width: at_least_min_page(longer / 2, trim.unit),
+        height: at_least_min_page(shorter, trim.unit), unit: trim.unit}
 }
 
 
