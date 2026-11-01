@@ -31,7 +31,7 @@ class FakeWorker {
     sent:WorkerRequest[] = []
     terminated = false
     onmessage:((event:{data:WorkerResponse}) => void)|null = null
-    onerror:((event:{message:string}) => void)|null = null
+    onerror:((event:{message:string, preventDefault:() => void}) => void)|null = null
 
     constructor(){
         FakeWorker.instances.push(this)
@@ -74,6 +74,14 @@ class FakeWorker {
         return this.sent.filter(message => message.action === action).at(-1)!
     }
 }
+
+
+// A worker's error event, as onerror gets it. Handling one means cancelling it, or the browser
+// passes the crash on to the page's own error listeners as well
+function crash_event(message:string){
+    return {message, preventDefault: vi.fn()}
+}
+
 
 // The worker currently in use (the newest one spawned)
 function worker():FakeWorker{
@@ -166,14 +174,16 @@ describe('requests', () => {
         const first = client.compile_pdf(REQUEST)
         const second = client.page_count(PDF)
         await vi.waitFor(() => expect(worker().sent).toHaveLength(3))
-        worker().onerror!({message: 'Uncaught SyntaxError'})
+        const crash = crash_event('Uncaught SyntaxError')
+        worker().onerror!(crash)
+        expect(crash.preventDefault).toHaveBeenCalled()
         await expect(first).rejects.toThrow('Uncaught SyntaxError')
         await expect(second).rejects.toThrow('Uncaught SyntaxError')
 
         // A crash with no message still says what failed
         const third = client.page_count(PDF)
         await worker().next('page_count')
-        worker().onerror!({message: ''})
+        worker().onerror!(crash_event(''))
         await expect(third).rejects.toThrow('Typst worker failed')
     })
 
@@ -212,13 +222,21 @@ describe('init', () => {
         const first = worker()
         first.postMessage = (message:WorkerRequest) => {
             first.sent.push(message)
-            queueMicrotask(() => first.onerror?.({message: ''}))
+            queueMicrotask(() => first.onerror?.(crash_event('')))
         }
         const init = client.init('https://assets.test/')
         await vi.runAllTimersAsync()
         await init
         expect(FakeWorker.instances).toHaveLength(2)
         expect(first.terminated).toBe(true)
+    })
+
+    it('counts Chromium\'s aborted WASM download as a failed download', async () => {
+        const {is_fetch_failure} = await import('@/services/typst')
+        expect(is_fetch_failure(new Error('WebAssembly compilation aborted: Network error:'
+            + ' Response body loading was aborted'))).toBe(true)
+        expect(is_fetch_failure(new Error('Failed to fetch'))).toBe(true)
+        expect(is_fetch_failure(new Error('unreachable'))).toBe(false)
     })
 
     it('throws anything else straight away', async () => {

@@ -50,7 +50,7 @@ let reply:((message:Posted) => unknown)|null = null
 
 class FakeWorker {
     onmessage:((event:{data:unknown}) => void)|null = null
-    onerror:((event:{message:string}) => void)|null = null
+    onerror:((event:{message:string, preventDefault:() => void}) => void)|null = null
     terminated = false
     constructor(){
         workers.push(this)
@@ -70,6 +70,14 @@ class FakeWorker {
         this.onmessage?.({data})
     }
 }
+
+
+// A worker's error event, as onerror gets it. Handling one means cancelling it, or the browser
+// passes the crash on to the page's own error listeners as well
+function crash_event(message:string){
+    return {message, preventDefault: vi.fn()}
+}
+
 
 // A successful render result, telling apart which request produced it
 function render_result(message:Posted){
@@ -278,7 +286,9 @@ describe('rendering through the worker', () => {
         const first = cover.render_cover_pdf(blueprint, 100, 'final')
         const second = cover.render_cover_pdf(blueprint, 200, 'final')
         await vi.waitFor(() => expect(posted).toHaveLength(3))
-        workers[0]!.onerror!({message: ''})
+        const crash = crash_event('')
+        workers[0]!.onerror!(crash)
+        expect(crash.preventDefault).toHaveBeenCalled()
         await expect(first).rejects.toThrow(/^Cover worker failed \(cover worker: action=worker crash/)
         await expect(second).rejects.toThrow('Cover worker failed')
     })
@@ -292,7 +302,7 @@ describe('rendering through the worker', () => {
         const blueprint = await design_with_cover()
         const first = cover.render_cover_pdf(blueprint, 100, 'final')
         await vi.waitFor(() => expect(posted).toHaveLength(2))
-        workers[0]!.onerror!({message: ''})
+        workers[0]!.onerror!(crash_event(''))
         await expect(first).rejects.toThrow('Cover worker failed')
 
         reply = render_result
@@ -310,7 +320,7 @@ describe('rendering through the worker', () => {
         const blueprint = await design_with_cover()
         const first = cover.render_cover_pdf(blueprint, 100, 'final')
         await vi.waitFor(() => expect(posted).toHaveLength(1))
-        workers[0]!.onerror!({message: ''})
+        workers[0]!.onerror!(crash_event(''))
         await expect(first).rejects.toThrow('action=worker crash, call=#0')
 
         reply = render_result

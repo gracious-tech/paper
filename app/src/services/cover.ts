@@ -233,6 +233,9 @@ class CoverWorkerClient {
         // A crash of the worker script itself fails all in-flight calls, since no response
         // will ever arrive for them
         this.worker.onerror = event => {
+            // Handled here, so the browser doesn't also pass it on to this page as an uncaught
+            // error (see TypstWorkerClient)
+            event.preventDefault()
             this.crashed = true
             const error = this.diagnostic_error(this.next_id - 1, 'worker crash',
                 event.message || 'Cover worker failed')

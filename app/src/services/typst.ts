@@ -68,10 +68,12 @@ const INIT_RETRY_GAPS_MS = [2000, 5000, 15000]
 
 
 export function is_fetch_failure(error:unknown):boolean {
-    // Whether an error relayed from the worker is fetch() failing to reach the network at all,
-    // in each engine's wording (Chromium, WebKit, Firefox)
+    // Whether an error relayed from the worker is a download failing to reach the network at all,
+    // in each engine's wording (Chromium, WebKit, Firefox), the WASM's own streaming download
+    // included (Chromium: "WebAssembly compilation aborted: Network error: ...")
     return error instanceof Error
-        && /^(Failed to fetch|Load failed|NetworkError when attempting to fetch)/.test(error.message)
+        && /^(Failed to fetch|Load failed|NetworkError when attempting to fetch)|Network error:/
+            .test(error.message)
 }
 
 
@@ -146,6 +148,9 @@ export class TypstWorkerClient {
         // A crash of the worker script itself (rather than a handled compile error) fails all
         // in-flight calls, since no response will ever arrive for them
         this.worker.onerror = event => {
+            // Handled here, so the browser doesn't also pass it on to this page as an uncaught
+            // error (reported again with nothing to say where it came from)
+            event.preventDefault()
             const error = new WorkerCrashError(event.message || 'Typst worker failed')
             for (const handlers of this.pending.values()){
                 handlers.reject(error)
