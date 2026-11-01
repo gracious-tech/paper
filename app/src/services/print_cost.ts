@@ -222,8 +222,13 @@ async function get_shipping_options(pod_package_id:string, page_count:number, qu
             shipping_address: {country},
         }),
     })
+    // Lulu says what it objected to in the body, and the request is what it objected to, so a
+    // failure carries both (it's reported, see DialogEstimateCost.vue)
     if (!response.ok){
-        throw new Error(`Lulu shipping options failed (${response.status})`)
+        const reason = (await response.text().catch(() => '')).slice(0, 300)
+        throw new Error(`Lulu shipping options failed (${response.status}): ${reason}\n`
+            + `Request: ${pod_package_id}, ${page_count} pages, ${quantity} copies, ${country},`
+            + ` ${currency}`)
     }
     const options = await response.json() as LuluShippingOption[]
     return options

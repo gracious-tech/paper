@@ -240,7 +240,7 @@ describe('estimate_print_cost quotes', () => {
     // Have Lulu's endpoint answer with these options (or a status), recording what was asked
     function stub_lulu(answer:unknown[]|number){
         const fetch_mock = vi.fn(async () => typeof answer === 'number'
-            ? new Response('', {status: answer})
+            ? new Response('{"detail": "Unavailable"}', {status: answer})
             : new Response(JSON.stringify(answer)))
         vi.stubGlobal('fetch', fetch_mock)
         return fetch_mock
@@ -289,5 +289,13 @@ describe('estimate_print_cost quotes', () => {
         expect(error).toBeInstanceOf(Error)
         expect(error).not.toBeInstanceOf(NotPrintable)
         expect((error as Error).message).toMatch(/503/)
+    })
+
+    // A 400 is Lulu refusing something about the request, and only says what in its body
+    it('says what Lulu objected to, and what was asked', async () => {
+        stub_lulu(400)
+        const error = await estimate_print_cost(SKU, 100, 2, 'US').catch((caught:unknown) => caught)
+        expect((error as Error).message).toBe('Lulu shipping options failed (400):'
+            + ` {"detail": "Unavailable"}\nRequest: ${SKU}, 100 pages, 2 copies, US, USD`)
     })
 })
