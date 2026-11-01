@@ -96,7 +96,7 @@ Resources:
               StringEquals:
                 AWS:SourceArn: !Sub 'arn:aws:cloudfront::${AWS::AccountId}:distribution/${Distribution}'
 
-  # Replicates firebase.json's header rule verbatim (see CLAUDE.md's CSP section for why each
+  # Replicates firebase.json's header rule verbatim (see AGENTS.md's CSP section for why each
   # value is what it is) — attached to every cache behavior below, including /api/*, since
   # Firebase Hosting's "**" rule applied to API responses too and Referrer-Policy in particular
   # is called out there as load-bearing, not hygiene. script-src also carries 'unsafe-eval':
@@ -115,7 +115,7 @@ Resources:
       ResponseHeadersPolicyConfig:
         Name: !Sub '${AWS::StackName}-security-headers'
         SecurityHeadersConfig:
-          # Guards two things (see CLAUDE.md's CSP section for the reasoning): script injected via
+          # Guards two things (see AGENTS.md's CSP section for the reasoning): script injected via
           # a shared design can't run, and nothing the page loads, fetches or frames can reach a
           # host we don't own (so a design can't make its viewers' browsers call an outside
           # server). default-src is the one allowlist every resource type falls back to — images,

@@ -2,7 +2,7 @@
 // What every journey shares: the `test` they're written with (which fails any test whose pages
 // filed an error report), booting the app, and reading back what the app wrote.
 //
-// Errors are reported, not shown (see "Errors are reported" in CLAUDE.md) — an uncaught
+// Errors are reported, not shown (see "Errors are reported" in AGENTS.md) — an uncaught
 // exception or a failed background save only ever surfaces as a POST to /api/report_error. So a
 // journey whose clicks all landed can still have broken something along the way, and watching
 // those reports is how a test finds out. A test that provokes a failure on purpose declares the

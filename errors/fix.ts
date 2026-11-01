@@ -76,7 +76,7 @@ function fix_prompt(issue:IssueView):string{
         '- Find the root cause before editing. A report\'s `build` is the commit it ran, so',
         '  `git log`/`git show` can tell you what changed since.',
         '- Make the smallest change that fixes the cause, written like the surrounding code',
-        '  (the CLAUDE.md conventions apply).',
+        '  (the AGENTS.md conventions apply).',
         '- Never hide the error instead of fixing it. No try/catch, optional chaining,',
         '  `.catch(() => ...)` or lowered report_error() severity whose effect is that this',
         '  report stops arriving while the failure still happens. Handling an error is right',

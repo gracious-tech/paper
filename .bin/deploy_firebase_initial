@@ -24,7 +24,7 @@ gcloud storage buckets update "gs://$PROJECT.firebasestorage.app" \
 # a same-origin blob url (contentDisposition is 'inline', so plain <a download> is ignored) —
 # that needs the bucket's blessing via CORS, which the default Storage bucket doesn't have out
 # of the box. Objects here are already effectively public (an id/token in the url is the whole
-# capability — see CLAUDE.md's Storage section), so there's no security benefit to restricting
+# capability — see AGENTS.md's Storage section), so there's no security benefit to restricting
 # origins the way there would be for an authenticated endpoint
 tmp_cors="$(mktemp)"
 cat > "$tmp_cors" <<'EOF'
