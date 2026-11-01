@@ -29,12 +29,22 @@ export interface CompiledPdf {
     pages:number
 }
 
-// Handlers awaiting a response from the worker, keyed by request id. on_progress is undefined
-// for actions that never emit progress (init, set_custom_fonts, the pdf-lib actions)
+// Handlers awaiting a response from the worker, keyed by request id, with the action they asked
+// for (see abandon). on_progress is undefined for actions that never emit progress (init,
+// set_custom_fonts, the pdf-lib actions)
 interface PendingHandlers {
     resolve:(outcome:ActionOutcome)=>void
     reject:(error:Error)=>void
     on_progress:ProgressFn|undefined
+    action:WorkerAction
+}
+
+
+function is_abandonable(action:WorkerAction):boolean{
+    // Whether a request is only for showing on screen (a preview, a page estimate, the wizard's
+    // cover card), and so may be given up on when it's too slow. A build's compile never is
+    return action.action === 'compile_svg_preview' || action.action === 'compile_svg'
+        || (action.action === 'compile_pdf' && !!action.preview)
 }
 
 
@@ -170,16 +180,37 @@ export class TypstWorkerClient {
         }
     }
 
-    // Give up on everything the worker is doing — a compile taking far too long, which no
-    // message can interrupt — failing every request in flight with AbandonedCompileError and
-    // swapping in a fresh worker
+    // Give up on the on-screen compiles in flight (see is_abandonable) — one taking far too long,
+    // which no message can interrupt — failing each with AbandonedCompileError. The worker is
+    // only swapped for a fresh one when one of those is what it's running: a build it's running
+    // instead (which a preview queued behind it was waiting on) carries on, and the given-up
+    // results are dropped when they come. Whatever else was queued behind a killed preview goes
+    // to the fresh worker, so a build never pays for a preview being slow
     abandon():void {
-        for (const handlers of this.pending.values()){
-            handlers.reject(new AbandonedCompileError('Compile abandoned'))
+        // The worker answers strictly in order, so the oldest request is the one it's running
+        const running = this.pending.get(Math.min(...this.pending.keys()))
+        for (const [id, handlers] of this.pending){
+            if (is_abandonable(handlers.action)){
+                handlers.reject(new AbandonedCompileError('Compile abandoned'))
+                this.pending.delete(id)
+            }
         }
+        if (running && !is_abandonable(running.action)){
+            return
+        }
+        const survivors = [...this.pending.values()]
         this.pending.clear()
         this.recycle_needed = false
         this.gate = this.recycle()
+        for (const handlers of survivors){
+            // The recycle replays init and the latest custom fonts itself, so those just wait on it
+            const replayed = handlers.action.action === 'init'
+                || handlers.action.action === 'set_custom_fonts'
+            const outcome = replayed
+                ? this.gate.then(() => ({result: null, pages: null}))
+                : this.send(handlers.action, handlers.on_progress)
+            outcome.then(handlers.resolve, handlers.reject)
+        }
     }
 
     // Post one request to the current worker and await its matching result. on_progress, if
@@ -187,7 +218,7 @@ export class TypstWorkerClient {
     private post(action:WorkerAction, on_progress?:ProgressFn):Promise<ActionOutcome> {
         const id = this.next_id++
         return new Promise((resolve, reject) => {
-            this.pending.set(id, {resolve, reject, on_progress})
+            this.pending.set(id, {resolve, reject, on_progress, action})
             this.worker.postMessage({...action, id})
         })
     }
@@ -263,10 +294,9 @@ export class TypstWorkerClient {
         try {
             await this.send({action: 'set_custom_fonts', fonts: this.custom_fonts})
         } catch (error){
-            // A compile queued ahead of this trapped, or was abandoned, and took the worker down
-            // with it, failing this too — but the recycle replays this.custom_fonts, so that's
-            // what to wait on
-            if (!(error instanceof FatalWorkerError || error instanceof AbandonedCompileError)){
+            // A compile queued ahead of this trapped and took the worker down with it, failing
+            // this too — but the recycle replays this.custom_fonts, so that's what to wait on
+            if (!(error instanceof FatalWorkerError)){
                 throw error
             }
             await this.gate

@@ -2,8 +2,9 @@
 // TypstWorkerClient (typst.ts): the main thread's side of the Typst worker, driven against a
 // fake Worker. What's under test is what makes the worker disposable — results matched to
 // requests by id, progress forwarded, a worn worker recycled between requests, a trapped one
-// recycled at once with every queued request failed and compiles retried once, an abandoned
-// one replaced — and that each fresh worker is given init and the custom fonts again
+// recycled at once with every queued request failed and compiles retried once, a slow preview
+// given up on without costing a build its compile — and that each fresh worker is given init and
+// the custom fonts again
 
 import {describe, it, expect, beforeEach, afterEach, vi} from 'vitest'
 
@@ -298,18 +299,72 @@ describe('recycling', () => {
         await expect(compiled).rejects.toThrow(/^unknown font$/)
     })
 
-    it('abandons everything in flight on request, and carries on with a fresh worker', async () => {
+    it('abandons a preview it\'s running, and carries on with a fresh worker', async () => {
         const {AbandonedCompileError} = await import('@/services/typst')
         const client = await make_client()
-        const compiled = client.compile_pdf(REQUEST)
-        await worker().next('compile_pdf')
+        const previewed = client.compile_svg_preview(REQUEST)
+        await worker().next('compile_svg_preview')
         const old = worker()
         client.abandon()
-        await expect(compiled).rejects.toBeInstanceOf(AbandonedCompileError)
+        await expect(previewed).rejects.toBeInstanceOf(AbandonedCompileError)
         expect(old.terminated).toBe(true)
         const counted = client.page_count(PDF)
         worker().ok((await worker().next('page_count')).id, 1)
         expect(await counted).toBe(1)
+    })
+
+    it('sends a build queued behind an abandoned preview to the fresh worker', async () => {
+        const client = await make_client()
+        const previewed = client.compile_pdf(REQUEST, undefined, true)
+        const built = client.compile_pdf(REQUEST)
+        await vi.waitFor(() => expect(worker().sent.filter(message =>
+            message.action === 'compile_pdf')).toHaveLength(2))
+        const old = worker()
+        client.abandon()
+        await expect(previewed).rejects.toThrow('Compile abandoned')
+        expect(old.terminated).toBe(true)
+        // The build starts over on the fresh worker, after its init
+        const fresh = worker()
+        const resent = await fresh.next('compile_pdf')
+        expect(fresh.sent[0]!.action).toBe('init')
+        expect(resent).toMatchObject({preview: false})
+        fresh.ok(resent.id, PDF, {pages: 12})
+        expect(await built).toEqual({bytes: PDF, pages: 12})
+    })
+
+    it('settles fonts queued behind an abandoned preview through the recycle', async () => {
+        const client = await make_client()
+        const previewed = client.compile_svg_preview(REQUEST).catch(() => undefined)
+        await worker().next('compile_svg_preview')
+        const old = worker()
+        // Held back, so the fonts are still queued when the preview is given up on
+        old.postMessage = (message:WorkerRequest) => {
+            old.sent.push(message)
+        }
+        const fonts_set = client.set_custom_fonts(FONTS)
+        await old.next('set_custom_fonts')
+        client.abandon()
+        await fonts_set
+        await previewed
+        // The fresh worker was given the new fonts by the recycle, once
+        expect(worker().sent.filter(message => message.action === 'set_custom_fonts'))
+            .toEqual([expect.objectContaining({fonts: FONTS})])
+    })
+
+    it('leaves a running build alone, dropping only the preview waiting behind it', async () => {
+        const client = await make_client()
+        const built = client.compile_pdf(REQUEST)
+        const previewed = client.compile_svg_preview(REQUEST)
+        await worker().next('compile_svg_preview')
+        const [build_request, preview_request] = worker().sent.slice(-2)
+        client.abandon()
+        await expect(previewed).rejects.toThrow('Compile abandoned')
+        expect(worker().terminated).toBe(false)
+        expect(FakeWorker.instances).toHaveLength(1)
+        worker().ok(build_request!.id, PDF, {pages: 3})
+        expect(await built).toEqual({bytes: PDF, pages: 3})
+        // The preview's result, when it comes, has nobody waiting for it
+        worker().ok(preview_request!.id, [])
     })
 
     it('releases memory at once when idle, and after the last request when busy', async () => {
