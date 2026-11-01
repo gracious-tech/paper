@@ -11,6 +11,8 @@
 
 import {ref, computed} from 'vue'
 
+import {read_stored, write_stored} from '@/services/stored'
+
 
 // The event Chromium fires when the app can be installed (not in TypeScript's DOM types)
 interface BeforeInstallPromptEvent extends Event {
@@ -33,12 +35,7 @@ const DISMISSED_KEY = 'install_dismissed'
 // Whether the user has turned down installing (closed the notice, or cancelled the browser's
 // install dialog), as stored
 function read_dismissed():boolean{
-    try {
-        return localStorage.getItem(DISMISSED_KEY) === 'true'
-    } catch {
-        // Private mode / blocked storage, or no storage at all (tests)
-        return false
-    }
+    return read_stored(DISMISSED_KEY) === 'true'
 }
 
 const dismissed = ref(read_dismissed())
@@ -51,11 +48,7 @@ export const offer_install = computed(() => can_install.value && !dismissed.valu
 // Stop offering to install in this browser
 export function dismiss_install():void{
     dismissed.value = true
-    try {
-        localStorage.setItem(DISMISSED_KEY, 'true')
-    } catch {
-        // Never fail over a cosmetic preference (it's still dismissed until the page reloads)
-    }
+    write_stored(DISMISSED_KEY, 'true')
 }
 
 

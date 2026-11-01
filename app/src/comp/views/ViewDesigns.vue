@@ -126,6 +126,7 @@ import {legacy} from '@/legacy/legacy'
 import {state, confirm_dialog, prompt_dialog, report_failure} from '@/services/state'
 import {format_relative_time} from '@/services/utils'
 import {offer_install, dismiss_install, install_app} from '@/services/install'
+import {read_stored, write_stored} from '@/services/stored'
 
 import type {DesignMeta, ViewedDesign} from '@/services/types'
 
@@ -143,12 +144,7 @@ const SORT_KEY = 'designs_sort'
 
 // Read the remembered sort criterion, defaulting to most recent first
 const read_sort = ():'modified'|'name' => {
-    try {
-        return localStorage.getItem(SORT_KEY) === 'name' ? 'name' : 'modified'
-    } catch {
-        // Private mode / blocked storage
-        return 'modified'
-    }
+    return read_stored(SORT_KEY) === 'name' ? 'name' : 'modified'
 }
 
 
@@ -157,11 +153,7 @@ const sort_by = ref<'modified'|'name'>(read_sort())
 
 // Remember each change of sort criterion
 watch(sort_by, value => {
-    try {
-        localStorage.setItem(SORT_KEY, value)
-    } catch {
-        // Never fail over a cosmetic preference
-    }
+    write_stored(SORT_KEY, value)
 })
 
 // Search box — filters every group by name, before any grouping/sorting below
@@ -261,12 +253,7 @@ const SIGNIN_WARNING_DISMISSED_KEY = 'signin_warning_dismissed'
 
 // Whether the sign-in warning has been dismissed in this browser
 const read_signin_dismissed = ():boolean => {
-    try {
-        return localStorage.getItem(SIGNIN_WARNING_DISMISSED_KEY) === 'true'
-    } catch {
-        // Private mode / blocked storage
-        return false
-    }
+    return read_stored(SIGNIN_WARNING_DISMISSED_KEY) === 'true'
 }
 
 const signin_dismissed = ref(read_signin_dismissed())
@@ -275,11 +262,7 @@ const signin_dismissed = ref(read_signin_dismissed())
 // Stop showing the sign-in warning in this browser
 const dismiss_signin_warning = () => {
     signin_dismissed.value = true
-    try {
-        localStorage.setItem(SIGNIN_WARNING_DISMISSED_KEY, 'true')
-    } catch {
-        // Never fail over a cosmetic preference (it's still dismissed until the page reloads)
-    }
+    write_stored(SIGNIN_WARNING_DISMISSED_KEY, 'true')
 }
 
 

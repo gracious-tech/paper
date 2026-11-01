@@ -36,6 +36,7 @@ import {firestore} from '@/services/firebase'
 import {user} from '@/services/auth'
 import {is_mobile_now} from '@/services/display'
 import {report_error} from '@/services/errors'
+import {read_stored, write_stored} from '@/services/stored'
 
 
 // How long a phone's preview may take in the browser before it's abandoned and the device
@@ -82,31 +83,6 @@ const STRIKES_KEY = 'compile_strikes'
 const RECHECK_KEY = 'compile_recheck'
 
 
-function read_key(key:string):string|null{
-    // Read a localStorage key, as null wherever storage is unavailable (private modes, blocked
-    // site data)
-    try {
-        return localStorage.getItem(key)
-    } catch {
-        return null
-    }
-}
-
-
-function write_key(key:string, value:string|null):void{
-    // Set or (null) remove a localStorage key, best-effort like read_key
-    try {
-        if (value === null){
-            localStorage.removeItem(key)
-        } else {
-            localStorage.setItem(key, value)
-        }
-    } catch {
-        // Without storage the device just keeps compiling in the browser
-    }
-}
-
-
 // The newest iOS counted as old. A device still on 16 or earlier is almost always one that can't
 // run iOS 17 (an iPhone X or 8 at the newest), and old iPhones are the ones the browser compiler
 // runs out of memory on, which on iOS loses the user's tab rather than raising an error
@@ -131,10 +107,10 @@ export function is_old_ios(user_agent:string):boolean{
 const old_ios = is_old_ios(navigator.userAgent)
 
 // Whether this device has been switched to compiling on the server (provisionally or for good)
-export const server_mode = ref(old_ios || read_key(MODE_KEY) !== null)
+export const server_mode = ref(old_ios || read_stored(MODE_KEY) !== null)
 
 // Whether that switch still awaits the server doing the same kind of job (see settle_server_mode)
-let provisional = read_key(MODE_KEY) === 'provisional'
+let provisional = read_stored(MODE_KEY) === 'provisional'
 
 
 export function compiles_on_server():boolean{
@@ -172,9 +148,9 @@ export function switch_to_server(reason:SwitchReason):void{
     }
     server_mode.value = true
     provisional = true
-    write_key(MODE_KEY, 'provisional')
-    write_key(STRIKES_KEY, null)
-    write_key(RECHECK_KEY, JSON.stringify({left: RECHECK_FIRST, interval: RECHECK_FIRST}))
+    write_stored(MODE_KEY, 'provisional')
+    write_stored(STRIKES_KEY, null)
+    write_stored(RECHECK_KEY, JSON.stringify({left: RECHECK_FIRST, interval: RECHECK_FIRST}))
     record_mode('compile_mode', reason)
 }
 
@@ -191,27 +167,27 @@ function switch_to_browser(reason:'server_failed'|'recheck'):void{
     // iOS device, which always compiles on the server)
     server_mode.value = old_ios
     provisional = false
-    write_key(MODE_KEY, null)
-    write_key(STRIKES_KEY, null)
-    write_key(RECHECK_KEY, null)
+    write_stored(MODE_KEY, null)
+    write_stored(STRIKES_KEY, null)
+    write_stored(RECHECK_KEY, null)
     record_mode('compile_mode_reverted', reason)
 }
 
 
 export function strike(reason:'slow'|'crash'):void{
     // Count a desktop's failure towards switching it to the server (see SWITCH_STRIKES)
-    const strikes = Number(read_key(STRIKES_KEY) ?? 0) + (reason === 'crash' ? 2 : 1)
+    const strikes = Number(read_stored(STRIKES_KEY) ?? 0) + (reason === 'crash' ? 2 : 1)
     if (strikes >= SWITCH_STRIKES){
         switch_to_server(reason)
     } else {
-        write_key(STRIKES_KEY, String(strikes))
+        write_stored(STRIKES_KEY, String(strikes))
     }
 }
 
 
 export function clear_strikes():void{
     // A browser preview finished in time, so whatever went wrong before was a blip
-    write_key(STRIKES_KEY, null)
+    write_stored(STRIKES_KEY, null)
 }
 
 
@@ -223,12 +199,12 @@ export function recheck_due():boolean{
     }
     let state = {left: RECHECK_FIRST, interval: RECHECK_FIRST}
     try {
-        state = {...state, ...JSON.parse(read_key(RECHECK_KEY) ?? '{}') as typeof state}
+        state = {...state, ...JSON.parse(read_stored(RECHECK_KEY) ?? '{}') as typeof state}
     } catch {
         // A garbled countdown just starts again
     }
     state.left -= 1
-    write_key(RECHECK_KEY, JSON.stringify(state))
+    write_stored(RECHECK_KEY, JSON.stringify(state))
     return state.left <= 0
 }
 
@@ -243,13 +219,13 @@ export function recheck_failed():void{
     // The browser still couldn't keep up on a re-check: wait twice as long for the next one
     let interval = RECHECK_FIRST
     try {
-        interval = (JSON.parse(read_key(RECHECK_KEY) ?? '{}') as {interval?:number}).interval
+        interval = (JSON.parse(read_stored(RECHECK_KEY) ?? '{}') as {interval?:number}).interval
             ?? RECHECK_FIRST
     } catch {
         // As in recheck_due
     }
     interval = Math.min(interval * 2, RECHECK_MAX)
-    write_key(RECHECK_KEY, JSON.stringify({left: interval, interval}))
+    write_stored(RECHECK_KEY, JSON.stringify({left: interval, interval}))
 }
 
 
@@ -269,7 +245,7 @@ export function settle_server_mode(server_ok:boolean):void{
     }
     if (server_ok){
         provisional = false
-        write_key(MODE_KEY, '1')
+        write_stored(MODE_KEY, '1')
     } else {
         switch_to_browser('server_failed')
     }
@@ -304,7 +280,7 @@ const active_stages:string[] = []
 function write_marker():void{
     // Record what's running for the next boot to find if the tab dies (see
     // check_crashed_compile), or clear the record once nothing is
-    write_key(IN_FLIGHT_KEY, active_stages.length
+    write_stored(IN_FLIGHT_KEY, active_stages.length
         ? JSON.stringify({at: Date.now(), stages: active_stages}) : null)
 }
 
@@ -341,7 +317,7 @@ export function track_browser_compile<T>(compile:Promise<T>, stage = 'compile'):
 // cache) fires pagehide, which a tab killed for using too much memory never gets to. So the
 // marker is cleared then, and set again if the page comes back with work still running
 addEventListener('pagehide', () => {
-    write_key(IN_FLIGHT_KEY, null)
+    write_stored(IN_FLIGHT_KEY, null)
 })
 addEventListener('pageshow', () => {
     if (active_stages.length){
@@ -366,9 +342,9 @@ function crash_context(marker:string):Record<string, string|number>{
 export function check_crashed_compile():void{
     // At boot, notice the last session's tab dying mid-compile: a phone is switched to the server
     // there and then, a desktop takes strikes (see strike)
-    const marker = read_key(IN_FLIGHT_KEY)
+    const marker = read_stored(IN_FLIGHT_KEY)
     if (marker !== null){
-        write_key(IN_FLIGHT_KEY, null)
+        write_stored(IN_FLIGHT_KEY, null)
         // Nothing else ever learns of it, and the stages say what to make leaner
         report_error('silent', new Error('The tab died during browser work'),
             {critical: true, context: crash_context(marker)})

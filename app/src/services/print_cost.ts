@@ -20,6 +20,7 @@ import {LULU_CURRENCIES, lulu_book_price, lulu_page_limits} from '@/services/lul
 import {build_pod_package_id} from '@/services/lulu_skus'
 import {get_lulu_country, LULU_COUNTRIES} from '@/services/lulu_countries'
 import {country_namer} from '@/services/locale'
+import {read_stored, write_stored} from '@/services/stored'
 
 import type {BindingTypeId, InkTypeId, SizeId} from 'printing-services'
 import type {LuluCurrency} from '@/services/lulu_prices'
@@ -123,7 +124,7 @@ const LANGUAGE_COUNTRY:Record<string, string> = {
 // Best guess at where the user would have a book shipped: the country they last estimated for,
 // then the region their browser language names, then the language's main country, then the US
 export function guess_country():string{
-    const remembered = localStorage.getItem(COUNTRY_KEY)
+    const remembered = read_stored(COUNTRY_KEY)
     if (remembered && get_lulu_country(remembered)){
         return remembered
     }
@@ -147,7 +148,7 @@ export function guess_country():string{
 
 // Remember the country for next time (see guess_country)
 export function remember_country(code:string):void{
-    localStorage.setItem(COUNTRY_KEY, code)
+    write_stored(COUNTRY_KEY, code)
 }
 
 

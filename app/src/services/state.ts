@@ -7,6 +7,7 @@ import {content} from '@/services/content'
 import {collect_passage_books} from '@/services/blueprints'
 import {translate} from '@/services/i18n'
 import {report_error} from '@/services/errors'
+import {read_stored, write_stored} from '@/services/stored'
 import {ApiOfflineError, ApiSessionError} from '@/services/api'
 
 import type {PmDoc} from 'paper-bible-typst'
@@ -144,22 +145,13 @@ const WELCOME_SEEN_KEY = 'welcome_seen'
 
 // Whether this browser has already been shown the welcome splash
 export function welcome_seen():boolean{
-    try {
-        return localStorage.getItem(WELCOME_SEEN_KEY) === 'true'
-    } catch {
-        // Private mode / blocked storage — better to greet twice than to crash
-        return false
-    }
+    return read_stored(WELCOME_SEEN_KEY) === 'true'
 }
 
 
 // Remember the welcome splash has been shown, so it doesn't reappear on the next load
 export function set_welcome_seen():void{
-    try {
-        localStorage.setItem(WELCOME_SEEN_KEY, 'true')
-    } catch {
-        // Never fail over a cosmetic preference
-    }
+    write_stored(WELCOME_SEEN_KEY, 'true')
 }
 
 

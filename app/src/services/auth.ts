@@ -9,6 +9,7 @@ import {firebase_auth} from '@/services/firebase'
 import {api} from '@/services/api'
 import {set_error_auth} from '@/services/errors'
 import {retry_startup} from '@/services/network_retry'
+import {read_stored, write_stored} from '@/services/stored'
 
 
 // localStorage key holding the address an email sign-in link was sent to (per Firebase docs)
@@ -172,7 +173,7 @@ export async function link_google(on_merging?:() => void)
 
 export async function send_email_link(email:string):Promise<void>{
     // Send a passwordless sign-in link (completed by complete_email_link() on next boot)
-    localStorage.setItem(EMAIL_FOR_LINK_KEY, email)
+    write_stored(EMAIL_FOR_LINK_KEY, email)
     await sendSignInLinkToEmail(firebase_auth, email, {
         url: location.origin,
         handleCodeInApp: true,
@@ -190,7 +191,7 @@ export function stored_email_for_link():string|null{
     // The address a sign-in link was sent to, when this browser is the one that requested it.
     // Null when the link was opened elsewhere (another browser or device), in which case the
     // address has to be asked for — see finish_email_link() in account.ts
-    return localStorage.getItem(EMAIL_FOR_LINK_KEY)
+    return read_stored(EMAIL_FOR_LINK_KEY)
 }
 
 
@@ -199,7 +200,7 @@ export async function complete_email_link(link:string, email:string)
     // Finish a passwordless email sign-in, given the link the page was opened with and the
     // address it was sent to. The caller owns the URL — it must already have been cleaned of
     // the single-use code before getting here, or a later refresh would retry a spent one
-    localStorage.removeItem(EMAIL_FOR_LINK_KEY)
+    write_stored(EMAIL_FOR_LINK_KEY, null)
 
     // Sign in with the link rather than linking it onto the guest account
     // WARN Whichever call is made first spends the code, so there is only ever one attempt and

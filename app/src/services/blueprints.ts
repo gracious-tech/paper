@@ -8,6 +8,7 @@ import {content} from '@/services/content'
 import {blue} from '@/services/state'
 
 import {count_phrase, translate, locale, locale_was_picked} from '@/services/i18n'
+import {read_stored, write_stored} from '@/services/stored'
 
 import type {Blueprint, ContentItem, ContentCustom, ContentPassage, ContentPictureStory,
     MeasureUnit} from '@/services/types'
@@ -509,7 +510,7 @@ const LETTER_COUNTRIES = new Set([
 // Best guess at the user's home printer paper size: the size they last chose, then the region
 // their browser language names, then A4 (the world default)
 export function guess_paper_size():'a4'|'us_letter'{
-    const remembered = localStorage.getItem(PAPER_SIZE_KEY)
+    const remembered = read_stored(PAPER_SIZE_KEY)
     if (remembered === 'a4' || remembered === 'us_letter'){
         return remembered
     }
@@ -526,7 +527,7 @@ export function guess_paper_size():'a4'|'us_letter'{
 
 // Remember the home paper size for next time (see guess_paper_size)
 export function remember_paper_size(size:'a4'|'us_letter'):void{
-    localStorage.setItem(PAPER_SIZE_KEY, size)
+    write_stored(PAPER_SIZE_KEY, size)
 }
 
 

@@ -12,6 +12,7 @@ import type {App} from 'vue'
 import en from '@/locales/en.json'
 import locales_meta from '@/locales.json'
 import {best_locale, detect_locale} from '@/services/locale'
+import {read_stored, write_stored} from '@/services/stored'
 
 export const SOURCE_LOCALE = 'en'
 
@@ -88,12 +89,7 @@ export async function load_locale(code:string):Promise<void> {
 // was once keyed by ISO 639-3, e.g. "vie") still lands on the same language
 export function initial_locale():string {
     const targets = Object.keys(LOCALES).filter(code => code !== SOURCE_LOCALE)
-    let chosen:string|null = null
-    try {
-        chosen = localStorage.getItem(CHOSEN_LOCALE_KEY)
-    } catch {
-        // Private mode / blocked storage — detection still works
-    }
+    const chosen = read_stored(CHOSEN_LOCALE_KEY)
     const kept = chosen ? best_locale(chosen, Object.keys(LOCALES)) : null
     return kept ?? detect_locale(targets, SOURCE_LOCALE)
 }
@@ -101,21 +97,13 @@ export function initial_locale():string {
 // Switch to a locale the user picked by hand, remembering it for later visits
 export async function choose_locale(code:string):Promise<void> {
     await load_locale(code)
-    try {
-        localStorage.setItem(CHOSEN_LOCALE_KEY, code)
-    } catch {
-        // Never fail over a cosmetic preference
-    }
+    write_stored(CHOSEN_LOCALE_KEY, code)
 }
 
 // Whether the active locale was picked by hand rather than detected from the browser — a pick
 // says more about the user's language than their browser does (see default_bible())
 export function locale_was_picked():boolean {
-    try {
-        return localStorage.getItem(CHOSEN_LOCALE_KEY) !== null
-    } catch {
-        return false
-    }
+    return read_stored(CHOSEN_LOCALE_KEY) !== null
 }
 
 // Nested message tree, the shape Vuetify's locale adapter reads
