@@ -194,9 +194,12 @@ const BOOK_BG_COLOR:Record<string, string> = Object.fromEntries(
 
 // Client for the cover Web Worker (cover_worker.ts): a minimal id-tagged request/response
 // relay. Unlike the book's TypstWorkerClient there's no recycle logic — covers are single
-// pages, and the worker is only spawned at all for designs that actually have one
+// pages, and the worker is only spawned at all for designs that actually have one. A worker that
+// crashed or never started is replaced on the next render instead (see get_cover_generator)
 class CoverWorkerClient {
 
+    // Set once the worker script itself has failed, after which nothing will ever answer it
+    crashed = false
     private worker:Worker
     private next_id = 0
     // When this client (and its worker's serial call queue, see cover_worker.ts) was created —
@@ -230,6 +233,7 @@ class CoverWorkerClient {
         // A crash of the worker script itself fails all in-flight calls, since no response
         // will ever arrive for them
         this.worker.onerror = event => {
+            this.crashed = true
             const error = this.diagnostic_error(this.next_id - 1, 'worker crash',
                 event.message || 'Cover worker failed')
             for (const handlers of this.pending.values()){
@@ -252,6 +256,11 @@ class CoverWorkerClient {
             error.stack = `${error.stack}\n\nWorker stack:\n${stack}`
         }
         return error
+    }
+
+    // Stop the worker for good (it's being replaced)
+    terminate():void {
+        this.worker.terminate()
     }
 
     // Post one request to the worker and await its matching result, marked as a compile in
@@ -294,13 +303,36 @@ function custom_fonts_key(fonts:CustomFont[]):string {
 }
 
 function get_cover_generator():CoverWorkerClient {
+    // The cover worker, started on first use. One that crashed, or failed to start, is replaced
+    // by a fresh one here rather than kept: otherwise one bad start (the script or the WASM
+    // failing to load) failed every cover render for the rest of the session
+    if (generator?.crashed){
+        drop_cover_generator(generator)
+    }
     if (!generator){
-        generator = new CoverWorkerClient()
+        const client = new CoverWorkerClient()
+        generator = client
         // Same shared assets tree the book compiler uses — bookcover's docs/frames/backgrounds
         // now live at its top level alongside fonts/ and the typst/ WASM dirs
-        generator_ready = generator.send({action: 'init', assets_prefix: ASSETS_PREFIX})
+        generator_ready = client.send({action: 'init', assets_prefix: ASSETS_PREFIX})
+            .catch((error:unknown) => {
+                drop_cover_generator(client)
+                throw error
+            })
     }
     return generator
+}
+
+
+function drop_cover_generator(client:CoverWorkerClient):void{
+    // Forget a cover worker (if it's still the current one), so the next render starts afresh.
+    // The fonts it was sent go with it
+    if (generator === client){
+        client.terminate()
+        generator = null
+        generator_ready = null
+        sent_fonts_key = null
+    }
 }
 
 

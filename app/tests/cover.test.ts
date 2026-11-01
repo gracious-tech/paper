@@ -51,8 +51,12 @@ let reply:((message:Posted) => unknown)|null = null
 class FakeWorker {
     onmessage:((event:{data:unknown}) => void)|null = null
     onerror:((event:{message:string}) => void)|null = null
+    terminated = false
     constructor(){
         workers.push(this)
+    }
+    terminate(){
+        this.terminated = true
     }
     postMessage(message:Posted){
         posted.push(message)
@@ -277,6 +281,41 @@ describe('rendering through the worker', () => {
         workers[0]!.onerror!({message: ''})
         await expect(first).rejects.toThrow(/^Cover worker failed \(cover worker: action=worker crash/)
         await expect(second).rejects.toThrow('Cover worker failed')
+    })
+
+    // A worker that crashed would never answer again, so the next render gets a fresh one, which
+    // is sent the fonts again too
+    it('renders on a fresh worker after a crash', async () => {
+        const cover = await load_cached()
+        reply = message => message.action === 'init' ? render_result(message) : undefined
+        custom_fonts.push({family: 'Upload', style: 'serif', files: [new Uint8Array([1])]})
+        const blueprint = await design_with_cover()
+        const first = cover.render_cover_pdf(blueprint, 100, 'final')
+        await vi.waitFor(() => expect(posted).toHaveLength(2))
+        workers[0]!.onerror!({message: ''})
+        await expect(first).rejects.toThrow('Cover worker failed')
+
+        reply = render_result
+        expect(await cover.render_cover_pdf(blueprint, 100, 'final')).toBe('cover#1')
+        expect(workers).toHaveLength(2)
+        expect(workers[0]!.terminated).toBe(true)
+        expect(posted.slice(2).map(message => message.action)).toEqual(['init', 'generate'])
+        expect(posted.at(-1)).toHaveProperty('fonts')
+    })
+
+    // One bad start used to be handed back to every render for the rest of the session
+    it('starts again after a worker that failed to start', async () => {
+        const cover = await load_cached()
+        reply = message => message.action === 'init' ? undefined : render_result(message)
+        const blueprint = await design_with_cover()
+        const first = cover.render_cover_pdf(blueprint, 100, 'final')
+        await vi.waitFor(() => expect(posted).toHaveLength(1))
+        workers[0]!.onerror!({message: ''})
+        await expect(first).rejects.toThrow('action=worker crash, call=#0')
+
+        reply = render_result
+        expect(await cover.render_cover_pdf(blueprint, 100, 'final')).toBe('cover#1')
+        expect(workers).toHaveLength(2)
     })
 
 })
