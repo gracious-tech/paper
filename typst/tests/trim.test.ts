@@ -1,5 +1,6 @@
 
 import {describe, it, expect} from 'vitest'
+import {get_common_sizes} from 'printing-services'
 
 import {resolve_trim, resolve_reading_trim, convert_unit, typst_unit, usable_length}
     from '../src/index.js'
@@ -120,13 +121,28 @@ describe('resolve_trim', () => {
             .toEqual({width: 74, height: 105, unit: 'mm'})
     })
 
-    it('holds a booklet\'s half-sheet to 70mm too', () => {
-        const booklet = (width:number, height:number):Blueprint =>
-            ({...custom_blueprint(width, height, 'mm'), booklet: true} as Blueprint)
+    it('holds a booklet\'s half-sheet to 70mm too, by raising the sheet it\'s printed on', () => {
+        const booklet = (width:number, height:number, unit:'mm' | 'inch' = 'mm'):Blueprint =>
+            ({...custom_blueprint(width, height, unit), booklet: true} as Blueprint)
         // An A6 sheet folds to an A7 page, which is fine
+        expect(resolve_trim(booklet(105, 148))).toEqual({width: 105, height: 148, unit: 'mm'})
         expect(resolve_reading_trim(booklet(105, 148))).toEqual({width: 74, height: 105, unit: 'mm'})
-        // A 100mm sheet would fold to 50mm pages
+        // A 100mm sheet would fold to 50mm pages, so the sheet's longer side becomes 140mm, and
+        // two pages side by side (apply_booklet) make exactly that sheet
+        expect(resolve_trim(booklet(80, 100))).toEqual({width: 80, height: 140, unit: 'mm'})
         expect(resolve_reading_trim(booklet(80, 100))).toEqual({width: 70, height: 80, unit: 'mm'})
+        // Landscape sheets raise their width, and other units convert
+        expect(resolve_trim(booklet(100, 80))).toEqual({width: 140, height: 80, unit: 'mm'})
+        expect(resolve_trim(booklet(3, 4, 'inch'))).toEqual({width: 3, height: 140 / 25.4, unit: 'inch'})
+    })
+
+    it('folds every named sheet into pages of at least 70mm', () => {
+        for (const size of get_common_sizes({numbers: 'number'})) {
+            const blue = {size_id: size.id, service_id: 'home', booklet: true} as unknown as Blueprint
+            const page = resolve_reading_trim(blue)
+            const min = convert_unit(70, 'mm', page.unit)
+            expect(Math.min(page.width, page.height), size.id).toBeGreaterThanOrEqual(min)
+        }
     })
 
     it('falls back to custom dimensions for an unknown named size', () => {

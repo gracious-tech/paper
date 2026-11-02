@@ -69,7 +69,9 @@ function at_least_min_page(value:number, unit:MeasureUnit):number {
 
 // The custom trim dimensions as a size that can be laid out. Like usable_length's fields, these
 // have no bounds: a cleared one hands back '' (which Typst reads as a bare unit, and bookcover
-// rejects), so that falls back to the default size, and a tiny one is raised to MIN_PAGE_MM
+// rejects), so that falls back to the default size, and a tiny one is raised to MIN_PAGE_MM. A
+// booklet's sheet also has its longer side raised to twice that, so the pages it folds into are
+// never smaller than MIN_PAGE_MM and the sheet they're printed on stays the size returned here
 export function usable_custom_trim(blue:Blueprint)
         :{width:number, height:number, unit:MeasureUnit} {
     const unit = blue.custom_unit
@@ -79,11 +81,15 @@ export function usable_custom_trim(blue:Blueprint)
         }
         return at_least_min_page(value, unit)
     }
-    return {
-        width: side(blue.custom_trim_width, FALLBACK_TRIM_MM.width),
-        height: side(blue.custom_trim_height, FALLBACK_TRIM_MM.height),
-        unit,
+    const width = side(blue.custom_trim_width, FALLBACK_TRIM_MM.width)
+    const height = side(blue.custom_trim_height, FALLBACK_TRIM_MM.height)
+    if (!blue.booklet) {
+        return {width, height, unit}
     }
+    const min_sheet = convert_unit(MIN_PAGE_MM * 2, 'mm', unit)
+    return width > height
+        ? {width: Math.max(width, min_sheet), height, unit}
+        : {width, height: Math.max(height, min_sheet), unit}
 }
 
 
@@ -120,15 +126,15 @@ export function resolve_trim(blue:Blueprint):{width:number, height:number, unit:
 // places two reading pages side by side
 export function resolve_reading_trim(blue:Blueprint)
         :{width:number, height:number, unit:MeasureUnit} {
-    // A booklet's half-sheet is held to MIN_PAGE_MM too, since halving can undercut it
+    // Halving never undercuts MIN_PAGE_MM: a custom sheet is held to twice it (usable_custom_trim)
+    // and the smallest named one, Pocket Book, folds to 87 x 108mm
     const trim = resolve_trim(blue)
     if (!blue.booklet) {
         return trim
     }
     const longer = Math.max(trim.width, trim.height)
     const shorter = Math.min(trim.width, trim.height)
-    return {width: at_least_min_page(longer / 2, trim.unit),
-        height: at_least_min_page(shorter, trim.unit), unit: trim.unit}
+    return {width: longer / 2, height: shorter, unit: trim.unit}
 }
 
 
