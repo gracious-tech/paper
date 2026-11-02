@@ -136,8 +136,8 @@ paper_bible/
   .firebaserc              # Project aliases (default/dev/prod)
   .github/workflows/
     deploy.yml             # Every push to main: lulu → lulu_push (price check if due), build
-                            #   (typecheck, audit_unit, plan, build) beside e2e (audit_e2e),
-                            #   deploy (what changed) —
+                            #   (typecheck, audit_unit, plan, build) beside e2e (audit_e2e,
+                            #   split by file into 4 shards), deploy (what changed) —
                             #   see "Deploys run in GitHub Actions" in Gotchas
   infra/
     github_ci.yml          # The CI stack (paper-bible-ci, deployed once by setup_ci_aws): the

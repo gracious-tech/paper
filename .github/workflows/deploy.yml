@@ -208,11 +208,17 @@ jobs:
 
   # The Playwright journeys (.bin/audit_e2e), beside build rather than inside it since they're
   # the slow part. Self-contained: Playwright starts the emulators, API server and app itself,
-  # against production's public read-only content services. No cloud access, like build
+  # against production's public read-only content services. No cloud access, like build.
+  # Split by file across machines, each with a stack of its own, since one runs for ~20 minutes
   e2e:
     needs: [lulu, lulu_push]
     if: ${{ !cancelled() && !failure() }}
     runs-on: ubuntu-latest
+    strategy:
+      # Every shard finishes, so one failure doesn't hide another
+      fail-fast: false
+      matrix:
+        shard: [1, 2, 3, 4]
     steps:
       - uses: actions/checkout@v7
         with:
@@ -249,12 +255,12 @@ jobs:
       # Chromium's system libraries, which the cached browser doesn't bring with it
       - run: npx playwright install-deps chromium
 
-      - run: .bin/audit_e2e
+      - run: .bin/audit_e2e --shard=${{ matrix.shard }}/4
 
       - uses: actions/upload-artifact@v7
         if: failure()
         with:
-          name: e2e_results
+          name: e2e_results_${{ matrix.shard }}
           path: e2e/results
           retention-days: 7
 
