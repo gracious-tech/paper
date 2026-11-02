@@ -109,25 +109,27 @@ export class TypstWorkerClient {
         this.worker.onmessage = (event:MessageEvent<WorkerResponse>) => {
             const response = event.data
             const handlers = this.pending.get(response.id)
-            if (!handlers){
-                return
-            }
             if (response.kind === 'progress'){
-                handlers.on_progress?.(response.event)
+                handlers?.on_progress?.(response.event)
                 return
             }
             this.pending.delete(response.id)
 
             // A fatal failure (WASM trap) poisons the compiler for every queued request too —
             // fail them all now (compile callers retry once, see send_compile) and swap in a
-            // fresh worker immediately
+            // fresh worker immediately. That includes a trap in a preview nobody is waiting for
+            // any more (see abandon), which still ran in this worker
             if (!response.ok && response.fatal){
-                handlers.reject(new FatalWorkerError(response.error))
+                handlers?.reject(new FatalWorkerError(response.error))
                 for (const other of this.pending.values()){
                     other.reject(new FatalWorkerError(response.error))
                 }
                 this.pending.clear()
                 this.gate = this.recycle()
+                return
+            }
+
+            if (!handlers){
                 return
             }
 

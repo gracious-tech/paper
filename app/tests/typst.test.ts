@@ -385,6 +385,23 @@ describe('recycling', () => {
         worker().ok(preview_request!.id, [])
     })
 
+    it('replaces the worker when a preview nobody is waiting for traps it', async () => {
+        const client = await make_client()
+        const built = client.compile_pdf(REQUEST)
+        const previewed = client.compile_svg_preview(REQUEST)
+        await worker().next('compile_svg_preview')
+        const [build_request, preview_request] = worker().sent.slice(-2)
+        client.abandon()
+        await expect(previewed).rejects.toThrow('Compile abandoned')
+        const old = worker()
+        old.ok(build_request!.id, PDF, {pages: 3})
+        expect(await built).toEqual({bytes: PDF, pages: 3})
+        // The given-up preview ran next and broke the compiler, so nothing may use it again
+        old.fail(preview_request!.id, 'unreachable', true)
+        expect(old.terminated).toBe(true)
+        expect(FakeWorker.instances).toHaveLength(2)
+    })
+
     it('releases memory at once when idle, and after the last request when busy', async () => {
         const client = await make_client()
         client.release_memory()
