@@ -200,6 +200,8 @@ class CoverWorkerClient {
 
     // Set once the worker script itself has failed, after which nothing will ever answer it
     crashed = false
+    // What the crash said, for anything sent to this worker after it
+    private crash_message = ''
     private worker:Worker
     private next_id = 0
     // When this client (and its worker's serial call queue, see cover_worker.ts) was created —
@@ -237,8 +239,9 @@ class CoverWorkerClient {
             // error (see TypstWorkerClient)
             event.preventDefault()
             this.crashed = true
+            this.crash_message = event.message || 'Cover worker failed'
             const error = this.diagnostic_error(this.next_id - 1, 'worker crash',
-                event.message || 'Cover worker failed')
+                this.crash_message)
             for (const handlers of this.pending.values()){
                 handlers.reject(error)
             }
@@ -270,6 +273,11 @@ class CoverWorkerClient {
     // progress meanwhile (a cover's Typst compile can run a phone out of memory like a book's)
     send(action:DistributiveOmit<CoverWorkerRequest, 'id'>):Promise<CoverRenderResult|null> {
         const id = this.next_id++
+        // A render can reach here after the worker crashed while it awaited the worker's start
+        // or its background's download, and a crashed worker would never answer
+        if (this.crashed){
+            return Promise.reject(this.diagnostic_error(id, action.action, this.crash_message))
+        }
         return track_browser_compile(new Promise((resolve, reject) => {
             this.pending.set(id, {action: action.action, resolve, reject})
             this.worker.postMessage({...action, id})

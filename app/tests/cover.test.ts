@@ -313,6 +313,28 @@ describe('rendering through the worker', () => {
         expect(posted.at(-1)).toHaveProperty('fonts')
     })
 
+    // A render whose worker crashes while it waits on its background's download would otherwise
+    // post to the dead worker, which never answers
+    it('fails a render whose worker crashed while its background downloaded', async () => {
+        const cover = await load_cached()
+        reply = render_result
+        objects.set('design_assets/d1/abc.jpg', WEBP)
+        let release:() => void = () => {}
+        storage.getBytes.mockImplementationOnce(async (path:string) => {
+            await new Promise<void>(resolve => { release = resolve })
+            return objects.get(path)!.buffer
+        })
+        const blueprint = await design_with_cover(
+            {bg_image: {kind: 'custom', path: 'design_assets/d1/abc.jpg', hash: 'abc'}})
+        const rendered = cover.render_cover_pdf(blueprint, 100, 'final')
+        await vi.waitFor(() => expect(storage.getBytes).toHaveBeenCalled())
+        workers[0]!.onerror!(crash_event('Uncaught RuntimeError: unreachable'))
+        release()
+        await expect(rendered).rejects.toThrow(
+            /^Uncaught RuntimeError: unreachable \(cover worker: action=generate/)
+        expect(posted.map(message => message.action)).toEqual(['init'])
+    })
+
     // One bad start used to be handed back to every render for the rest of the session
     it('starts again after a worker that failed to start', async () => {
         const cover = await load_cached()
