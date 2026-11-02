@@ -48,18 +48,38 @@ test.describe('fetch.bible blocked by the network', () => {
 })
 
 
-test.describe('the PDF engine failing to start', () => {
+test.describe('the PDF engine unable to download', () => {
 
     // (the worker's fetch of the engine is what fails)
     test.use({expected_reports: /Failed to fetch/})
 
-    test('hands this device\'s compiles to the server, with nothing to fix', async ({page}) => {
-        // The engine's WebAssembly never arrives
+    test('compiles on the server for now, without blaming the device', async ({page}) => {
+        // The engine's WebAssembly never arrives, however many times it's tried
         await page.route(/assets\.paper\.bible\/typst\//, route => route.abort())
+        const report = page.waitForRequest(/\/api\/report_error$/, {timeout: 60_000})
         await boot(page)
-        await expect.poll(() => page.evaluate(() => localStorage.getItem('compile_on_server')),
-            {timeout: 60_000}).not.toBe(null)
+        // Reported once the retries are spent
+        await report
+        // The connection was at fault, so the device isn't switched to the server for good
+        expect(await page.evaluate(() => localStorage.getItem('compile_on_server'))).toBe(null)
         // The server can do it instead, so there's no banner telling the user to reload
+        await expect(page.getByText('The PDF generator couldn\'t load')).toBeHidden()
+    })
+})
+
+
+test.describe('the PDF engine failing to start', () => {
+
+    // (the engine arrives, but isn't WebAssembly the browser can compile)
+    test.use({expected_reports: /WebAssembly/})
+
+    test('hands this device\'s compiles to the server, with nothing to fix', async ({page}) => {
+        await page.route(/assets\.paper\.bible\/typst\/.*\.wasm/, route => route.fulfill(
+            {contentType: 'application/wasm', body: 'not webassembly'}))
+        await boot(page)
+        // Provisionally, until the server has done a job of its own (see settle_server_mode)
+        await expect.poll(() => page.evaluate(() => localStorage.getItem('compile_on_server')),
+            {timeout: 60_000}).toBe('provisional')
         await expect(page.getByText('The PDF generator couldn\'t load')).toBeHidden()
     })
 })
