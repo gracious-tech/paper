@@ -14,7 +14,8 @@ div.viewport(ref='viewport' :class='[layout, {pannable, panning}]' @wheel='on_wh
 
     div.pages(v-if='layout === "column"' ref='content' :style='{"--width": `${column_width}px`}')
         img.page(v-for='(url, i) of column' :key='url' :src='url' alt='' draggable='false'
-            :loading='i < 2 ? "eager" : "lazy"' decoding='async')
+            :class='{cover: i < urls.covers.length}' :loading='i < 2 ? "eager" : "lazy"'
+            decoding='async')
         //- More of the document follows the pages shown, which only the built PDF has
         div.end(v-if='preview.dropped_after')
             strong {{ $t("display.preview.end_of_preview") }}
@@ -27,7 +28,7 @@ div.viewport(ref='viewport' :class='[layout, {pannable, panning}]' @wheel='on_wh
             strong {{ $t("display.preview.start_of_preview") }}
             div {{ $t("display.preview.build_for_rest") }}
 
-        img.page(v-if='urls.covers[0]' :src='urls.covers[0]' alt='' draggable='false'
+        img.page.cover(v-if='urls.covers[0]' :src='urls.covers[0]' alt='' draggable='false'
             :style='{width: pt(cover_width)}')
 
         template(v-for='(row, r) of rows' :key='r')
@@ -478,5 +479,11 @@ const rows = computed(() => {
         strong
             font-size: calc(13 * var(--pt))
             color: rgb(26, 26, 26)
+
+// A cover paints its own background, so nothing shows through where its edge falls partway
+// through a pixel (a page's white is there because Typst's SVG pages are transparent). After the
+// layouts' rules, which set the white with the same specificity
+.pages .page.cover
+    background-color: transparent
 
 </style>
