@@ -122,22 +122,16 @@ async function handle_action(message:CoverWorkerRequest):Promise<CoverRenderResu
         ? new File([message.image.data as unknown as BlobPart], message.image.key,
             {type: message.image.type, lastModified: 0})
         : undefined
+    // A cover printed as separate pages has bookcover cut its PDF into front and back pages
     const format = message.format ?? 'pdf'
     const result = await generator.generate({schema, ...image && {image}, format,
         ...message.image_builtin !== undefined && {image_builtin: message.image_builtin},
         ...message.image_max_dpi !== undefined && {image_max_dpi: message.image_max_dpi},
+        ...message.split_pages && format === 'pdf' && {pdf_pages: true},
         split: true, custom_fonts: custom_fonts.flatMap(font => font.files)})
     const split = result.split as
         {front:Uint8Array|string, back:Uint8Array|string, spine?:Uint8Array|string}
-
-    // A cover printed as separate pages is re-cut from the wraparound PDF. Loaded on demand, as
-    // only home printing needs it and it brings pdf-lib with it
-    let data = result.data
-    if (message.split_pages && format === 'pdf'){
-        const {split_cover_pdf} = await import('paper-bible-typst')
-        data = await split_cover_pdf(data as Uint8Array, message.form)
-    }
-    return {data, front: split.front, back: split.back,
+    return {data: result.data, front: split.front, back: split.back,
         ...split.spine !== undefined && {spine: split.spine}}
 }
 

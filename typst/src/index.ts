@@ -57,7 +57,6 @@ export {make_blueprint_schema, clean_content_items, cover_config_schema} from '.
 export {cover_form_for_render, cover_render_key, is_builtin_background,
     is_known_builtin_background, cover_page_geometry, crop_cover_svg, cover_prints_split}
     from './cover.js'
-export {split_cover_pdf} from './cover_pdf.js'
 export type {CoverPageGeometry} from './cover.js'
 
 // Trim-size resolution (service + named size, or custom dimensions) and a mm/in converter —

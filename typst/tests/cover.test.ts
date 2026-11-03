@@ -2,7 +2,9 @@
 import {describe, it, expect} from 'vitest'
 
 import {cover_render_key, cover_config_schema, cover_form_for_render,
-    is_builtin_background, is_known_builtin_background, crop_cover_svg} from '../src/index.js'
+    is_builtin_background, is_known_builtin_background, crop_cover_svg, cover_prints_split}
+    from '../src/index.js'
+import {make_blueprint} from './fixtures.js'
 
 import type {Blueprint, CoverConfig} from '../src/types.js'
 
@@ -238,4 +240,35 @@ describe('crop_cover_svg', () => {
         expect(out).toContain('<line x1="520" y1="0" x2="520" y2="500"')
         expect(out.endsWith('</svg>')).toBe(true)
     })
+})
+
+
+describe('cover_prints_split', () => {
+
+    it('splits only a home-printed cover that is not a booklet', () => {
+        expect(cover_prints_split(make_blueprint({service_id: 'home', booklet: false}))).toBe(true)
+        expect(cover_prints_split(make_blueprint({service_id: 'home', booklet: true}))).toBe(false)
+        expect(cover_prints_split(make_blueprint({service_id: 'lulu', booklet: false})))
+            .toBe(false)
+        expect(cover_prints_split(make_blueprint({service_id: 'custom', booklet: false})))
+            .toBe(false)
+    })
+
+    it('splits a custom-service cover only when asked', () => {
+        const custom = make_blueprint({service_id: 'custom', cover_split: true, custom_spine: 5})
+        expect(cover_prints_split(custom)).toBe(true)
+        expect(cover_prints_split({...custom, cover_split: false})).toBe(false)
+        // The choice belongs to the custom service alone
+        expect(cover_prints_split({...custom, service_id: 'lulu'})).toBe(false)
+    })
+
+    // The faces are printed apart, so a spine the user set is dropped while they are, and comes
+    // back when they aren't
+    it('renders a split custom cover without its spine', () => {
+        const custom = make_blueprint({service_id: 'custom', cover_split: true, custom_spine: 5})
+        expect(cover_form_for_render(make_cover(null), custom, 100)['custom_spine']).toBe(0)
+        expect(cover_form_for_render(make_cover(null), {...custom, cover_split: false}, 100)
+            ['custom_spine']).toBe(5)
+    })
+
 })

@@ -101,9 +101,9 @@ export function cover_form_for_render(cover:CoverConfig, blueprint:Blueprint,
 
 
 // Whether the printable cover file has the front and back as two pages of their own (front
-// first) rather than one wraparound sheet (see split_cover_pdf). Home printing that isn't a
-// booklet has nothing to wrap the cover around, so it always splits. A custom service splits
-// when the user asks for it, which also drops its spine (see cover_form_for_render)
+// first) rather than one wraparound sheet (bookcover's pdf_pages option). Home printing that
+// isn't a booklet has nothing to wrap the cover around, so it always splits. A custom service
+// splits when the user asks for it, which also drops its spine (see cover_form_for_render)
 export function cover_prints_split(blueprint:Blueprint):boolean{
     if (blueprint.service_id === 'home'){
         return !blueprint.booklet
