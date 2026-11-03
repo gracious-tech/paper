@@ -178,6 +178,18 @@ describe('rendering through the worker', () => {
         expect(posted.filter(message => message.action === 'generate')).toHaveLength(3)
     })
 
+    // Home printing without a booklet gets its PDF as separate front and back pages
+    it('asks for a split PDF only when the cover prints as separate pages', async () => {
+        const cover = await load_cached()
+        const split = await design_with_cover({}, {service_id: 'home', booklet: false})
+        await cover.render_cover_pdf(split, 100, 'final')
+        await cover.render_cover_pdf({...split, booklet: true}, 100, 'final')
+        await cover.render_cover_panels(split, 100)
+        const generates = posted.filter(message => message.action === 'generate')
+        expect(generates.map(message => message['split_pages'])).toEqual([true, undefined,
+            undefined])
+    })
+
     // Bounded: once more covers than it holds have rendered, the oldest renders again
     it('forgets the oldest render once more than six are held', async () => {
         const cover = await load_cached()

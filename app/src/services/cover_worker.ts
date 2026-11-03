@@ -26,13 +26,15 @@ import type {CustomFont} from 'typst-fonts'
 // is what lets a run of preview renders reuse its one downscaled copy instead of redoing it.
 // `typst_substitutions`, when set, is Typst markup bookcover puts in place of marker text in the
 // blurb (the AUTO-COPYRIGHT marker the default cover seeds into its rear text — see
-// default_cover_preset and cover_typst_substitutions)
+// default_cover_preset and cover_typst_substitutions).
+// `split_pages`, for a PDF, makes `data` the front and back faces as two pages rather than the
+// wraparound sheet (see cover_prints_split)
 export type CoverWorkerAction =
     | {action:'init', assets_prefix:string}
     | {action:'generate', fonts_key:string, fonts?:CustomFont[], form:Record<string, unknown>,
         image:{data:Uint8Array, type:string, key:string}|null, image_builtin?:string,
         image_max_dpi?:number, typst_substitutions?:Record<string, string>,
-        format?:'pdf'|'svg'}
+        format?:'pdf'|'svg', split_pages?:boolean}
 
 // A generate always also asks bookcover to split the full wraparound render into its individual
 // panels (a cheap post-process, not a second compile) — the front/back panels are what the
@@ -127,7 +129,15 @@ async function handle_action(message:CoverWorkerRequest):Promise<CoverRenderResu
         split: true, custom_fonts: custom_fonts.flatMap(font => font.files)})
     const split = result.split as
         {front:Uint8Array|string, back:Uint8Array|string, spine?:Uint8Array|string}
-    return {data: result.data, front: split.front, back: split.back,
+
+    // A cover printed as separate pages is re-cut from the wraparound PDF. Loaded on demand, as
+    // only home printing needs it and it brings pdf-lib with it
+    let data = result.data
+    if (message.split_pages && format === 'pdf'){
+        const {split_cover_pdf} = await import('paper-bible-typst')
+        data = await split_cover_pdf(data as Uint8Array, message.form)
+    }
+    return {data, front: split.front, back: split.back,
         ...split.spine !== undefined && {spine: split.spine}}
 }
 

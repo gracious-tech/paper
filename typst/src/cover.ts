@@ -98,6 +98,14 @@ export function cover_form_for_render(cover:CoverConfig, blueprint:Blueprint,
 }
 
 
+// Whether the printable cover file has the front and back as two pages of their own (front
+// first) rather than one wraparound sheet. Home printing that isn't a booklet has nothing to
+// wrap the cover around, so each face is printed as a separate page (see split_cover_pdf)
+export function cover_prints_split(blueprint:Blueprint):boolean{
+    return blueprint.service_id === 'home' && !blueprint.booklet
+}
+
+
 // Stable cache key for a rendered cover — identical keys guarantee identical output bytes
 // (same resolved form, same bg image, same font set), so book-only edits reuse the render
 export function cover_render_key(cover:CoverConfig, blueprint:Blueprint,

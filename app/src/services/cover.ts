@@ -16,7 +16,7 @@ import {make_blank_form_values, asset_path, BACKGROUNDS_DIR, BG_PREVIEW_DIR,
     from 'bookcover-core'
 import {cover_form_for_render, cover_render_key, doc_has_copyright, cover_typst_substitutions,
     COPYRIGHT_MARKER, resolve_reading_trim, convert_unit, COVER_TITLE_KEY, design_assets_prefix,
-    to_version_asset, to_design_asset, asset_basename, sniff_image_mime}
+    to_version_asset, to_design_asset, asset_basename, sniff_image_mime, cover_prints_split}
     from 'paper-bible-typst'
 
 import {firebase_storage} from '@/services/firebase'
@@ -488,8 +488,12 @@ async function render_cover(blueprint:Blueprint, page_count:number, fonts?:Custo
         ? cover_typst_substitutions(blueprint, content.translations, opts?.share_url)
         : undefined
 
+    // Whether a PDF comes back as separate front and back pages (see cover_prints_split)
+    const split_pages = format === 'pdf' && cover_prints_split(blueprint)
+
     const key = cover_render_key(cover, blueprint, page_count) + '|' + fonts_key + '|' + format
         + '|' + quality + (opts?.image_override ? '|override' : '')
+        + (split_pages ? '|split' : '')
         + (typst_substitutions ? '|subs:' + JSON.stringify(typst_substitutions) : '')
     const cached = render_cache.find(entry => entry.key === key)
     if (cached){
@@ -526,6 +530,7 @@ async function render_cover(blueprint:Blueprint, page_count:number, fonts?:Custo
         ...quality === 'preview' && {image_max_dpi: PREVIEW_MAX_DPI},
         ...typst_substitutions !== undefined && {typst_substitutions},
         format,
+        ...split_pages && {split_pages},
     }) as CoverRenderResult
     render_cache.push({key, result})
     if (render_cache.length > RENDER_CACHE_SIZE){
@@ -535,8 +540,9 @@ async function render_cover(blueprint:Blueprint, page_count:number, fonts?:Custo
 }
 
 
-// The full wraparound cover PDF (front + spine + back as one page) — 'preview' quality for the
-// on-screen preview, 'final' for the stored version's printable cover.pdf
+// The printable cover PDF: the full wraparound (front + spine + back as one page), or the front
+// and back as two pages for a cover printed that way (see cover_prints_split) — 'preview'
+// quality for the on-screen preview, 'final' for the stored version's printable cover.pdf
 export async function render_cover_pdf(blueprint:Blueprint, page_count:number,
         quality:CoverQuality, fonts?:CustomFont[], share_url?:string):Promise<Uint8Array> {
     return (await render_cover(blueprint, page_count, fonts,

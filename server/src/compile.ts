@@ -9,7 +9,7 @@ import {PDF_LIFETIME_MS, COMPILE_STATS_LIFETIME_MS,
     cover_form_for_render, is_builtin_background, is_known_builtin_background,
     is_fetchable_image_url, sniff_image_mime, doc_has_copyright,
     cover_typst_substitutions, version_assets_prefix,
-    migrate_version_blueprint} from 'paper-bible-typst'
+    migrate_version_blueprint, cover_prints_split, split_cover_pdf} from 'paper-bible-typst'
 import {compile_pdf_from_blueprint} from 'paper-bible-typst-node'
 import {generate as generate_cover, build_schema} from 'bookcover-node'
 
@@ -58,9 +58,14 @@ interface CheckedVersion {
 
 export async function render_cover(blueprint:Blueprint, custom_fonts:CustomFont[],
         page_count:number, share_url?:string):Promise<Uint8Array>{
-    // Render a blueprint's cover to PDF bytes (see render_cover_files)
-    return await render_cover_files(blueprint, custom_fonts, page_count, share_url, 'pdf',
+    // Render a blueprint's cover to PDF bytes (see render_cover_files), re-cut into separate
+    // front and back pages for a cover printed that way (see cover_prints_split)
+    const pdf = await render_cover_files(blueprint, custom_fonts, page_count, share_url, 'pdf',
         async result => new Uint8Array(await readFile(result.output_path)))
+    if (!cover_prints_split(blueprint)){
+        return pdf
+    }
+    return await split_cover_pdf(pdf, cover_form_for_render(blueprint.cover!, blueprint, page_count))
 }
 
 
