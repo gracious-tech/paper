@@ -8,7 +8,7 @@
 
 import {get_builtin_bg, resolve_dimensions} from 'bookcover-core'
 
-import {resolve_reading_trim, usable_length, usable_custom_trim} from './trim.js'
+import {convert_unit, resolve_reading_trim, usable_length, usable_custom_trim} from './trim.js'
 
 import type {DimensionInputs} from 'bookcover-core'
 import type {Blueprint, CoverConfig} from './types.js'
@@ -76,11 +76,15 @@ export function cover_form_for_render(cover:CoverConfig, blueprint:Blueprint,
     const size_mode = (blueprint.booklet || !blueprint.size_id) ? 'custom' : 'preset'
     const size_id = size_mode === 'preset' ? blueprint.size_id : ''
     // bookcover validates the custom size even for a preset, so a cleared field (see
-    // usable_custom_trim) would fail every cover render until it was filled in again
+    // usable_custom_trim) would fail every cover render until it was filled in again.
+    // bookcover reads the bleed and spine in the same unit as the trim, and those are always in
+    // the user's custom unit, so a booklet's halved named size (in that size's own unit) is
+    // converted to it
     const custom = usable_custom_trim(blueprint)
-    const unit = blueprint.booklet ? trim.unit : custom.unit
-    const trim_width = blueprint.booklet ? trim.width : custom.width
-    const trim_height = blueprint.booklet ? trim.height : custom.height
+    const unit = custom.unit
+    const trim_width = blueprint.booklet ? convert_unit(trim.width, trim.unit, unit) : custom.width
+    const trim_height = blueprint.booklet
+        ? convert_unit(trim.height, trim.unit, unit) : custom.height
 
     return {
         ...cover.form,

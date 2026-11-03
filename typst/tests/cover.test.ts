@@ -69,6 +69,18 @@ describe('cover_form_for_render size_mode', () => {
         expect(form['size_mode']).toBe('custom')
     })
 
+    it('sends a booklet\'s halved named size in the bleed and spine unit', () => {
+        // Pocket Book is an inch size, while the bleed and spine are in the user's mm — sent in
+        // inches, bookcover read a 10mm spine as 10 inches
+        const booklet = {...minimal_blueprint, service_id: 'custom', size_id: 'pocket_book',
+            booklet: true, custom_unit: 'mm', custom_bleed: 3, custom_spine: 10} as Blueprint
+        const form = cover_form_for_render(make_cover(null), booklet, 100)
+        expect(form['custom_unit']).toBe('mm')
+        expect(form['custom_trim_width']).toBeCloseTo(6.875 / 2 * 25.4)
+        expect(form['custom_trim_height']).toBeCloseTo(4.25 * 25.4)
+        expect(form['custom_spine']).toBe(10)
+    })
+
     it('never sends bookcover a cleared custom dimension', () => {
         // bookcover validates the custom size even for a preset, so '' failed every render
         const cleared = {...minimal_blueprint, custom_unit: 'mm', custom_trim_width: 120,
