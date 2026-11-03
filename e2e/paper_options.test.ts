@@ -121,7 +121,7 @@ test('a few sizes are buttons, and a custom service takes bleed and spine', asyn
         return [blueprint['service_id'], blueprint['binding_type']]
     }).toEqual(['custom', 'paperback'])
     expect((await stored(design_id))['size_id']).not.toBe('')
-    await page.getByLabel('Bleed', {exact: true}).fill('5')
+    await page.getByLabel('Cover bleed', {exact: true}).fill('5')
     await page.getByLabel('Spine width', {exact: true}).fill('12')
     await expect.poll(async () => {
         const blueprint = await stored(design_id)
