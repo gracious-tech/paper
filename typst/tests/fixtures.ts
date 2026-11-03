@@ -89,6 +89,7 @@ export function make_passage(overrides:Partial<TypstPassage> = {}):TypstPassage 
         column_gap: '5mm',
         book: 'gen',
         book_name: 'Genesis',
+        book_name2: null,
         start_chapter: 1,
         passage_title: null,
         passage_subtitle: null,

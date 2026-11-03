@@ -230,6 +230,9 @@ export interface TypstPassage {
     // Display name of the book, for the running heading (translation-dependent, e.g.
     // "Psalms" vs "Salmos" — resolved from the fetched Bible collection, not a static map)
     book_name:string
+    // The same in the second translation (null with only one), for the running heading over
+    // that translation's own pages in the facing layout
+    book_name2:string|null
     // Chapter the passage opens on, for seeding the running heading — the USX->Typst
     // converter only emits a #ch() marker for a chapter's own opening verse, so a passage
     // starting mid-chapter never triggers one for its first (partial) chapter

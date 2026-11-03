@@ -624,14 +624,19 @@ export class BibleContent {
             columns: blue.columns === null ? 'auto' : (blue.columns ? 2 : 1),
             column_gap: `${usable_length(blue.column_gap)}${typst_unit(blue.margin_unit)}`,
             book: passage.book,
-            book_name: this.collection.get_books(blue.bibles[0], {object: true})[passage.book]
-                ?.name ?? passage.book,
+            book_name: this.book_name(blue.bibles[0], passage.book),
+            book_name2: blue.bibles[1] ? this.book_name(blue.bibles[1], passage.book) : null,
             start_chapter: passage.start_chapter ?? 1,
             passage_title: show_heading ? effective_title : null,
             passage_subtitle: show_heading && passage.title_subtitle ? passage.title_subtitle : null,
             passage_icon,
             progress_label: reference,
         }
+    }
+
+    // A book's display name in the given translation, falling back to its code
+    private book_name(bible:string|undefined, book:string):string {
+        return this.collection.get_books(bible, {object: true})[book]?.name ?? book
     }
 
     // A passage's reference string in the primary translation (e.g. "Genesis 1:1-5") — the

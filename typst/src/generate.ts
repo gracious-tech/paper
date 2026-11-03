@@ -267,7 +267,7 @@ export function generate_typst_facing(
     const seed = running_seed(passage)
     const states = gen_running_states(seed)
     const furniture = gen_facing_furniture(request, seed, start_page, gutter,
-        !!passage.passage_title)
+        !!passage.passage_title, passage.book_name2)
     // One half's text width — what footnote entries are capped to so a long note stays on the
     // page it belongs to once split_facing cuts the double page down the centre
     const half_width = `${page.width} - ${page.margin_left} - ${page.margin_right}`
@@ -321,29 +321,38 @@ function furniture_half_row(dir:TextDir, is_recto:boolean, outer:string, center:
 
 // Build the facing-pages page-number + running-heading row: each half gets its own computed
 // page number (the built-in counter only advances once per double page — see start_page's doc
-// comment above) but the same running heading (one passage, two translations side by side).
+// comment above) and the running heading in its own translation's book name (`book_name2` for
+// the second translation's half; the chapter is shared, since the halves' rows are aligned).
 // Returns a raw block expression (not context-wrapped, matching gen_page_furniture_row's
 // contract) or 'none' when neither feature is on — see generate_typst_facing for how it's
 // combined with the header's footnote-counter reset
 function gen_facing_furniture(
     request:TypstRequest, seed:RunningSeed, start_page:number, gutter:string, has_title:boolean,
+    book_name2:string|null,
 ):string {
     if (!request.running_pages && !request.running_headings) {
         return 'none'
     }
 
-    // Same running heading text on both halves, but each half computes its own page number.
-    // Ungated (unlike the general case) — a facing compile is a single passage end to end, so
-    // every one of its pages is a passage page
-    const heading = gen_furniture_cell(request.running_headings, gen_furniture_heading(seed), null)
+    // Each half computes its own page number and heading. Ungated (unlike the general case) — a
+    // facing compile is a single passage end to end, so every one of its pages is a passage page
+    const heading = (book?:string) =>
+        gen_furniture_cell(request.running_headings, gen_furniture_heading(seed, book), null)
     const number = (expr:string) =>
         gen_furniture_cell(request.running_pages, `str(${expr})`, null)
-    const left = gen_furniture_slots(request, number(`${start_page} + 2 * (n - 1)`), heading)
-    const right = gen_furniture_slots(request, number(`${start_page} + 2 * n - 1`), heading)
+
+    // The content grid runs in text direction, so an RTL document puts the primary translation
+    // on the right half and the second on the left
+    const dir = request.typography.dir
+    const heading1 = heading()
+    const heading2 = heading(book_name2 ?? undefined)
+    const left = gen_furniture_slots(request, number(`${start_page} + 2 * (n - 1)`),
+        dir === 'rtl' ? heading2 : heading1)
+    const right = gen_furniture_slots(request, number(`${start_page} + 2 * n - 1`),
+        dir === 'rtl' ? heading1 : heading2)
 
     // A facing document renders exactly one passage, so its own title (if any) is what decides
     // whether the double page it opens on carries furniture at all — see gen_title_page_gate
-    const dir = request.typography.dir
     const row = gen_physical_row(dir, ['1fr', '1fr'], [
         furniture_half_row(dir, false, left.outer, left.center),
         furniture_half_row(dir, true, right.outer, right.center),

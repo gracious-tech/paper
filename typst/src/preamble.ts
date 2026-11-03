@@ -52,10 +52,12 @@ export function gen_running_states(seed:RunningSeed)
 
 
 // The running heading's text: the book and chapter the page is currently in, read from the
-// state generate.ts's per-item loop keeps updated
-export function gen_furniture_heading(seed:RunningSeed):string {
+// state generate.ts's per-item loop keeps updated. A fixed `book` name replaces the book state,
+// for the facing layout's second-translation pages (one passage, so one book throughout)
+export function gen_furniture_heading(seed:RunningSeed, book?:string):string {
     const states = gen_running_states(seed)
-    return `${states.book}.at(here()) + " " + str(${states.chapter}.at(here()))`
+    const name = book === undefined ? `${states.book}.at(here())` : `"${escape_typst_str(book)}"`
+    return `${name} + " " + str(${states.chapter}.at(here()))`
 }
 
 

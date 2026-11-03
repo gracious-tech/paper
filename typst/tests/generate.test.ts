@@ -406,6 +406,29 @@ describe('generate_typst_facing', () => {
         expect(result).toContain('str(state("running-chapter", 3).at(here()))')
     })
 
+    it('heads the second translation\'s half with its own book name', () => {
+        const result = generate_typst_facing(
+            {...facing_request(), running_headings: true},
+            {...facing_passage(), book_name: 'Genesis', book_name2: 'Génesis'})
+        const verso = result.indexOf('state("running-book", "Genesis").at(here())')
+        const recto = result.indexOf('"Génesis" + " " + str(state("running-chapter"')
+        expect(verso).toBeGreaterThan(-1)
+        expect(recto).toBeGreaterThan(verso)
+    })
+
+    it('puts the second translation\'s heading on the left half in RTL', () => {
+        const request = make_request({running_headings: true,
+            typography: {...TEST_TYPOGRAPHY, dir: 'rtl'}})
+        const result = generate_typst_facing(request,
+            {...facing_passage(), book_name: 'Genesis', book_name2: 'Génesis'})
+        // Physical rows list the cells reversed in RTL (see gen_physical_row), so the left
+        // half's cells come second
+        const right = result.indexOf('state("running-book", "Genesis").at(here())')
+        const left = result.indexOf('"Génesis" + " "')
+        expect(right).toBeGreaterThan(-1)
+        expect(left).toBeGreaterThan(right)
+    })
+
     it('confines footnote entries to the left half', () => {
         const result = generate_typst_facing(facing_request(), facing_passage())
         expect(result).toContain('box(width: 148mm - 10mm - 20mm,')
