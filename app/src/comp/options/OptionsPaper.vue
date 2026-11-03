@@ -51,9 +51,10 @@ template(v-else)
         template(v-if='is_custom')
             v-text-field(v-model.number='blue.custom_bleed' type='number' variant='underlined'
                 density='compact' hide-details :label='$t("options.paper.bleed")' class='dims-field')
-            v-text-field(v-model.number='blue.custom_spine' type='number' variant='underlined'
-                density='compact' hide-details :label='$t("options.paper.spine_width")'
-                class='dims-field')
+            //- A cover printed as separate faces has no spine, so it reads 0 meanwhile
+            v-text-field(v-model.number='spine_model' :disabled='blue.cover_split'
+                type='number' variant='underlined' density='compact' hide-details
+                :label='$t("options.paper.spine_width")' class='dims-field')
         AppOptionToggle(v-model='unit_model' :items='custom_unit_items' size='small'
             density='compact')
 
@@ -61,6 +62,13 @@ template(v-else)
         //- folded)
         v-switch(v-if='is_custom' v-model='blue.booklet' :label='$t("common.booklet_home")'
             color='primary' density='compact' hide-details)
+
+        //- Custom mode can also print the cover's front and back as separate pages, which drops
+        //- the spine (its field is disabled meanwhile)
+        v-switch(v-if='is_custom' v-model='blue.cover_split'
+            :label='$t("options.paper.cover_split")'
+            :hint='$t("options.paper.cover_split_spine")' persistent-hint
+            color='primary' density='compact')
 
     //- Regular-service mode, named or custom size: binding, ink and paper type (page count isn't
     //- asked for — it's determined by the document itself, estimated from the preview until a
@@ -132,6 +140,14 @@ const custom_unit_items = computed(() => [
 const unit_model = computed({
     get: () => blue.custom_unit,
     set: (unit:MeasureUnit) => set_unit(unit),
+})
+
+
+// The spine width field's value — 0 while the cover prints as separate faces (which have no
+// spine), the user's own width otherwise, which is kept meanwhile for when they turn that off
+const spine_model = computed({
+    get: () => blue.cover_split ? 0 : blue.custom_spine,
+    set: (width:number) => { blue.custom_spine = width },
 })
 
 

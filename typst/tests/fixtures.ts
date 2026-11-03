@@ -175,6 +175,7 @@ export function make_blueprint(overrides:Partial<Blueprint> = {}):Blueprint {
         custom_spine: 10,
         booklet: true,
         booklet_portrait: false,
+        cover_split: false,
 
         // Content
         content: [],

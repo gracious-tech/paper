@@ -391,6 +391,9 @@ export interface Blueprint {
     custom_spine:number
     booklet:boolean
     booklet_portrait:boolean
+    // Custom service only: print the cover's front and back as two pages of their own rather
+    // than one wraparound sheet, which drops the spine (see cover_prints_split)
+    cover_split:boolean
 
     // Content
     content:ContentItem[]

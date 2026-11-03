@@ -179,6 +179,7 @@ export function make_blueprint_schema(defaults:Blueprint):z.ZodType<Blueprint>{
         custom_spine: z.number().catch(defaults.custom_spine),
         booklet: z.boolean().catch(defaults.booklet),
         booklet_portrait: z.boolean().catch(defaults.booklet_portrait),
+        cover_split: z.boolean().catch(defaults.cover_split),
 
         // Content (items validated individually — a bad item is dropped, a non-array falls
         // back to the default content wholesale)

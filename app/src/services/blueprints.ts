@@ -65,6 +65,7 @@ export function get_default_blueprint():Blueprint{
         custom_spine: 10,
         booklet: true,
         booklet_portrait: false,
+        cover_split: false,
 
         // Content
         content: [],

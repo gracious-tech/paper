@@ -59,9 +59,11 @@ export function cover_form_for_render(cover:CoverConfig, blueprint:Blueprint,
     // Home printing is a plain A4/US-Letter sheet: nothing is trimmed and nothing is bound
     // along a spine, so the wraparound is exactly two trim faces wide (matching an interior
     // booklet sheet). The blueprint's manual bleed/spine aren't even offered in home mode.
+    // A cover printed as separate faces has no spine either, whatever spine the user had set.
     // A cleared bleed/spine field hands back '' (see usable_length), which bookcover rejects
     const bleed = home ? 0 : usable_length(blueprint.custom_bleed)
-    const spine = home ? 0 : usable_length(blueprint.custom_spine)
+    const spine = (home || cover_prints_split(blueprint)) ? 0
+        : usable_length(blueprint.custom_spine)
 
     // A fold-at-home booklet's chosen size is the sheet that gets folded, so the finished book
     // is half of it — the cover must wrap a reading page, not the sheet. No named size can
@@ -99,10 +101,14 @@ export function cover_form_for_render(cover:CoverConfig, blueprint:Blueprint,
 
 
 // Whether the printable cover file has the front and back as two pages of their own (front
-// first) rather than one wraparound sheet. Home printing that isn't a booklet has nothing to
-// wrap the cover around, so each face is printed as a separate page (see split_cover_pdf)
+// first) rather than one wraparound sheet (see split_cover_pdf). Home printing that isn't a
+// booklet has nothing to wrap the cover around, so it always splits. A custom service splits
+// when the user asks for it, which also drops its spine (see cover_form_for_render)
 export function cover_prints_split(blueprint:Blueprint):boolean{
-    return blueprint.service_id === 'home' && !blueprint.booklet
+    if (blueprint.service_id === 'home'){
+        return !blueprint.booklet
+    }
+    return blueprint.service_id === 'custom' && blueprint.cover_split
 }
 
 

@@ -95,6 +95,7 @@ export function build_blueprint(tier:Tier, overrides:Partial<Blueprint> = {}):Bl
         custom_spine: 10,
         booklet: false,
         booklet_portrait: false,
+        cover_split: false,
 
         // Content
         content,

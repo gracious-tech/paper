@@ -96,6 +96,7 @@ export function blueprint_options():Record<string, unknown>{
         custom_spine: 10,
         booklet: true,
         booklet_portrait: false,
+        cover_split: false,
         last_item_at_end: false,
         bibles: ['eng_bsb'],
         bibles_layout: 'columns',
