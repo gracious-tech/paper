@@ -83,9 +83,9 @@ template(v-else)
     //- DisplayDesignVersion.vue — one centred row above the latest version card — except the
     //- PDFs open in a new tab rather than downloading, since there's no preview to see them in
     div.mobile_actions(v-if='downloads_ready && !preparing')
-        v-btn(@click='open_interior' variant='tonal' color='secondary-darken-1')
+        v-btn(:href='interior_link' target='_blank' variant='tonal' color='secondary-darken-1')
             | {{ $t("view.version.open_interior") }}
-        v-btn(v-if='has_cover' @click='open_cover' variant='tonal'
+        v-btn(v-if='has_cover' :href='cover_link' target='_blank' variant='tonal'
                 color='secondary-darken-1' :disabled='cover_failed || cover_pending'
                 :loading='cover_pending')
             | {{ $t("view.version.open_cover") }}
@@ -132,7 +132,7 @@ import {useRouter} from 'vue-router'
 import {useI18n, count_phrase} from '@/services/i18n'
 import {PassageReference} from '@gracious.tech/fetch-client'
 
-import {versions, latest_version, version_expired, open_version_pdf, preparing_version,
+import {versions, latest_version, version_expired, version_pdf_link, preparing_version,
     cover_failed as version_cover_failed, cover_pending as version_cover_pending,
     version_contact_url, version_retryable, use_pending_clock, compiling_on_server}
     from '@/services/versions'
@@ -413,21 +413,13 @@ const has_cover = computed(() => {
 })
 
 
-// Open the latest version's interior PDF in a new tab (tab opened synchronously so popup
-// blockers credit the click as a user gesture — see open_version_pdf)
-const open_interior = () => {
-    if (latest_version.value){
-        void open_version_pdf(self.open('', '_blank'), latest_version.value, 'interior')
-    }
-}
-
-
-// Open the latest version's separate cover PDF in a new tab
-const open_cover = () => {
-    if (latest_version.value){
-        void open_version_pdf(self.open('', '_blank'), latest_version.value, 'cover')
-    }
-}
+// Links to the latest version's PDFs, opened in a new tab (see version_pdf_link)
+const interior_link = computed(() => {
+    return latest_version.value ? version_pdf_link(latest_version.value, 'interior') : undefined
+})
+const cover_link = computed(() => {
+    return latest_version.value ? version_pdf_link(latest_version.value, 'cover') : undefined
+})
 
 
 // Open the printing guidance for the latest version, tailored to its printing service

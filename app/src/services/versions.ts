@@ -14,6 +14,7 @@ import {content} from '@/services/content'
 import {designs, current_design_id, until_listed} from '@/services/designs'
 import {read_wizard_state} from '@/services/new_design'
 import {report_error} from '@/services/errors'
+import {storage_public_url} from '@/services/design_assets'
 import {version_progress, build_requests} from '@/services/compile_progress'
 
 import type {DesignMeta, Version} from '@/services/types'
@@ -411,18 +412,24 @@ export async function get_cover_pdf_url(version:Version):Promise<string|null>{
 }
 
 
-export async function open_version_pdf(win:Window|null, version:Version,
-        which:'interior'|'cover'):Promise<void>{
-    // Navigate an already-opened blank tab to one of the version's PDFs. The caller opens the
-    // tab synchronously (passing the handle in) so popup blockers still credit the originating
-    // click as a user gesture; this resolves the URL and points the tab at it, closing the tab
-    // when the PDF isn't available (pending/failed/expired, or no cover)
-    const url = which === 'cover' ? await get_cover_pdf_url(version) : await get_pdf_url(version)
-    if (url && win){
-        win.location.href = url
-    } else {
-        win?.close()
+export function version_pdf_link(version:Version, which:'interior'|'cover'):string|undefined {
+    // A link to one of the version's PDFs, for a plain `<a target=_blank>` rather than a tab
+    // opened from script: in-app browsers (Facebook's, Instagram's) block or ignore
+    // `window.open()`, but follow a real link. Built from the path with no getDownloadURL()
+    // round-trip, since Storage rules allow anyone to `get` both PDFs. Undefined when there's
+    // nothing to open (pending/failed/expired, or no cover), the same cases get_pdf_url and
+    // get_cover_pdf_url return null for
+    if (version.status !== 'available' || version_expired(version)){
+        return undefined
     }
+    if (which === 'interior'){
+        return storage_public_url(version.pdf_path)
+    }
+    if (!version.blueprint.cover || version.cover_status === 'failed'
+            || version.cover_status === 'pending'){
+        return undefined
+    }
+    return storage_public_url(`versions/${version.id}/cover.pdf`)
 }
 
 

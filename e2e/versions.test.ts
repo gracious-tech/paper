@@ -242,15 +242,17 @@ test('a version\'s menu opens its PDFs in a new tab', async ({page}) => {
     await page.goto(`/designs/${design_id}/${latest}`)
     await expect(version_row(page, 'latest')).toBeVisible({timeout: 60_000})
 
-    // Each opens its own stored PDF, in a tab opened by the click itself (headless Chromium
+    // Each is a link to its own stored PDF, opening in a new tab (headless Chromium
     // downloads a PDF rather than showing it, so the tab's request is what's checked)
     for (const [action, file] of [['Open interior', 'doc'], ['Open cover', 'cover']]){
         const popup = page.waitForEvent('popup')
         const request = page.context().waitForEvent('request',
             asked => asked.url().includes(`${latest}%2F${file!}.pdf`))
         await version_action(page, version_row(page, 'latest'), action!)
-        await popup
         await request
+        // Back to the app, as the user would be (with the new tab still in front, the next
+        // menu opened can lose its first click)
+        await (await popup).close()
     }
 })
 

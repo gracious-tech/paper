@@ -59,10 +59,11 @@ v-list-item(:active='!is_mobile && version.id === selected_version_id' color='pr
                 v-btn(v-bind='props' icon variant='text' color='black' @click.stop)
                     app-icon(name='more_vert')
             v-list
-                v-list-item(@click='download'
+                v-list-item(:href='version_pdf_link(version, "interior")' target='_blank'
                         :disabled='version.status !== "available" || expired')
                     v-list-item-title {{$t("view.version.open_interior")}}
-                v-list-item(v-if='version.blueprint.cover' @click='download_cover'
+                v-list-item(v-if='version.blueprint.cover'
+                        :href='version_pdf_link(version, "cover")' target='_blank'
                         :disabled='version.status !== "available" || expired || cover_failed || version.cover_status === "pending"')
                     v-list-item-title {{$t("view.version.open_cover")}}
                 template(v-if='editable')
@@ -94,7 +95,7 @@ import {state, show_toast, confirm_dialog, alert_dialog, run_with_retry, report_
     from '@/services/state'
 import {binding_page_issue} from '@/services/binding_advice'
 import {create_design_from_version, restore_version_into_design} from '@/services/designs'
-import {open_version_pdf, delete_version, cover_failed as version_cover_failed,
+import {version_pdf_link, delete_version, cover_failed as version_cover_failed,
     cover_pending as version_cover_pending, version_expired, use_pending_clock, share_version,
     selected_version_id, design_needs_editor, version_contact_url, version_retryable}
     from '@/services/versions'
@@ -261,17 +262,6 @@ const view_changes = () => {
     // navigate to the bare design route — mirrors ViewDesign's own show_editor gate
     state.forced_editor = true
     void router.push({name: 'design', params: {id: props.design_id}})
-}
-
-const download = () => {
-    // Open the stored interior PDF in a new tab (tab opened synchronously so popup blockers
-    // credit the click as a user gesture — see open_version_pdf)
-    void open_version_pdf(self.open('', '_blank'), props.version, 'interior')
-}
-
-const download_cover = () => {
-    // Open the version's separate cover PDF in a new tab
-    void open_version_pdf(self.open('', '_blank'), props.version, 'cover')
 }
 
 const regen = async () => {

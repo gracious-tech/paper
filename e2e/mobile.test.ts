@@ -63,7 +63,9 @@ test('building from the simple editor, then opening the PDF', async ({page}) => 
     const opening = page.context().waitForEvent('page')
     const navigating = page.context().waitForEvent('request',
         request => request.isNavigationRequest() && request.url().includes('doc.pdf'))
-    await click_button(page.locator('.mobile_actions'), 'Open interior')
+    // (a real link, not a script-opened tab, so in-app browsers follow it too)
+    await page.locator('.mobile_actions')
+        .getByRole('link', {name: 'Open interior', exact: true}).click()
     const tab = await opening
     expect((await navigating).frame().page()).toBe(tab)
 })
@@ -259,7 +261,7 @@ test('a finished version\'s cover, cost and printing guidance are in the version
     // The cover opens in a new tab like the interior does (see the build journey above)
     const navigating = page.context().waitForEvent('request',
         request => request.isNavigationRequest() && request.url().includes('cover.pdf'))
-    await click_button(actions, 'Open cover')
+    await actions.getByRole('link', {name: 'Open cover', exact: true}).click()
     await navigating
 
     // The cost estimate and the printing guidance open over the list

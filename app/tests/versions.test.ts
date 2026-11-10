@@ -12,7 +12,7 @@ import {fake_db, module as fake_firestore} from './helpers/fake_firestore'
 import {make_blueprint} from './helpers/blueprint'
 import {build_requests} from '@/services/compile_progress'
 import {versions, start_versions_sync, stop_versions_sync, until_version_settled, cover_pending,
-    use_pending_clock, get_pdf_url, get_cover_pdf_url, open_version_pdf, download_version_pdf,
+    use_pending_clock, get_pdf_url, get_cover_pdf_url, version_pdf_link, download_version_pdf,
     fetch_shared_version, share_version, STUCK_MS} from '@/services/versions'
 
 import type {Blueprint, Version} from '@/services/types'
@@ -35,6 +35,9 @@ vi.mock('@/services/auth', () => ({user: {value: {uid: 'me'}}}))
 vi.mock('@/services/designs', () => ({designs: [], current_design_id: {value: null},
     until_listed: async () => undefined}))
 vi.mock('@/services/errors', () => ({report_error: mocks.report_error}))
+vi.mock('@/services/design_assets', () => ({
+    storage_public_url: (path:string) => `https://public/${path}`,
+}))
 // (The real module reaches the compiler, which listens for page events at import)
 vi.mock('@/services/new_design', () => ({
     read_wizard_state: () => ({wizard_draft: null, simple_mode: false}),
@@ -219,12 +222,20 @@ describe('PDF links', () => {
         expect(mocks.report_error).toHaveBeenCalledTimes(1)
     })
 
-    it('points the opened tab at the PDF, or closes it when there\'s none', async () => {
-        const tab = {location: {href: ''}, close: vi.fn()}
-        await open_version_pdf(tab as unknown as Window, make_version(), 'interior')
-        expect(tab.location.href).toBe('https://files/versions/v1/doc.pdf')
-        await open_version_pdf(tab as unknown as Window, make_version(), 'cover')
-        expect(tab.close).toHaveBeenCalled()
+    it('links straight to an available PDF, and to nothing when there\'s none', () => {
+        expect(version_pdf_link(make_version(), 'interior'))
+            .toBe('https://public/versions/v1/doc.pdf')
+        expect(version_pdf_link(make_version({status: 'pending'}), 'interior')).toBe(undefined)
+        expect(version_pdf_link(make_version({pdf_expires: new Date(0)}), 'interior'))
+            .toBe(undefined)
+        // A cover needs one in the blueprint and a render that finished
+        expect(version_pdf_link(make_version(), 'cover')).toBe(undefined)
+        expect(version_pdf_link(make_version({blueprint: make_blueprint({cover: COVER}),
+            cover_status: 'pending'}), 'cover')).toBe(undefined)
+        expect(version_pdf_link(make_version({blueprint: make_blueprint({cover: COVER}),
+            cover_status: 'available'}), 'cover')).toBe('https://public/versions/v1/cover.pdf')
+        // No Storage round-trip, so nothing that could fail at the click
+        expect(mocks.download_url).not.toHaveBeenCalled()
     })
 
     it('downloads under a filename made safe from the title, and nothing when there\'s no PDF', async () => {
