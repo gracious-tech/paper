@@ -68,7 +68,7 @@ const INIT_RETRY_GAPS_MS = [2000, 5000, 15000]
 
 
 export function is_fetch_failure(error:unknown):boolean {
-    // Whether an error relayed from the worker is a download failing to reach the network at all,
+    // Whether an error (e.g. one relayed from the worker) is a download failing at the network,
     // in each engine's wording (Chromium, WebKit, Firefox), the WASM's own streaming download
     // included (Chromium: "WebAssembly compilation aborted: Network error: ...")
     return error instanceof Error

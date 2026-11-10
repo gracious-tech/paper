@@ -239,6 +239,13 @@ describe('init', () => {
         expect(is_fetch_failure(new Error('unreachable'))).toBe(false)
     })
 
+    it('counts Safari\'s body read cut off mid-stream as a failed download', async () => {
+        // What Response.text() rejects with in Safari when the connection drops mid-body, which
+        // fetch-client passes on as is (so boot must recognise it to retry, see init.ts)
+        const {is_fetch_failure} = await import('@/services/typst')
+        expect(is_fetch_failure(new TypeError('Load failed'))).toBe(true)
+    })
+
     it('throws anything else straight away', async () => {
         FakeWorker.init_failures = ['call to eval() blocked by CSP']
         const {TypstWorkerClient, is_fetch_failure} = await import('@/services/typst')

@@ -186,7 +186,7 @@ void (async () => {
     // get_default_blueprint in blueprints.ts, content_summary via meta_from_doc), so nothing
     // below this line can run without it
     await Promise.all([ensure_signed_in(),
-        retry_startup(() => bible_content.init(), error => error instanceof FetchNetworkError),
+        retry_startup(() => bible_content.init(), content_unreachable),
         locale_ready])
 
     // A phone whose last session died mid-compile compiles on the server from now on (signed in
@@ -309,10 +309,19 @@ void (async () => {
 })().catch((error:unknown) => {
     // fetch.bible failing at the network level (no response at all) means something between the
     // user and it is blocking it, which only they can get around
-    const message = error instanceof FetchNetworkError
+    const message = content_unreachable(error)
         ? translate('app.error_content_unreachable') : undefined
     report_error('splash', error, {context: boot_failure_context(error), message})
 })
+
+
+function content_unreachable(error:unknown):boolean{
+    // Whether fetch.bible failed at the network level: no response at all (fetch-client's
+    // FetchNetworkError), or a response whose body was cut off as it was read, which fetch-client
+    // passes on as the browser's own TypeError (Safari: "Load failed" thrown by text())
+    return error instanceof FetchNetworkError
+        || (error instanceof TypeError && is_fetch_failure(error))
+}
 
 
 function boot_failure_context(error:unknown):Record<string, string|number>{
