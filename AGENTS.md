@@ -203,18 +203,19 @@ paper_bible/
     i18n_status/_job/_apply/_check/_sync/_extract  # Translation tooling (logic in app/i18n/);
                             #   see the i18n section and .claude/skills/translate
     audit_unit             # Every unit/integration suite (typst, typst-web, typst-node, app,
-                            #   rules, server, i18n) — starts its own emulators; see the Testing
-                            #   section
+                            #   rules, server, i18n, errors) — starts its own emulators; see the
+                            #   Testing section
     audit_e2e              # Playwright journeys, desktop + mobile — starts its own stack, runs
                             #   in CI (see e2e/ and the Testing section)
     audit_stress           # Compile stress ladder, browser (WASM) + server (see e2e/tiers.ts)
     audit_coverage         # Coverage across every suite (unit + journeys + spawned servers),
                             #   merged into one report (see coverage/ and the Testing section)
-    audit_errors           # Move error reports out of the bucket + triage them (TUI; claude
-                            #   groups, shortlists and auto-fixes them for review). Syncs the
-                            #   site bucket's sourcemaps/ into errors/sourcemaps/ first.
-                            #   --headless skips the TUI and prints the issue list's path, for
-                            #   an AI session to triage with `node errors/triage.ts`
+    audit_errors           # Unattended error triage: move reports out of the bucket, group
+                            #   them (code), label the open ones (a no-tools claude), fix what
+                            #   it can (gated, tested, committed, never pushed; the cover
+                            #   widget's in ../paper_cover) and print a JSON report. Minutes per fix, so run it in the background. Syncs the
+                            #   site bucket's sourcemaps/ into errors/sourcemaps/ first. See
+                            #   "Error reports are prompt-injection input" in Gotchas
     gen_lulu_prices        # Regenerate Lulu's print prices
     gen_example_images     # Render the example designs' 3D cover pictures, per UI locale (see
                             #   "Example pictures" in Gotchas) — local only, results committed
@@ -359,7 +360,8 @@ paper_bible/
                             #   is implicit in dev (emulators) and fetched from Secrets Manager
                             #   in production, since Lambda has no Cloud-Run-style ambient ADC
     src/config.ts          # Env-derived config (roles, ports, assets dir, dev flag)
-    src/errors.ts          # ErrorRecord + save_error() → errors/{fingerprint}/{id}.json
+    src/errors.ts          # save_error() → errors/{fingerprint}/{id}.json, /api/report_error
+    src/error_schema.ts    # ErrorRecord + the strict report shape, shared with errors/ (zod only)
   tests/              # Emulator-backed suites (not a workspace; run via .bin/audit_unit)
     helpers/          #   emulator.ts (rules test env) + server.ts (Admin SDK fixtures)
     rules/            #   firestore.rules + firebase_storage.rules, asserted from a client
@@ -367,9 +369,13 @@ paper_bible/
   e2e/                # Playwright: one *.test.ts per area of the app (journeys + mobile), the
                       #   stack Playwright starts (stack.ts, api_server.ts), shared fixtures
                       #   (fixtures.ts), Admin SDK seeding (helpers/), plus the stress harness
-  errors/             # .bin/audit_errors internals: bucket sync, claude clustering + ranking,
-                      #   background fixer, triage TUI, triage.ts (the CLI its list-level
-                      #   claude session applies decisions with)
+  errors/             # .bin/audit_errors internals: bucket sync, grouping + labelling + the
+                      #   unattended policy (analyse.ts), the repos it fixes in and their checks
+                      #   (repos.ts), every claude invocation and its limits
+                      #   (claude.ts), the canaries that check them (canary.ts), the fix
+                      #   pipeline (fix.ts) and its patch gates (gates.ts), triage.ts (the JSON
+                      #   CLI for following up; its brief is list_brief() in store.ts), tests/
+                      #   (the `errors` audit_unit group)
   coverage/           # .bin/audit_coverage internals: scope.ts (what counts, path normalising),
                       #   mcr.unit.ts (the unit groups' MCR config), e2e.ts (browser collection),
                       #   node_flush.ts (preload for spawned Node), merge.ts; reports/ is output
@@ -556,7 +562,7 @@ After that, every push to `main` deploys itself. The scripts still work by hand
 ```bash
 .bin/audit_unit                 # everything below (~1 min; starts its own emulators)
 .bin/audit_unit app             # one group: typst | typst-web | typst-node | app | rules |
-                                #   server | i18n
+                                #   server | i18n | errors
 .bin/audit_unit rules storage   # a group plus a vitest filter
 .bin/audit_e2e                  # Playwright journeys, desktop + mobile (starts its own stack)
 .bin/audit_e2e cover.test.ts    # one file (any other playwright test arguments pass through)
@@ -569,6 +575,7 @@ After that, every push to `main` deploys itself. The scripts still work by hand
 | app service logic | `app/tests/` | nothing |
 | security rules | `tests/rules/` | the test emulators |
 | server handlers + routes | `tests/server/` | the test emulators |
+| error triage tool | `errors/tests/` | nothing (makes a git worktree of HEAD) |
 | user journeys | `e2e/*.test.ts` (compile and cover included) | nothing — own stack |
 | compile stress | `e2e/stress_*` | the dev content + bookcover servers |
 
@@ -911,9 +918,15 @@ After that, every push to `main` deploys itself. The scripts still work by hand
   hadn't been visited
 - **Error reporting is self-hosted:** browser errors POST to `/api/report_error`
   (unauthenticated OK, uid attached when known, IP recorded server-side) and everything
-  lands in the bucket as `errors/{fingerprint}/{id}.json` (90-day lifecycle). The
-  fingerprint only dedupes identical messages — semantic grouping happens in
-  `.bin/audit_errors` (claude clusters fingerprints into issues and shortlists the open ones).
+  lands in the bucket as `errors/{fingerprint}/{id}.json` (90-day lifecycle, create-only so no
+  report can replace another). Only the strict shape in `server/src/error_schema.ts` is
+  accepted (400 otherwise, 413 over 64KB): exact keys, at most 20 snake_case context entries of
+  at most 1000 chars (`fit_context()` in the client keeps within that, since one bad value costs
+  the whole report), `build` a short hash, `dev` or `unknown`. The message alone is truncated
+  (16KB) rather than refused. The IP is CloudFront's `CloudFront-Viewer-Address`, since the first
+  `x-forwarded-for` element is whatever the caller sent; the raw execute-api URL still bypasses
+  CloudFront, so the IP (and the per-IP throttle) holds only for traffic through it. The
+  fingerprint only dedupes identical messages — grouping happens in `.bin/audit_errors`.
   **The bucket is only an inbox:** `audit_errors` deletes each report once its local copy in
   gitignored `errors/records/` is written and parses, so that directory (triage state
   included) is the *only* copy — back it up, and run the tool from one machine.
@@ -924,8 +937,10 @@ After that, every push to `main` deploys itself. The scripts still work by hand
   `Boot check: ...` report. Safari may give no `SyntaxError` for a module that fails to parse
   (as far as is known, only the `<script>` element's own error event), so don't rely on one
   The cover widget's errors are relayed over the embed protocol (`{type: 'error'}`) and reported
-  as `Cover widget: ...` with `context.source = 'cover_widget'`. Triage keeps them out of the
-  fixer and fix-commit pinning, since their code and builds belong to the bookcover repo
+  as `Cover widget: ...` with `context.source = 'cover_widget'` and `context.widget_build` (the
+  bookcover commit the widget was built from). Their code is the bookcover repo's, so triage
+  fixes them in the sibling `../paper_cover` checkout and pins them to its commits, placing
+  each later report by its `widget_build` (`repo_of()` in `errors/repos.ts`)
 - **Errors are reported, not shown.** An error can't say whether it affected the user, so
   uncaught errors (window, promise, Vue) are reported silently, and the user is told only
   about things known to matter: a failed boot (`report_error('splash')`, the one thing
@@ -941,8 +956,83 @@ After that, every push to `main` deploys itself. The scripts still work by hand
   commit → filed quietly (stale caches); with it → the issue reopens as a regression. That
   relies on the fix commit surviving into the deployed history — a squash or rebase before
   deploying breaks the ancestry, and the issue's later reports then all read as stale.
-  The background fixer (`errors/fix.ts`) refuses to start on uncommitted tracked changes, so
-  each review is exactly one fix, and never touches git itself: accepting waits for your commit
+- **Triage runs unattended.** `.bin/audit_errors` acts on each issue needing attention by a
+  fixed policy in code (`decide_action()` in `errors/analyse.ts`): suspicious issues are left, noise is cleared (it returns only if it recurs), and bugs and
+  regressions are fixed, at most 3 per run and until $20 is spent, skipping one whose last
+  failed attempt postdates its newest report. A fix (`fix_issue()` in `errors/fix.ts`) works in
+  the issue's repo (`errors/repos.ts`: this one, or `../paper_cover` for the cover widget) and
+  goes: fixer in a worktree → `check_changes()` → typechecks in the worktree (those passing at
+  HEAD there; errors go back to the fixer) → `red_flags()` → the reviewer → apply to the main checkout → that repo's CI checks
+  (here `build_typst`, typechecks and `audit_unit`; there `.bin/test` and `.bin/build_widget`,
+  leaving its browser tests to its CI, which runs them before any deploy). A failure is reverted
+  and goes back to the fixer, 3 rounds at most; a pass becomes a commit of only its files, with a
+  message written by the tool alone, and the issue is pinned to it. It's skipped while that
+  checkout has uncommitted changes, and never pushes, so pushing either repo (which deploys it)
+  stays the developer's call. Each outcome, patch and fixer prompt is kept in
+  `errors/records/prompts/`, and every triage change in `errors/records/actions.jsonl`. The
+  printed report is the tool's own JSON (ids, outcomes, commits), with no claude text in it.
+  A follow-up session uses `triage.ts` (list, show, ask, fix, set/note/clear/merge), briefed
+  by `errors/records/prompts/_brief.md`
+- **Error reports are prompt-injection input.** Anyone can POST one, and claude reads them, so
+  `.bin/audit_errors` treats their text as hostile at every step:
+  - **Validated at both ends.** The server takes only `error_schema.ts`' shape; `load_records()`
+    checks every stored record against it again, and its file path against its own fingerprint
+    and id, and `load_issues()` re-checks issue ids and caps their text (older summaries were
+    AI-written from reports). Text loses escape sequences and invisible characters (bidi, zero
+    width, Unicode tags) on the way in, and from claude's answers before they're stored or printed
+  - **Code decides what gets attention.** Grouping (`group_fingerprints()`: the stack's first
+    frame in this repo's code, resolved through the sourcemaps, or the message's text minus
+    volatile parts), ranking (`assemble_issues()`' order: regressions, then issues users were
+    shown, then most IPs) and the policy are plain code. Existing issues are never merged
+    automatically; `triage.ts merge` does it on request. A model with no tools only labels each
+    open issue bug, noise or suspicious, and no run ever acts on a suspicious one by itself
+    (`triage.ts fix` needs `--anyway`)
+  - **No claude run that reads reports can act.** The roles are split: the labeller and
+    `ask` have no tools, the fixer can't run anything, the reviewer has no tools and never sees
+    the reports, and everything that runs code, commits or changes triage is this tool's own
+    code. A detection pass alone would not do (adaptive attacks get past every published
+    injection detector), so limits like these are what the design rests on
+  - **Each claude run gets the least it needs** (all flags in `errors/claude.ts`, every run
+    `--restricted`, which drops settings files, hooks and MCP servers too). Labelling and
+    `triage.ts ask` have no tools at all and answer in a JSON schema, checked again in code. The
+    fixer works in a temp worktree of HEAD (no untracked files) with Read/Glob/Grep/Edit/Write
+    only, in `dontAsk` mode with writes allowed under its repo's `editable_dirs` alone: no shell, no
+    network, nothing outside the worktree except the main checkout's `node_modules` dirs, which
+    it may read (`--add-dir`; symlinks out of the worktree are refused). It gets the commits
+    since the newest report's build (`history_since()`), since it can't run git. A follow-up
+    session has a shell, so it never reads `errors/records/` itself: `triage.ts` gives it
+    report text only as JSON under `untrusted`, and `ask` answers through a no-tools model
+  - **Report text is fenced.** Prompts wrap it in a per-run random tag (stripped from the text,
+    so it can't close it early) between statements of `UNTRUSTED_RULE`, and every answer can
+    say "suspicious". Resolved stack frames are a field of their own, not appended text a
+    report could fake
+  - **Checked in code, whatever claude did.** `stage_changes()` stages the worktree with
+    ignore rules overridden (a fixer's own `.gitignore` can't hide a file) and
+    `check_changes()` refuses anything outside the repo's `editable_dirs`, any dot-path, package/config/
+    generated file, non-regular mode or binary. Every git call disables hooks and fsmonitor and
+    addresses the worktree by the git dir captured when it was made. Typechecking in the
+    worktree (with its `node_modules` linked in only for that) reads the patch but runs none of
+    it, and config files can't be in it. Nothing the fixer wrote runs until two gates pass
+    (`errors/gates.ts`): `red_flags()` refuses any added line with what harm would need
+    (processes, eval, network, URLs, runtime imports, system modules, `process.env`, decoding,
+    encoded strings, escapes, text addressing an AI) or more than 600 changed lines, and a
+    no-tools reviewer that sees only the patch must approve it with no concerns. Both are broad
+    on purpose: a real fix they refuse is left for the developer, which costs far less than
+    running a harmful one. `red_flags()` only lets through what can't run: comments (still read
+    for text addressing an AI), quoted strings for the call checks (unless the line has a
+    slash, backtick or `$`, where quotes can't be told apart line by line), `import()` of a
+    fixed path, and URLs whose whole host is a reserved test name (`.test`, `.invalid`,
+    `example.com`). Its tests list the ways round each that it must keep catching. Commit messages are the tool's own words, since later sessions read
+    git history as trusted
+  - **Canaries guard the flags.** `errors/canary.ts` asks each configuration outright to run a
+    command, read a secret outside its dir, write where it mustn't and fetch a URL, then checks
+    the effects itself. `ensure_verified()` runs it (on Haiku, ~30s) before the first AI run on
+    any CLI version not yet recorded in `errors/records/canary.json`, and refuses to run on a
+    failure. One known exception it can't see: claude always gives a session a scratchpad dir
+    of its own under `/tmp/claude-<uid>/`, writable even when restricted. Nothing reads or runs
+    from there, but it is a write outside the worktree
+  - **Budgets** (`BUDGET`, `--max-budget-usd`) cap every claude run, and `MAX_FIXES` /
+    `RUN_BUDGET` (`errors/analyse.ts`) each `.bin/audit_errors` run
 - **SERVER_ROLES gates routes, API Gateway gates traffic** — both must agree: every route
   (`ANY /api/{proxy+}`) goes to `paper-bible-light` (role `light`), and the `compile` role
   serves no HTTP route at all; dev defaults to both roles on one port. This is asserted

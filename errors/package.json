@@ -3,6 +3,7 @@
     "private": true,
     "type": "module",
     "dependencies": {
-        "@jridgewell/trace-mapping": "^0.3.31"
+        "@jridgewell/trace-mapping": "^0.3.31",
+        "zod": "^4.6.7"
     }
 }

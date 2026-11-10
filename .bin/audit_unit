@@ -10,6 +10,7 @@
 #   i18n                the translation tooling (app/i18n/tests), then .bin/i18n_check: no
 #                       untranslated UI text, catalogs well-formed (missing translations are
 #                       reported, not failed — see .claude/skills/translate)
+#   errors              .bin/audit_errors' defences against report text (errors/tests)
 #
 # The emulator-backed suites need auth/firestore/storage running. They use firebase_test.json —
 # its own ports and no import/export — rather than the dev emulators from .bin/serve_emulators,
@@ -21,7 +22,7 @@
 # Usage:
 #   .bin/audit_unit                 everything
 #   .bin/audit_unit typst           just that group (typst | typst-web | typst-node | app |
-#                                   rules | server | i18n)
+#                                   rules | server | i18n | errors)
 #   .bin/audit_unit rules storage   a group, plus a filter passed through to vitest
 #
 # With COVERAGE=1 each vitest run also exports raw V8 coverage, under its group name, for
@@ -106,6 +107,7 @@ run_i18n(){
 case "$GROUP" in
     all)
         run_i18n
+        run_group "errors" errors no_coverage
         run_group "typst" typst
         run_group "typst-web" typst-web
         run_group "typst-node" typst-node
@@ -136,6 +138,9 @@ case "$GROUP" in
         ;;
     i18n)
         run_i18n
+        ;;
+    errors)
+        run_group "errors" errors no_coverage
         ;;
     *)
         echo "Unknown group '$GROUP' (typst | typst-web | typst-node | app | rules | server | i18n | all)" >&2

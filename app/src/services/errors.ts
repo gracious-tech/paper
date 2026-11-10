@@ -111,6 +111,19 @@ function safe_url(href:string):string{
 }
 
 
+function fit_context(context:Record<string, string|number>):Record<string, string|number>{
+    // Keep context within what the server accepts (server/src/error_schema.ts), since a report
+    // with one value out of bounds is refused whole: at most 20 entries, strings of at most 1000
+    // chars, and finite numbers (JSON turns the rest into null)
+    return Object.fromEntries(Object.entries(context).slice(0, 20).map(([key, value]) => {
+        if (typeof value === 'number'){
+            return [key, Number.isFinite(value) ? value : String(value)]
+        }
+        return [key, String(value).slice(0, 1000)]
+    }))
+}
+
+
 function save_error(message:string, severity:'critical'|'error',
         context?:Record<string, string|number>):string{
     // Send an error report to the server (which stores it in the bucket with the caller's IP)
@@ -136,7 +149,7 @@ function save_error(message:string, severity:'critical'|'error',
                 language: navigator.language,
                 runtime_ms: new Date().getTime() - start_ms,
                 build: import.meta.env.BUILD_COMMIT,
-                context,
+                context: context && fit_context(context),
             }),
         })
     })().catch(() => undefined)  // WARN Prevent recursive errors due to failed report

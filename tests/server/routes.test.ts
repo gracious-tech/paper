@@ -289,10 +289,10 @@ describe('error reporting', () => {
         expect((result.body as {id:string}).id).toMatch(/^[A-Za-z0-9\-_~]{20}$/)
     })
 
-    it('stores a malformed report rather than rejecting it', async () => {
-        // Triage needs to see that a client is sending bad data
+    it('refuses a report outside the accepted shape', async () => {
+        // AI reads stored reports during triage, so nothing else is kept (error_schema.ts)
         const result = await post(light, '/api/report_error', 'not json at all')
-        expect(result.status).toBe(200)
+        expect(result).toEqual({status: 400, body: {error: 'invalid_report'}})
     })
 
     it('honours a client-supplied id when it is well formed', async () => {
@@ -301,22 +301,32 @@ describe('error reporting', () => {
         expect((result.body as {id:string}).id).toBe(id)
     })
 
-    it('replaces a malformed client-supplied id', async () => {
-        const result = await post(light, '/api/report_error', {message: 'x', id: 'short'})
-        expect((result.body as {id:string}).id).not.toBe('short')
+    it('stores the build a report came from, refusing one that is not a commit', async () => {
+        // .bin/audit_errors relies on it to tell a regression from a report by a stale build,
+        // and passes it to git, so nothing but a short hash (or dev/unknown) gets through
+        const id = 'B'.repeat(20)
+        await post(light, '/api/report_error', {message: 'build', id, build: 'abc1234-dirty'})
+        const path = (await list_paths('errors/')).find(name => name.endsWith(`/${id}.json`))
+        const [contents] = await admin_bucket.file(path ?? '').download()
+        expect((JSON.parse(contents.toString()) as {build:unknown}).build).toBe('abc1234-dirty')
+        const refused = await post(light, '/api/report_error', {message: 'x', build: '../../etc'})
+        expect(refused.status).toBe(400)
     })
 
-    it('stores the build a report came from, dropping a malformed one', async () => {
-        // .bin/audit_errors relies on it to tell a regression from a report by a stale build
-        const stored_build = async (id:string, build:unknown):Promise<unknown> => {
-            await post(light, '/api/report_error', {message: `build ${id}`, id, build})
-            const path = (await list_paths('errors/')).find(name => name.endsWith(`/${id}.json`))
-            expect(path).toBeDefined()
-            const [contents] = await admin_bucket.file(path ?? '').download()
-            return (JSON.parse(contents.toString()) as {build:unknown}).build
-        }
-        expect(await stored_build('B'.repeat(20), 'abc1234-dirty')).toBe('abc1234-dirty')
-        expect(await stored_build('C'.repeat(20), '../../etc')).toBeNull()
+    it('takes the address CloudFront states over one the caller put in x-forwarded-for',
+            async () => {
+        // CloudFront appends the real address to any x-forwarded-for the caller sent, so only
+        // its own CloudFront-Viewer-Address can be trusted (its port is dropped)
+        const id = 'C'.repeat(20)
+        await fetch(`${light.url}/api/report_error`, {
+            method: 'POST',
+            headers: {'Content-Type': 'application/json', 'x-forwarded-for': '192.0.2.66',
+                'cloudfront-viewer-address': '2001:db8::7:443'},
+            body: JSON.stringify({message: 'address', id}),
+        })
+        const path = (await list_paths('errors/')).find(name => name.endsWith(`/${id}.json`))
+        const [contents] = await admin_bucket.file(path ?? '').download()
+        expect((JSON.parse(contents.toString()) as {ip:unknown}).ip).toBe('2001:db8::7')
     })
 
     it('throttles a flood from one caller', async () => {

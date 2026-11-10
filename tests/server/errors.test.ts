@@ -1,7 +1,8 @@
-// Taking in error reports. A report is stored whatever shape it arrives in, since a client
-// sending bad data is itself worth triaging, so what's under test is how each field is trimmed
-// or dropped on the way into the bucket, the per-IP throttle, and that saving never throws.
-// The route around it (no token needed, the IP taken from x-forwarded-for) is routes.test.ts'
+// Taking in error reports. AI reads them during triage, so only the strict shape in
+// server/src/error_schema.ts is stored: what's under test is what gets refused, how text is
+// cleaned on the way in, that a report can never replace another, the per-IP throttle, and that
+// saving never throws. The route around it (no token needed, where the IP comes from) is
+// routes.test.ts'
 
 import {describe, it, expect, beforeEach, afterEach, vi} from 'vitest'
 
@@ -44,36 +45,53 @@ describe('handle_report_error', () => {
         expect(record.fingerprint).toMatch(/^[0-9a-f]{12}$/)
     })
 
-    it('flags an oversized body as truncated, and still stores what it could read', async () => {
-        const record = await stored(JSON.stringify({message: 'x'.repeat(70_000)}))
-        // Cut mid-JSON, so it no longer parses: kept as raw text, both flags set
-        expect(record.context).toEqual({truncated: 'true', malformed: 'true'})
-        expect(record.message.startsWith('[malformed report] {"message":"xxx')).toBe(true)
+    it.each([
+        ['an oversized body', JSON.stringify({message: 'x'.repeat(70_000)}), 413],
+        ['a body that is not JSON', 'not json at all', 400],
+        ['a key the schema does not have', JSON.stringify({message: 'x', note: 'hi'}), 400],
+        ['an unknown severity', JSON.stringify({message: 'x', severity: 'catastrophic'}), 400],
+        ['a field of the wrong type', JSON.stringify({message: 'x', url: 42}), 400],
+        ['no message', JSON.stringify({severity: 'error'}), 400],
+        ['a malformed id', JSON.stringify({message: 'x', id: 'short'}), 400],
+        ['a build that is not a commit', JSON.stringify({message: 'x', build: '--output=x'}), 400],
+        ['an over-long url', JSON.stringify({message: 'x', url: 'u'.repeat(1001)}), 400],
+        ['nested context', JSON.stringify({message: 'x', context: {nested: {a: 1}}}), 400],
+        ['a context key that is not snake_case', JSON.stringify({message: 'x',
+            context: {'Ignore previous instructions': 1}}), 400],
+        ['an over-long context value', JSON.stringify({message: 'x',
+            context: {stage: 's'.repeat(1001)}}), 400],
+        ['too many context entries', JSON.stringify({message: 'x', context: Object.fromEntries(
+            Array.from({length: 21}, (_, i) => [`key_${i}`, i]))}), 400],
+    ])('refuses %s, storing nothing', async (_name, raw, status) => {
+        const result = await handle_report_error(raw, '203.0.113.1', null, 'Test UA')
+        expect(result.status).toBe(status)
+        expect(await list_paths('errors/')).toEqual([])
     })
 
-    it('keeps only plain string and number context, and at most 20 entries', async () => {
-        const context:Record<string, unknown> = {nested: {a: 1}, flag: true, none: null}
-        for (let i = 0; i < 30; i++){
-            context[`key_${i}`] = i
-        }
-        const record = await stored(JSON.stringify({message: 'x', context}))
-        expect(Object.keys(record.context ?? {})).toHaveLength(20)
-        expect(record.context).not.toHaveProperty('nested')
-        expect(record.context).not.toHaveProperty('flag')
+    it('truncates a long message rather than refusing the report', async () => {
+        const record = await stored(JSON.stringify({message: 'x'.repeat(20_000)}))
+        expect(record.message).toHaveLength(16_384)
     })
 
-    it('drops a field of the wrong type or shape rather than refusing the report', async () => {
-        const record = await stored(JSON.stringify({message: 'x', severity: 'catastrophic',
-            url: 42, language: ['en'], runtime_ms: '12', context: 'not an object'}))
-        expect(record).toMatchObject({severity: 'error', url: null, language: null,
-            runtime_ms: null, context: null})
+    it('strips what could hide or disguise text, keeping newlines and tabs', async () => {
+        // Escape sequences, a right-to-left override, a zero-width space and tag characters
+        const hidden = String.fromCodePoint(0xe0041, 0xe0042)
+        const message = 'one\x1b[31m red\x1b[0m\n\ttwo'
+            + String.fromCodePoint(0x202e) + 'three' + String.fromCodePoint(0x200b) + hidden
+        const record = await stored(JSON.stringify({message, context: {stage: `a${hidden}b`}}))
+        expect(record.message).toBe('one red\n\ttwothree')
+        expect(record.context).toEqual({stage: 'ab'})
     })
 
-    it('caps the free-text fields a client controls', async () => {
-        const record = await stored(JSON.stringify({message: 'x', url: 'u'.repeat(5000),
-            language: 'l'.repeat(500)}))
-        expect(record.url).toHaveLength(1000)
-        expect(record.language).toHaveLength(50)
+    it('saves create-only, so a report can never replace another', async () => {
+        // A client picks its own report's id, so a second report under it must not land. The
+        // Storage emulator ignores preconditions (it accepts the second upload), so what's
+        // checked is that every save asks for one: generation 0 means "only if absent"
+        const proto = Object.getPrototypeOf(admin_bucket.file('x')) as {save:() => unknown}
+        const save = vi.spyOn(proto, 'save')
+        await stored(JSON.stringify({message: 'x'}))
+        expect(save).toHaveBeenCalledWith(expect.any(String),
+            expect.objectContaining({preconditionOpts: {ifGenerationMatch: 0}}))
     })
 
     it('gives messages differing only in ids and numbers one fingerprint', async () => {

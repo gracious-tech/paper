@@ -110,7 +110,7 @@ if (config.roles.includes('light')){
 
     // Receive an error report from the browser and store it in the bucket — no auth required
     // (errors can occur before/without sign-in) but the uid is recorded when a token is present.
-    // Only the rate limit actually refuses the request; handle_report_error itself never fails
+    // Refused when rate limited, or by handle_report_error when not in the accepted shape
     app.post('/api/report_error', async context => {
         const ip = get_client_ip(context)
         if (!report_allowed(ip)){

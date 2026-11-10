@@ -2,10 +2,10 @@ import {readFileSync} from 'node:fs'
 import {fileURLToPath} from 'node:url'
 
 import {list_error_objects, download_object, delete_object} from './bucket.ts'
-import {save_record, has_valid_record, save_synced} from './store.ts'
+import {save_record, has_valid_record, is_record_object} from './store.ts'
 
 
-// Moving reports out of the bucket, shared by the TUI (cli.ts) and the headless run (headless.ts)
+// Moving reports out of the bucket (see cli.ts)
 
 
 // Fall back to .firebaserc's default project so it doesn't need to be typed every time
@@ -36,8 +36,14 @@ export async function sync_records(bucket:string):Promise<void>{
     // Move reports from the bucket into the local store. The bucket is only an inbox: each
     // report is deleted there once its local copy is written and parses, never before, so a
     // failed download just leaves it for next time
-    const remote = (await list_error_objects(bucket)).filter(name => name.endsWith('.json'))
+    // Only objects named like a report, since the name becomes a local path (anything else is
+    // left in the bucket, where the lifecycle rule removes it)
+    const listed = await list_error_objects(bucket)
+    const remote = listed.filter(is_record_object)
     console.log(`${remote.length} new report(s) in the bucket`)
+    if (listed.length > remote.length){
+        console.warn(`(${listed.length - remote.length} object(s) not named like a report were left)`)
+    }
     let kept = 0
     for (const name of remote){
         if (!has_valid_record(name)){
@@ -52,5 +58,4 @@ export async function sync_records(bucket:string):Promise<void>{
     if (kept){
         console.warn(`${kept} report(s) didn't parse, so were left in the bucket`)
     }
-    save_synced()
 }

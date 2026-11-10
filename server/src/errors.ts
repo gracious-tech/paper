@@ -4,35 +4,19 @@ import {createHash, randomBytes} from 'node:crypto'
 import {admin_bucket} from './firebase.ts'
 import {config} from './config.ts'
 
+import {clean_text, is_ip, parse_report_body, MAX_BODY_CHARS, MAX_MESSAGE_CHARS}
+    from './error_schema.ts'
+
 import type {Context} from 'hono'
 import type {HandlerResult} from './types.ts'
+import type {ErrorRecord} from './error_schema.ts'
+
+export type {ErrorRecord} from './error_schema.ts'
 
 
-// A single reported error (browser or server), stored in the default bucket as
-// errors/{fingerprint}/{id}.json so identical repeats collapse into one prefix at list time
-// (semantic grouping of *different* messages is done later by the .bin/errors tooling with AI)
-export interface ErrorRecord {
-    id:string  // 20-char url64
-    fingerprint:string  // 12 hex chars (also the object's path prefix)
-    timestamp:string  // ISO 8601, server clock
-    source:'browser'|'server'
-    severity:'critical'|'error'|'silent'
-    message:string  // Message + stack, truncated
-    ip:string|null  // Caller's IP (first x-forwarded-for element)
-    uid:string|null  // When a valid ID token accompanied the report
-    url:string|null  // location.href (browser) / route path (server)
-    user_agent:string|null
-    language:string|null  // navigator.language (browser only)
-    runtime_ms:number|null  // Time since app load (browser only)
-    // Commit the reporting code was built from (short hash, maybe '-dirty'); null when unknown,
-    // and absent from reports that predate build stamping
-    build?:string|null
-    context:Record<string, string|number>|null  // e.g. {version_id: '...'}
-}
-
-
-// Cap stored messages so a single report can't be abused to bloat the bucket
-const MAX_MESSAGE_CHARS = 16_384
+// Taking in error reports, stored in the default bucket as errors/{fingerprint}/{id}.json so
+// identical repeats collapse into one prefix (grouping *different* messages is done later by
+// .bin/audit_errors). What a report may contain is error_schema.ts'
 
 // Per-IP report throttle (best-effort per-instance, like compile.ts' per-uid throttle)
 const THROTTLE_LIMIT = 10
@@ -41,10 +25,15 @@ const ip_reports = new Map<string, {count:number, since:number}>()
 
 
 export function get_client_ip(context:Context):string|null{
-    // The caller's IP — first x-forwarded-for element (CloudFront/API Gateway append their own
-    // hops)
-    const first = context.req.header('x-forwarded-for')?.split(',')[0]?.trim()
-    return first || null
+    // The caller's IP. CloudFront sets CloudFront-Viewer-Address ('ip:port') itself, whereas the
+    // first x-forwarded-for element is whatever the caller sent (CloudFront appends the real
+    // address after it), so that's only a fallback for where there's no CloudFront (dev, tests)
+    const viewer = context.req.header('cloudfront-viewer-address')
+    const port_at = viewer?.lastIndexOf(':') ?? -1
+    const address = viewer
+        ? (port_at > 0 ? viewer.slice(0, port_at) : viewer)
+        : context.req.header('x-forwarded-for')?.split(',')[0]?.trim()
+    return address && is_ip(address) ? address : null
 }
 
 
@@ -88,10 +77,11 @@ function fingerprint_message(message:string):string{
 export async function save_error(record:Omit<ErrorRecord, 'fingerprint'|'timestamp'>)
         :Promise<string>{
     // Store an error report in the bucket, returning its id. A record without a `build` is the
-    // server's own, so it gets this image's build (browser reports always pass theirs, even null)
+    // server's own, so it gets this image's build (browser reports always pass theirs, even null).
+    // Create-only, so a report can never replace another (a client picks its own report's id)
     // WARN Must never throw — reporting an error must not itself cause one
     try {
-        const message = record.message.slice(0, MAX_MESSAGE_CHARS)
+        const message = clean_text(record.message.slice(0, MAX_MESSAGE_CHARS))
         const full:ErrorRecord = {
             ...record,
             build: record.build === undefined ? config.build : record.build,
@@ -100,7 +90,8 @@ export async function save_error(record:Omit<ErrorRecord, 'fingerprint'|'timesta
             timestamp: new Date().toISOString(),
         }
         await admin_bucket.file(`errors/${full.fingerprint}/${full.id}.json`)
-            .save(JSON.stringify(full, undefined, 4), {contentType: 'application/json'})
+            .save(JSON.stringify(full, undefined, 4), {contentType: 'application/json',
+                resumable: false, preconditionOpts: {ifGenerationMatch: 0}})
     } catch (error){
         console.error('Failed to save error report', error)
     }
@@ -108,59 +99,32 @@ export async function save_error(record:Omit<ErrorRecord, 'fingerprint'|'timesta
 }
 
 
-// Cap the raw request body read before parsing so an oversized payload can't waste CPU/storage
-const MAX_BODY_CHARS = 64_000
-
-
 export async function handle_report_error(raw:string, ip:string|null, uid:string|null,
         user_agent:string|null):Promise<HandlerResult>{
-    // Receive a browser error report and store it in the bucket
-    // This should never itself fail to report — oversized/malformed payloads are trimmed/flagged
-    // and still saved, so triage can see the client is sending bad data, rather than the report
-    // being rejected and lost. Callers should already have applied the per-IP rate limit
-    const truncated = raw.length > MAX_BODY_CHARS
-    const text = truncated ? raw.slice(0, MAX_BODY_CHARS) : raw
-    let body:Record<string, unknown>|null = null
-    try {
-        body = JSON.parse(text) as Record<string, unknown>
-    } catch {
-        // Handled below — fall back to storing the raw text as the message
+    // Receive a browser error report and store it in the bucket. Only the shape in
+    // error_schema.ts is accepted: what's stored is later read by AI during triage, so anything
+    // else is refused rather than kept for it to read. Callers should already have applied the
+    // per-IP rate limit
+    if (raw.length > MAX_BODY_CHARS){
+        return {status: 413, body: {error: 'too_large'}}
     }
-    const malformed = typeof body?.['message'] !== 'string'
-    const message = malformed ? `[malformed report] ${text.slice(0, 500)}` : body!['message'] as string
-
-    // Loosely validate optional fields, dropping anything malformed rather than rejecting
-    const id = typeof body?.['id'] === 'string' && /^[A-Za-z0-9\-_~]{20}$/.test(body['id'] as string)
-        ? body['id'] as string : generate_error_id()
-    const severity = ['critical', 'error', 'silent'].includes(body?.['severity'] as string)
-        ? body!['severity'] as 'critical'|'error'|'silent' : 'error'
-    const extra = body?.['context'] && typeof body['context'] === 'object'
-        ? Object.fromEntries(Object.entries(body['context'] as Record<string, unknown>)
-            .filter(([, value]) => ['string', 'number'].includes(typeof value))
-            .slice(0, 20)) as Record<string, string|number>
-        : {}
-    if (truncated){
-        extra['truncated'] = 'true'
+    const report = parse_report_body(raw)
+    if (!report){
+        return {status: 400, body: {error: 'invalid_report'}}
     }
-    if (malformed){
-        extra['malformed'] = 'true'
-    }
-
-    const returned_id = await save_error({
-        id,
+    const id = await save_error({
+        id: report.id ?? generate_error_id(),
         source: 'browser',
-        severity,
-        message,
+        severity: report.severity ?? 'error',
+        message: report.message,
         ip,
         uid,
-        url: typeof body?.['url'] === 'string' ? (body['url'] as string).slice(0, 1000) : null,
-        user_agent: user_agent?.slice(0, 500) ?? null,
-        language: typeof body?.['language'] === 'string' ? (body['language'] as string).slice(0, 50)
-            : null,
-        runtime_ms: typeof body?.['runtime_ms'] === 'number' ? body['runtime_ms'] as number : null,
-        build: typeof body?.['build'] === 'string' && /^[A-Za-z0-9-]{1,50}$/.test(body['build'])
-            ? body['build'] : null,
-        context: Object.keys(extra).length ? extra : null,
+        url: report.url ?? null,
+        user_agent: user_agent === null ? null : clean_text(user_agent.slice(0, 500)),
+        language: report.language ?? null,
+        runtime_ms: report.runtime_ms ?? null,
+        build: report.build ?? null,
+        context: report.context ?? null,
     })
-    return {status: 200, body: {id: returned_id}}
+    return {status: 200, body: {id}}
 }

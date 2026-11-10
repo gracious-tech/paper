@@ -1,6 +1,6 @@
 
 import {existsSync, readFileSync} from 'node:fs'
-import {join} from 'node:path'
+import {join, posix} from 'node:path'
 
 import {TraceMap, originalPositionFor} from '@jridgewell/trace-mapping'
 
@@ -36,11 +36,23 @@ function load_map(filename:string):TraceMap|null{
 }
 
 
-export function symbolicate(message:string):string{
-    // Append resolved source locations for every minified stack frame we have an archived map
-    // for. Leaves the message itself untouched (and returns it as-is when nothing resolves) so
-    // callers can't lose the original minified reference
-    const resolved:string[] = []
+// Where the bundles (and so their maps) were built, which map sources are relative to
+const BUNDLE_DIR = 'app/dist/assets'
+
+// A minified stack frame resolved to the original source
+export interface ResolvedFrame {
+    frame:string  // As it appeared in the report, e.g. 'index-Dh7wGl6X.js:249:12345'
+    source:string  // Repo-relative path, e.g. 'app/src/services/designs.ts'
+    line:number
+    column:number
+    name:string|null  // The original identifier at that position, when the map names one
+}
+
+
+export function resolve_frames(message:string):ResolvedFrame[]{
+    // Resolve every minified stack frame in a message that we have an archived map for, in the
+    // order they appear (innermost first)
+    const resolved:ResolvedFrame[] = []
     for (const [, filename, line, column] of message.matchAll(STACK_FRAME)){
         const map = load_map(filename!)
         if (!map){
@@ -49,12 +61,20 @@ export function symbolicate(message:string):string{
         // Stack traces are 1-based line/column; trace-mapping wants a 0-based column
         const pos = originalPositionFor(map, {line: Number(line), column: Number(column) - 1})
         if (pos.source){
-            const label = pos.name ? ` (${pos.name})` : ''
-            resolved.push(`${filename}:${line}:${column} -> ${pos.source}:${pos.line}:${pos.column}${label}`)
+            resolved.push({
+                frame: `${filename}:${line}:${column}`,
+                source: posix.normalize(posix.join(BUNDLE_DIR, pos.source.replace(/\?.*$/, ''))),
+                line: pos.line,
+                column: pos.column,
+                name: pos.name,
+            })
         }
     }
-    if (!resolved.length){
-        return message
-    }
-    return `${message}\n\nResolved source locations:\n${resolved.join('\n')}`
+    return resolved
+}
+
+
+export function app_frame(frames:ResolvedFrame[]):ResolvedFrame|null{
+    // The innermost frame in this repository's own code (not a dependency), if any
+    return frames.find(frame => !frame.source.includes('node_modules/')) ?? null
 }
