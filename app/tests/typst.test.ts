@@ -180,11 +180,26 @@ describe('requests', () => {
         await expect(first).rejects.toThrow('Uncaught SyntaxError')
         await expect(second).rejects.toThrow('Uncaught SyntaxError')
 
-        // A crash with no message still says what failed
+        // A crash with no message still says what failed, whether the worker had ever run, and
+        // which request it died on
         const third = client.page_count(PDF)
         await worker().next('page_count')
         worker().onerror!(crash_event(''))
-        await expect(third).rejects.toThrow('Typst worker failed')
+        await expect(third).rejects.toThrow(
+            'Typst worker failed (after answering, during page_count)')
+    })
+
+    it('says when a crashed worker never answered anything', async () => {
+        const {TypstWorkerClient} = await import('@/services/typst')
+        const client = new TypstWorkerClient()
+        worker().postMessage = message => {
+            worker().sent.push(message)
+        }
+        const counted = client.page_count(PDF)
+        await worker().next('page_count')
+        worker().onerror!(crash_event(''))
+        await expect(counted).rejects.toThrow(
+            'Typst worker failed (before answering any request, during page_count)')
     })
 
 })

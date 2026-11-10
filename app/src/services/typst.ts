@@ -103,10 +103,13 @@ export class TypstWorkerClient {
     // Create the worker and wire up its message handlers (re-run on every recycle)
     private spawn_worker():void {
         this.worker = new Worker(new URL('./typst_worker.ts', import.meta.url), {type: 'module'})
+        // Whether this worker has answered anything, so a crash says whether its script ever ran
+        let answered = false
 
         // Resolve/reject the matching call for each result, or forward progress updates without
         // resolving (any number of these may arrive before the matching result)
         this.worker.onmessage = (event:MessageEvent<WorkerResponse>) => {
+            answered = true
             const response = event.data
             const handlers = this.pending.get(response.id)
             if (response.kind === 'progress'){
@@ -153,7 +156,12 @@ export class TypstWorkerClient {
             // Handled here, so the browser doesn't also pass it on to this page as an uncaught
             // error (reported again with nothing to say where it came from)
             event.preventDefault()
-            const error = new WorkerCrashError(event.message || 'Typst worker failed')
+            // With no message (typically the module script failing to load), say at least whether
+            // it ever ran, and which request it died on
+            const oldest = this.pending.get(Math.min(...this.pending.keys()))
+            const error = new WorkerCrashError(event.message || 'Typst worker failed'
+                + ` (${answered ? 'after answering' : 'before answering any request'}`
+                + `, during ${oldest ? oldest.action.action : 'no request'})`)
             for (const handlers of this.pending.values()){
                 handlers.reject(error)
             }
