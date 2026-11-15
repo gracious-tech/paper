@@ -26,7 +26,8 @@ vi.mock('@/services/page_estimate', () => ({
     set_page_estimate: vi.fn(),
 }))
 vi.mock('@/services/server_preview', () => ({request_server_preview: request_server}))
-vi.mock('@/services/typst', () => ({typst_generator: {value: generator}}))
+const AbandonedCompileError = vi.hoisted(() => class AbandonedCompileError extends Error {})
+vi.mock('@/services/typst', () => ({typst_generator: {value: generator}, AbandonedCompileError}))
 vi.mock('@/services/cover', () => ({
     render_cover_panels: cover.render,
     remember_previewed_cover: cover.remember,
@@ -195,6 +196,20 @@ describe('desktop_preview', () => {
         compile_window.mockRejectedValueOnce(new BrowserMemoryError('trap'))
         expect(from_browser(await preview.desktop_preview('start', () => {}))).toBe(false)
         expect(mode.compiles_on_server()).toBe(true)
+    })
+
+    it('has the server make it, unreported, when another preview abandoned its compile', async () => {
+        const {preview} = await load()
+        const {report_error} = await import('@/services/errors')
+        vi.mocked(report_error).mockClear()
+        compile_window.mockRejectedValueOnce(new AbandonedCompileError('Compile abandoned'))
+        expect(from_browser(await preview.desktop_preview('start', () => {}))).toBe(false)
+        expect(report_error).not.toHaveBeenCalled()
+
+        // Any other failure is still reported
+        compile_window.mockRejectedValueOnce(new Error('bad typst'))
+        await preview.desktop_preview('start', () => {})
+        expect(report_error).toHaveBeenCalled()
     })
 
     it('asks the server for nothing once the preview is no longer wanted', async () => {

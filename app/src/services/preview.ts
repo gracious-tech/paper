@@ -10,7 +10,7 @@ import {PREVIEW_LIMITS, svg_page_markup, cover_page_geometry, crop_cover_svg}
     from 'paper-bible-typst'
 
 import {blue} from '@/services/state'
-import {typst_generator} from '@/services/typst'
+import {typst_generator, AbandonedCompileError} from '@/services/typst'
 import {render_cover_panels, remember_previewed_cover, cover_json} from '@/services/cover'
 import {current_design_id} from '@/services/designs'
 import {compile_preview_window, render_signature, set_page_estimate}
@@ -160,9 +160,12 @@ export async function desktop_preview(section:PreviewSection, on_progress:OnProg
         return early.preview
     }
 
-    // Failed: the server makes this one instead, and running out of memory switches the device
+    // Failed: the server makes this one instead, and running out of memory switches the device.
+    // A compile given up on by another preview losing its race (see abandon) didn't fail at all
     if (early !== 'too_slow'){
-        report_error('silent', early.error, {context: {stage: 'preview'}})
+        if (!(early.error instanceof AbandonedCompileError)){
+            report_error('silent', early.error, {context: {stage: 'preview'}})
+        }
         if (early.error instanceof BrowserMemoryError){
             switch_to_server('memory')
         }
