@@ -9,7 +9,7 @@ import {migrate_version_blueprint} from 'paper-bible-typst'
 
 import {firestore, firebase_storage} from '@/services/firebase'
 import {api} from '@/services/api'
-import {user} from '@/services/auth'
+import {user, signed_in_user} from '@/services/auth'
 import {content} from '@/services/content'
 import {designs, current_design_id, until_listed} from '@/services/designs'
 import {read_wizard_state} from '@/services/new_design'
@@ -498,7 +498,7 @@ export async function record_viewed(design_id:string, version_id:string, title:s
         :Promise<void>{
     // Track that the user viewed someone else's design via a public version link, for the
     // /designs "Read access" section (they can copy it, not edit it)
-    const uid = user.value!.uid
+    const uid = (await signed_in_user()).uid
     await setDoc(doc(firestore, 'users', uid, 'viewed', design_id), {
         design_id, title, last_version_id: version_id, last_viewed: serverTimestamp(),
     }, {merge: true})
@@ -510,7 +510,9 @@ export async function has_viewed_design(design_id:string):Promise<boolean>{
     // than relying on the reactive `viewed_designs` list (designs.ts), which may not have
     // synced yet this early (DialogViewedDesign.vue uses this to only show the "Someone shared
     // this document with you" prompt the first time, not on every repeat visit)
-    const uid = user.value!.uid
+    // NOTE Auth can briefly have no user (e.g. in-app browsers dropping a persisted one), so
+    //      wait for one rather than assuming `user` is set (see signed_in_user)
+    const uid = (await signed_in_user()).uid
     const snap = await getDoc(doc(firestore, 'users', uid, 'viewed', design_id))
     return snap.exists()
 }

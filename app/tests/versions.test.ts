@@ -13,7 +13,9 @@ import {make_blueprint} from './helpers/blueprint'
 import {build_requests} from '@/services/compile_progress'
 import {versions, start_versions_sync, stop_versions_sync, until_version_settled, cover_pending,
     use_pending_clock, get_pdf_url, get_cover_pdf_url, version_pdf_link, download_version_pdf,
-    fetch_shared_version, share_version, STUCK_MS} from '@/services/versions'
+    fetch_shared_version, share_version, has_viewed_design, record_viewed, STUCK_MS}
+    from '@/services/versions'
+import {user} from '@/services/auth'
 
 import type {Blueprint, Version} from '@/services/types'
 
@@ -31,7 +33,8 @@ vi.mock('firebase/storage', () => ({
 }))
 vi.mock('@/services/firebase', () => ({firestore: {}, firebase_storage: {}, firebase_auth: {}}))
 vi.mock('@/services/api', () => ({api: vi.fn()}))
-vi.mock('@/services/auth', () => ({user: {value: {uid: 'me'}}}))
+vi.mock('@/services/auth', () => ({user: {value: {uid: 'me'}},
+    signed_in_user: async () => ({uid: 'me'})}))
 vi.mock('@/services/designs', () => ({designs: [], current_design_id: {value: null},
     until_listed: async () => undefined}))
 vi.mock('@/services/errors', () => ({report_error: mocks.report_error}))
@@ -264,6 +267,24 @@ describe('fetch_shared_version', () => {
         fake_db.docs.set('versions/v1', version_doc({title: 'Shared'}))
         expect(await fetch_shared_version('v1')).toMatchObject({id: 'v1', title: 'Shared'})
         await expect(fetch_shared_version('nope')).rejects.toThrow('not_found')
+    })
+
+})
+
+
+describe('has_viewed_design / record_viewed', () => {
+
+    it('waits for a signed-in user rather than reading a momentarily empty `user`', async () => {
+        const original = user.value
+        ;(user as {value:unknown}).value = null
+        try {
+            expect(await has_viewed_design('d1')).toBe(false)
+            await record_viewed('d1', 'v1', 'Shared')
+            expect(fake_db.docs.get('users/me/viewed/d1')).toMatchObject({last_version_id: 'v1'})
+            expect(await has_viewed_design('d1')).toBe(true)
+        } finally {
+            ;(user as {value:unknown}).value = original
+        }
     })
 
 })
