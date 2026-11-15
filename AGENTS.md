@@ -949,6 +949,12 @@ After that, every push to `main` deploys itself. The scripts still work by hand
   (`health` in `state.ts`, a banner in `AppRoot.vue`: the open design's writes stalled or
   refused — tracked in `flush_changes()` — or the Typst engine failing to start). Severity
   `critical` means the user saw one of these, which is what triage weighs it by
+- **Device-limit failures are reported on purpose, so don't silence them.** A browser compile
+  the device can't manage (`is_device_failure()`: `BrowserMemoryError`, `SlowCompileError`) and
+  `The tab died during browser work` are expected and handled: the server takes over and the
+  device switches mode. Their reports are kept anyway, as the only sign that this fallback
+  still works end to end, until the developer decides otherwise (to revisit around 2027-01).
+  Triage files them as history, never as a code fix
 - **Every report carries the `build` it came from** (short commit hash, `-dirty` if the tree
   was; `BUILD_COMMIT` from `vite.config.mts` for the browser, baked into the Lambda image by
   `.bin/build_server_lambda` for the server). An issue marked fixed/diagnosing is pinned to a
