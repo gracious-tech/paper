@@ -988,7 +988,8 @@ After that, every push to `main` deploys itself. The scripts still work by hand
     width, Unicode tags) on the way in, and from claude's answers before they're stored or printed
   - **Code decides what gets attention.** Grouping (`group_fingerprints()`: the stack's first
     frame in this repo's code, resolved through the sourcemaps, or the message's text minus
-    volatile parts), ranking (`assemble_issues()`' order: regressions, then issues users were
+    volatile parts; a first frame in a module that throws for others, like `api.ts` or the
+    worker clients in `RELAY_SOURCES`, doesn't count, since unrelated problems share it), ranking (`assemble_issues()`' order: regressions, then issues users were
     shown, then most IPs) and the policy are plain code. Existing issues are never merged
     automatically; `triage.ts merge` does it on request. A model with no tools only labels each
     open issue bug, noise or suspicious, and no run ever acts on a suspicious one by itself

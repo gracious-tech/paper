@@ -6,6 +6,7 @@ import {clean_text} from '../server/src/error_schema.ts'
 
 import type {ErrorRecord} from '../server/src/error_schema.ts'
 import type {Issue, IssueView, Label} from './store.ts'
+import type {ResolvedFrame} from './sourcemap.ts'
 
 
 // Grouping, labelling and deciding what to do with issues. Grouping is plain code, as are
@@ -24,6 +25,13 @@ const LABEL_BATCH = 10
 // A line that's part of a stack trace rather than the message (V8's 'at ...', or a
 // Safari/Firefox 'fn@url:line:col')
 const STACK_LINE = /^\s*at\s|@\S*:\d+:\d+|\.js:\d+:\d+/
+
+// Modules that raise errors on another's behalf: a failed API call (whatever the route or
+// status), or an error relayed from the Typst or cover worker. Their throw sites are shared by
+// unrelated problems, so a report whose innermost frame is in one is grouped by its message alone
+// (like a stack-trace rule excluding a wrapper's frames from grouping)
+const RELAY_SOURCES = new Set(['app/src/services/api.ts', 'app/src/services/typst.ts',
+    'app/src/services/cover.ts'])
 
 // The labelling answer's shape (lengths are enforced again in code)
 const LABEL_SCHEMA = {
@@ -61,13 +69,21 @@ function message_lines(message:string):string[]{
 }
 
 
+export function grouping_frame(frames:ResolvedFrame[]):ResolvedFrame|null{
+    // The frame a report is grouped by: its innermost in this repo's code, unless that's in a
+    // relay module, where the throw site says nothing about which problem it was
+    const frame = app_frame(frames)
+    return frame && !RELAY_SOURCES.has(frame.source) ? frame : null
+}
+
+
 export function grouping_keys(record:ErrorRecord):string[]{
     // What a report is grouped by: where its stack resolves to in this repo's code (the same
     // bug, worded differently by each browser), and its message without the stack or volatile
     // parts (the same error from builds whose line numbers moved). Normalised like the server's
     // fingerprint (see fingerprint_message() in server/src/errors.ts)
     const keys:string[] = []
-    const frame = app_frame(resolve_frames(record.message))
+    const frame = grouping_frame(resolve_frames(record.message))
     if (frame){
         keys.push(`at ${frame.source}:${frame.line}`)
     }

@@ -11,7 +11,8 @@ import {describe, it, expect, afterEach} from 'vitest'
 
 import {wrap_untrusted} from '../claude.ts'
 import {check_changes} from '../fix.ts'
-import {decide_action, group_fingerprints, MAX_FIXES, RUN_BUDGET} from '../analyse.ts'
+import {decide_action, group_fingerprints, grouping_frame, MAX_FIXES, RUN_BUDGET}
+    from '../analyse.ts'
 import {red_flags} from '../gates.ts'
 import {create_worktree, remove_worktree, stage_changes} from '../git.ts'
 import {BIBLE, COVER, dependency_dirs, repo_of} from '../repos.ts'
@@ -20,6 +21,7 @@ import {parse_error_record} from '../../server/src/error_schema.ts'
 
 import type {Action} from '../analyse.ts'
 import type {ChangedFile, Worktree} from '../git.ts'
+import type {ResolvedFrame} from '../sourcemap.ts'
 import type {IssueView} from '../store.ts'
 import type {ErrorRecord} from '../../server/src/error_schema.ts'
 
@@ -113,6 +115,26 @@ describe('group_fingerprints', () => {
         expect(grouped['one']?.fingerprints).toEqual(['aaaaaaaaaaaa', 'cccccccccccc'])
         expect(grouped['two']?.fingerprints).toEqual(['bbbbbbbbbbbb'])
     })
+})
+
+
+describe('grouping_frame', () => {
+
+    // A resolved stack frame in a source file
+    const frame = (source:string):ResolvedFrame =>
+        ({frame: 'index-x.js:1:1', source, line: 10, column: 1, name: null})
+
+    it('groups by the innermost frame in this repo\'s code', () => {
+        expect(grouping_frame([frame('node_modules/vue/x.js'),
+            frame('app/src/services/designs.ts')])?.source).toBe('app/src/services/designs.ts')
+    })
+
+    it.each(['app/src/services/api.ts', 'app/src/services/typst.ts', 'app/src/services/cover.ts'])(
+        'leaves a report thrown in the relay module %s to its message alone', source => {
+            // Not even its caller: one call site still fails in unrelated ways
+            expect(grouping_frame([frame(source), frame('app/src/services/server_preview.ts')]))
+                .toBeNull()
+        })
 })
 
 
