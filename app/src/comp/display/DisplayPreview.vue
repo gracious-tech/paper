@@ -319,6 +319,9 @@ watch(discrete_signature, () => {
 // Clean up pending work (the pages' object URLs are their component's)
 onUnmounted(() => {
     compile_debounced.cancel()
+    // A compile still running is no longer wanted: the user has left the editor, often to delete
+    // the design from the list, after which the server knows no such design to preview
+    latest_run++
 })
 
 </script>
