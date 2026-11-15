@@ -98,8 +98,9 @@ const spec = computed(() =>
     version.value ? lulu_print_spec(version.value.blueprint, version.value.pages) : null)
 
 
-// Where the books would be delivered, and how many of them
-const country = ref(guess_country())
+// Where the books would be delivered, and how many of them. The autocomplete sets null while
+// its text is cleared (on the way to typing another country), so the country can be missing
+const country = ref<string|null>(guess_country())
 const quantity = ref(1)
 
 // The current quote, and whichever of "still asking" / "couldn't quote" applies instead
@@ -158,8 +159,9 @@ async function refresh():Promise<void>{
     const sku = blueprint ? lulu_pod_package_id(blueprint) : null
     // The buttons that open this only appear for a quotable version, so a missing SKU/page
     // count can only mean the dialog was left open while the selection changed. A half-typed
-    // quantity (blank, 0, absurdly large) simply leaves the last quote up
-    if (!sku || !pages || !Number.isInteger(quantity.value) || quantity.value < 1
+    // quantity (blank, 0, absurdly large) or a cleared country simply leaves the last quote up
+    const destination = country.value
+    if (!sku || !pages || !destination || !Number.isInteger(quantity.value) || quantity.value < 1
             || quantity.value > MAX_QUANTITY){
         return
     }
@@ -167,7 +169,7 @@ async function refresh():Promise<void>{
     pending.value = true
     error.value = null
     try {
-        const result = await estimate_print_cost(sku, pages, quantity.value, country.value)
+        const result = await estimate_print_cost(sku, pages, quantity.value, destination)
         if (this_request === request_count){
             estimate.value = result
         }
@@ -221,7 +223,8 @@ watch(open, async is_open => {
 })
 
 watch([country, quantity], () => {
-    if (!open.value || seeding){
+    // A cleared country is only a step towards picking another, nothing to quote or remember
+    if (!open.value || seeding || !country.value){
         return
     }
     // The country is a deliberate choice, so it's the one worth carrying to the next design
