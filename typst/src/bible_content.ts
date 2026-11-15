@@ -127,6 +127,20 @@ export function repair_manifest(text:string):string {
 }
 
 
+// fetch-client parses a book's JSON itself, so a body that arrives cut short (reported once from
+// Safari, which usually rejects a truncated read rather than resolving with it) surfaces as a bare
+// SyntaxError naming no file. Name the file, so further reports tell one broken upstream file
+// (always the same URL) apart from connections dropped mid-download (any URL)
+export function describe_parse_failure(error:unknown, collection:BibleCollection, bible:string,
+        book:string, format:'typst'|'txt'):unknown {
+    if (!(error instanceof SyntaxError)) {
+        return error
+    }
+    const url = collection.get_book_url(bible, book, format)
+    return new SyntaxError(`Unparseable Bible book ${url}: ${error.message}`)
+}
+
+
 // Resolves user Blueprints into TypstRequests, fetching + caching Bible content as needed
 export class BibleContent {
 
@@ -240,6 +254,9 @@ export class BibleContent {
             this.on_progress?.({stage: 'fetch', label: meta.name})
         }
         const instance = await this.collection.fetch_book(bible, book, 'typst')
+            .catch((error:unknown) => {
+                throw describe_parse_failure(error, this.collection, bible, book, 'typst')
+            })
         this.books_typst.set(key, instance, estimate_bytes(instance))
         return instance
     }
@@ -264,6 +281,9 @@ export class BibleContent {
             this.on_progress?.({stage: 'fetch', label: meta.name})
         }
         const instance = await this.collection.fetch_book(bible, book, 'txt')
+            .catch((error:unknown) => {
+                throw describe_parse_failure(error, this.collection, bible, book, 'txt')
+            })
         this.books_txt.set(key, instance, estimate_bytes(instance))
         return instance
     }

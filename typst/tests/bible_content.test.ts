@@ -542,4 +542,19 @@ describe('BibleContent.fetch_book_txt', () => {
         expect(await content.fetch_book_txt('eng_a', 'exo')).toBe(null)
         expect(fetch_book).toHaveBeenCalledTimes(1)
     })
+
+    it('names the file when a book\'s content can\'t be parsed', async () => {
+        const truncated = {
+            get_books: () => ({gen: {name: 'Genesis', available: true}}),
+            get_book_url: (bible:string, book:string, format:string) =>
+                `https://assets.test/bibles/${bible}/${format}/${book}.json`,
+            fetch_book: () => Promise.reject(new SyntaxError('Unterminated string')),
+        } as unknown as BibleCollection
+        const content = new BibleContent({collection: truncated})
+        await expect(content.fetch_book_txt('eng_a', 'gen')).rejects.toThrow(
+            'Unparseable Bible book https://assets.test/bibles/eng_a/txt/gen.json: '
+                + 'Unterminated string')
+        await expect(content.fetch_book('eng_a', 'gen')).rejects.toThrow(
+            'https://assets.test/bibles/eng_a/typst/gen.json')
+    })
 })
