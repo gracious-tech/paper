@@ -329,8 +329,6 @@ describe('compile_and_upload', () => {
         expect(fake_db.added.get('compile_stats')).toMatchObject([{ok: false, pages: null}])
         expect(mocks.switch_to_server).toHaveBeenCalledWith('memory')
         expect(api_calls()).toHaveLength(1)
-        // The device's limit, not a fault to report: the switch and the stats row record it
-        expect(mocks.report_error).not.toHaveBeenCalled()
 
         // Still compiling settles nothing; the server's outcome does, once
         fake_db.emit('versions/v1')

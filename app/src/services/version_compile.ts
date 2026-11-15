@@ -532,10 +532,8 @@ export async function compile_and_upload(job:VersionCompileJob,
             }
             // In-browser path failed (or was skipped) — hand over to the server (status updates
             // then arrive via the versions Firestore sync). Not critical yet as the fallback
-            // usually works. A failure that was the device's own (see is_device_failure) is no
-            // fault of ours: it's recorded as the switch below and the compile_stats row, and a
-            // document the server can't build either is reported by the server
-            if (!(wasm_error instanceof ServerModeHandover) && !is_device_failure(wasm_error)){
+            // usually works
+            if (!(wasm_error instanceof ServerModeHandover)){
                 report_error('silent', wasm_error,
                     {context: {version_id: id, stage: 'wasm_compile'}})
             }
