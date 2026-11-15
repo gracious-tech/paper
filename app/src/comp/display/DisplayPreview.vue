@@ -67,6 +67,7 @@ import BtnGenerate from '@/comp/views/assets/BtnGenerate.vue'
 import DisplayPreviewPages from '@/comp/display/DisplayPreviewPages.vue'
 import DisplayPreviewZoom from '@/comp/display/DisplayPreviewZoom.vue'
 import {blue} from '@/services/state'
+import {current_design_id} from '@/services/designs'
 import {content} from '@/services/content'
 import {collect_passage_books, missing_book_warnings} from '@/services/blueprints'
 import {typst_generator} from '@/services/typst'
@@ -187,6 +188,14 @@ async function compile(){
     // Can't compile while a selected translation is missing a chosen book (shown as a warning
     // in place of the preview instead)
     if (missing_warnings.value.length){
+        return
+    }
+
+    // No design open: it was just closed (deleted here or by a co-editor), and resetting `blue`
+    // for it changes the blueprint, before the view gets back to the designs list. A compile
+    // still running was for that design, so is no longer wanted either (see onUnmounted)
+    if (!current_design_id.value){
+        latest_run++
         return
     }
 
